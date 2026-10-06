@@ -528,7 +528,7 @@ export const SETTINGS_SEARCH_ITEMS = [
   },
   {
     id: "legacy-sidebar",
-    title: "Sidebar (legacy)",
+    title: "模型 / 项目侧边栏",
     to: "/settings/general",
     searchTerms: ["project thread tree old flat list"],
   },

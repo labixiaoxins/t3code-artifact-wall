@@ -1811,6 +1811,21 @@ describe("shouldRefocusComposerOnWindowFocus", () => {
     expect(shouldRefocusComposerOnWindowFocus(element("BUTTON"))).toBe(true);
   });
 
+  it("keeps an opening menu focused when the window regains focus", () => {
+    const trigger = {
+      ...element("BUTTON"),
+      getAttribute: (name: string) =>
+        name === "aria-haspopup" ? "menu" : name === "aria-expanded" ? "true" : null,
+    };
+    expect(shouldRefocusComposerOnWindowFocus(trigger)).toBe(false);
+    expect(
+      shouldRefocusComposerOnWindowFocus({
+        ...trigger,
+        getAttribute: (name: string) => (name === "aria-haspopup" ? "menu" : null),
+      }),
+    ).toBe(false);
+  });
+
   it("leaves other text fields alone", () => {
     expect(shouldRefocusComposerOnWindowFocus(element("INPUT"))).toBe(false);
     expect(shouldRefocusComposerOnWindowFocus(element("TEXTAREA"))).toBe(false);

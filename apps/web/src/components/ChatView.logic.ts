@@ -1298,6 +1298,11 @@ export function shouldRefocusComposerOnWindowFocus(
   ) {
     return false;
   }
+  // A menu opens on pointer-down before aria-expanded updates or its popup receives
+  // focus. Returning to the window in that interval must not dismiss the menu.
+  if (activeElement.getAttribute("aria-haspopup") === "menu") {
+    return false;
+  }
   return (
     activeElement.closest(
       '[role="dialog"], [role="alertdialog"], [data-slot$="-popup"], [data-terminal-owner]',

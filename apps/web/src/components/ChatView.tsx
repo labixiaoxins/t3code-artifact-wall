@@ -1,3 +1,7 @@
+import { ARTIFACT_DRAG_TYPE } from "../artifactWall";
+import { fileFromArtifact } from "../lib/artifactWallClient";
+import { WallArtifact } from "@t3tools/contracts";
+import * as ArtifactSchema from "effect/Schema";
 import { ChatCanvas } from "./chat/ChatCanvas";
 import { usageLimitRecoveryBannerItem } from "./chat/UsageLimitRecoveryBanner";
 import {
@@ -284,6 +288,7 @@ import { Dialog } from "./ui/dialog";
 import { WizardPopup } from "./ui/wizard";
 import { BranchToolbar, type BranchToolbarHandle } from "./BranchToolbar";
 import { resolveShortcutCommand, shortcutLabelForCommand } from "../keybindings";
+import { DraftWorkspaceNotice } from "./chat/DraftWorkspaceNotice";
 import { makeWorkspaceFileDropHandlers } from "./chat/workspaceFileDrop";
 import { isEditableFocused } from "../lib/editableFocus";
 import ThreadTerminalDrawer from "./ThreadTerminalDrawer";
@@ -1638,6 +1643,12 @@ export default function ChatView(props: ChatViewProps) {
     editingQueuedRun === null
       ? baseComposerDraftTarget
       : queuedEditDraftTargetFor(editingQueuedRun.runId);
+  const artifactDraftKey =
+    typeof composerDraftTarget === "string"
+      ? composerDraftTarget
+      : scopedThreadKey(composerDraftTarget);
+  const artifactDraftTargetRef = useRef(artifactDraftKey);
+  artifactDraftTargetRef.current = artifactDraftKey;
   const draftThread = useComposerDraftStore((store) =>
     routeKind === "server"
       ? store.getDraftSessionByRef(routeThreadRef)
@@ -10744,6 +10755,12 @@ export default function ChatView(props: ChatViewProps) {
     ) : null
   ) : null;
   const threadDetailsPanelProps: ThreadDetailsPanelProps = {
+    onAttachArtifactFiles: (files) => {
+      if (artifactDraftTargetRef.current !== artifactDraftKey)
+        throw new Error("会话已切换，请回到原会话重新附加");
+      composerRef.current?.addDroppedFiles(files);
+      scheduleComposerFocus();
+    },
     anchor: threadPanelPopoverAnchorRef,
     handle: threadPanelPopoverHandle,
     onPresentationChange: setThreadPanelPresentation,
@@ -10960,6 +10977,41 @@ export default function ChatView(props: ChatViewProps) {
             onDragEnter={workspaceFileDropHandlers.onDragEnter}
             onDragOver={workspaceFileDropHandlers.onDragOver}
             onDragLeave={workspaceFileDropHandlers.onDragLeave}
+            onDragOverCapture={(event) => {
+              if (event.dataTransfer.types.includes(ARTIFACT_DRAG_TYPE)) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.dataTransfer.dropEffect = "copy";
+              }
+            }}
+            onDropCapture={(event) => {
+              const data = event.dataTransfer.getData(ARTIFACT_DRAG_TYPE);
+              if (!data) return;
+              event.preventDefault();
+              event.stopPropagation();
+              try {
+                const payload = JSON.parse(data) as { environmentId?: string; artifact?: unknown };
+                if (payload.environmentId !== activeThread.environmentId) return;
+                const artifact = ArtifactSchema.decodeUnknownSync(WallArtifact)(payload.artifact);
+                const target = artifactDraftKey;
+                void fileFromArtifact(activeThread.environmentId, artifact)
+                  .then((file) => {
+                    // Preserve the drop's draft if the user navigates while the file is fetched.
+                    if (artifactDraftTargetRef.current === target)
+                      composerRef.current?.addDroppedFiles([file]);
+                    else
+                      toastManager.add({
+                        title: "会话已切换，请回到原会话重新附加",
+                        type: "error",
+                      });
+                  })
+                  .catch(() =>
+                    toastManager.add({ title: "无法附加产物，请刷新后重试", type: "error" }),
+                  );
+              } catch {
+                toastManager.add({ title: "无法识别产物", type: "error" });
+              }
+            }}
             onDrop={workspaceFileDropHandlers.onDrop}
           >
             {isWorkspaceFileDragActive ? (
@@ -11194,6 +11246,14 @@ export default function ChatView(props: ChatViewProps) {
                                   ? () => onOpenRelatedThread(parentThreadLink.threadId)
                                   : null
                               }
+                            />
+                          ) : null}
+                          {!isServerThread && draftId && activeProject ? (
+                            <DraftWorkspaceNotice
+                              draftId={draftId}
+                              project={activeProject}
+                              workspacePath={activeWorkspaceRoot ?? activeProject.workspaceRoot}
+                              canChange={() => !envLocked && !sendInFlightRef.current}
                             />
                           ) : null}
                           {!composerMounted ? null : (

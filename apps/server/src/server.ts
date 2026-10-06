@@ -1,3 +1,4 @@
+import * as ArtifactWallHttp from "./artifacts/http.ts";
 import type { RelayManagedEndpointRuntimeConfig } from "@t3tools/contracts/relay";
 import * as Clock from "effect/Clock";
 import * as Random from "effect/Random";
@@ -659,6 +660,7 @@ const layerMakeRoutes = Layer.mergeAll(
     ),
     ServerHttp.layerOtlpTracesProxyRoute,
     ServerHttp.layerAssetRoute,
+    ArtifactWallHttp.layer,
     ServerHttp.layerAttachmentUploadRoute,
     DeviceHubProxy.layer,
     ServerHttp.layerStaticAndDevRoute,

@@ -1514,3 +1514,69 @@ describe("Usage shortcuts", () => {
     );
   });
 });
+
+describe("inbox.next", () => {
+  it("uses mod+shift+i on macOS and Windows and preserves terminal.toggle on mod+j", () => {
+    for (const [platform, modifier] of [
+      ["MacIntel", { metaKey: true }],
+      ["Win32", { ctrlKey: true }],
+    ] as const) {
+      for (const context of [{}, { editableFocus: true }]) {
+        assert.strictEqual(
+          resolveShortcutCommand(
+            event({ key: "i", shiftKey: true, ...modifier }),
+            DEFAULT_RESOLVED_KEYBINDINGS,
+            { platform, context },
+          ),
+          "inbox.next",
+        );
+      }
+      assert.isNull(
+        resolveShortcutCommand(event({ key: "i", ...modifier }), DEFAULT_RESOLVED_KEYBINDINGS, {
+          platform,
+        }),
+      );
+      assert.strictEqual(
+        resolveShortcutCommand(event({ key: "j", ...modifier }), DEFAULT_RESOLVED_KEYBINDINGS, {
+          platform,
+        }),
+        "terminal.toggle",
+      );
+    }
+    assert.strictEqual(
+      shortcutLabelForCommand(DEFAULT_RESOLVED_KEYBINDINGS, "inbox.next", "MacIntel"),
+      "⇧⌘I",
+    );
+  });
+  it("yields mod+shift+i to terminal focus, including an editable terminal target", () => {
+    for (const context of [{ terminalFocus: true }, { terminalFocus: true, editableFocus: true }]) {
+      assert.isNull(
+        resolveShortcutCommand(
+          event({ key: "i", metaKey: true, shiftKey: true }),
+          DEFAULT_RESOLVED_KEYBINDINGS,
+          { platform: "MacIntel", context },
+        ),
+      );
+    }
+  });
+  it("honors a user override and removes the former default shortcut", () => {
+    const bindings = mergeWithDefaultKeybindings(
+      compileResolvedKeybindingsConfig([
+        { key: "mod+alt+i", command: "inbox.next", when: "!terminalFocus" },
+      ]),
+    );
+    assert.strictEqual(
+      resolveShortcutCommand(event({ key: "i", metaKey: true, altKey: true }), bindings, {
+        platform: "MacIntel",
+        context: { editableFocus: true },
+      }),
+      "inbox.next",
+    );
+    assert.isNull(
+      resolveShortcutCommand(event({ key: "i", metaKey: true, shiftKey: true }), bindings, {
+        platform: "MacIntel",
+      }),
+    );
+    assert.strictEqual(shortcutLabelForCommand(bindings, "inbox.next", "MacIntel"), "⌥⌘I");
+  });
+});

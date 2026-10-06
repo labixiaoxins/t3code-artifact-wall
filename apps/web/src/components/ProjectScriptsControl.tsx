@@ -274,7 +274,9 @@ export default function ProjectScriptsControl({
               onClick={openAddDialog}
             >
               <PlusIcon className="size-4" />
-              <MenuItemLabel>Add project action…</MenuItemLabel>
+              <MenuItemLabel>
+                {isPanel ? "Add project script" : "Add project action…"}
+              </MenuItemLabel>
             </MenuItem>
           )}
         </>

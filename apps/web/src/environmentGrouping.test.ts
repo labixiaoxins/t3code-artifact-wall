@@ -73,6 +73,7 @@ describe("environment grouping", () => {
     });
 
     const projectGroupCount = buildSidebarProjectSnapshots({
+      workspaceCollections: false,
       projects: [primary, remote],
       settings: defaultGroupingSettings,
       primaryEnvironmentId,
@@ -102,6 +103,7 @@ describe("environment grouping", () => {
     });
     const build = (projects: Project[]) =>
       buildSidebarProjectSnapshots({
+        workspaceCollections: false,
         projects,
         settings: defaultGroupingSettings,
         primaryEnvironmentId,
@@ -201,6 +203,7 @@ describe("environment grouping", () => {
     });
 
     const snapshots = buildSidebarProjectSnapshots({
+      workspaceCollections: false,
       projects: [primary, duplicate, remote],
       settings: defaultGroupingSettings,
       primaryEnvironmentId,
@@ -231,6 +234,7 @@ describe("environment grouping", () => {
     });
 
     const snapshots = buildSidebarProjectSnapshots({
+      workspaceCollections: false,
       projects: [staleDuplicate, canonical],
       settings: defaultGroupingSettings,
       primaryEnvironmentId,
@@ -260,6 +264,7 @@ describe("environment grouping", () => {
     });
 
     const snapshots = buildSidebarProjectSnapshots({
+      workspaceCollections: false,
       projects: [staleWithoutRepositoryIdentity, canonical, remote],
       settings: defaultGroupingSettings,
       primaryEnvironmentId,
@@ -306,6 +311,7 @@ describe("environment grouping", () => {
     });
 
     const physicalToLogicalKey = buildPhysicalToLogicalProjectKeyMap({
+      workspaceCollections: false,
       projects: [staleWithoutRepositoryIdentity, canonical],
       settings: defaultGroupingSettings,
       primaryEnvironmentId,
@@ -334,6 +340,7 @@ describe("environment grouping", () => {
       workspaceRoot: "/tmp/separate",
     });
     const groups = buildSidebarProjectSnapshots({
+      workspaceCollections: false,
       projects: [separate, primary, remote],
       settings: defaultGroupingSettings,
       primaryEnvironmentId,
@@ -392,6 +399,7 @@ describe("environment grouping", () => {
       workspaceRoot: "/tmp/fallback",
     });
     const groups = buildSidebarProjectSnapshots({
+      workspaceCollections: false,
       projects: [
         currentPrimary,
         currentRemote,
@@ -449,6 +457,7 @@ describe("environment grouping", () => {
     });
 
     const groups = buildSidebarProjectSnapshots({
+      workspaceCollections: false,
       projects: orderedProjects,
       settings: defaultGroupingSettings,
       primaryEnvironmentId,

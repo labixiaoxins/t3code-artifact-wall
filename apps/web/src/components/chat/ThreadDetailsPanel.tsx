@@ -1,3 +1,5 @@
+import { ArtifactWall } from "./ArtifactWall";
+import { Menu, MenuTrigger, MenuPopup } from "../ui/menu";
 import type {
   EditorId,
   EnvironmentId,
@@ -5,7 +7,7 @@ import type {
   ResolvedKeybindingsConfig,
   ThreadId,
 } from "@t3tools/contracts";
-import { AlertTriangleIcon, XIcon } from "lucide-react";
+import { AlertTriangleIcon, MoreHorizontalIcon, XIcon } from "lucide-react";
 
 import type { DraftId } from "../../composerDraftStore";
 import { useT3ProjectFileScripts } from "../../hooks/useT3ProjectFileScripts";
@@ -43,6 +45,7 @@ export interface ThreadDetailsPanelProps extends Pick<
   environmentId: EnvironmentId;
   threadId: ThreadId;
   draftId?: DraftId;
+  onAttachArtifactFiles?: (files: File[]) => void;
   activeProjectName: string | undefined;
   activeProjectScripts: ReadonlyArray<ProjectScript> | undefined;
   preferredScriptId: string | null;
@@ -122,6 +125,13 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
     >
       {(density) => (
         <>
+          {!props.draftId && props.onAttachArtifactFiles ? (
+            <ArtifactWall
+              environmentId={props.environmentId}
+              threadId={props.threadId}
+              onAttach={props.onAttachArtifactFiles}
+            />
+          ) : null}
           <ThreadDetailsSection
             headingId="thread-details-workspace-heading"
             title="Workspace"
@@ -164,9 +174,52 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
                 />
               ) : null}
 
-              {density === "full" ? (
-                <BranchToolbar layout="panel" panelSection="workspace" {...branchToolbarProps} />
-              ) : null}
+              <div className="flex min-w-0 items-start gap-1">
+                <div className="min-w-0 flex-1">
+                  {density === "full" ? (
+                    <BranchToolbar
+                      layout="panel"
+                      panelSection="workspace"
+                      {...branchToolbarProps}
+                    />
+                  ) : null}
+                </div>
+                <Menu>
+                  <MenuTrigger
+                    render={<Button size="icon-xs" variant="ghost" aria-label="工作目录更多操作" />}
+                  >
+                    <MoreHorizontalIcon className="size-3.5" />
+                  </MenuTrigger>
+                  <MenuPopup align="end" keepMounted>
+                    {props.activeProjectScripts ? (
+                      <ProjectScriptsControl
+                        presentation="menu"
+                        displayMode="panel"
+                        scripts={props.activeProjectScripts}
+                        fileScripts={fileScripts}
+                        keybindings={props.keybindings}
+                        preferredScriptId={props.preferredScriptId}
+                        onRunScript={props.onRunProjectScript}
+                        onAddScript={props.onAddProjectScript}
+                        onUpdateScript={props.onUpdateProjectScript}
+                        onDeleteScript={props.onDeleteProjectScript}
+                      />
+                    ) : null}
+                    {!props.isGitRepo && props.gitCwd && props.activeProjectName ? (
+                      <GitActionsControl
+                        presentation="menu"
+                        displayMode="panel"
+                        gitCwd={props.gitCwd}
+                        activeThreadRef={{
+                          environmentId: props.environmentId,
+                          threadId: props.threadId,
+                        }}
+                        {...(props.draftId ? { draftId: props.draftId } : {})}
+                      />
+                    ) : null}
+                  </MenuPopup>
+                </Menu>
+              </div>
 
               {density !== "essential" && props.showOpenInPicker ? (
                 <OpenInPicker
@@ -175,20 +228,6 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
                   availableEditors={props.availableEditors}
                   openInCwd={props.gitCwd}
                   displayMode="panel"
-                />
-              ) : null}
-
-              {props.activeProjectScripts ? (
-                <ProjectScriptsControl
-                  displayMode="panel"
-                  scripts={props.activeProjectScripts}
-                  fileScripts={fileScripts}
-                  keybindings={props.keybindings}
-                  preferredScriptId={props.preferredScriptId}
-                  onRunScript={props.onRunProjectScript}
-                  onAddScript={props.onAddProjectScript}
-                  onUpdateScript={props.onUpdateProjectScript}
-                  onDeleteScript={props.onDeleteProjectScript}
                 />
               ) : null}
             </div>
@@ -205,7 +244,7 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
                 {props.isGitRepo ? (
                   <BranchToolbar layout="panel" panelSection="branch" {...branchToolbarProps} />
                 ) : null}
-                {props.activeProjectName ? (
+                {props.activeProjectName && props.isGitRepo ? (
                   <GitActionsControl
                     displayMode="panel"
                     compact={density !== "full"}

@@ -3,6 +3,7 @@ import {
   scopedThreadKey,
   scopeThreadRef,
 } from "@t3tools/client-runtime/environment";
+import { InboxStatusMark } from "./sidebar/InboxStatusMark";
 import { useSupportsMultiplePullRequests } from "~/hooks/useSupportsMultiplePullRequests";
 
 import { pullRequestDetailToVcsStatus } from "@t3tools/client-runtime/state/pull-requests";
@@ -821,6 +822,9 @@ export function ThreadStatusLabel({
   status: ThreadStatusPill;
   compact?: boolean;
 }) {
+  if (status.label === "Pending Approval" || status.label === "Awaiting Input") {
+    return <InboxStatusMark reason={status.label === "Pending Approval" ? "待授权" : "待回答"} />;
+  }
   if (compact) {
     return (
       <Tooltip>

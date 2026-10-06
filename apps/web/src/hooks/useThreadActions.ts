@@ -15,6 +15,7 @@ import { AsyncResult } from "effect/reactivity";
 import { useRouter } from "@tanstack/react-router";
 import { useCallback, useMemo, useRef } from "react";
 
+import { subtaskDescendants, mutateSubtasks } from "../sidebarSubtasks";
 import { getFallbackThreadIdAfterDelete, pinOrderKeyBetween } from "../components/Sidebar.logic";
 import { useComposerDraftStore } from "../composerDraftStore";
 import { terminalEnvironment } from "../state/terminal";
@@ -362,6 +363,7 @@ export function useThreadActions() {
         );
       }
 
+      const childrenToArchive = subtaskDescendants(readThreadShells(), thread, false);
       const currentRouteThreadRef = getCurrentRouteThreadRef();
       const shouldNavigateToDraft =
         currentRouteThreadRef?.threadId === threadRef.threadId &&
@@ -381,6 +383,34 @@ export function useThreadActions() {
       }
       refreshArchivedThreadsForEnvironment(threadRef.environmentId);
       opts.onArchived?.();
+      const childFailures = await mutateSubtasks(
+        childrenToArchive,
+        async (child) => {
+          if (!threadRuntimeCanArchive(child.runtime))
+            return AsyncResult.failure(
+              Cause.fail(
+                new ThreadArchiveBlockedError({
+                  environmentId: child.environmentId,
+                  threadId: child.id,
+                }),
+              ),
+            );
+          return await archiveThreadMutation({
+            environmentId: child.environmentId,
+            input: { threadId: child.id },
+          });
+        },
+        (result) => result._tag === "Failure",
+      );
+      if (childrenToArchive.length) refreshArchivedThreadsForEnvironment(threadRef.environmentId);
+      if (childFailures.length)
+        toastManager.add(
+          stackedThreadToast({
+            type: "error",
+            title: `父会话已归档，有 ${childFailures.length} 个子任务归档失败`,
+            description: childFailures.map(({ thread }) => thread.title).join("、"),
+          }),
+        );
       showThreadUndoNotice({
         action: "Archived",
         claim: action,
