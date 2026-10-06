@@ -27,6 +27,12 @@ vi.mock("./ThreadAutomationsPanel", () => ({
 vi.mock("./ThreadRelationshipsControl", () => ({
   ThreadRelationshipsPanel: () => null,
 }));
+vi.mock("../ui/menu", () => ({
+  Menu: ({ children }: { children: React.ReactNode }) => children,
+  MenuPopup: ({ children }: { children: React.ReactNode }) => children,
+  MenuTrigger: () => null,
+}));
+
 vi.mock("./ThreadDetailsCard", () => ({
   ThreadDetailsCard: ({ children }: { children: (density: "full") => React.ReactNode }) =>
     children("full"),

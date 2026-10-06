@@ -63,7 +63,7 @@ const TRANSCRIPT_PREFIX_BYTES = 32 * 1024;
 /** Small reads avoid wasting the metadata budget on long Codex instruction headers. */
 const METADATA_READ_BYTES = 8 * 1024;
 /** Prevent malformed transcripts from turning project discovery into a full file scan. */
-const MAX_TRANSCRIPT_SCAN_BYTES = 1024 * 1024;
+const MAX_TRANSCRIPT_SCAN_BYTES = 4 * 1024 * 1024;
 
 /**
  * Upper bound on transcripts inspected (first line read) per source.
@@ -78,11 +78,10 @@ const MAX_TRANSCRIPTS_PER_SOURCE = 5000;
  * and candidate stats share a larger budget. Once it runs out the scan stops.
  */
 const MAX_DISCOVERY_OPERATIONS_PER_SOURCE = MAX_TRANSCRIPTS_PER_SOURCE * 4;
-const MAX_METADATA_BYTES_PER_SOURCE = 64 * 1024 * 1024;
+const MAX_METADATA_BYTES_PER_SOURCE = 128 * 1024 * 1024;
 const MAX_METADATA_OPERATIONS_PER_SOURCE = MAX_TRANSCRIPTS_PER_SOURCE * 4;
 const MAX_METADATA_RECORDS_PER_SOURCE = 100_000;
 const MAX_METADATA_RECORDS_PER_TRANSCRIPT = 1_000;
-const RECENT_THREAD_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 /**
  * Large tool results (especially screenshots) can make an otherwise ordinary
  * Codex transcript several GiB. Streaming field selection avoids allocating
@@ -136,6 +135,9 @@ const TranscriptRecord = Schema.Struct({
 });
 
 const decodeClaudeSettings = Schema.decodeUnknownOption(ClaudeSettings);
+const decodeCodexTitleIndex = Schema.decodeUnknownOption(
+  Schema.fromJsonString(Schema.Struct({ id: Schema.String, thread_name: Schema.String })),
+);
 const decodeCodexSettings = Schema.decodeUnknownOption(CodexSettings);
 const decodeTranscriptRecord = Schema.decodeUnknownOption(Schema.fromJsonString(TranscriptRecord));
 const decodeTranscriptValue = Schema.decodeUnknownOption(TranscriptRecord);
@@ -145,6 +147,7 @@ const decodeCodexTurnMetadata = Schema.decodeUnknownOption(CodexTurnMetadata);
 type DecodedTranscriptRecord = typeof TranscriptRecord.Type;
 
 interface AgentSessionTranscriptMetadata {
+  readonly preferredTitles?: ReadonlyMap<string, string> | undefined;
   readonly source: AgentSessionSource;
   readonly providerInstanceId: ProviderInstanceId;
   readonly fallbackSessionId: string;
@@ -492,13 +495,37 @@ function parseAgentSessionRecords(
   const retainedMessages = firstUserMessageRetained
     ? visibleMessages
     : [visibleFirstUserMessage, ...visibleMessages.slice(-(MAX_IMPORTED_MESSAGES - 1))];
-  const derivedTitle = visibleFirstUserMessage.text.trim().split("\n")[0]?.slice(0, 100).trim();
+  const derivedTitle =
+    retainedMessages
+      .filter((message) => message.role === "user")
+      .map((message) => {
+        const text = message.text
+          .replace(
+            /<(environment_context|system-reminder|recommended_plugins|skills_instructions)>[\s\S]*?<\/\1>/gi,
+            "",
+          )
+          .trim();
+        if (/^(#\s*AGENTS\.md|<INSTRUCTIONS>|<permissions instructions>)/i.test(text)) return "";
+        return (
+          text
+            .split("\n")
+            .find((line) => line.trim().length > 0)
+            ?.slice(0, 100)
+            .trim() ?? ""
+        );
+      })
+      .find(Boolean) ?? `历史会话 · ${fallbackTimestamp.slice(0, 10)}`;
 
   return {
     source: input.source,
     providerInstanceId: input.providerInstanceId,
     providerSessionId,
-    title: title ?? (derivedTitle && derivedTitle.length > 0 ? derivedTitle : "Imported thread"),
+    title:
+      model === "codex-auto-review"
+        ? `自动审批 · ${fallbackTimestamp.slice(0, 16).replace("T", " ")} · ${providerSessionId.slice(-6)}`
+        : (input.preferredTitles?.get(providerSessionId) ??
+          title ??
+          (derivedTitle && derivedTitle.length > 0 ? derivedTitle : "Imported thread")),
     model,
     createdAt: retainedMessages[0]?.createdAt ?? fallbackTimestamp,
     updatedAt: fallbackTimestamp,
@@ -627,6 +654,9 @@ export const make = Effect.gen(function* () {
   const projectStore = yield* ProjectStore.ProjectStoreV2;
   const baseDir = path.resolve(serverConfig.baseDir);
   const worktreesDir = path.resolve(serverConfig.worktreesDir);
+  const realWorktreesDir = yield* fileSystem
+    .realPath(worktreesDir)
+    .pipe(Effect.orElseSucceed(() => worktreesDir));
   // Windows filesystems are case-insensitive, so path prefix checks there
   // must case fold.
   const foldWorktreeCase = (yield* HostProcessPlatform) === "win32";
@@ -638,13 +668,8 @@ export const make = Effect.gen(function* () {
       normalizeProjectPathForComparison(path.resolve(directory)),
     ),
   );
-  // Codex creates one scratch directory per conversation under
-  // ~/Documents/Codex/<date>/<slug>. Neither those nor anything a user
-  // unpacked into Downloads is a project.
-  const excludedProjectAncestors = [
-    path.join(homeDir, "Downloads"),
-    path.join(homeDir, "Documents", "Codex"),
-  ];
+  // Date-based Codex workspaces also carry user history and must be offered.
+  const excludedProjectAncestors = [path.join(homeDir, "Downloads")];
 
   const isExcludedProjectPath = (candidatePath: string) =>
     excludedProjectRoots.has(normalizeProjectPathForComparison(candidatePath)) ||
@@ -656,7 +681,8 @@ export const make = Effect.gen(function* () {
     normalizeForWorktreeMatch(candidatePath, foldWorktreeCase).startsWith(
       normalizeForWorktreeMatch(baseDir, foldWorktreeCase),
     ) ||
-    isT3ManagedWorktree(candidatePath, worktreesDir, foldWorktreeCase);
+    isT3ManagedWorktree(candidatePath, worktreesDir, foldWorktreeCase) ||
+    isT3ManagedWorktree(candidatePath, realWorktreesDir, foldWorktreeCase);
 
   const listDirectory = (directory: string) =>
     fileSystem.readDirectory(directory).pipe(Effect.orElseSucceed((): ReadonlyArray<string> => []));
@@ -1035,6 +1061,30 @@ export const make = Effect.gen(function* () {
           }
         }
       }
+      // Archived Codex sessions are equally part of the user's project history.
+      const archiveDir = path.join(homePath, "archived_sessions");
+      for (const entry of (yield* readDirectory(archiveDir)).toSorted().toReversed()) {
+        if (!entry.startsWith("rollout-") || !entry.endsWith(".jsonl")) continue;
+        if (operationsRemaining <= 0) {
+          truncated = true;
+          break;
+        }
+        operationsRemaining -= 1;
+        const filePath = path.join(archiveDir, entry);
+        const stats = yield* statOption(filePath);
+        if (
+          Option.isSome(stats) &&
+          stats.value.type === "File" &&
+          Option.isSome(stats.value.mtime)
+        ) {
+          transcripts.push({
+            filePath,
+            mtimeMs: stats.value.mtime.value.getTime(),
+            providerInstanceId,
+            size: Number(stats.value.size),
+          });
+        }
+      }
       return { transcripts, truncated };
     },
   );
@@ -1081,6 +1131,8 @@ export const make = Effect.gen(function* () {
       transcripts: group.transcripts,
     }));
   });
+
+  const preferredCodexTitles = new Map<string, string>();
 
   const collectCandidates = Effect.fn("AgentSessionScanner.collectCandidates")(function* () {
     const settings = yield* serverSettings.getSettings.pipe(
@@ -1148,6 +1200,22 @@ export const make = Effect.gen(function* () {
             Effect.provideService(Path.Path, path),
           );
           homePath = layout.sharedHomePath;
+          const titleIndexPath = path.join(homePath, "session_index.jsonl");
+          const indexStats = yield* statOption(titleIndexPath);
+          if (Option.isSome(indexStats) && Number(indexStats.value.size) <= 16 * 1024 * 1024) {
+            const indexText = yield* fileSystem
+              .readFileString(titleIndexPath)
+              .pipe(Effect.orElseSucceed(() => ""));
+            for (const line of indexText.split("\n")) {
+              // Codex may still be appending its final index line.
+              const decoded = decodeCodexTitleIndex(line);
+              if (Option.isNone(decoded)) continue;
+              const entry = decoded.value;
+              const title = entry.thread_name.trim();
+              if (title && !/^(#\s*AGENTS\.md|<|# Files mentioned)/i.test(title))
+                preferredCodexTitles.set(entry.id, title.slice(0, 120));
+            }
+          }
         }
 
         const homeKey = `${source}\0${yield* directoryIdentity(homePath)}`;
@@ -1334,7 +1402,6 @@ export const make = Effect.gen(function* () {
     if (isExcludedProjectPath(root) || isExcludedProjectPath(realRoot)) return Stream.empty;
     const rootIdentity = yield* directoryIdentity(root);
     const nowMs = DateTime.toEpochMillis(yield* DateTime.now);
-    const cutoffMs = nowMs - RECENT_THREAD_WINDOW_MS;
 
     const candidates = cachedCandidates ?? (yield* collectCandidates()).candidates;
     cachedCandidates = candidates;
@@ -1350,11 +1417,7 @@ export const make = Effect.gen(function* () {
       if ((yield* directoryIdentity(resolved)) !== rootIdentity) continue;
 
       for (const transcript of candidate.transcripts) {
-        if (
-          transcript.mtimeMs === null ||
-          transcript.mtimeMs < cutoffMs ||
-          transcript.mtimeMs > nowMs
-        ) {
+        if (transcript.mtimeMs === null || transcript.mtimeMs > nowMs) {
           continue;
         }
         eligibleTranscripts.push({
@@ -1451,6 +1514,7 @@ export const make = Effect.gen(function* () {
           const parsedThread = parseAgentSessionRecords(
             {
               source: candidate.source,
+              preferredTitles: candidate.source === "codex" ? preferredCodexTitles : undefined,
               providerInstanceId: candidate.providerInstanceId,
               fallbackSessionId: path.basename(transcript.filePath, ".jsonl"),
               lastActiveAtMs: transcript.mtimeMs,

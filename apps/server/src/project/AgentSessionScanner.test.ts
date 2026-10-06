@@ -840,7 +840,7 @@ it.layer(NodeServices.layer)("AgentSessionScanner", (it) => {
       }),
     );
 
-    it.effect("excludes Codex scratch directories and Downloads", () =>
+    it.effect("includes Codex historical workspaces but excludes Downloads", () =>
       Effect.gen(function* () {
         const path = yield* Path.Path;
         const fileSystem = yield* FileSystem.FileSystem;
@@ -883,7 +883,9 @@ it.layer(NodeServices.layer)("AgentSessionScanner", (it) => {
 
         const result = yield* runScan({ claudeHomePath, codexHomePath });
 
-        expect(result.candidates.map((candidate) => candidate.path)).toEqual([keep]);
+        expect(result.candidates.map((candidate) => candidate.path).sort()).toEqual(
+          [keep, scratch].sort(),
+        );
       }),
     );
 
@@ -1066,7 +1068,7 @@ it.layer(NodeServices.layer)("AgentSessionScanner", (it) => {
       }),
     );
 
-    it.effect.each([64, 65])("shares metadata bytes across homes for %s one-MiB files", (count) =>
+    it.effect.each([128, 129])("shares metadata bytes across homes for %s one-MiB files", (count) =>
       Effect.gen(function* () {
         const path = yield* Path.Path;
         const fileSystem = yield* FileSystem.FileSystem;
@@ -1104,7 +1106,7 @@ it.layer(NodeServices.layer)("AgentSessionScanner", (it) => {
               ? fileSystem.readDirectory(directory, options)
               : Effect.succeed(
                   Array.from(
-                    { length: index === 0 ? 32 : count - 32 },
+                    { length: index === 0 ? 64 : count - 64 },
                     (_, item) => `session-${item}.jsonl`,
                   ),
                 );
@@ -1141,10 +1143,10 @@ it.layer(NodeServices.layer)("AgentSessionScanner", (it) => {
           firstWorkspace,
           secondWorkspace,
         ]);
-        expect(result.candidates.map((candidate) => candidate.threadCount)).toEqual([32, 32]);
-        expect(result.truncated).toBe(count === 65 ? true : undefined);
-        expect(opens).toBe(64);
-        expect(reservedBytes).toBe(64 * 1024 * 1024);
+        expect(result.candidates.map((candidate) => candidate.threadCount)).toEqual([64, 64]);
+        expect(result.truncated).toBe(count === 129 ? true : undefined);
+        expect(opens).toBe(128);
+        expect(reservedBytes).toBe(128 * 1024 * 1024);
         expect(requests[0]).toBe(8 * 1024);
         expect(Math.max(...requests)).toBe(8 * 1024);
       }),
@@ -1348,6 +1350,39 @@ it.layer(NodeServices.layer)("AgentSessionScanner", (it) => {
   });
 
   describe("recentThreads", () => {
+    it.effect("imports archived Codex history older than thirty days", () =>
+      Effect.gen(function* () {
+        const path = yield* Path.Path;
+        const nowMs = Date.parse("2026-08-24T12:00:00.000Z");
+        yield* TestClock.setTime(nowMs);
+        const claudeHomePath = yield* makeTempDir("t3code-archive-claude-");
+        const codexHomePath = yield* makeTempDir("t3code-archive-codex-");
+        const workspace = yield* makeTempDir("t3code-archive-workspace-");
+        yield* writeTranscript({
+          filePath: path.join(codexHomePath, "archived_sessions", "rollout-archived.jsonl"),
+          mtimeMs: nowMs - 90 * 86400000,
+          contents: [
+            encodeTranscriptRecord({
+              type: "session_meta",
+              payload: { id: "archived-session", cwd: workspace },
+            }),
+            encodeTranscriptRecord({
+              type: "event_msg",
+              payload: { type: "user_message", message: "恢复旧项目历史" },
+            }),
+          ].join("\n"),
+        });
+        const result = yield* runRecentThreads({
+          claudeHomePath,
+          codexHomePath,
+          workspaceRoot: workspace,
+        });
+        expect(result.map((thread) => [thread.providerSessionId, thread.title])).toEqual([
+          ["archived-session", "恢复旧项目历史"],
+        ]);
+      }),
+    );
+
     it.effect.each([false, true])(
       "counts terminal newlines correctly with record overflow=%s",
       (overflow) =>
@@ -1396,92 +1431,96 @@ it.layer(NodeServices.layer)("AgentSessionScanner", (it) => {
         }),
     );
 
-    it.effect("imports recent Claude and Codex sessions for the selected project only", () =>
-      Effect.gen(function* () {
-        const path = yield* Path.Path;
-        const nowMs = Date.parse("2026-08-24T12:00:00.000Z");
-        yield* TestClock.setTime(nowMs);
-        const claudeHomePath = yield* makeTempDir("t3code-claude-home-");
-        const codexHomePath = yield* makeTempDir("t3code-codex-home-");
-        const workspace = yield* makeTempDir("t3code-workspace-");
-        const otherWorkspace = yield* makeTempDir("t3code-workspace-other-");
+    it.effect(
+      "imports old and recent Claude and Codex sessions for the selected project only",
+      () =>
+        Effect.gen(function* () {
+          const path = yield* Path.Path;
+          const nowMs = Date.parse("2026-08-24T12:00:00.000Z");
+          yield* TestClock.setTime(nowMs);
+          const claudeHomePath = yield* makeTempDir("t3code-claude-home-");
+          const codexHomePath = yield* makeTempDir("t3code-codex-home-");
+          const workspace = yield* makeTempDir("t3code-workspace-");
+          const otherWorkspace = yield* makeTempDir("t3code-workspace-other-");
 
-        const claudeTranscript = (cwd: string, sessionId: string) =>
-          `${JSON.stringify({
-            type: "user",
-            cwd,
-            sessionId,
-            timestamp: "2026-08-23T12:00:00.000Z",
-            message: { role: "user", content: "Fix the project" },
-          })}\n${JSON.stringify({
-            type: "assistant",
-            sessionId,
-            timestamp: "2026-08-23T12:01:00.000Z",
-            message: { role: "assistant", content: [{ type: "text", text: "Done" }] },
-          })}\n`;
+          const claudeTranscript = (cwd: string, sessionId: string) =>
+            `${JSON.stringify({
+              type: "user",
+              cwd,
+              sessionId,
+              timestamp: "2026-08-23T12:00:00.000Z",
+              message: { role: "user", content: "Fix the project" },
+            })}\n${JSON.stringify({
+              type: "assistant",
+              sessionId,
+              timestamp: "2026-08-23T12:01:00.000Z",
+              message: { role: "assistant", content: [{ type: "text", text: "Done" }] },
+            })}\n`;
 
-        yield* writeTranscript({
-          filePath: path.join(claudeHomePath, "projects", "-selected", "claude-recent.jsonl"),
-          contents: claudeTranscript(workspace, "claude-recent"),
-          mtimeMs: nowMs - 24 * 60 * 60 * 1000,
-        });
-        yield* writeTranscript({
-          filePath: path.join(claudeHomePath, "projects", "-selected", "claude-old.jsonl"),
-          contents: claudeTranscript(workspace, "claude-old"),
-          mtimeMs: nowMs - 31 * 24 * 60 * 60 * 1000,
-        });
-        yield* writeTranscript({
-          filePath: path.join(claudeHomePath, "projects", "-other", "claude-other.jsonl"),
-          contents: claudeTranscript(otherWorkspace, "claude-other"),
-          mtimeMs: nowMs - 24 * 60 * 60 * 1000,
-        });
-        yield* writeTranscript({
-          filePath: path.join(
+          yield* writeTranscript({
+            filePath: path.join(claudeHomePath, "projects", "-selected", "claude-recent.jsonl"),
+            contents: claudeTranscript(workspace, "claude-recent"),
+            mtimeMs: nowMs - 24 * 60 * 60 * 1000,
+          });
+          yield* writeTranscript({
+            filePath: path.join(claudeHomePath, "projects", "-selected", "claude-old.jsonl"),
+            contents: claudeTranscript(workspace, "claude-old"),
+            mtimeMs: nowMs - 31 * 24 * 60 * 60 * 1000,
+          });
+          yield* writeTranscript({
+            filePath: path.join(claudeHomePath, "projects", "-other", "claude-other.jsonl"),
+            contents: claudeTranscript(otherWorkspace, "claude-other"),
+            mtimeMs: nowMs - 24 * 60 * 60 * 1000,
+          });
+          yield* writeTranscript({
+            filePath: path.join(
+              codexHomePath,
+              "sessions",
+              "2026",
+              "08",
+              "24",
+              "rollout-codex-recent.jsonl",
+            ),
+            contents: [
+              encodeTranscriptRecord({
+                type: "session_meta",
+                payload: { id: "codex-recent", cwd: workspace },
+              }),
+              encodeTranscriptRecord({
+                type: "event_msg",
+                timestamp: "2026-08-24T10:00:00.000Z",
+                payload: { type: "user_message", message: "Review this code" },
+              }),
+              encodeTranscriptRecord({
+                type: "response_item",
+                timestamp: "2026-08-24T10:01:00.000Z",
+                payload: {
+                  type: "message",
+                  role: "assistant",
+                  content: [{ type: "output_text", text: "Looks good" }],
+                },
+              }),
+            ].join("\n"),
+            mtimeMs: nowMs - 60 * 60 * 1000,
+          });
+
+          const threads = yield* runRecentThreads({
+            claudeHomePath,
             codexHomePath,
-            "sessions",
-            "2026",
-            "08",
-            "24",
-            "rollout-codex-recent.jsonl",
-          ),
-          contents: [
-            encodeTranscriptRecord({
-              type: "session_meta",
-              payload: { id: "codex-recent", cwd: workspace },
-            }),
-            encodeTranscriptRecord({
-              type: "event_msg",
-              timestamp: "2026-08-24T10:00:00.000Z",
-              payload: { type: "user_message", message: "Review this code" },
-            }),
-            encodeTranscriptRecord({
-              type: "response_item",
-              timestamp: "2026-08-24T10:01:00.000Z",
-              payload: {
-                type: "message",
-                role: "assistant",
-                content: [{ type: "output_text", text: "Looks good" }],
-              },
-            }),
-          ].join("\n"),
-          mtimeMs: nowMs - 60 * 60 * 1000,
-        });
+            workspaceRoot: workspace,
+          });
 
-        const threads = yield* runRecentThreads({
-          claudeHomePath,
-          codexHomePath,
-          workspaceRoot: workspace,
-        });
-
-        expect(threads.map((thread) => thread.providerSessionId)).toEqual([
-          "codex-recent",
-          "claude-recent",
-        ]);
-        expect(threads.map((thread) => thread.messages.map((message) => message.text))).toEqual([
-          ["Review this code", "Looks good"],
-          ["Fix the project", "Done"],
-        ]);
-      }),
+          expect(threads.map((thread) => thread.providerSessionId)).toEqual([
+            "codex-recent",
+            "claude-recent",
+            "claude-old",
+          ]);
+          expect(threads.map((thread) => thread.messages.map((message) => message.text))).toEqual([
+            ["Review this code", "Looks good"],
+            ["Fix the project", "Done"],
+            ["Fix the project", "Done"],
+          ]);
+        }),
     );
 
     it.effect("imports history recorded with a case alias", () =>
@@ -3077,7 +3116,7 @@ describe("parseAgentSessionTranscript", () => {
       lastActiveAtMs: Date.parse("2026-08-25T08:00:00.000Z"),
     });
 
-    expect(thread?.title).toBe("<environment_context>");
+    expect(thread?.title).toBe("Initialize Git and add a README.");
     expect(thread?.messages.map((message) => message.text)).toEqual([
       context,
       "Initialize Git and add a README.",
@@ -3104,7 +3143,7 @@ describe("parseAgentSessionTranscript", () => {
       lastActiveAtMs: Date.parse("2026-08-25T08:00:00.000Z"),
     });
 
-    expect(thread?.title).toBe("<environment_context>");
+    expect(thread?.title).toBe("Create a useful project.");
     expect(thread?.messages.map((message) => message.text)).toEqual([prompt]);
   });
 

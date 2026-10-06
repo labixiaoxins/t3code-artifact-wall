@@ -627,7 +627,7 @@ export interface ThreadStatusPill {
   label:
     | "Working"
     | "Connecting"
-    | "Completed"
+    | "有新结果"
     | "Pending Approval"
     | "Awaiting Input"
     | "Waiting"
@@ -644,7 +644,7 @@ const THREAD_STATUS_PRIORITY: Record<ThreadStatusPill["label"], number> = {
   Connecting: 3,
   Waiting: 2.5,
   "Plan Ready": 2,
-  Completed: 1,
+  有新结果: 1,
 };
 
 type ThreadStatusInput = Pick<
@@ -1231,7 +1231,7 @@ export function resolveThreadStatusPill(input: {
 
   if (hasUnseenCompletion(thread)) {
     return {
-      label: "Completed",
+      label: "有新结果",
       colorClass: "text-emerald-600 dark:text-emerald-300/90",
       dotClass: "bg-emerald-500 dark:bg-emerald-300/90",
       pulse: false,

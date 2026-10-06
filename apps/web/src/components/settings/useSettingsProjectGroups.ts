@@ -6,7 +6,7 @@ import { buildSidebarProjectSnapshots } from "../../sidebarProjectGrouping";
 import { useEnvironments, usePrimaryEnvironmentId } from "../../state/environments";
 import { useProjects } from "../../state/entities";
 
-/** Settings uses the same logical projects as the sidebar, sorted by display name. */
+/** Settings targets real workspace groups; sidebar collections are presentation only. */
 export function useSettingsProjectGroups() {
   const projects = useProjects();
   const settings = useClientSettings(selectProjectGroupingSettings);
@@ -16,6 +16,7 @@ export function useSettingsProjectGroups() {
     const labels = new Map(environments.map((entry) => [entry.environmentId, entry.label]));
     return buildSidebarProjectSnapshots({
       projects,
+      workspaceCollections: false,
       settings,
       primaryEnvironmentId,
       resolveEnvironmentLabel: (id) => labels.get(id) ?? null,

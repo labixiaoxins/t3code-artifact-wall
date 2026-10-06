@@ -1,5 +1,6 @@
 import type { EnvironmentId, ScopedProjectRef } from "@t3tools/contracts";
 import { buildProjectGroups, type ProjectGroupingSettings } from "./logicalProject";
+import { buildWorkspaceCollections } from "./workspaceCollections";
 import type { Project } from "./types";
 
 export type EnvironmentPresence = "local-only" | "remote-only" | "mixed";
@@ -10,6 +11,10 @@ export interface SidebarProjectGroupMember extends Project {
 }
 
 export interface SidebarProjectSnapshot extends Project {
+  sourceProjectKey?: string;
+  providerLabel?: string;
+  providerThreadKeys?: ReadonlySet<string>;
+  providerModelSelection?: Project["defaultModelSelection"];
   projectKey: string;
   displayName: string;
   groupedProjectCount: number;
@@ -49,9 +54,12 @@ export function buildPhysicalToLogicalProjectKeyMap(input: {
   projects: ReadonlyArray<Project>;
   settings: ProjectGroupingSettings;
   primaryEnvironmentId: EnvironmentId | null;
+  workspaceCollections?: boolean;
 }): Map<string, string> {
   const mapping = new Map<string, string>();
-  const groups = buildProjectGroups({
+  const buildGroups =
+    input.workspaceCollections === false ? buildProjectGroups : buildWorkspaceCollections;
+  const groups = buildGroups({
     projects: input.projects,
     settings: input.settings,
     preferredEnvironmentId: input.primaryEnvironmentId,
@@ -69,6 +77,7 @@ export function buildSidebarProjectSnapshots(input: {
   settings: ProjectGroupingSettings;
   primaryEnvironmentId: EnvironmentId | null;
   resolveEnvironmentLabel: (environmentId: EnvironmentId) => string | null;
+  workspaceCollections?: boolean;
   // Returns true when an env id maps to a desktop-local saved-env
   // record. Defaults to "false for every
   // env" so callers that don't care about the distinction get the
@@ -76,7 +85,9 @@ export function buildSidebarProjectSnapshots(input: {
   isDesktopLocalEnvironment?: (environmentId: EnvironmentId) => boolean;
   isWslEnvironment?: (environmentId: EnvironmentId) => boolean;
 }): SidebarProjectSnapshot[] {
-  return buildProjectGroups({
+  const buildGroups =
+    input.workspaceCollections === false ? buildProjectGroups : buildWorkspaceCollections;
+  return buildGroups({
     projects: input.projects,
     settings: input.settings,
     preferredEnvironmentId: input.primaryEnvironmentId,
@@ -119,6 +130,7 @@ export function buildSidebarProjectSnapshots(input: {
 
     return {
       ...representative,
+      title: group.label,
       projectKey: group.key,
       displayName: group.label,
       groupedProjectCount: members.length,

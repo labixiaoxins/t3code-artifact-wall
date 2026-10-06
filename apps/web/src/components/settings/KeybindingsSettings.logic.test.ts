@@ -17,6 +17,19 @@ import {
 } from "./KeybindingsSettings.logic";
 
 describe("KeybindingsSettings.logic", () => {
+  it("exposes inbox.next as a searchable editable command without shortcut conflicts", () => {
+    expect(buildKeybindingRows(DEFAULT_RESOLVED_KEYBINDINGS, "待我处理")).toContainEqual(
+      expect.objectContaining({
+        command: "inbox.next",
+        key: "mod+shift+i",
+        when: "!terminalFocus",
+        source: "Default",
+        conflicts: [],
+      }),
+    );
+    expect(buildKeybindingCommandOptions(DEFAULT_RESOLVED_KEYBINDINGS)).toContain("inbox.next");
+    expect(commandLabel("inbox.next")).toBe("待我处理：下一条");
+  });
   it("lists composer, provider, and pull request commands with editable defaults", () => {
     const rows = buildKeybindingRows(DEFAULT_RESOLVED_KEYBINDINGS, "");
     for (const command of [
