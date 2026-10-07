@@ -183,8 +183,8 @@ const RESPONSE_STREAMING_MODE_LABELS: Record<ResponseStreamingMode, string> = {
 
 const KEEP_AWAKE_LABELS: Record<KeepAwakeMode, string> = {
   off: "Off",
-  system: "Keep the Mac awake",
-  display: "Keep the Mac and screen awake",
+  system: "Mac only",
+  display: "Mac and screen",
 };
 
 const KEEP_AWAKE_DESCRIPTIONS: Record<KeepAwakeMode, string> = {
