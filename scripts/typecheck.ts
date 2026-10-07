@@ -8,10 +8,10 @@ import * as Effect from "effect/Effect";
 import * as NodeChildProcess from "node:child_process";
 import * as NodeURL from "node:url";
 
-function runCompiler(relativePath: string, args: ReadonlyArray<string>) {
+function runCompiler(compilerUrl: URL, args: ReadonlyArray<string>) {
   const result = NodeChildProcess.spawnSync(
     process.execPath,
-    [NodeURL.fileURLToPath(new URL(relativePath, import.meta.url)), ...args],
+    [NodeURL.fileURLToPath(compilerUrl), ...args],
     { stdio: "inherit" },
   );
   if (result.error) throw result.error;
@@ -27,12 +27,18 @@ const supportsRust =
   (platform === "linux" && architecture === "x64");
 
 if (supportsRust && extraArgs.length === 0) {
-  process.exitCode = runCompiler("../node_modules/tsc-rs/bin/tsc-rs", ["--noEmit"]);
+  process.exitCode = runCompiler(
+    new URL("./bin/tsc-rs", import.meta.resolve("tsc-rs/package.json")),
+    ["--noEmit"],
+  );
 } else {
   process.stderr.write(
     supportsRust
       ? "Custom compiler arguments use Effect-patched TypeScript.\n"
       : `tsc-rs has no ${platform}-${architecture} binary; using Effect-patched TypeScript.\n`,
   );
-  process.exitCode = runCompiler("../node_modules/typescript/bin/tsc", ["--noEmit", ...extraArgs]);
+  process.exitCode = runCompiler(
+    new URL("./bin/tsc", import.meta.resolve("typescript/package.json")),
+    ["--noEmit", ...extraArgs],
+  );
 }
