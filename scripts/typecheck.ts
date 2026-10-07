@@ -2,6 +2,7 @@
 import {
   HostProcessArchitecture,
   HostProcessArguments,
+  HostProcessEnvironment,
   HostProcessPlatform,
 } from "@t3tools/shared/hostProcess";
 import * as Effect from "effect/Effect";
@@ -22,20 +23,25 @@ function runCompiler(compilerUrl: URL, args: ReadonlyArray<string>) {
 const platform = Effect.runSync(HostProcessPlatform);
 const architecture = Effect.runSync(HostProcessArchitecture);
 const extraArgs = Effect.runSync(HostProcessArguments).slice(2);
+// `T3CODE_TYPECHECK_COMPILER=tsc` forces Effect-patched TypeScript, for example as the final
+// gate before packaging a build.
+const forceReference = Effect.runSync(HostProcessEnvironment).T3CODE_TYPECHECK_COMPILER === "tsc";
 const supportsRust =
   (platform === "darwin" && architecture === "arm64") ||
   (platform === "linux" && architecture === "x64");
 
-if (supportsRust && extraArgs.length === 0) {
+if (supportsRust && extraArgs.length === 0 && !forceReference) {
   process.exitCode = runCompiler(
     new URL("./bin/tsc-rs", import.meta.resolve("tsc-rs/package.json")),
     ["--noEmit"],
   );
 } else {
   process.stderr.write(
-    supportsRust
-      ? "Custom compiler arguments use Effect-patched TypeScript.\n"
-      : `tsc-rs has no ${platform}-${architecture} binary; using Effect-patched TypeScript.\n`,
+    forceReference
+      ? "T3CODE_TYPECHECK_COMPILER=tsc: using Effect-patched TypeScript.\n"
+      : supportsRust
+        ? "Custom compiler arguments use Effect-patched TypeScript.\n"
+        : `tsc-rs has no ${platform}-${architecture} binary; using Effect-patched TypeScript.\n`,
   );
   process.exitCode = runCompiler(
     new URL("./bin/tsc", import.meta.resolve("typescript/package.json")),

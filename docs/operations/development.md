@@ -112,6 +112,8 @@ until tsc-rs ships their binaries. Custom compiler flags also use that compiler,
 including watch mode. Keep `typescript`, `@effect/tsgo`, and the
 `effect-tsgo patch` prepare step: they provide the fallback compiler and Effect
 editor features that tsc-rs does not yet include.
+Set `T3CODE_TYPECHECK_COMPILER=tsc` to force Effect-patched TypeScript, for example as the
+final check before packaging a build.
 Marketing keeps `astro check` for Astro files.
 
 Use `vp run lint:mobile` for native mobile changes. CI owns the full suite; see
