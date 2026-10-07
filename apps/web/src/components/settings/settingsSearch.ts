@@ -365,6 +365,12 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["output token paragraph buffered wait turn legacy"],
   },
   {
+    id: "keep-awake",
+    title: "Keep awake while working",
+    to: "/settings/general",
+    searchTerms: ["sleep screen display caffeinate prevent idle running task macos"],
+  },
+  {
     id: "hide-whitespace-changes",
     title: "Hide whitespace changes",
     to: "/settings/general",

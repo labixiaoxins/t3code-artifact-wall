@@ -1128,6 +1128,10 @@ export type BackgroundActivitySettings = typeof BackgroundActivitySettings.Type;
 export const ResponseStreamingMode = Schema.Literals(["turn", "paragraph"]);
 export type ResponseStreamingMode = typeof ResponseStreamingMode.Type;
 
+/** What the server holds awake while a thread is working. See `ServerSettings.keepAwake`. */
+export const KeepAwakeMode = Schema.Literals(["off", "system", "display"]);
+export type KeepAwakeMode = typeof KeepAwakeMode.Type;
+
 /**
  * Server settings a project may override. Every other server setting is
  * environment-wide: providers, keybindings, observability, device hosts,
@@ -1264,6 +1268,14 @@ export const ServerSettings = Schema.Struct({
     Schema.withDecodingDefault(Effect.succeed("paragraph" as const)),
   ),
   enableProviderUpdateChecks: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
+  /**
+   * Keep this machine awake while any thread is working (macOS only).
+   * - `off`: never hold a wake assertion.
+   * - `system`: prevent idle system sleep; the display may still turn off.
+   * - `display`: also keep the display on.
+   * The assertion is released as soon as no run is active.
+   */
+  keepAwake: KeepAwakeMode.pipe(Schema.withDecodingDefault(Effect.succeed("display" as const))),
   // Retain the update-era key; recovery now needs an environment-owned opt-in.
   continueThreadsAfterServerUpdate: Schema.Boolean.pipe(
     Schema.withDecodingDefault(Effect.succeed(false)),
@@ -1668,6 +1680,7 @@ export const ServerSettingsPatch = Schema.Struct({
   // Server settings
   responseStreamingMode: Schema.optionalKey(ResponseStreamingMode),
   enableProviderUpdateChecks: Schema.optionalKey(Schema.Boolean),
+  keepAwake: Schema.optionalKey(KeepAwakeMode),
   continueThreadsAfterServerUpdate: Schema.optionalKey(Schema.Boolean),
   enableAgentBrowserAccess: Schema.optionalKey(Schema.Boolean),
   projectAgentBrowserAccessOverrides: Schema.optionalKey(

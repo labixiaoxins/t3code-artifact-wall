@@ -609,9 +609,23 @@ describe("ClientSettings environment identification", () => {
   });
 });
 
+describe("ServerSettings keepAwake", () => {
+  it("keeps the screen awake while working by default", () => {
+    expect(decodeServerSettings({}).keepAwake).toBe("display");
+  });
+
+  it("accepts each mode and rejects unknown ones", () => {
+    for (const mode of ["off", "system", "display"] as const) {
+      expect(decodeServerSettings({ keepAwake: mode }).keepAwake).toBe(mode);
+      expect(decodeServerSettingsPatch({ keepAwake: mode })).toEqual({ keepAwake: mode });
+    }
+    expect(() => decodeServerSettingsPatch({ keepAwake: "always" })).toThrow();
+  });
+});
+
 describe("ClientSettings sidebar", () => {
-  it("defaults to the current sidebar", () => {
-    expect(decodeClientSettings({}).legacySidebarEnabled).toBe(false);
+  it("defaults to the legacy sidebar this fork builds on", () => {
+    expect(decodeClientSettings({}).legacySidebarEnabled).toBe(true);
   });
 
   it("drops the retired sidebar v2 beta keys, resetting everyone to the default", () => {
@@ -619,7 +633,7 @@ describe("ClientSettings sidebar", () => {
       sidebarV2Enabled: false,
       sidebarV2ConfiguredByUser: true,
     });
-    expect(decoded.legacySidebarEnabled).toBe(false);
+    expect(decoded.legacySidebarEnabled).toBe(true);
     expect(decoded).not.toHaveProperty("sidebarV2Enabled");
     expect(decoded).not.toHaveProperty("sidebarV2ConfiguredByUser");
   });

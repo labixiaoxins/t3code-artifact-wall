@@ -42,6 +42,7 @@ import {
   MIN_PANEL_ANIMATION_DURATION_MS,
   MIN_PROMPT_FONT_SIZE,
   MIN_SIDEBAR_AUTO_SETTLE_AFTER_DAYS,
+  type KeepAwakeMode,
   type ResponseStreamingMode,
   MIN_TERMINAL_FONT_SIZE,
   type QuitConfirmationMode,
@@ -178,6 +179,20 @@ const ENVIRONMENT_IDENTIFICATION_LABELS: Record<EnvironmentIdentificationMode, s
 const RESPONSE_STREAMING_MODE_LABELS: Record<ResponseStreamingMode, string> = {
   turn: "Wait for the full response",
   paragraph: "Show finished paragraphs",
+};
+
+const KEEP_AWAKE_LABELS: Record<KeepAwakeMode, string> = {
+  off: "Off",
+  system: "Keep the Mac awake",
+  display: "Keep the Mac and screen awake",
+};
+
+const KEEP_AWAKE_DESCRIPTIONS: Record<KeepAwakeMode, string> = {
+  off: "Never hold the machine awake. The screen and system sleep as usual.",
+  system:
+    "While any thread is working, prevent idle system sleep. The screen can still turn off. Released when the work ends. macOS only.",
+  display:
+    "While any thread is working, keep the screen on and prevent idle sleep. Released when the work ends. macOS only.",
 };
 
 const RESPONSE_STREAMING_MODE_DESCRIPTIONS: Record<ResponseStreamingMode, string> = {
@@ -626,6 +641,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       DEFAULT_UNIFIED_SETTINGS.enableProviderUpdateChecks
         ? ["Provider update checks"]
         : []),
+      ...(settings.keepAwake !== DEFAULT_UNIFIED_SETTINGS.keepAwake ? ["Keep awake"] : []),
       ...(settings.continueThreadsAfterServerUpdate !==
       DEFAULT_UNIFIED_SETTINGS.continueThreadsAfterServerUpdate
         ? ["Continue threads after restarts"]
@@ -702,6 +718,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       settings.responseStreamingMode,
       settings.persistComposerContextStrip,
       settings.enableProviderUpdateChecks,
+      settings.keepAwake,
       settings.continueThreadsAfterServerUpdate,
       settings.sidebarAutoSettleAfterDays,
       settings.sidebarAutoSettleOnMerge,
@@ -816,6 +833,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       snoozeLimitedThreads: DEFAULT_UNIFIED_SETTINGS.snoozeLimitedThreads,
       responseStreamingMode: DEFAULT_UNIFIED_SETTINGS.responseStreamingMode,
       enableProviderUpdateChecks: DEFAULT_UNIFIED_SETTINGS.enableProviderUpdateChecks,
+      keepAwake: DEFAULT_UNIFIED_SETTINGS.keepAwake,
       continueThreadsAfterServerUpdate: DEFAULT_UNIFIED_SETTINGS.continueThreadsAfterServerUpdate,
       backgroundActivity: DEFAULT_UNIFIED_SETTINGS.backgroundActivity,
       backgroundActivityProfile: DEFAULT_UNIFIED_SETTINGS.backgroundActivityProfile,
@@ -2184,6 +2202,7 @@ export function GeneralSettingsPanel() {
   const hasServerTargets = connectedEnvironments.length > 0;
   const [backgroundActivityDialogOpen, setBackgroundActivityDialogOpen] = useState(false);
   const mixedResponseStreamingMode = useScopedSettingsMixed(["responseStreamingMode"]);
+  const mixedKeepAwake = useScopedSettingsMixed(["keepAwake"]);
   const lastEnabledProjectGroupingMode = useRef<SidebarProjectGroupingMode>(
     readLastEnabledProjectGroupingMode(),
   );
@@ -2570,6 +2589,53 @@ export function GeneralSettingsPanel() {
                 </SelectItem>
                 <SelectItem hideIndicator value="paragraph">
                   {RESPONSE_STREAMING_MODE_LABELS.paragraph}
+                </SelectItem>
+              </SelectPopup>
+            </Select>
+          }
+        />
+        <SettingsRow
+          serverScoped
+          settingKeys={["keepAwake"]}
+          {...searchableSetting("keep-awake")}
+          description={
+            mixedKeepAwake
+              ? "The selected targets use different keep-awake modes."
+              : KEEP_AWAKE_DESCRIPTIONS[settings.keepAwake]
+          }
+          resetAction={
+            settings.keepAwake !== DEFAULT_UNIFIED_SETTINGS.keepAwake ? (
+              <SettingResetButton
+                label="keep awake"
+                onClick={() => updateSettings({ keepAwake: DEFAULT_UNIFIED_SETTINGS.keepAwake })}
+              />
+            ) : null
+          }
+          control={
+            <Select
+              value={mixedKeepAwake ? null : settings.keepAwake}
+              onValueChange={(value) => {
+                if (value === "off" || value === "system" || value === "display") {
+                  updateSettings({ keepAwake: value });
+                }
+              }}
+            >
+              <SelectTrigger size="sm" className="w-full sm:w-56" aria-label="Keep awake">
+                <SelectValue>
+                  {(value: KeepAwakeMode | null) =>
+                    value === null ? "Mixed" : KEEP_AWAKE_LABELS[value]
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectPopup align="end" alignItemWithTrigger={false}>
+                <SelectItem hideIndicator value="display">
+                  {KEEP_AWAKE_LABELS.display}
+                </SelectItem>
+                <SelectItem hideIndicator value="system">
+                  {KEEP_AWAKE_LABELS.system}
+                </SelectItem>
+                <SelectItem hideIndicator value="off">
+                  {KEEP_AWAKE_LABELS.off}
                 </SelectItem>
               </SelectPopup>
             </Select>
