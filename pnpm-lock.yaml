@@ -142,8 +142,8 @@ importers:
         specifier: 6.34.0
         version: 6.34.0
       tsc-rs:
-        specifier: 0.1.0-preview.2
-        version: 0.1.0-preview.2
+        specifier: 0.1.0
+        version: 0.1.0
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
@@ -5380,14 +5380,14 @@ packages:
   '@tiptap/starter-kit@3.31.3':
     resolution: {integrity: sha512-WKof9RewdmGHvWJ1wn0/HVNG2mV+HOgVRyJkKekuM9fgr6BZAAH/xZsWE1eon+94JnQ+KtK2ThydXQM/qc6b2A==}
 
-  '@tsc-rs/darwin-arm64@0.1.0-preview.2':
-    resolution: {integrity: sha512-54+dhlgzZWDcH8Mucma63TgYp7Cr5d3mu24fiYsIUps0iocq+GgXqlhMhLJ8OlhM9GOWcu93ErkHTD6hlSCXbg==}
+  '@tsc-rs/darwin-arm64@0.1.0':
+    resolution: {integrity: sha512-VgS/GcwcSOOdSlQnpw4etSnL5xFZNwfuPIa7KtBpfC6Qg1Fg0w150s58a00Zs6D6DnDd7yBxx3XgHcyNLjzaPA==}
     engines: {node: '>=16.20.0'}
     cpu: [arm64]
     os: [darwin]
 
-  '@tsc-rs/linux-x64@0.1.0-preview.2':
-    resolution: {integrity: sha512-6ewe6eM1haFTNX5eyyjYTLJeVAH0OlHsURC6yYZEafHdtOVnRK+yZnw/mRoHHnA1FmPw6l6aXDVoEpiWrQxKww==}
+  '@tsc-rs/linux-x64@0.1.0':
+    resolution: {integrity: sha512-gzswr3ihKhkviz2ZcmkyVomXY4jqMPT4cWu/rjJqbJtMXJJHuZ9H5Eqv2fcCX9AB0i18EmPNva7Gp7NYaAdpJA==}
     engines: {node: '>=16.20.0'}
     cpu: [x64]
     os: [linux]
@@ -10833,8 +10833,8 @@ packages:
     resolution: {integrity: sha512-JfJeIHke7y2egdGGgRAvpCwYFUsHlM2gPcrVOxFkznt/4uzQ7HFmvE63iFHVLBJNDuyDOQgijDK/tXH/f6Msjg==}
     engines: {node: '>=6.10'}
 
-  tsc-rs@0.1.0-preview.2:
-    resolution: {integrity: sha512-R0dGwzkmJFrq6cSg2xcJYO6/REV7jEhQvxKSXm7pIcrj9AUMv6Rg1jFosgeYypgBrRRuKpuOCHzkDw5xlOPnoQ==}
+  tsc-rs@0.1.0:
+    resolution: {integrity: sha512-ibJNjypqagRtvc3wrQALo4VxOd0QmujczOIqMm97ioTkRuMS3UQlmX3f17IkhsLwgQ2az4UuWzfuaYliUdf3xQ==}
     engines: {node: '>=16.20.0'}
     hasBin: true
 
@@ -15848,10 +15848,10 @@ snapshots:
       '@tiptap/extensions': 3.31.3(@tiptap/core@3.31.3(@tiptap/pm@3.31.3))(@tiptap/pm@3.31.3)
       '@tiptap/pm': 3.31.3
 
-  '@tsc-rs/darwin-arm64@0.1.0-preview.2':
+  '@tsc-rs/darwin-arm64@0.1.0':
     optional: true
 
-  '@tsc-rs/linux-x64@0.1.0-preview.2':
+  '@tsc-rs/linux-x64@0.1.0':
     optional: true
 
   '@tweenjs/tween.js@23.1.3': {}
@@ -22144,10 +22144,10 @@ snapshots:
 
   ts-dedent@2.3.0: {}
 
-  tsc-rs@0.1.0-preview.2:
+  tsc-rs@0.1.0:
     optionalDependencies:
-      '@tsc-rs/darwin-arm64': 0.1.0-preview.2
-      '@tsc-rs/linux-x64': 0.1.0-preview.2
+      '@tsc-rs/darwin-arm64': 0.1.0
+      '@tsc-rs/linux-x64': 0.1.0
 
   tslib@2.8.1: {}
 

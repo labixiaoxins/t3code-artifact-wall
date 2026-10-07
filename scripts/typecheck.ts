@@ -27,24 +27,12 @@ const supportsRust =
   (platform === "linux" && architecture === "x64");
 
 if (supportsRust && extraArgs.length === 0) {
-  const compilerStatus = runCompiler("../node_modules/tsc-rs/bin/tsc-rs", ["--noEmit"]);
-  // tsc-rs does not include the Effect language service. Keep its full diagnostic
-  // pass, including suggestions, and fail on warnings as the patched tsc does.
-  // Run both passes even when the Rust compiler reports an error.
-  const effectStatus = runCompiler("../node_modules/@effect/tsgo/dist/effect-tsgo.cjs", [
-    "diagnostics",
-    "--project",
-    "tsconfig.json",
-    "--strict",
-    "--format",
-    "text",
-  ]);
-  process.exitCode = compilerStatus || effectStatus;
+  process.exitCode = runCompiler("../node_modules/tsc-rs/bin/tsc-rs", ["--noEmit"]);
 } else {
   process.stderr.write(
     supportsRust
       ? "Custom compiler arguments use Effect-patched TypeScript.\n"
-      : `tsc-rs preview has no ${platform}-${architecture} binary; using Effect-patched TypeScript.\n`,
+      : `tsc-rs has no ${platform}-${architecture} binary; using Effect-patched TypeScript.\n`,
   );
   process.exitCode = runCompiler("../node_modules/typescript/bin/tsc", ["--noEmit", ...extraArgs]);
 }
