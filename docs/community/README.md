@@ -4,7 +4,7 @@
 
 An unofficial, independently maintained fork of [pingdotgg/t3code](https://github.com/pingdotgg/t3code), MIT licensed like upstream. It is not affiliated with or endorsed by T3 Tools.
 
-Base: upstream `main` at commit `9bd1d8009` (2026-10-06). All changes are one commit on the `community/artifact-wall-main` branch, so the diff against that base is easy to review.
+Base: upstream nightly `0.0.46-nightly.20261006.2752` (commit `d8d037eae`). Changes are on the `community/artifact-wall-2752` branch as a few small commits on top of that base, so the diff is easy to review. The older `community/artifact-wall-main` branch is based on upstream `9bd1d8009` and does not include keep-awake.
 
 ## Why this fork exists
 
@@ -74,6 +74,14 @@ Upstream at the base commit has no panel that collects the files a thread or pro
 - Model (Codex / Claude / …) → category → thread, both levels collapsible; recent projects at the top; an archived entry; a history sync button.
 - `AgentSessionScanner` scans all time ranges including archived sessions, under a memory budget, and keeps native session identity.
 
+### 6. Keep awake while working (macOS)
+
+- Setting: **Settings → General → Behavior → Keep awake while working** with three options: **Mac and screen** (default), **Mac only**, **Off**.
+- The server holds a `caffeinate` assertion while any run is preparing, starting or running, and releases it as soon as none are left. Runs that only wait on a person (approval, input) or sit in the queue do **not** count, so a thread waiting overnight does not keep your Mac awake.
+- It is tied to the server process (`caffeinate -w <pid>`), so a crashed or killed server cannot leave the machine awake. Run rows older than 24 hours are ignored.
+- It lives in the server, so it also works for a headless Mac host and when the window is closed. Other platforms are unchanged.
+- Closing the lid still sleeps a laptop that has no external display; that is a macOS limit.
+
 ## Opinionated defaults you will want to edit
 
 - Category names and folder rules live in one file: [`apps/web/src/workspaceCollections.ts`](../../apps/web/src/workspaceCollections.ts). The defaults assume `~/Documents/<category>` folders (自媒体, 公司管理, 交易, …). Replace them with your own layout. The old behaviour is kept behind `workspaceCollections: false`.
@@ -95,8 +103,8 @@ Targeted suites for this fork: `apps/server/src/artifacts/*.test.ts`, `apps/serv
 
 ## What is and is not verified
 
-- Verified: typecheck, the full web test suite (442 files) and the targeted server suites on top of the base commit, plus manual checks in a sandbox with fictional data, in light and dark themes at 1280 and 1024 px.
-- Known upstream issues, not caused by this fork: 10 type errors in `apps/server/src/process/externalLauncher.test.ts` on `main`, and 6 failing server tests on a clean upstream checkout in the maintainer's environment (entrypoint symlink, install ownership, Antigravity paths).
+- Verified: typecheck, the full web test suite and the full server suite on top of the base commit, plus manual checks in a sandbox with fictional data, in light and dark themes at 1280 and 1024 px. Keep-awake was also checked end to end against a packaged build (assertion starts, switches mode, releases, and dies with the server).
+- Known upstream issues, not caused by this fork: 6 server tests fail on a clean upstream checkout in the maintainer's environment (entrypoint symlink, install ownership, Antigravity paths); they fail identically with and without this fork.
 - Used daily by the maintainer on macOS for a few days. **No long-term stability data**, no Windows/Linux testing, no testing against large artifact folders, remote access or multiple devices.
 - The phone apps are not modified. Cloud login and passkeys are not tested with this fork.
 - The desktop packaging scripts the maintainer uses are not part of this branch; build from source or package it yourself.

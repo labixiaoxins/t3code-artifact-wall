@@ -4,7 +4,7 @@
 
 基于 [pingdotgg/t3code](https://github.com/pingdotgg/t3code) 的非官方、独立维护的 fork，与上游一样使用 MIT 许可，与 T3 Tools 无隶属或背书关系。
 
-基线：官方 `main` 的 `9bd1d8009`（2026-10-06）。所有改动是 `community/artifact-wall-main` 分支上的一个提交，方便对照基线审查。
+基线：官方 nightly `0.0.46-nightly.20261006.2752`（提交 `d8d037eae`）。改动在 `community/artifact-wall-2752` 分支上，是基线之上的几个小提交，方便审查。较早的 `community/artifact-wall-main` 基于官方 `9bd1d8009`，不含防休眠。
 
 ## 为什么做
 
@@ -70,6 +70,14 @@
 - 模型（Codex / Claude / …）→ 业务分类 → 会话，两层可折叠；顶部近期项目；已归档入口；同步历史按钮。
 - `AgentSessionScanner` 扫描全部时间范围（含已归档），有内存预算，并保留原生会话身份。
 
+### 6. 任务运行时保持唤醒（macOS）
+
+- 设置：**Settings → General → Behavior → Keep awake while working**，三个选项：**Mac and screen**（默认）、**Mac only**、**Off**。
+- 只要有任务在准备、启动或运行中，服务端就持有 `caffeinate`；全部结束立即释放。只在等授权或输入、或排队中的任务**不算**，所以一个会话挂着等你一夜，不会让 Mac 整晚不睡。
+- 绑定服务端进程（`caffeinate -w <pid>`），服务端崩溃或被强杀时不会残留。超过 24 小时的运行记录会被忽略。
+- 在服务端实现，所以窗口关着、或无界面的 Mac 主机上也有效；其他平台行为不变。
+- 没接外接显示器的笔记本合盖后仍会休眠，这是 macOS 的限制。
+
 ## 需要你按自己习惯修改的默认值
 
 - 分类名和目录规则都在一个文件：[`apps/web/src/workspaceCollections.ts`](../../apps/web/src/workspaceCollections.ts)。默认假设 `~/Documents/<分类>` 目录（自媒体、公司管理、交易等），请换成你自己的结构。设置 `workspaceCollections: false` 可回到官方原有分组。
@@ -89,8 +97,8 @@ pnpm build
 
 ## 验证范围与限制
 
-- 已验证：类型检查；在基线上跑通 web 全部测试（442 个文件）和服务端相关测试；在虚构数据沙盒里做过手动检查，覆盖浅色、深色，1280 和 1024 宽度。
-- 已知的官方问题，与本 fork 无关：官方 `main` 上 `externalLauncher.test.ts` 有 10 个类型错误；在维护者环境里，干净官方代码也有 6 项服务端测试失败（入口符号链接、安装归属、Antigravity 路径）。
+- 已验证：类型检查；在基线上跑通 web 全部测试和服务端全部测试；在虚构数据沙盒里做过手动检查，覆盖浅色、深色，1280 和 1024 宽度。防休眠还对打包后的 App 做过端到端检查（启动、切换模式、释放、随服务端退出）。
+- 已知的官方问题，与本 fork 无关：在维护者环境里，干净官方代码也有 6 项服务端测试失败（入口符号链接、安装归属、Antigravity 路径），有没有本 fork 结果相同。
 - 维护者在 macOS 上日常使用了几天，**没有长期稳定性数据**；没测 Windows、Linux、大量产物文件、远程访问和多设备。
 - 手机 App 未改动；云登录和通行密钥没有用本 fork 测试。
 - 维护者自用的桌面打包脚本不在本分支里，请自行从源码构建或打包。
