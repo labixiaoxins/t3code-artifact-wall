@@ -1,9 +1,9 @@
 // @effect-diagnostics nodeBuiltinImport:off - bounded header reads and canonical inode identities.
 import * as NodeCrypto from "node:crypto";
-import * as NodeFS from "node:fs/promises";
+import * as NodeFSP from "node:fs/promises";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
-import type { WallArtifact } from "@t3tools/contracts";
+import type { WallArtifact, WallArtifactVerification } from "@t3tools/contracts";
 import { readImageDimensions } from "@t3tools/shared/imageDimensions";
 import * as Clock from "effect/Clock";
 import * as Option from "effect/Option";
@@ -22,6 +22,28 @@ import {
   excludedArtifactPath,
   type ArtifactRecord,
 } from "./collection.ts";
+import {
+  artifactRevision,
+  readArtifactVerification,
+  writeArtifactCheck,
+  type ArtifactCheckReceipt,
+} from "./verification.ts";
+
+export class ArtifactCheckRejected extends Schema.TaggedError<ArtifactCheckRejected>()(
+  "ArtifactCheckRejected",
+  {
+    reason: Schema.Literals([
+      "file_changed",
+      "evidence_missing",
+      "evidence_unfinished",
+      "evidence_outdated",
+    ]),
+  },
+) {
+  override get message() {
+    return `Artifact check rejected: ${this.reason}. Refresh the artifact list or read the original command record before retrying.`;
+  }
+}
 
 export class ArtifactWallError extends Schema.TaggedError<ArtifactWallError>()(
   "ArtifactWallError",
@@ -37,6 +59,8 @@ interface AllowedFile {
   inode: string;
   expires: number;
 }
+const isArtifactCheckRejected = Schema.is(ArtifactCheckRejected);
+const isArtifactWallError = Schema.is(ArtifactWallError);
 export class ArtifactWall extends Context.Service<
   ArtifactWall,
   {
@@ -44,6 +68,13 @@ export class ArtifactWall extends Context.Service<
       threadId: string,
       scope: "thread" | "project",
     ) => Effect.Effect<readonly WallArtifact[], ArtifactWallError>;
+    readonly recordCheck: (input: {
+      readonly threadId: string;
+      readonly path: string;
+      readonly revision: string;
+      readonly label: string;
+      readonly evidenceItemId: string;
+    }) => Effect.Effect<WallArtifactVerification, ArtifactWallError | ArtifactCheckRejected>;
     readonly open: (id: string) => Effect.Effect<
       {
         artifact: WallArtifact;
@@ -107,9 +138,9 @@ const make = Effect.gen(function* () {
           isFile: async (path) => {
             if (excludedArtifactPath(path, extraRoots)) return false;
             try {
-              const canonical = await NodeFS.realpath(path);
+              const canonical = await NodeFSP.realpath(path);
               if (excludedArtifactPath(canonical, extraRoots)) return false;
-              const stat = await NodeFS.stat(canonical);
+              const stat = await NodeFSP.stat(canonical);
               return stat.isFile() && stat.ino !== 0;
             } catch {
               return false;
@@ -126,15 +157,15 @@ const make = Effect.gen(function* () {
           try: async () => {
             if (excludedArtifactPath(candidate.path, extraRoots)) return null;
             try {
-              const canonical = await NodeFS.realpath(candidate.path);
+              const canonical = await NodeFSP.realpath(candidate.path);
               if (excludedArtifactPath(canonical, extraRoots)) return null;
-              const stat = await NodeFS.stat(canonical);
+              const stat = await NodeFSP.stat(canonical, { bigint: true });
               if (
                 !stat.isFile() ||
-                stat.ino === 0 ||
+                stat.ino === 0n ||
                 !artifactReferenceIsFresh(
                   candidate.source,
-                  stat.mtimeMs,
+                  Number(stat.mtimeMs),
                   threadCreatedAt.get(candidate.threadId) ?? "",
                 )
               )
@@ -185,13 +216,28 @@ const make = Effect.gen(function* () {
                     ),
                   )
                 : null;
-            const id = keys.get(candidate.path) ?? NodeCrypto.randomBytes(32).toString("hex");
+            const revision = artifactRevision(stat);
+            const previousId = keys.get(candidate.path);
+            const previous = previousId === undefined ? undefined : allowed.get(previousId);
+            const id =
+              previous?.artifact.revision === revision
+                ? previousId!
+                : NodeCrypto.randomBytes(32).toString("hex");
+            if (previousId !== undefined && previousId !== id) allowed.delete(previousId);
             const artifact: WallArtifact = {
               ...candidate,
               id,
               extension,
               kind,
-              sizeBytes: stat.size,
+              sizeBytes: Number(stat.size),
+              revision,
+              modifiedAt: stat.mtime.toISOString(),
+              verification: await readArtifactVerification(
+                config.baseDir,
+                candidate.threadId,
+                candidate.path,
+                revision,
+              ),
               ...(dimensions ?? {}),
             };
             keys.set(candidate.path, id);
@@ -215,12 +261,114 @@ const make = Effect.gen(function* () {
     const file = yield* openMediaFile(entry.artifact.path, entry).pipe(
       Effect.orElseSucceed(() => null),
     );
-    return file ? { artifact: entry.artifact, file } : null;
+    return file && artifactRevision(file.info) === entry.artifact.revision
+      ? { artifact: entry.artifact, file }
+      : null;
+  });
+  const recordCheck = Effect.fn("ArtifactWall.recordCheck")(function* (input: {
+    readonly threadId: string;
+    readonly path: string;
+    readonly revision: string;
+    readonly label: string;
+    readonly evidenceItemId: string;
+  }) {
+    const artifact = (yield* list(input.threadId, "thread")).find(
+      (entry) => entry.path === input.path,
+    );
+    if (!artifact || artifact.revision !== input.revision)
+      return yield* new ArtifactCheckRejected({ reason: "file_changed" });
+    const rows = yield* sql<{ payload_json: string; updated_at: string }>`
+      SELECT payload_json, updated_at FROM orchestration_v2_projection_turn_items
+      WHERE thread_id=${input.threadId} AND turn_item_id=${input.evidenceItemId}
+        AND type='command_execution' LIMIT 1`;
+    const row = rows[0];
+    const decode = Schema.decodeUnknownOption(
+      Schema.fromJsonString(
+        Schema.Struct({
+          type: Schema.Literal("command_execution"),
+          status: Schema.String,
+          exitCode: Schema.NullOr(Schema.Number),
+          completedAt: Schema.NullOr(Schema.String),
+        }),
+      ),
+    );
+    const decoded = row === undefined ? Option.none() : decode(row.payload_json);
+    if (Option.isNone(decoded))
+      return yield* new ArtifactCheckRejected({ reason: "evidence_missing" });
+    const evidence = decoded.value;
+    if (
+      !["completed", "failed"].includes(evidence.status) ||
+      evidence.exitCode === null ||
+      evidence.completedAt === null
+    )
+      return yield* new ArtifactCheckRejected({ reason: "evidence_unfinished" });
+    const checkedAt = Date.parse(evidence.completedAt);
+    if (!Number.isFinite(checkedAt) || checkedAt < Date.parse(artifact.modifiedAt!))
+      return yield* new ArtifactCheckRejected({ reason: "evidence_outdated" });
+    const status = evidence.status === "completed" && evidence.exitCode === 0 ? "passed" : "failed";
+    return yield* Effect.scoped(
+      Effect.gen(function* () {
+        const opened = yield* open(artifact.id);
+        if (!opened) return yield* new ArtifactCheckRejected({ reason: "file_changed" });
+        const sha256 = yield* Effect.tryPromise({
+          try: async () => {
+            const hash = NodeCrypto.createHash("sha256");
+            const buffer = new Uint8Array(256 * 1024);
+            let position = 0;
+            while (position < Number(opened.file.info.size)) {
+              const { bytesRead } = await opened.file.handle.read(
+                buffer,
+                0,
+                Math.min(buffer.length, Number(opened.file.info.size) - position),
+                position,
+              );
+              if (bytesRead === 0) break;
+              hash.update(buffer.subarray(0, bytesRead));
+              position += bytesRead;
+            }
+            return hash.digest("hex");
+          },
+          catch: (cause) => new ArtifactWallError({ cause }),
+        });
+        const current = yield* Effect.tryPromise({
+          try: () => opened.file.handle.stat({ bigint: true }),
+          catch: (cause) => new ArtifactWallError({ cause }),
+        });
+        if (artifactRevision(current) !== artifact.revision)
+          return yield* new ArtifactCheckRejected({ reason: "file_changed" });
+        const receipt: ArtifactCheckReceipt = {
+          revision: artifact.revision!,
+          sha256,
+          status,
+          label: input.label,
+          checkedAt: evidence.completedAt!,
+          evidenceItemId: input.evidenceItemId,
+        };
+        yield* Effect.tryPromise({
+          try: () => writeArtifactCheck(config.baseDir, input.threadId, artifact.path, receipt),
+          catch: (cause) => new ArtifactWallError({ cause }),
+        });
+        return {
+          status,
+          label: receipt.label,
+          checkedAt: receipt.checkedAt,
+          evidenceItemId: receipt.evidenceItemId,
+        } satisfies WallArtifactVerification;
+      }),
+    );
   });
   return ArtifactWall.of({
     list: (threadId, scope) =>
       list(threadId, scope).pipe(Effect.mapError((cause) => new ArtifactWallError({ cause }))),
     open,
+    recordCheck: (input) =>
+      recordCheck(input).pipe(
+        Effect.mapError((cause) =>
+          isArtifactCheckRejected(cause) || isArtifactWallError(cause)
+            ? cause
+            : new ArtifactWallError({ cause }),
+        ),
+      ),
   });
 });
 export const layer = Layer.effect(ArtifactWall, make);

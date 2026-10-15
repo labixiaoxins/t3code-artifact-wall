@@ -6,13 +6,15 @@ import {
   type ProjectId,
   type ProjectScopedServerSettingKey,
   type ProjectSettingsOverrides,
+  resolveProjectProviderInstanceEnabled,
   type ResolvedServerSettings,
   type ServerSettings,
   type T3ProjectFile,
   type ThreadEnvMode,
   type WorktreeCleanupRules,
 } from "@t3tools/contracts";
-import { isModelSelectionProviderEnabled } from "./serverSettings.ts";
+import { normalizeProjectPathForComparison } from "./path.ts";
+import { fallbackTextGenerationModelSelection } from "./serverSettings.ts";
 
 /**
  * Where a project-scoped value came from. The order is the priority order:
@@ -173,19 +175,71 @@ function resolveProjectOverrides(
     // undefined; that is not an override.
     if (value === undefined) continue;
     // A model on a disabled provider falls back to the environment, like the
-    // environment-level guards do for these keys.
+    // environment-level guards do for these keys. An instance this project
+    // enabled via `providerInstances[id].enabled` still counts as enabled here.
     if (
       (key === "textGenerationModelSelection" || key === "defaultModelSelection") &&
       value !== undefined &&
       value !== null &&
-      !isModelSelectionProviderEnabled(settings, value as ModelSelection)
+      !resolveProjectProviderInstanceEnabled(
+        settings,
+        projectId,
+        (value as ModelSelection).instanceId,
+      )
     ) {
       continue;
     }
     effective[key] = value;
     sources[key] = "project";
   }
+  // Like the environment guard, text generation never runs on an instance
+  // this project turned off.
+  const textGeneration = effective.textGenerationModelSelection as ModelSelection;
+  if (!resolveProjectProviderInstanceEnabled(settings, projectId, textGeneration.instanceId)) {
+    const fallback = fallbackTextGenerationModelSelection(
+      settings.providerInstances,
+      (instanceId) => resolveProjectProviderInstanceEnabled(settings, projectId, instanceId),
+      { includeConfiguredInstances: true },
+    );
+    if (fallback !== null) effective.textGenerationModelSelection = fallback;
+  }
   return { settings: effective as ServerSettings, sources, overrides };
+}
+
+/**
+ * The workspace mode a new thread starts in. A project the environment made
+ * from just a name (a folder directly inside `ServerConfig.newProjectsRoot`)
+ * has only its first commit, so until it has a thread, a new thread works in
+ * the project checkout even when the environment default is a new worktree.
+ * Only that environment default is replaced: a project override still wins,
+ * and so does a t3.json when the environment sets no default (the usual
+ * precedence; the scaffold writes no t3.json).
+ */
+export function resolveNewThreadEnvMode(input: {
+  readonly projectSettings: ResolvedProjectSettings<ResolvedServerSettings>;
+  readonly workspaceRoot: string | null;
+  readonly newProjectsRoot: string | null | undefined;
+  readonly projectHasThreads: boolean;
+}): ThreadEnvMode {
+  const configured = input.projectSettings.settings.defaultThreadEnvMode;
+  if (
+    configured === "local" ||
+    input.projectHasThreads ||
+    input.projectSettings.sources.defaultThreadEnvMode !== "environment" ||
+    input.workspaceRoot === null ||
+    input.newProjectsRoot == null
+  ) {
+    return configured;
+  }
+  const root = normalizeProjectPathForComparison(input.newProjectsRoot);
+  const folder = normalizeProjectPathForComparison(input.workspaceRoot);
+  const separator = root.includes("\\") ? "\\" : "/";
+  const prefix = root.endsWith(separator) ? root : `${root}${separator}`;
+  const isNewProjectFolder =
+    folder.startsWith(prefix) &&
+    folder.length > prefix.length &&
+    !folder.slice(prefix.length).includes(separator);
+  return isNewProjectFolder ? "local" : configured;
 }
 
 /** Replace the project's entry, dropping it entirely when nothing is overridden. */
@@ -220,12 +274,24 @@ export function resolveWorktreeCleanup(
   if (policy?.mode === "custom") return policy.rules;
   if (policy?.mode === "off")
     return {
+      worktreeKeepWhen: settings.storageCleanup.worktreeKeepWhen,
       worktreeAfterDays: null,
       worktreeOnMerge: false,
       worktreeOnDelete: false,
       worktreeUnchanged: false,
     };
-  const { worktreeAfterDays, worktreeOnMerge, worktreeOnDelete, worktreeUnchanged } =
-    settings.storageCleanup;
-  return { worktreeAfterDays, worktreeOnMerge, worktreeOnDelete, worktreeUnchanged };
+  const {
+    worktreeKeepWhen,
+    worktreeAfterDays,
+    worktreeOnMerge,
+    worktreeOnDelete,
+    worktreeUnchanged,
+  } = settings.storageCleanup;
+  return {
+    worktreeKeepWhen,
+    worktreeAfterDays,
+    worktreeOnMerge,
+    worktreeOnDelete,
+    worktreeUnchanged,
+  };
 }

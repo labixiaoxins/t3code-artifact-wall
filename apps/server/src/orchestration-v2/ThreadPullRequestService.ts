@@ -275,7 +275,10 @@ export const make = Effect.gen(function* () {
           if (updates.length === 0) return;
 
           if (detected !== null && first.branch !== null) {
-            const current = yield* git.branchPullRequest({ cwd, branch: first.branch });
+            const current = yield* git.branchPullRequest(
+              { cwd, branch: first.branch },
+              { freshGitState: true },
+            );
             const currentIdentity = yield* repositoryIdentities.resolve(project.workspaceRoot, {
               refresh: true,
             });
@@ -345,7 +348,7 @@ export const make = Effect.gen(function* () {
               }).pipe(Effect.tap(() => Effect.sync(() => failBackfill(group)))),
           ),
         ),
-      // Wide enough that a sweep's GitHub branch lookups reach GitHubCli together and share one
+      // Wide enough that a sweep's GitHub branch lookups reach the GitHub provider together and share one
       // GraphQL document, instead of one `gh pr list` per branch.
       { concurrency: 32, discard: true },
     );

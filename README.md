@@ -1,9 +1,9 @@
-> [!NOTE]
-> This is an unofficial community fork with an artifact wall, a "needs me" inbox, subtask folding and one-click new threads. See [docs/community](docs/community/README.md). Not affiliated with T3 Tools.
+# T3 Code · 小新创作工作台
 
-![Needs-me inbox, folded subtasks and the artifact wall, shown with fictional data](docs/community/images/artifact-filtered-light-1280.png)
+> 非官方社区分支，基于官方 3080/C3 对应源码。
+> 新增产物墙、图片版本对比、待我处理、项目分类与子任务归集。
+> **[先看小新改版说明与完整图文案例](docs/xiaoxin-showcase/README.md)** · [官方项目](https://github.com/pingdotgg/t3code)
 
-# T3 Code
 
 T3 Code is an "agent harness control surface". It enables control of the agents on your machine with a best-in-class mobile app ([iOS](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824), [Android](https://play.google.com/store/apps/details?id=com.t3tools.t3code)), [web app](https://app.t3.codes) and [Electron-based desktop app](https://t3.codes).
 
@@ -53,6 +53,12 @@ Install the latest version of the desktop app from [GitHub Releases](https://git
 winget install T3Tools.T3Code
 ```
 
+#### Windows (`scoop`)
+
+```bash
+scoop install extras/t3code
+```
+
 #### macOS (Homebrew)
 
 ```bash
@@ -99,6 +105,7 @@ Full docs live in [docs/](./docs). There's no docs site yet.
 - [Project settings](./docs/user/project-settings.md)
 - [Appearance preferences](./docs/user/appearance.md)
 - [Remote access from a phone or another machine](./docs/user/remote-access.md)
+- [Connect Claude Code, Codex, ChatGPT and other agents over MCP](./docs/user/outside-agents.md)
 - [Keeping app and server in sync](./docs/user/updating.md)
 - [Source control integrations](./docs/user/source-control.md)
 - Multiple accounts: [Codex](./docs/user/providers-codex.md) · [Claude](./docs/user/providers-claude.md)

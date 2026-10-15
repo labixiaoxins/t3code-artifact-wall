@@ -1,7 +1,14 @@
 # Source control
 
-T3 Code integrates with GitHub, GitLab, Forgejo, Gitea, Bitbucket, and Azure DevOps to clone and publish
-repositories, create pull requests, and review changes.
+T3 Code integrates with GitHub, GitLab, Forgejo, Gitea, Bitbucket, Azure DevOps, and GitCafe to clone
+and publish repositories, create pull requests, and review changes.
+
+## Review turn changes
+
+A turn's changed files and diff show only the turn's own work. When a turn pulls, merges, or
+rebases, the files Git brought in are left out. A file stays in the list when the turn edited it,
+committed it, or fixed a conflict in it. Use the branch comparison to review everything that changed
+against your base branch. Restore still returns the complete saved workspace.
 
 ## Connect an account
 
@@ -23,6 +30,9 @@ order of precedence:
 If `gh` is signed in to several accounts or hosts, expand **GitHub** in the same place to pick
 the account each host uses or turn a host off. A saved token or `GH_TOKEN` takes precedence
 over that choice; a host turned off stays off either way.
+
+For GitHub Enterprise, sign in with `gh auth login --hostname YOUR_HOST`. T3 Code treats a
+custom server name as GitHub once it has a credential for that host.
 
 ### Forgejo and Gitea
 
@@ -54,18 +64,18 @@ glab auth login
 
 ### Bitbucket
 
-Open **Settings → Source Control**, expand **Bitbucket**, and choose how to sign in:
+Open **Settings → Source Control**, expand **Bitbucket**, and enter one of:
 
 - **Access token**: a token created for one repository, project, or workspace. It can only reach
   what it was created for.
-- **API token**: an Atlassian API token for your account, used with your account email. It can
+- **Atlassian account email** and **API token**: an Atlassian API token for your account. It can
   reach every repository you can. Give it read/write access to repositories and pull requests, plus
   user read access (`read:user:bitbucket`).
 
-Choose **Save**; the change applies right away, and replaces any credential saved with the other
-method. Credentials are saved on the environment's server, so select a remote environment to
-configure it. Saved tokens can't be viewed again; enter a new one to replace it, or choose
-**Remove**.
+A field saves when you leave it, and applies right away. The access token wins when both are saved.
+Credentials are saved on the environment's server, so select a remote environment to configure
+it. Saved tokens can't be viewed again; enter a new one to replace it, or choose **Remove** to clear
+everything saved for Bitbucket.
 
 If no credentials are saved, T3 Code falls back to these variables in the server's environment.
 Restart the server after changing them:
@@ -86,12 +96,31 @@ az extension add --name azure-devops
 az login
 ```
 
+### GitCafe
+
+Install the GitCafe CLI and sign in:
+
+```bash
+bun install -g @gitcafe/cli
+cafe auth login --host https://git.cafe/api
+```
+
+Alternatively, open **Settings → Source Control**, expand **GitCafe**, and enter a token. It is
+kept in the server's secret store, applies right away, and is used before `CAFE_TOKEN` and the
+`cafe` login. Or set `CAFE_TOKEN` in the server's environment and restart it. Both tokens are only
+sent to `git.cafe`; `CAFE_TOKEN` follows `CAFE_HOST` if you set it. Repositories on
+`staging.git.cafe` need their own login with `--host https://staging.git.cafe/api`.
+
+Line comments, reviewer requests, and labels are not available for GitCafe pull requests yet.
+Merging a stack lands it through GitCafe, and updating a branch restacks the layers above it.
+
 ## Start, clone, or publish a project
 
 To start from nothing, choose **New project** in the command palette (`Cmd/Ctrl+K`), or
 **New project** under **Add Project** on any client, and type a name. T3 Code makes a Git
 repository in `~/.t3/projects` (the `projects` folder of your T3 data directory) with a README,
-an icon, and a first commit, then opens a new thread in it. The folder is named after the project,
+an icon, and a first commit, then opens a new thread in it. Until the project has a thread, new
+threads work in its folder, even when your default is a new worktree. The folder is named after the project,
 like `pinball-stats` for "Pinball Stats". Turn on **Create private repository on GitHub** to also
 publish it. If Git has no name or email on that machine, the project is created without the
 first commit.
@@ -111,6 +140,10 @@ make your first commit before pushing.
 Use a thread's Git actions to commit, push, and create a pull request. T3 Code can generate commit
 messages, review titles, and descriptions from your changes.
 
+An existing fork PR can appear beside the branch even if you pushed without setting an upstream.
+If its badge is missing because several remotes hold that branch, set the branch's upstream to
+the intended remote with `git branch --set-upstream-to=<remote>/<branch>`.
+
 Choose the writing style and model in **Settings → Source Control**. **Repository conventions**
 uses the project's instructions and recent commit subjects.
 
@@ -119,6 +152,15 @@ uses the project's instructions and recent commit subjects.
 Open **Pull requests** to review changes and comments, request reviewers, check out a branch,
 or merge. You can edit review titles and descriptions and your own comments where the host allows it.
 GitLab calls these merge requests.
+
+On mobile, **Pull requests** lists reviews across your connected environments. Open a review
+to read its description, activity, commits, and changed files. Line comments stay as drafts
+until you submit the review. **Work on PR** opens a chat with the review attached; sending
+the first message prepares a worktree from the review's branch.
+
+Previously loaded lists, review details, guides, and diff pages remain readable on mobile
+without a connection, including after restarting the app. Saved content refreshes when the
+environment reconnects; submitting changes requires a connection.
 
 Enable **Remove agent credits when merging** in Settings → Source Control to remove recognized
 agent co-author and generated-by lines from GitHub merge and squash commit messages. Human
@@ -152,6 +194,40 @@ PR creation from Git actions continue to use the project's environment.
 For Azure DevOps, use the host website to change comments. Bitbucket does not support reopening a
 declined pull request.
 
+### Review guides
+
+Review guides are in beta. Turn on **Review guides** in Settings → Source Control to add the
+**Guide** tab to pull requests on that server. On mobile, move between stops with **Next**
+and the back button; a stale guide offers a rewrite and hides excerpts that no longer match
+the current change.
+
+The **Guide** tab gives you a tour of a pull request without reading it line by line: stops
+through the change in reading order. Each stop points at the lines worth reading, and a stop marked
+**Look closely** has a call only a maintainer can make. Mechanical changes such as renames and
+snapshots are grouped at the end, and every changed file appears somewhere on the tour.
+Conversations already resolved in review are left out. For a pull request in a stack, the guide
+covers that layer only, and may point out what a lower layer introduced or what a higher one uses.
+
+Choose **Write guide** to have the review guide model from Settings → Source Control read the
+change in a temporary checkout; without one set, the source control writer model is used. Nothing
+in the checkout is changed, and a large pull request takes a few minutes; you can go elsewhere in
+the app. On web, you are told when the guide is ready; on mobile, return to the guide to check
+its progress. Claude and Codex can write guides. The guide is
+kept for everyone using this server. To write it again, for example after a push or after changing
+the model or instructions, choose **Rewrite guide** from the pull request's **⋯** menu.
+
+On web, while reading a stop, select lines in an excerpt to add a comment to your review or ask an agent
+about them; comments wait with the ones from the **Code** tab until you send the review. Choose a
+suggested question, or **Ask about this stop**, to open a thread that already knows which stop you
+are on. **Finish review** on the last stop opens the review with everything you collected.
+
+Agents can write guides too: ask one to prepare guides for a set of pull requests, and it starts
+them for you. Each is read through the project whose checkout has that repository.
+
+To shape guides to your taste, write **Review guide instructions** in Settings → Source Control,
+such as what to show first or what to skip; projects can override them. They change emphasis and
+ordering, not the guide's layout or which files it covers.
+
 ### Mark files as viewed
 
 Tick a file off in the **Code** tab once you have read it and it collapses; the toolbar keeps a
@@ -163,8 +239,8 @@ in either direction. Forgejo, GitLab, Bitbucket, and Azure DevOps expose no reco
 server you are connected to keeps them instead: they follow you across the apps connected to that
 server, but the host's own site will not show them, and the count reads **viewed in T3 Code**.
 
-The **Code** tab is a web and desktop surface. The mobile app reports a pull request's status but
-does not show its diff, so marks are made and read on web and desktop.
+On mobile, open a changed file and mark it viewed from its header. Viewed files collapse,
+and their marks follow the same rules as on web and desktop.
 
 ## Troubleshooting
 
@@ -195,7 +271,7 @@ Linking and unlinking are available in the web and desktop clients.
 The **Linked pull requests** panel lists every review and groups stacks. Unlink a review from its
 row menu. An unlinked stack layer stays out of later syncs. Open linked reviews refresh on the server;
 closed reviews refresh periodically so reopening one on the host is detected. Merged reviews refresh
-when requested. With **Auto-settle merged threads** enabled, a thread can settle after every linked
+when requested. A settled thread's reviews stop refreshing until you unsettle it. With **Auto-settle merged threads** enabled, a thread can settle after every linked
 review is terminal. An open or unsynced link keeps it active.
 
 Ask the agent to watch, monitor, or babysit a pull request and it calls `watch_pull_request`. While

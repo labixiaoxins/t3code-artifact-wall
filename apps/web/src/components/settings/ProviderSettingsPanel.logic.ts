@@ -1,8 +1,14 @@
 import type { EnvironmentConnectionPhase } from "@t3tools/client-runtime/connection";
 import {
-  AuthOrchestrationOperateScope,
+  AuthProvidersManageScope,
   type AuthSessionState,
   type EnvironmentId,
+  type ProjectId,
+  type ProjectSettingsOverrides,
+  type ProviderInstanceId,
+  sessionGrantsScope,
+  type ServerSettings,
+  type SessionGrantInput,
 } from "@t3tools/contracts";
 
 export interface ProviderEnvironmentOptionLike {
@@ -74,77 +80,71 @@ export type ProviderEnvironmentAccess =
  */
 export type ProviderOperateAccess = "granted" | "denied" | "pending";
 
-/**
- * Resolve operate access from an environment's `/api/auth/session` answer.
- *
- * Cached session data wins over an in-flight revalidation. The session atoms
- * are SWR-backed, so they report `isPending` on every background refresh;
- * treating that as unknown would flip a working panel back to loading and
- * discard in-progress edits.
- *
- * `missingScopesAccess` decides the case where the session resolved but did
- * not report scopes: the primary serves the web app itself so its server
- * always reports them (absence means denial), while a remote device may run an
- * older server version that predates scope reporting, where denial would lock
- * out a legitimate session. The environment RPC layer stays authoritative
- * either way.
- */
+/** Cached grants remain usable during revalidation; unknown or failed lookups grant nothing. */
 function resolveSessionOperateAccess(input: {
-  readonly session: Pick<AuthSessionState, "authenticated" | "scopes"> | null;
+  readonly session: SessionGrantInput | null;
   readonly isPending: boolean;
   readonly hasError: boolean;
-  readonly missingScopesAccess: "granted" | "denied";
 }): ProviderOperateAccess {
-  if (input.session === null) {
-    if (input.isPending) {
-      return "pending";
-    }
-    // A failed session fetch is a transport problem, not a permission
-    // decision — locking the panel read-only would misreport it. Stay
-    // optimistic; the environment RPC layer still rejects unauthorized writes.
-    return input.hasError ? "granted" : "denied";
-  }
-  if (!input.session.authenticated) {
-    return "denied";
-  }
-  if (input.session.scopes === undefined) {
-    return input.missingScopesAccess;
-  }
-  return input.session.scopes.includes(AuthOrchestrationOperateScope) ? "granted" : "denied";
+  if (input.hasError) return "denied";
+  if (input.session === null) return input.isPending ? "pending" : "denied";
+  return sessionGrantsScope(input.session, AuthProvidersManageScope) ? "granted" : "denied";
 }
 
-/** Operate access for the primary environment's own browser session. */
 export function resolvePrimaryOperateAccess(input: {
   readonly isPrimary: boolean;
   readonly hasDesktopBridge: boolean;
-  readonly session: Pick<AuthSessionState, "authenticated" | "scopes"> | null;
+  readonly session: SessionGrantInput | null;
   readonly isPending: boolean;
   readonly hasError: boolean;
 }): ProviderOperateAccess {
-  if (!input.isPrimary || input.hasDesktopBridge) {
-    return "granted";
-  }
-  return resolveSessionOperateAccess({
-    session: input.session,
-    isPending: input.isPending,
-    hasError: input.hasError,
-    missingScopesAccess: "denied",
-  });
+  return resolveSessionOperateAccess(input);
+}
+
+export function resolveRemoteOperateAccess(input: {
+  readonly session: SessionGrantInput | null;
+  readonly isPending: boolean;
+  readonly hasError: boolean;
+}): ProviderOperateAccess {
+  return resolveSessionOperateAccess(input);
 }
 
 /**
- * Operate access for a non-primary environment, derived from the scopes its
- * `/api/auth/session` endpoint reports for this client's credential.
+ * The patch for one instance's project override, following the envelope
+ * replacement rule for `projectSettingsOverrides`: the returned entry
+ * replaces the project's whole override set, and `null` removes it.
+ * `value: undefined` resets that single instance back to inheriting the
+ * environment's enablement, leaving any other overridden keys untouched.
+ *
+ * `providerInstances` is always sent explicitly, even as `{}`, because the
+ * server keeps a stored `providerInstances` map when an incoming entry omits
+ * the key (so older clients that don't know the field cannot wipe it by
+ * editing another setting). Omitting it here would undo the very clear this
+ * function means to make.
  */
-export function resolveRemoteOperateAccess(input: {
-  readonly session: Pick<AuthSessionState, "authenticated" | "scopes"> | null;
-  readonly isPending: boolean;
-  readonly hasError: boolean;
-}): ProviderOperateAccess {
-  return resolveSessionOperateAccess({
-    ...input,
-    missingScopesAccess: "granted",
-  });
+/** Every checkout of a project on one environment shares the same choice. */
+export function buildProviderInstanceOverridePatch(
+  settings: Pick<ServerSettings, "projectSettingsOverrides">,
+  projectIds: readonly ProjectId[],
+  instanceId: ProviderInstanceId,
+  value: boolean | undefined,
+): Record<ProjectId, ProjectSettingsOverrides | null> {
+  const patch: Record<ProjectId, ProjectSettingsOverrides | null> = {};
+  for (const projectId of projectIds) {
+    const current = settings.projectSettingsOverrides[projectId];
+    const instances = { ...current?.providerInstances };
+    const instance = { ...instances[instanceId] };
+    if (value === undefined) delete instance.enabled;
+    else instance.enabled = value;
+    if (Object.keys(instance).length > 0) instances[instanceId] = instance;
+    else delete instances[instanceId];
+
+    const { providerInstances: _omit, ...rest } = current ?? {};
+    const nextEntry: ProjectSettingsOverrides = { ...rest, providerInstances: instances };
+    patch[projectId] =
+      Object.keys(rest).length === 0 && Object.keys(instances).length === 0 ? null : nextEntry;
+  }
+  return patch;
 }
 
 export function classifyProviderEnvironmentAccess(input: {

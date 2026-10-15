@@ -46,17 +46,30 @@ type RowContent = {
 
 function WorkLogLine({ icon, label, trailing, wrapLabel }: RowContent) {
   return (
-    <div className="flex min-h-6 min-w-0 items-center gap-1.5 text-sm leading-relaxed select-none [&_*]:select-none">
-      {icon ? (
-        <span className="relative flex size-6 shrink-0 items-center justify-center">{icon}</span>
-      ) : null}
-      <div
-        className={cn(
-          "min-w-0 flex-1 text-secondary-label",
-          !wrapLabel && "truncate [&_*]:whitespace-nowrap",
-        )}
-      >
-        {label}
+    <div
+      className={cn(
+        "flex min-h-6 min-w-0 gap-1.5 text-sm leading-relaxed select-none [&_*]:select-none",
+        wrapLabel ? "items-start" : "items-center",
+      )}
+    >
+      <div className="flex min-w-0 flex-1 items-baseline gap-1.5">
+        {icon ? (
+          // Align with the first line's capital letters. Centering line boxes drifts
+          // when font ascent/descent rounding changes at fractional browser zoom.
+          <span className="relative w-6 shrink-0 leading-0">
+            <span className="inline-block size-6 overflow-hidden align-[calc(0.5cap_-_0.75rem)]">
+              <span className="flex size-full items-center justify-center">{icon}</span>
+            </span>
+          </span>
+        ) : null}
+        <div
+          className={cn(
+            "min-w-0 flex-1 text-secondary-label",
+            !wrapLabel && "truncate [&_*]:whitespace-nowrap",
+          )}
+        >
+          {label}
+        </div>
       </div>
       {trailing}
     </div>
@@ -123,7 +136,7 @@ export function WorkLogDetails({
         kind === "text"
           ? "ms-7 flex max-h-96 flex-col gap-3 overflow-auto px-0.5 py-1 select-text"
           : kind === "panel"
-            ? "mt-0.5 mb-1.5"
+            ? "mt-0.5 mb-1.5 pb-2"
             : "mt-1",
       )}
       onClick={(event) => event.stopPropagation()}

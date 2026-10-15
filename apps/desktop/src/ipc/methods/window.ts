@@ -13,15 +13,15 @@ import {
   type DesktopEnvironmentBootstrap,
   type PickedThemeFile,
 } from "@t3tools/contracts";
-import { WORKSPACE_IMAGE_PREVIEW_EXTENSIONS } from "@t3tools/shared/filePreview";
+import { PROJECT_FAVICON_EXTENSIONS } from "@t3tools/shared/projectFavicon";
 import { resolveEditorCommand } from "@t3tools/shared/editor";
-import * as HostProcess from "@t3tools/shared/hostProcess";
-import * as NodeOS from "node:os";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
+import * as Schedule from "effect/Schedule";
 
 import * as DesktopBackendConfiguration from "../../backend/DesktopBackendConfiguration.ts";
 import * as DesktopBackendPool from "../../backend/DesktopBackendPool.ts";
@@ -271,7 +271,7 @@ export const pickProjectFavicon = DesktopIpc.makeIpcMethod({
       filters: [
         {
           name: "Images",
-          extensions: WORKSPACE_IMAGE_PREVIEW_EXTENSIONS.map((extension) => extension.slice(1)),
+          extensions: PROJECT_FAVICON_EXTENSIONS.map((extension) => extension.slice(1)),
         },
       ],
     });
@@ -345,7 +345,7 @@ export const probeRemoteEditors = DesktopIpc.makeIpcMethod({
   result: Schema.Array(EditorId),
   handler: Effect.fn("desktop.ipc.window.probeRemoteEditors")(function* () {
     const available: Array<EditorId> = [];
-    const env = yield* HostProcess.HostProcessEnvironment;
+    const env = yield* HostProcess.Environment;
     for (const editorId of REMOTE_CAPABLE_EDITOR_IDS) {
       const editor = EDITORS.find((editor) => editor.id === editorId);
       if (editor && Option.isSome(yield* resolveEditorCommand(editor, env))) {
@@ -398,7 +398,7 @@ export const pickThemeFiles = DesktopIpc.makeIpcMethod({
     // The VS Code extensions directory is the same dotfolder on Windows,
     // macOS, and Linux; when it is missing the picker opens wherever the
     // platform would by default.
-    const extensionsDir = path.join(NodeOS.homedir(), ".vscode", "extensions");
+    const extensionsDir = path.join(yield* HostProcess.HomeDirectory, ".vscode", "extensions");
     const defaultPath = yield* fileSystem
       .exists(extensionsDir)
       .pipe(Effect.orElseSucceed(() => false));
@@ -439,4 +439,24 @@ export const checkSystemPermission = DesktopIpc.makeIpcMethod({
     const check = yield* safariPermissionCheck;
     return yield* Effect.promise(check);
   }),
+});
+
+/** Until backend topology has an event stream, poll off the renderer's critical path. */
+const encodeLocalBootstraps = Schema.encodeUnknownEffect(
+  Schema.fromJsonString(Schema.Array(DesktopEnvironmentBootstrapSchema)),
+);
+
+export const installLocalBootstrapForwarding = Effect.fn(
+  "desktop.ipc.installLocalBootstrapForwarding",
+)(function* () {
+  const window = yield* ElectronWindow.ElectronWindow;
+  let previous: string | undefined;
+  const publish = Effect.gen(function* () {
+    const entries = yield* getLocalEnvironmentBootstraps.handler();
+    const signature = yield* encodeLocalBootstraps(entries);
+    if (signature === previous) return;
+    yield* window.sendAll(IpcChannels.LOCAL_ENVIRONMENT_BOOTSTRAPS_CHANGED_CHANNEL, entries);
+    previous = signature;
+  }).pipe(Effect.ignoreCause);
+  yield* Effect.forkScoped(publish.pipe(Effect.repeat(Schedule.spaced("2 seconds"))));
 });

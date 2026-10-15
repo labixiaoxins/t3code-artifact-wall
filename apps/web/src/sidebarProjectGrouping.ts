@@ -1,5 +1,12 @@
 import type { EnvironmentId, ScopedProjectRef } from "@t3tools/contracts";
-import { buildProjectGroups, type ProjectGroupingSettings } from "./logicalProject";
+import {
+  buildProjectGroups,
+  deriveLogicalProjectKey,
+  deriveLogicalProjectKeyFromSettings,
+  derivePhysicalProjectKey,
+  type ProjectGroupingSettings,
+} from "./logicalProject";
+import { resolveScratchProjectScopeKey } from "@t3tools/client-runtime/state/project-grouping";
 import { buildWorkspaceCollections } from "./workspaceCollections";
 import type { Project } from "./types";
 
@@ -50,6 +57,72 @@ export interface SidebarProjectPickerEntry {
   isPreferred: boolean;
 }
 
+/** A merged filter still opens settings for the chosen physical project. */
+export function getSidebarProjectSettingsKey(
+  group: SidebarProjectSnapshot,
+  settings: ProjectGroupingSettings,
+  projects: ReadonlyArray<Project>,
+  projectRef?: ScopedProjectRef,
+): string {
+  const project =
+    group.memberProjects.find(
+      (member) =>
+        member.environmentId === projectRef?.environmentId && member.id === projectRef.projectId,
+    ) ??
+    group.memberProjects.find((member) => member.environmentId === projectRef?.environmentId) ??
+    group;
+  return (
+    buildPhysicalToLogicalProjectKeyMap({
+      projects,
+      settings,
+      primaryEnvironmentId: null,
+      workspaceCollections: false,
+    }).get(derivePhysicalProjectKey(project)) ?? group.projectKey
+  );
+}
+
+/** Migrate old filters only when their workspace resolves to one current group. */
+export function resolveSidebarProjectScopeKey(input: {
+  readonly groups: ReadonlyArray<SidebarProjectSnapshot>;
+  readonly key: string | null;
+  readonly settings?: ProjectGroupingSettings;
+  readonly canClearMissingScope?: boolean;
+}): string | null {
+  if (input.key === null) return null;
+  const exact = input.groups.find((candidate) => candidate.projectKey === input.key);
+  if (exact) return exact.projectKey;
+  const matches = input.groups.filter((candidate) => {
+    if (!candidate.projectKey.startsWith('["workspace-collection",')) {
+      return (
+        candidate.isScratch &&
+        resolveScratchProjectScopeKey(input.key, candidate.memberProjects, input.settings) ===
+          candidate.projectKey
+      );
+    }
+    return (
+      candidate.memberProjects.some((member) => {
+        if (member.physicalProjectKey === input.key) return true;
+        // A scratch workspace may have been saved before its config arrived.
+        const project = { ...member };
+        delete project.isScratch;
+        const logicalKey = input.settings
+          ? deriveLogicalProjectKeyFromSettings(project, input.settings)
+          : deriveLogicalProjectKey(project);
+        return logicalKey === input.key;
+      }) ||
+      (candidate.memberProjects.every((member) => member.isScratch) &&
+        candidate.memberProjects.some(
+          (member) => deriveLogicalProjectKey(member, { groupScratchProjects: true }) === input.key,
+        ))
+    );
+  });
+  return matches.length === 1
+    ? matches[0]!.projectKey
+    : input.canClearMissingScope
+      ? null
+      : input.key;
+}
+
 export function buildPhysicalToLogicalProjectKeyMap(input: {
   projects: ReadonlyArray<Project>;
   settings: ProjectGroupingSettings;
@@ -75,6 +148,7 @@ export function buildPhysicalToLogicalProjectKeyMap(input: {
 export function buildSidebarProjectSnapshots(input: {
   projects: ReadonlyArray<Project>;
   settings: ProjectGroupingSettings;
+  groupScratchProjects?: boolean;
   primaryEnvironmentId: EnvironmentId | null;
   resolveEnvironmentLabel: (environmentId: EnvironmentId) => string | null;
   workspaceCollections?: boolean;
@@ -89,6 +163,7 @@ export function buildSidebarProjectSnapshots(input: {
     input.workspaceCollections === false ? buildProjectGroups : buildWorkspaceCollections;
   return buildGroups({
     projects: input.projects,
+    groupScratchProjects: input.groupScratchProjects ?? false,
     settings: input.settings,
     preferredEnvironmentId: input.primaryEnvironmentId,
   }).map((group): SidebarProjectSnapshot => {

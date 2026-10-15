@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FileIcon, GlobeIcon, XIcon } from "lucide-react";
 import {
   artifactCounts,
+  artifactCheckLabel,
   isArtifactVideo,
   artifactVideoDuration,
   groupArtifacts,
@@ -15,6 +16,7 @@ import { useAtomCommand } from "../../state/use-atom-command";
 import { shellEnvironment } from "../../state/shell";
 import { Button } from "../ui/button";
 import { Dialog, DialogPopup, DialogTitle } from "../ui/dialog";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 
 export function ArtifactWall({
   environmentId,
@@ -333,11 +335,15 @@ export function ArtifactWall({
                       )}
                     </div>
                   </div>
-                  <p className="mt-1 truncate text-2xs" title={a.name}>
-                    {a.name}
-                  </p>
+                  <Tooltip>
+                    <TooltipTrigger render={<p className="mt-1 truncate text-2xs" />}>
+                      {a.name}
+                    </TooltipTrigger>
+                    <TooltipPopup>{a.name}</TooltipPopup>
+                  </Tooltip>
                   <p className="truncate text-2xs text-muted-foreground">
-                    {new Date(a.createdAt).toLocaleTimeString("zh-CN", {
+                    {a.modifiedAt ? "更新 " : ""}
+                    {new Date(a.modifiedAt ?? a.createdAt).toLocaleTimeString("zh-CN", {
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
@@ -345,6 +351,18 @@ export function ArtifactWall({
                       ? ` · ${a.width}×${a.height}`
                       : ` · ${Math.ceil(a.sizeBytes / 1024)} KB`}
                   </p>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={<p className="mt-0.5 text-2xs text-muted-foreground" />}
+                    >
+                      {artifactCheckLabel(a)}
+                    </TooltipTrigger>
+                    <TooltipPopup>
+                      {a.verification?.label
+                        ? `${a.verification.label} · ${a.verification.checkedAt ?? ""}。此项为检查命令记录，不代表用户验收或已部署。`
+                        : "文件存在不代表检查通过。完成检查后，由 Agent 关联相应执行记录。"}
+                    </TooltipPopup>
+                  </Tooltip>
                 </div>
               ))}
             </div>
@@ -367,123 +385,132 @@ export function ArtifactWall({
         <DialogPopup
           variant="media"
           showCloseButton={false}
-          className="flex h-[80dvh] w-full max-w-5xl flex-col gap-3 rounded-lg bg-background p-4 text-foreground"
+          className="h-[80dvh] w-full max-w-5xl"
           aria-describedby={undefined}
         >
-          <div className="flex min-w-0 items-center gap-2">
-            <DialogTitle className="min-w-0 flex-1 truncate">{selected?.name}</DialogTitle>
-            <Button size="xs" variant="ghost" onClick={() => setSelected(null)}>
-              <XIcon className="size-3" />
-              Esc 关闭
-            </Button>
-          </div>
-          {selected ? (
-            <>
-              {isArtifactVideo(selected) ? (
-                <div
-                  className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-muted"
-                  data-artifact-player
-                >
-                  <video
-                    key={selected.id}
-                    src={artifactFileUrl(environmentId, selected.id) ?? undefined}
-                    controls
-                    playsInline
-                    preload="metadata"
-                    className="size-full object-contain"
-                    aria-label={`播放 ${selected.name}`}
-                  />
-                </div>
-              ) : (
-                <div
-                  className="relative min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-muted"
-                  data-artifact-compare
-                >
-                  {comparison ? (
-                    <img
-                      src={artifactFileUrl(environmentId, comparison.id) ?? undefined}
-                      alt={comparison.name}
-                      className="absolute inset-0 size-full object-contain"
+          <div className="flex min-h-0 flex-1 flex-col gap-3 rounded-lg bg-background p-4 text-foreground">
+            <div className="flex min-w-0 items-center gap-2">
+              <DialogTitle className="min-w-0 flex-1">
+                <span className="block truncate">{selected?.name}</span>
+              </DialogTitle>
+              <Button size="xs" variant="ghost" onClick={() => setSelected(null)}>
+                <XIcon className="size-3" />
+                Esc 关闭
+              </Button>
+            </div>
+            {selected && !artifacts.some((artifact) => artifact.id === selected.id) ? (
+              <p role="alert" className="text-xs text-muted-foreground">
+                文件已更新或移除。请关闭预览，再打开最新版本。
+              </p>
+            ) : null}
+            {selected ? (
+              <>
+                {isArtifactVideo(selected) ? (
+                  <div
+                    className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-muted"
+                    data-artifact-player
+                  >
+                    <video
+                      key={selected.id}
+                      src={artifactFileUrl(environmentId, selected.id) ?? undefined}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      className="size-full object-contain"
+                      aria-label={`播放 ${selected.name}`}
                     />
-                  ) : null}
-                  <img
-                    src={artifactFileUrl(environmentId, selected.id) ?? undefined}
-                    alt={selected.name}
-                    className="absolute inset-0 size-full object-contain"
-                    style={comparison ? { clipPath: `inset(0 0 0 ${split}%)` } : undefined}
-                  />
-                  {comparison ? (
-                    <>
-                      <div
-                        className="pointer-events-none absolute top-0 bottom-0 border-l-2 border-foreground"
-                        style={{ left: `${split}%` }}
+                  </div>
+                ) : (
+                  <div
+                    className="relative min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-muted"
+                    data-artifact-compare
+                  >
+                    {comparison ? (
+                      <img
+                        src={artifactFileUrl(environmentId, comparison.id) ?? undefined}
+                        alt={comparison.name}
+                        className="absolute inset-0 size-full object-contain"
                       />
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={split}
-                        onChange={(e) => setSplit(Number(e.target.value))}
-                        aria-label="拖动中线对比"
-                        className="absolute inset-0 size-full cursor-ew-resize opacity-0"
-                      />
-                      <span
-                        className="pointer-events-none absolute top-1/2 rounded-full bg-background px-2 py-1 text-xs text-foreground"
-                        style={{ left: `${split}%`, transform: "translate(-50%, -50%)" }}
+                    ) : null}
+                    <img
+                      src={artifactFileUrl(environmentId, selected.id) ?? undefined}
+                      alt={selected.name}
+                      className="absolute inset-0 size-full object-contain"
+                      style={comparison ? { clipPath: `inset(0 0 0 ${split}%)` } : undefined}
+                    />
+                    {comparison ? (
+                      <>
+                        <div
+                          className="pointer-events-none absolute top-0 bottom-0 border-l-2 border-foreground"
+                          style={{ left: `${split}%` }}
+                        />
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={split}
+                          onChange={(e) => setSplit(Number(e.target.value))}
+                          aria-label="拖动中线对比"
+                          className="absolute inset-0 size-full cursor-ew-resize opacity-0"
+                        />
+                        <span
+                          className="pointer-events-none absolute top-1/2 rounded-full bg-background px-2 py-1 text-xs text-foreground"
+                          style={{ left: `${split}%`, transform: "translate(-50%, -50%)" }}
+                        >
+                          ↔
+                        </span>
+                      </>
+                    ) : null}
+                  </div>
+                )}
+                {comparison ? (
+                  <div className="flex justify-between gap-2 text-2xs text-muted-foreground">
+                    <span className="truncate">{comparison.name}</span>
+                    <span className="truncate">{selected.name}</span>
+                  </div>
+                ) : null}
+                {!isArtifactVideo(selected) && (
+                  <div
+                    className="flex shrink-0 gap-2 overflow-x-auto"
+                    aria-label="选择对比图片"
+                    onScroll={(e) => {
+                      if (
+                        e.currentTarget.scrollLeft + e.currentTarget.clientWidth >=
+                        e.currentTarget.scrollWidth - 40
+                      )
+                        setThumbCount((n) => n + 40);
+                    }}
+                  >
+                    {images.slice(0, thumbCount).map((a) => (
+                      <button
+                        type="button"
+                        key={a.id}
+                        className={`size-10 shrink-0 overflow-hidden rounded-md border ${comparison?.id === a.id ? "border-primary" : "border-border"}`}
+                        aria-label={`选择对比 ${a.name}`}
+                        disabled={a.id === selected.id}
+                        onClick={() => setComparison(a)}
                       >
-                        ↔
-                      </span>
-                    </>
-                  ) : null}
+                        {thumb(a, "size-full object-cover")}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {actionError ? (
+                  <p role="alert" className="text-xs text-destructive">
+                    {actionError}
+                  </p>
+                ) : null}
+                <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                  <Button size="sm" variant="outline" onClick={() => void reveal(selected)}>
+                    在 Finder 中显示
+                  </Button>
+                  <Button size="sm" disabled={busy} onClick={() => void attach(selected)}>
+                    {busy ? "正在附加…" : "附加到输入框"}
+                  </Button>
                 </div>
-              )}
-              {comparison ? (
-                <div className="flex justify-between gap-2 text-2xs text-muted-foreground">
-                  <span className="truncate">{comparison.name}</span>
-                  <span className="truncate">{selected.name}</span>
-                </div>
-              ) : null}
-              {!isArtifactVideo(selected) && (
-                <div
-                  className="flex shrink-0 gap-2 overflow-x-auto"
-                  aria-label="选择对比图片"
-                  onScroll={(e) => {
-                    if (
-                      e.currentTarget.scrollLeft + e.currentTarget.clientWidth >=
-                      e.currentTarget.scrollWidth - 40
-                    )
-                      setThumbCount((n) => n + 40);
-                  }}
-                >
-                  {images.slice(0, thumbCount).map((a) => (
-                    <button
-                      type="button"
-                      key={a.id}
-                      className={`size-10 shrink-0 overflow-hidden rounded-md border ${comparison?.id === a.id ? "border-primary" : "border-border"}`}
-                      aria-label={`选择对比 ${a.name}`}
-                      disabled={a.id === selected.id}
-                      onClick={() => setComparison(a)}
-                    >
-                      {thumb(a, "size-full object-cover")}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {actionError ? (
-                <p role="alert" className="text-xs text-destructive">
-                  {actionError}
-                </p>
-              ) : null}
-              <div className="flex shrink-0 flex-wrap justify-end gap-2">
-                <Button size="sm" variant="outline" onClick={() => void reveal(selected)}>
-                  在 Finder 中显示
-                </Button>
-                <Button size="sm" disabled={busy} onClick={() => void attach(selected)}>
-                  {busy ? "正在附加…" : "附加到输入框"}
-                </Button>
-              </div>
-            </>
-          ) : null}
+              </>
+            ) : null}
+          </div>
         </DialogPopup>
       </Dialog>
     </section>

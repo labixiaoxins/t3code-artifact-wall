@@ -1,4 +1,5 @@
 import * as React from "react";
+import { manualClipboard } from "../manualClipboard";
 import * as Schema from "effect/Schema";
 import {
   COMPOSER_CONTEXT_CLIPBOARD_MIME,
@@ -126,6 +127,7 @@ export async function writeTextToClipboard(
 
   if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
     if (writeTextWithExecCommand(value, extraFlavors)) return true;
+    manualClipboard.reveal(value);
     throw new ClipboardApiUnavailableError({
       target,
     });
@@ -169,6 +171,8 @@ export async function writeTextToClipboard(
     await navigator.clipboard.writeText(value);
     return true;
   } catch (cause) {
+    if (writeTextWithExecCommand(value, extraFlavors)) return true;
+    manualClipboard.reveal(value);
     throw new ClipboardWriteError({
       target,
       cause,

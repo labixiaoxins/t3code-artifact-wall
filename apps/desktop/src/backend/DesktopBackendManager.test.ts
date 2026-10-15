@@ -124,6 +124,7 @@ interface MakeInstanceInput {
   readonly backendOutputLog?: Partial<DesktopObservability.DesktopBackendOutputLogShape>;
   readonly onReady?: Effect.Effect<void>;
   readonly onShutdown?: Effect.Effect<void>;
+  readonly onRestartExhausted?: Effect.Effect<void>;
   readonly onPreflightFailed?: (
     failure: DesktopBackendManager.PreflightFailure,
   ) => Effect.Effect<boolean>;
@@ -187,6 +188,7 @@ function makeTestInstance(input: MakeInstanceInput) {
     ...(input.onReady ? { onReady: () => input.onReady! } : {}),
     ...(input.onShutdown ? { onShutdown: () => input.onShutdown! } : {}),
     ...(input.onPreflightFailed ? { onPreflightFailed: input.onPreflightFailed } : {}),
+    ...(input.onRestartExhausted ? { onRestartExhausted: () => input.onRestartExhausted! } : {}),
   });
 
   return instance.pipe(Effect.provide(layerServices));
@@ -1204,6 +1206,64 @@ describe("DesktopBackendManager", () => {
         assert.equal(yield* Queue.take(starts), 3);
       }).pipe(Effect.provide(TestClock.layer())),
     ),
+  );
+
+  it.effect.each([0, 60_000])(
+    "bounds rapid crashes after readiness and resets after a stable run (%sms)",
+    (stableMs) =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const ready = yield* Queue.unbounded<void>();
+          const exits = yield* Queue.unbounded<void>();
+          const finalized = yield* Queue.unbounded<void>();
+          const exhausted = yield* Deferred.make<void>();
+          let starts = 0;
+          const instance = yield* makeTestInstance({
+            spawnerLayer: Layer.succeed(
+              ChildProcessSpawner.ChildProcessSpawner,
+              ChildProcessSpawner.make(() =>
+                Effect.sync(() => {
+                  starts++;
+                  return makeProcess({
+                    exitCode: Queue.take(exits).pipe(Effect.as(ChildProcessSpawner.ExitCode(1))),
+                  });
+                }),
+              ),
+            ),
+            onReady: Queue.offer(ready, undefined).pipe(Effect.asVoid),
+            onRestartExhausted: Deferred.succeed(exhausted, undefined).pipe(Effect.asVoid),
+            backendOutputLog: {
+              persistFailure: () => Queue.offer(finalized, undefined).pipe(Effect.asVoid),
+            },
+          });
+          yield* instance.start;
+          yield* Queue.take(ready);
+          for (const delay of [500, 1_000, 2_000, 4_000, 8_000]) {
+            yield* Queue.offer(exits, undefined);
+            yield* Queue.take(finalized);
+            yield* TestClock.adjust(delay);
+            yield* Queue.take(ready);
+          }
+          assert.equal(starts, 6);
+          if (stableMs > 0) yield* TestClock.adjust(stableMs);
+          yield* Queue.offer(exits, undefined);
+          yield* Queue.take(finalized);
+          if (stableMs === 0) {
+            yield* Deferred.await(exhausted);
+            assert.isFalse((yield* instance.snapshot).desiredRunning);
+            yield* TestClock.adjust(60_000);
+            assert.equal(starts, 6);
+            yield* instance.start;
+            yield* Queue.take(ready);
+            assert.equal(starts, 7);
+          } else {
+            yield* TestClock.adjust(500);
+            yield* Queue.take(ready);
+            assert.isFalse(yield* Deferred.isDone(exhausted));
+            assert.equal(starts, 7);
+          }
+        }),
+      ).pipe(Effect.provide(TestClock.layer())),
   );
 
   it.effect("does not notify shutdown when a scheduled restart starts from non-ready state", () =>

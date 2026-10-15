@@ -169,6 +169,13 @@ export const layer = Layer.effect(
           onPreflightFailed: (failure) =>
             Ref.set(preflightErrorRef, Option.some(failure.reason)).pipe(Effect.as(false)),
           onReady: () => Ref.set(preflightErrorRef, Option.none()),
+          onRestartExhausted: () =>
+            Ref.set(
+              preflightErrorRef,
+              Option.some(
+                "The WSL backend failed repeatedly. Automatic retries have stopped. Restart T3 Code or reconnect WSL to retry.",
+              ),
+            ),
         })
         .pipe(
           Effect.asSome,

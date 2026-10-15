@@ -19,11 +19,7 @@ import {
   LOCAL_DEVICE_HOST_ID,
 } from "@t3tools/contracts";
 import { waitForHttpReady } from "@t3tools/shared/httpReadiness";
-import {
-  HostProcessEnvironment,
-  HostProcessPlatform,
-  HostProcessUserId,
-} from "@t3tools/shared/hostProcess";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import {
   resolveNodeExecutable,
   type NodeRuntimeUnavailableError,
@@ -47,7 +43,7 @@ import { HttpClient } from "effect/http";
 import * as ChildProcess from "effect/process/ChildProcess";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 
-import { writeFileStringAtomically } from "../atomicWrite.ts";
+import { writeFileStringAtomically } from "@t3tools/shared/atomicWrite";
 import * as ServerConfig from "../config.ts";
 import * as ProcessRunner from "../processRunner.ts";
 import * as DeviceHost from "./DeviceHost.ts";
@@ -90,6 +86,19 @@ const AgentDeviceDaemonFile = Schema.Struct({
 });
 const decodeDaemonFile = Schema.decodeUnknownEffect(Schema.fromJsonString(AgentDeviceDaemonFile));
 
+const decodeAgentDeviceFailure = Schema.decodeUnknownOption(
+  Schema.fromJsonString(
+    Schema.Struct({
+      error: Schema.Struct({
+        details: Schema.Struct({
+          reason: Schema.String,
+          inspection: Schema.optional(Schema.Struct({ reason: Schema.String })),
+        }),
+      }),
+    }),
+  ),
+);
+
 interface HubProcess {
   readonly nodePath: string;
   readonly child: ChildProcessSpawner.ChildProcessHandle;
@@ -107,7 +116,7 @@ interface RunningHost {
 const platformReason = Effect.fn("LocalDeviceHost.platformReason")(function* (
   platform: DevicePlatform,
 ): Effect.fn.Return<string | null, never, FileSystem.FileSystem | Path.Path> {
-  const hostPlatform = yield* HostProcessPlatform;
+  const hostPlatform = yield* HostProcess.Platform;
   if (platform === "ios") {
     if (hostPlatform !== "darwin") return "iOS Simulators need macOS with Xcode.";
     if (!(yield* isCommandAvailable("xcrun"))) return "Xcode command line tools were not found.";
@@ -132,8 +141,8 @@ const platformReason = Effect.fn("LocalDeviceHost.platformReason")(function* (
 const androidSdk = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
-  const environment = yield* HostProcessEnvironment;
-  const platform = yield* HostProcessPlatform;
+  const environment = yield* HostProcess.Environment;
+  const platform = yield* HostProcess.Platform;
   const home = environment.HOME ?? environment.USERPROFILE ?? "";
   const explicit = environment.ANDROID_HOME?.trim() || environment.ANDROID_SDK_ROOT?.trim();
   const candidates = explicit
@@ -208,8 +217,8 @@ const hubEnvironment = Effect.fn("LocalDeviceHost.hubEnvironment")(function* (
   environment: NodeJS.ProcessEnv,
 ) {
   const env: NodeJS.ProcessEnv = { ...environment, FORCE_COLOR: "0", NO_COLOR: "1" };
-  const platform = yield* HostProcessPlatform;
-  const uid = yield* HostProcessUserId;
+  const platform = yield* HostProcess.Platform;
+  const uid = yield* HostProcess.UserId;
   if (platform === "linux" && env.XDG_RUNTIME_DIR === undefined && uid !== undefined) {
     // SSH sessions may omit the directory where the emulator publishes its gRPC token.
     const runtimeDir = `/run/user/${uid}`;
@@ -234,8 +243,8 @@ export const make = Effect.fn("LocalDeviceHost.make")(function* () {
   const net = yield* NetService.NetService;
   const runner = yield* ProcessRunner.ProcessRunner;
   const httpClient = yield* HttpClient.HttpClient;
-  const environment = yield* HostProcessEnvironment;
-  const hostPlatform = yield* HostProcessPlatform;
+  const environment = yield* HostProcess.Environment;
+  const hostPlatform = yield* HostProcess.Platform;
   const sdk = yield* androidSdk;
   const hostEnvironment = deviceHostEnvironment(environment, sdk.root, hostPlatform, path);
   const startLock = yield* Semaphore.make(1);
@@ -383,62 +392,63 @@ export const make = Effect.fn("LocalDeviceHost.make")(function* () {
     );
     const origin = `http://127.0.0.1:${port}`;
     const scope = yield* Scope.make("sequential");
-    const child = yield* spawner
-      .spawn(
-        ChildProcess.make(
-          nodePath,
-          [
-            hubTool.entryPath,
-            "--port",
-            String(port),
-            "--host",
-            "127.0.0.1",
-            "--hide-sidebar",
-            "--hide-boot-device",
-          ],
-          {
-            detached: false,
-            shell: false,
-            stdout: "pipe",
-            stderr: "pipe",
-            env: yield* hubEnvironment(hostEnvironment).pipe(
-              Effect.provideService(FileSystem.FileSystem, fs),
-              Effect.provideService(HostProcessPlatform, hostPlatform),
-            ),
-          },
-        ),
-      )
-      .pipe(
-        Effect.provideService(Scope.Scope, scope),
-        Effect.mapError(
-          (cause) =>
-            new DeviceHost.DeviceHostError({
-              hostId,
-              step: "starting the device hub",
-              cause,
-            }),
-        ),
-      );
-    const startedAtMillis = yield* Clock.currentTimeMillis;
-    const hub: HubProcess = { child, scope, origin, startedAtMillis, nodePath };
-    yield* Effect.forkIn(observeHubOutput(hub), scope);
-    yield* waitForHttpReady({
-      baseUrl: origin,
-      path: "/readyz",
-      timeoutMs: HUB_READY_TIMEOUT_MS,
-      makeError: (info) =>
-        new DeviceHost.DeviceHostError({
-          hostId,
-          step: "waiting for the device hub to answer",
-          cause: info.cause,
-        }),
-    }).pipe(
-      Effect.provideService(HttpClient.HttpClient, httpClient),
-      Effect.tapError(() => stopHub(hub)),
-    );
-    yield* recordHub(hub, hubTool);
-    yield* Effect.logInfo("Device hub started", { pid: Number(child.pid), port });
-    return hub;
+    // On failure or interrupt, from the spawn on: the hub is not recorded yet,
+    // so nothing else stops it.
+    return yield* Effect.gen(function* () {
+      const child = yield* spawner
+        .spawn(
+          ChildProcess.make(
+            nodePath,
+            [
+              hubTool.entryPath,
+              "--port",
+              String(port),
+              "--host",
+              "127.0.0.1",
+              "--hide-sidebar",
+              "--hide-boot-device",
+            ],
+            {
+              detached: false,
+              shell: false,
+              stdout: "pipe",
+              stderr: "pipe",
+              env: yield* hubEnvironment(hostEnvironment).pipe(
+                Effect.provideService(FileSystem.FileSystem, fs),
+                Effect.provideService(HostProcess.Platform, hostPlatform),
+              ),
+            },
+          ),
+        )
+        .pipe(
+          Effect.provideService(Scope.Scope, scope),
+          Effect.mapError(
+            (cause) =>
+              new DeviceHost.DeviceHostError({
+                hostId,
+                step: "starting the device hub",
+                cause,
+              }),
+          ),
+        );
+      const startedAtMillis = yield* Clock.currentTimeMillis;
+      const hub: HubProcess = { child, scope, origin, startedAtMillis, nodePath };
+      yield* Effect.forkIn(observeHubOutput(hub), scope);
+      yield* waitForHttpReady({
+        baseUrl: origin,
+        path: "/readyz",
+        timeoutMs: HUB_READY_TIMEOUT_MS,
+        makeError: (info) =>
+          new DeviceHost.DeviceHostError({
+            hostId,
+            step: "waiting for the device hub to answer",
+            cause: info.cause,
+          }),
+      }).pipe(Effect.provideService(HttpClient.HttpClient, httpClient));
+      yield* recordHub(hub, hubTool);
+      yield* Effect.logInfo("Device hub started", { pid: Number(child.pid), port });
+      return hub;
+    }).pipe(Effect.onError(() => Scope.close(scope, Exit.void).pipe(Effect.ignore)));
   });
 
   const observeHubOutput = (hub: HubProcess) =>
@@ -501,7 +511,12 @@ export const make = Effect.fn("LocalDeviceHost.make")(function* () {
   const startAgentDeviceDaemon = Effect.fn("LocalDeviceHost.startAgentDeviceDaemon")(function* (
     agentTool: DeviceToolPaths,
     nodePath: string,
-  ): Effect.fn.Return<DeviceHost.AgentDeviceEndpoint, DeviceHost.DeviceHostTimeoutError> {
+  ): Effect.fn.Return<
+    DeviceHost.AgentDeviceEndpoint,
+    | DeviceHost.DeviceHostError
+    | DeviceHost.DeviceHostTimeoutError
+    | DeviceHost.AgentDeviceStartError
+  > {
     const stateDir = agentDeviceStateDir(path, config.stateDir);
     yield* fs.makeDirectory(stateDir, { recursive: true }).pipe(Effect.ignore);
     const existing = yield* readDaemonFile().pipe(Effect.option);
@@ -539,7 +554,7 @@ export const make = Effect.fn("LocalDeviceHost.make")(function* () {
     }
     // There is no `daemon start`; the first command in a state dir spawns the
     // daemon and blocks until it answers. `devices` is the cheapest one.
-    yield* runner
+    const runResult = yield* runner
       .run({
         command: nodePath,
         args: [agentTool.entryPath, "devices", "--json"],
@@ -547,7 +562,44 @@ export const make = Effect.fn("LocalDeviceHost.make")(function* () {
         timeout: Duration.millis(DAEMON_READY_TIMEOUT_MS),
         timeoutBehavior: "timedOutResult",
       })
-      .pipe(Effect.ignore);
+      .pipe(Effect.result);
+    // Discovery can fail after the daemon starts. A published endpoint still
+    // lets agents connect; absent one, preserve the CLI failure instead of polling.
+    const started = yield* readDaemonFile().pipe(Effect.option);
+    if (started._tag === "Some") return toEndpoint(started.value);
+    if (runResult._tag === "Failure") {
+      return yield* new DeviceHost.DeviceHostError({
+        hostId,
+        step: "starting agent tools",
+        cause: runResult.failure,
+      });
+    }
+    const result = runResult.success;
+    if (result.timedOut) {
+      return yield* new DeviceHost.DeviceHostTimeoutError({
+        hostId,
+        timeoutMs: DAEMON_READY_TIMEOUT_MS,
+      });
+    }
+    if (result.code !== 0) {
+      const failure = decodeAgentDeviceFailure(result.stdout);
+      const details = Option.isSome(failure) ? failure.value.error.details : undefined;
+      const reason =
+        details?.reason === "daemon_registration_unproven"
+          ? details.inspection?.reason === "non-directory"
+            ? "daemon_lock_not_directory"
+            : "daemon_registration_unproven"
+          : details?.reason === "daemon_retirement_unconfirmed"
+            ? "daemon_retirement_unconfirmed"
+            : "command_failed";
+      return yield* new DeviceHost.AgentDeviceStartError({
+        hostId,
+        stateDir,
+        exitCode: result.code === null ? null : Number(result.code),
+        reason,
+        cause: result,
+      });
+    }
     const deadline = (yield* Clock.currentTimeMillis) + DAEMON_READY_TIMEOUT_MS;
     while (true) {
       const file = yield* readDaemonFile().pipe(Effect.option);
@@ -597,7 +649,7 @@ export const make = Effect.fn("LocalDeviceHost.make")(function* () {
     const nodePath = yield* resolveNodeExecutable("Local device support", hostEnvironment).pipe(
       Effect.provideService(FileSystem.FileSystem, fs),
       Effect.provideService(Path.Path, path),
-      Effect.provideService(HostProcessPlatform, hostPlatform),
+      Effect.provideService(HostProcess.Platform, hostPlatform),
     );
     const installed = yield* isDeviceHubInstalled(config.baseDir).pipe(
       Effect.provideService(FileSystem.FileSystem, fs),
@@ -622,25 +674,30 @@ export const make = Effect.fn("LocalDeviceHost.make")(function* () {
     );
     yield* onPhase("starting");
     const hub = yield* spawnHub(hubTool, nodePath);
-    yield* pruneLocalDeviceTools(config.baseDir, nodePath, "hub").pipe(
-      Effect.provideService(Path.Path, path),
-      Effect.provideService(ProcessRunner.ProcessRunner, runner),
-      Effect.ignore,
-    );
-    const candidate = helperPaths(hubTool);
-    const [axExists, cliExists] = yield* Effect.all([
-      fs.exists(candidate.serveSimAxSettings).pipe(Effect.orElseSucceed(() => false)),
-      fs.exists(candidate.serveSimCli).pipe(Effect.orElseSucceed(() => false)),
-    ]);
-    const next: RunningHost = {
-      hub,
-      agentDevice: null,
-      helpers: {
-        serveSimAxSettings: axExists ? candidate.serveSimAxSettings : null,
-        serveSimCli: cliExists ? candidate.serveSimCli : null,
-      },
-    };
-    yield* Ref.set(runningRef, next);
+    // Until the hub is in runningRef, nothing else stops it, so publishing it
+    // is part of the guarded step.
+    const next = yield* Effect.gen(function* () {
+      yield* pruneLocalDeviceTools(config.baseDir, nodePath, "hub").pipe(
+        Effect.provideService(Path.Path, path),
+        Effect.provideService(ProcessRunner.ProcessRunner, runner),
+        Effect.ignore,
+      );
+      const candidate = helperPaths(hubTool);
+      const [axExists, cliExists] = yield* Effect.all([
+        fs.exists(candidate.serveSimAxSettings).pipe(Effect.orElseSucceed(() => false)),
+        fs.exists(candidate.serveSimCli).pipe(Effect.orElseSucceed(() => false)),
+      ]);
+      const next: RunningHost = {
+        hub,
+        agentDevice: null,
+        helpers: {
+          serveSimAxSettings: axExists ? candidate.serveSimAxSettings : null,
+          serveSimCli: cliExists ? candidate.serveSimCli : null,
+        },
+      };
+      yield* Ref.set(runningRef, next);
+      return next;
+    }).pipe(Effect.onError(() => stopHub(hub)));
     yield* Ref.set(restartDelayRef, 0);
     yield* Effect.forkDetach(superviseHub(hub, hubTool));
     return next;
@@ -656,6 +713,7 @@ export const make = Effect.fn("LocalDeviceHost.make")(function* () {
           unknown,
           | DeviceHost.DeviceHostError
           | DeviceHost.DeviceHostTimeoutError
+          | DeviceHost.AgentDeviceStartError
           | NodeRuntimeUnavailableError
         >,
         DeviceHost.DeviceHostAgentReady

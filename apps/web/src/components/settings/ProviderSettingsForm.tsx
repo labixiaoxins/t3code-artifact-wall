@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
-import type {
-  ProviderSettingsFormAnnotation,
-  ProviderSettingsFormControl,
-  ProviderSettingsFormOption,
-  ProviderSettingsFormSchemaAnnotation,
+import {
+  isSecretSetting,
+  type ProviderSettingsFormAnnotation,
+  type ProviderSettingsFormControl,
+  type ProviderSettingsFormOption,
+  type ProviderSettingsFormSchemaAnnotation,
 } from "@t3tools/contracts";
 import { PlusIcon, XIcon } from "lucide-react";
 
@@ -15,10 +16,16 @@ import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { DraftInput } from "../ui/draft-input";
 import { Input } from "../ui/input";
+import { SecretInput } from "./SecretInput";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { Switch } from "../ui/switch";
 import { Textarea } from "../ui/textarea";
-import type { ProviderClientDefinition } from "./providerDriverMeta";
+import type { ProviderClientDefinition } from "@t3tools/provider-core/client";
+
+/** What the form reads from a definition: an agent provider's, or a source control host's. */
+export type SettingsFormDefinition = Pick<ProviderClientDefinition, "settingsSchema"> & {
+  readonly driverKind?: ProviderClientDefinition["driverKind"];
+};
 import { SettingsRow } from "./settingsLayout";
 
 export interface ProviderSettingsFieldModel {
@@ -28,6 +35,8 @@ export interface ProviderSettingsFieldModel {
   readonly description?: string | undefined;
   readonly placeholder?: string | undefined;
   readonly clearWhenEmpty: "omit" | "persist";
+  /** Kept in the server's secret store: a saved value arrives as `SECRET_REDACTED` and never shows. */
+  readonly secret?: boolean | undefined;
   readonly defaultBooleanValue?: boolean | undefined;
   /** Choices for a `select` control. The first entry is the default. */
   readonly options?: ReadonlyArray<ProviderSettingsFormOption> | undefined;
@@ -63,7 +72,7 @@ function readProviderSettingsFormAnnotation(
 }
 
 function readProviderSettingsFormSchemaAnnotation(
-  definition: ProviderClientDefinition,
+  definition: SettingsFormDefinition,
 ): ProviderSettingsFormSchemaAnnotation {
   return Schema.resolveAnnotations(definition.settingsSchema)?.providerSettingsFormSchema ?? {};
 }
@@ -77,11 +86,12 @@ function readFieldBooleanDefault(
 }
 
 export function deriveProviderSettingsFields(
-  definition: ProviderClientDefinition,
+  definition: SettingsFormDefinition,
   value?: unknown,
 ): ReadonlyArray<ProviderSettingsFieldModel> {
   const isLocalAcp =
-    definition.value === "acpRegistry" && readProviderConfigString(value, "source") === "local";
+    definition.driverKind === "acpRegistry" &&
+    readProviderConfigString(value, "source") === "local";
   const schemaAnnotation = readProviderSettingsFormSchemaAnnotation(definition);
   const orderedKeys = new Map(
     (schemaAnnotation.order ?? []).map((key, index) => [key, index] as const),
@@ -123,6 +133,7 @@ export function deriveProviderSettingsFields(
               ? { placeholder: formAnnotation.placeholder }
               : {}),
           clearWhenEmpty: formAnnotation.clearWhenEmpty ?? "omit",
+          ...(isSecretSetting(fieldSchema) ? { secret: true } : {}),
           ...(formAnnotation.control === "switch"
             ? { defaultBooleanValue: readFieldBooleanDefault(fieldSchema) }
             : {}),
@@ -280,7 +291,7 @@ export function nextProviderConfigWithFieldValue(
 }
 
 interface ProviderSettingsFormProps {
-  readonly definition: ProviderClientDefinition;
+  readonly definition: SettingsFormDefinition;
   readonly value: unknown;
   readonly idPrefix: string;
   /**
@@ -401,6 +412,16 @@ function ProviderSettingsFieldRow({
           placeholder={field.placeholder}
           spellCheck={false}
         />
+      ) : field.secret ? (
+        <SecretInput
+          id={inputId}
+          aria-describedby={descriptionId}
+          size="sm"
+          className="w-full max-w-full @min-[32rem]/settings-row:w-56"
+          configured={readProviderConfigString(value, field.key).length > 0}
+          value=""
+          onCommit={(next) => onChange(nextProviderConfigWithFieldValue(value, field, next))}
+        />
       ) : (
         <DraftInput
           id={inputId}
@@ -410,8 +431,10 @@ function ProviderSettingsFieldRow({
           type={field.control === "password" ? "password" : undefined}
           autoComplete={field.control === "password" ? "off" : undefined}
           value={readProviderConfigString(value, field.key)}
-          onCommit={(next) => onChange(nextProviderConfigWithFieldValue(value, field, next))}
           placeholder={field.placeholder}
+          onCommit={(next) => {
+            onChange(nextProviderConfigWithFieldValue(value, field, next));
+          }}
           spellCheck={false}
         />
       );
@@ -490,27 +513,29 @@ function ProviderSettingsFieldRow({
   }
 
   const type = field.control === "password" ? "password" : undefined;
+  const BufferedInput = field.secret ? SecretInput : DraftInput;
+  const ControlledInput = field.secret ? SecretInput : Input;
   return (
     <FieldFrame variant={variant}>
       <label htmlFor={inputId} className={cn(variant === "card" && "block")}>
         {label}
         {variant === "card" ? (
-          <DraftInput
+          <BufferedInput
             id={inputId}
             size="sm"
             className="mt-1.5"
-            type={type}
-            autoComplete={field.control === "password" ? "off" : undefined}
+            type={field.secret ? undefined : type}
+            autoComplete={!field.secret && field.control === "password" ? "off" : undefined}
             value={readProviderConfigString(value, field.key)}
             onCommit={(next) => onChange(nextProviderConfigWithFieldValue(value, field, next))}
             placeholder={field.placeholder}
             spellCheck={false}
           />
         ) : (
-          <Input
+          <ControlledInput
             id={inputId}
-            type={type}
-            autoComplete={field.control === "password" ? "off" : undefined}
+            type={field.secret ? undefined : type}
+            autoComplete={!field.secret && field.control === "password" ? "off" : undefined}
             value={readProviderConfigString(value, field.key)}
             onChange={(event) =>
               onChange(nextProviderConfigWithFieldValue(value, field, event.target.value))
@@ -537,7 +562,8 @@ export function ProviderSettingsForm({
     [definition, value],
   );
   const isLocalAcp =
-    definition.value === "acpRegistry" && readProviderConfigString(value, "source") === "local";
+    definition.driverKind === "acpRegistry" &&
+    readProviderConfigString(value, "source") === "local";
 
   if (fields.length === 0) {
     return null;

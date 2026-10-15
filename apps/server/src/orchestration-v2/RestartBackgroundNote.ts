@@ -91,6 +91,7 @@ export function restartCancelledBackgroundWorkNote(work: ReadonlyArray<Work>): s
   const omitted = work.length - MAX_NOTE_ENTRIES;
   return [
     "Note: the T3 server restarted, and this background work was cancelled before it finished. It will not report back:",
+    "Cancellation does not undo side effects. Inspect existing files and target receipts before restarting work; do not repeat a completed external write or assume an interrupted write never happened. Continue remaining work within the existing user authorization.",
     ...work.slice(0, MAX_NOTE_ENTRIES).map((entry) => `- ${entry.kind}: ${entry.label}`),
     ...(omitted > 0 ? [`- and ${omitted} more`] : []),
   ].join("\n");

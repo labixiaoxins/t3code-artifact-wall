@@ -13,6 +13,7 @@ import {
   act,
   createRef,
   useLayoutEffect,
+  useState,
   type ReactNode,
   type Ref,
   type ReactElement,
@@ -87,6 +88,11 @@ beforeEach(() => {
   activityTestState.expandedRuns = false;
 });
 
+const legendListTestState = vi.hoisted(() => ({
+  data: undefined as unknown,
+  onScroll: undefined as (() => void) | undefined,
+}));
+
 vi.mock("@legendapp/list/react", async () => {
   const legendListTestId = "legend-list";
 
@@ -122,8 +128,11 @@ vi.mock("@legendapp/list/react", async () => {
         };
     className?: string;
     contentInsetEndAdjustment?: number;
+    onScroll?: () => void;
     ref?: Ref<LegendListRef>;
   }) => {
+    legendListTestState.data = props.data;
+    legendListTestState.onScroll = props.onScroll;
     if (props.anchoredEndSpace) {
       props.anchoredEndSpace.onSizeChanged?.(240);
       props.anchoredEndSpace.onReady?.({ anchorIndex: props.anchoredEndSpace.anchorIndex });
@@ -260,10 +269,11 @@ function stubDomGlobals() {
 }
 
 beforeEach(stubDomGlobals);
+// Cold transformation of the full chat dependency graph needs extra time on slower CI workers.
 beforeAll(async () => {
   Object.defineProperty(window, "matchMedia", { value: matchMedia, configurable: true });
   ({ MessagesTimeline, resolvePreviewAnnotationImage } = await import("./MessagesTimeline"));
-}, 30_000);
+}, 120_000);
 
 const ACTIVE_THREAD_ENVIRONMENT_ID = EnvironmentId.make("environment-local");
 const MESSAGE_CREATED_AT = "2026-03-17T19:12:28.000Z";
@@ -668,6 +678,221 @@ describe("MessagesTimeline", () => {
       }
     },
   );
+
+  it.each([true, false])(
+    "keeps the end in view when tool output toggles only at the end: %s",
+    async (isAtEnd) => {
+      const frames = new Map<number, FrameRequestCallback>();
+      let nextFrame = 0;
+      vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+        frames.set(++nextFrame, callback);
+        return nextFrame;
+      });
+      vi.stubGlobal("cancelAnimationFrame", (frame: number) => frames.delete(frame));
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+      const flushFrame = () =>
+        act(() => {
+          const callbacks = [...frames.values()];
+          frames.clear();
+          callbacks.forEach((callback) => callback(0));
+        });
+      const viewport = { scrollTop: 400, scrollHeight: 1000 };
+      const props = buildProps();
+      props.listRef.current = {
+        getState: () => ({ isAtEnd }),
+        getScrollableNode: () => viewport,
+      } as unknown as LegendListRef;
+      let renderer: ReactTestRenderer | undefined;
+      try {
+        await act(() => {
+          renderer = create(
+            <MessagesTimeline
+              {...props}
+              timelineEntries={[
+                {
+                  id: "tool",
+                  kind: "work",
+                  createdAt: MESSAGE_CREATED_AT,
+                  entry: {
+                    id: "tool",
+                    createdAt: MESSAGE_CREATED_AT,
+                    label: "Run command",
+                    tone: "tool",
+                    toolLifecycleStatus: "completed",
+                    detail: "Command output",
+                  },
+                },
+              ]}
+            />,
+          );
+        });
+        const toggle = renderer!.root.findByProps({ "aria-expanded": false });
+        const list = renderer!.root.find(
+          (node) => node.props.ListFooterComponent !== undefined && node.props.onItemSizeChanged,
+        );
+        for (const scrollHeight of [1300, 900]) {
+          await act(() => toggle.props.onClick());
+          // The rows grow or shrink once the list measures them.
+          viewport.scrollHeight = scrollHeight;
+          await flushFrame();
+          expect(viewport.scrollTop).toBe(isAtEnd ? scrollHeight : 400);
+          // Tool output that renders late is pinned before the next frame.
+          viewport.scrollHeight = scrollHeight + 200;
+          await act(() => list.props.onItemSizeChanged());
+          expect(viewport.scrollTop).toBe(isAtEnd ? scrollHeight + 200 : 400);
+          await flushFrame();
+          await flushFrame();
+          viewport.scrollTop = 400;
+        }
+      } finally {
+        await act(() => renderer?.unmount());
+      }
+    },
+  );
+
+  function stubFollowTimeline(routeThreadKey: string) {
+    const frames = new Map<number, FrameRequestCallback>();
+    let nextFrame = 0;
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      frames.set(++nextFrame, callback);
+      return nextFrame;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (frame: number) => frames.delete(frame));
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    const props = { ...buildProps(), routeThreadKey };
+    const timeline = {
+      props,
+      scrollTop: 1400,
+      flushFrame: () =>
+        act(() => {
+          const callbacks = [...frames.values()];
+          frames.clear();
+          callbacks.forEach((callback) => callback(0));
+        }),
+    };
+    const viewport = {
+      get scrollTop() {
+        return timeline.scrollTop;
+      },
+      getBoundingClientRect: () => ({ top: 0 }),
+    };
+    props.listRef.current = {
+      getScrollableNode: () => viewport,
+      getState: () => ({
+        data: legendListTestState.data,
+        scroll: timeline.scrollTop,
+        scrollLength: 600,
+        contentLength: 2000,
+        indexByKey: () => 0,
+        positionAtIndex: () => 0,
+        sizeAtIndex: () => 2000,
+        elementAtIndex: () => ({ getBoundingClientRect: () => ({ top: -timeline.scrollTop }) }),
+      }),
+    } as unknown as LegendListRef;
+    return timeline;
+  }
+
+  it("remembers a manual reading position when the chat closes before the next frame", async () => {
+    const { readTimelinePosition } = await import("./timelineScrollAnchoring");
+    const timeline = stubFollowTimeline("environment-local:manual-departure");
+    const { props } = timeline;
+    let navigateManually = () => {};
+    function ChatProbe() {
+      const [liveFollowEnabled, setLiveFollowEnabled] = useState(true);
+      navigateManually = () => setLiveFollowEnabled(false);
+      return (
+        <MessagesTimeline
+          {...props}
+          timelineEntries={[buildUserTimelineEntry("First prompt")]}
+          liveFollowEnabled={liveFollowEnabled}
+          onManualNavigation={navigateManually}
+        />
+      );
+    }
+    let renderer: ReactTestRenderer | undefined;
+    try {
+      await act(() => {
+        renderer = create(<ChatProbe />);
+      });
+      await timeline.flushFrame();
+      expect(readTimelinePosition(props.routeThreadKey)?.atEnd).toBe(true);
+
+      // The scroll event lands before the follow opt-out renders.
+      timeline.scrollTop = 1300;
+      await act(() => {
+        navigateManually();
+        legendListTestState.onScroll?.();
+      });
+      await act(() => renderer?.unmount());
+      renderer = undefined;
+
+      expect(readTimelinePosition(props.routeThreadKey)).toMatchObject({
+        atEnd: false,
+        scrollOffset: 1300,
+      });
+    } finally {
+      await act(() => renderer?.unmount());
+    }
+  });
+
+  it("keeps a following thread's intent while its timeline is held for the next thread", async () => {
+    const { readTimelinePosition } = await import("./timelineScrollAnchoring");
+    const timeline = stubFollowTimeline("environment-local:held-departure");
+    const { props } = timeline;
+    // Smooth follow is still catching up with the stream.
+    timeline.scrollTop = 1300;
+    const render = (held: boolean) => (
+      <MessagesTimeline
+        {...props}
+        timelineEntries={[buildUserTimelineEntry("First prompt")]}
+        liveFollowEnabled={!held}
+        paintOnly={held}
+      />
+    );
+    let renderer: ReactTestRenderer | undefined;
+    try {
+      await act(() => {
+        renderer = create(render(false));
+      });
+      await timeline.flushFrame();
+      expect(readTimelinePosition(props.routeThreadKey)?.atEnd).toBe(true);
+
+      await act(() => renderer?.update(render(true)));
+      await timeline.flushFrame();
+
+      expect(readTimelinePosition(props.routeThreadKey)?.atEnd).toBe(true);
+    } finally {
+      await act(() => renderer?.unmount());
+    }
+  });
+
+  it("remembers a first send held near the top as a reading position", async () => {
+    const { readTimelinePosition } = await import("./timelineScrollAnchoring");
+    const timeline = stubFollowTimeline("environment-local:anchored-first-send");
+    const { props } = timeline;
+    timeline.scrollTop = 1300;
+    let renderer: ReactTestRenderer | undefined;
+    try {
+      await act(() => {
+        renderer = create(
+          <MessagesTimeline
+            {...props}
+            timelineEntries={[buildUserTimelineEntry("First prompt")]}
+            anchorMessageId={MessageId.make("message-1")}
+            liveFollowEnabled
+          />,
+        );
+      });
+      await timeline.flushFrame();
+
+      expect(readTimelinePosition(props.routeThreadKey)).toMatchObject({
+        atEnd: false,
+        scrollOffset: 1300,
+      });
+    } finally {
+      await act(() => renderer?.unmount());
+    }
+  });
 
   it("preserves arbitrary XML-like tags and comparisons in rendered user messages", async () => {
     const { MessagesTimeline } = await import("./MessagesTimeline");
@@ -1470,6 +1695,7 @@ describe("MessagesTimeline", () => {
       attemptOrdinal: 1,
       rootNodeId: "node-attempt-1" as never,
       status: "superseded" as const,
+      completedAt: null,
     };
     const activeAttempt = {
       id: "attempt-2" as never,
@@ -1477,6 +1703,7 @@ describe("MessagesTimeline", () => {
       attemptOrdinal: 2,
       rootNodeId: "node-attempt-2" as never,
       status: "running" as const,
+      completedAt: null,
     };
     const markup = renderToStaticMarkup(
       <MessagesTimeline
@@ -1525,7 +1752,7 @@ describe("MessagesTimeline", () => {
     expect(markup).toContain('data-superseded-attempt-id="attempt-1"');
     expect(markup).toContain('aria-expanded="false"');
     expect(markup).toContain("Superseded attempt");
-    expect(markup).toContain("Partial output retained");
+    expect(markup).toContain("Cut off by a steer");
     expect(markup).toContain("Current response remains visible");
     expect(markup).not.toContain("Partial response from the old attempt");
   });

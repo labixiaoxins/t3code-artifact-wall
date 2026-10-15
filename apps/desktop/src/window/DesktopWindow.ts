@@ -14,6 +14,7 @@ import * as DesktopAssets from "../app/DesktopAssets.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import { makeComponentLogger } from "../app/DesktopObservability.ts";
 import * as ElectronMenu from "../electron/ElectronMenu.ts";
+import * as ElectronDialog from "../electron/ElectronDialog.ts";
 import { getDesktopUrl } from "../electron/ElectronProtocol.ts";
 import * as ElectronShell from "../electron/ElectronShell.ts";
 import * as ElectronTheme from "../electron/ElectronTheme.ts";
@@ -25,12 +26,15 @@ import {
   TRACKPAD_SCROLL_END_CHANNEL,
   WINDOW_FULLSCREEN_STATE_CHANNEL,
 } from "../ipc/channels.ts";
+import { PASSKEY_BRIDGE_ARGUMENT } from "../preview/GuestProtocol.ts";
 import * as PreviewManager from "../preview/Manager.ts";
+import * as PreviewPasskeys from "../preview/Passkeys.ts";
 import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
 import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
 import * as ElectronApp from "../electron/ElectronApp.ts";
 import * as DesktopRendererHistory from "../telemetry/DesktopRendererHistory.ts";
 import { makeQuitShortcutHandler } from "./QuitHold.ts";
+import { copyContextMenuImage } from "./ContextMenuImage.ts";
 
 const TITLEBAR_HEIGHT = 40;
 // Matches --workspace-topbar-height in apps/web/src/index.css. Native macOS
@@ -93,6 +97,7 @@ export type DesktopWindowError =
   | PreviewManager.PreviewManagerError;
 
 export type MainWindowZoomDirection = "in" | "out" | "reset";
+export type MainWindowContentsCommand = "reload" | "forceReload" | "toggleDevTools";
 
 export class DesktopWindow extends Context.Service<
   DesktopWindow,
@@ -106,6 +111,7 @@ export class DesktopWindow extends Context.Service<
     // mode), before the WSL backend that acts as the primary is ready. It is
     // dismissed automatically once the real main window reveals.
     readonly showConnectingSplash: Effect.Effect<void>;
+    readonly prepareForShutdown: Effect.Effect<boolean>;
     // Marks the primary backend as ready so `createMainIfBackendReady` and the
     // macOS "activate without windows" path may open the real main window. The
     // renderer now always loads the local client URL (getDesktopUrl) and connects
@@ -137,6 +143,10 @@ export class DesktopWindow extends Context.Service<
     // guest page instead of the app UI. The menu routes here to always target
     // the main window.
     readonly zoomMain: (direction: MainWindowZoomDirection) => Effect.Effect<void>;
+    // Reload and DevTools for the main window's own webContents, for the same
+    // reason as zoomMain: the Electron roles act on the focused webContents,
+    // which is a preview guest whenever a browser page has focus.
+    readonly runMainContentsCommand: (command: MainWindowContentsCommand) => Effect.Effect<void>;
     readonly syncAppearance: Effect.Effect<void>;
   }
 >()("@t3tools/desktop/window/DesktopWindow") {}
@@ -202,12 +212,25 @@ export function resolveInitialMainWindowBounds(
 // A self-contained "Connecting to WSL" splash, shown immediately in wsl-only
 // mode while the WSL backend (which serves the renderer) cold-boots. Inlined as
 // a data URL so it needs no bundled asset and no backend — pure CSS, no JS.
-function buildConnectingSplashDataUrl(shouldUseDarkColors: boolean): string {
+export function buildConnectingSplashDataUrl(
+  shouldUseDarkColors: boolean,
+  mode: "local" | "wsl" | "closing" = "wsl",
+): string {
   const background = getInitialWindowBackgroundColor(shouldUseDarkColors);
   const label = shouldUseDarkColors ? "#9ca3af" : "#6b7280";
   const accent = shouldUseDarkColors ? "#f8fafc" : "#1f2937";
   const track = shouldUseDarkColors ? "rgba(248,250,252,0.18)" : "rgba(31,41,55,0.18)";
-  const html = `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><style>html,body{margin:0;height:100%}body{background:${background};color:${label};font-family:system-ui,-apple-system,'Segoe UI',sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;-webkit-user-select:none;user-select:none;-webkit-app-region:drag}.spinner{width:26px;height:26px;border:3px solid ${track};border-top-color:${accent};border-radius:50%;animation:spin .8s linear infinite}.label{font-size:13px}@keyframes spin{to{transform:rotate(360deg)}}</style></head><body><div class="spinner"></div><div class="label">Connecting to WSL…</div></body></html>`;
+  const message =
+    mode === "closing"
+      ? "Closing T3 Code…"
+      : mode === "wsl"
+        ? "Connecting to WSL…"
+        : "Starting T3 Code…";
+  const detail =
+    mode === "closing"
+      ? "Stopping local services. Running local tasks will be interrupted."
+      : "Opening your workspace. Your history stays on this device.";
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><style>html,body{margin:0;height:100%}body{background:${background};color:${label};font-family:system-ui,-apple-system,'Segoe UI',sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;-webkit-user-select:none;user-select:none;-webkit-app-region:drag}.mark{width:26px;height:26px;border:3px solid ${track};border-top-color:${accent};border-radius:50%}.label{font-size:14px;color:${accent}}.detail{font-size:12px;line-height:1.5;text-align:center;max-width:280px;padding:0 20px}</style></head><body><main role="status" aria-live="polite" style="display:contents"><div class="mark" aria-hidden="true"></div><div class="label">${message}</div><div class="detail">${detail}</div></main></body></html>`;
   return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 }
 
@@ -321,6 +344,7 @@ export const make = Effect.gen(function* () {
   const electronTheme = yield* ElectronTheme.ElectronTheme;
   const electronWindow = yield* ElectronWindow.ElectronWindow;
   const previewManager = yield* PreviewManager.PreviewManager;
+  const previewPasskeys = yield* PreviewPasskeys.PreviewPasskeys;
   const desktopSettings = yield* DesktopAppSettings.DesktopAppSettings;
   const clientSettings = yield* DesktopClientSettings.DesktopClientSettings;
   const electronApp = yield* ElectronApp.ElectronApp;
@@ -420,6 +444,10 @@ export const make = Effect.gen(function* () {
         nodeIntegration: false,
         sandbox: true,
         webviewTag: true,
+        // A preview guest's fullscreen request is mirrored onto this embedder,
+        // which would otherwise put the whole window into OS fullscreen. With
+        // both sides opted out the page fills its webview and the window stays.
+        disableHtmlFullscreenWindowResize: true,
       },
     });
 
@@ -527,6 +555,13 @@ export const make = Effect.gen(function* () {
       webPreferences.nodeIntegration = false;
       webPreferences.nodeIntegrationInSubFrames = false;
       webPreferences.contextIsolation = false;
+      webPreferences.disableHtmlFullscreenWindowResize = true;
+      if (previewPasskeys.bridgeEnabled) {
+        webPreferences.additionalArguments = [
+          ...(webPreferences.additionalArguments ?? []),
+          PASSKEY_BRIDGE_ARGUMENT,
+        ];
+      }
     });
 
     const contextMenuContents = new WeakSet<Electron.WebContents>();
@@ -576,7 +611,11 @@ export const make = Effect.gen(function* () {
           menuTemplate.push({
             label: "Copy Image",
             click: () => {
-              if (!contents.isDestroyed()) contents.copyImageAt(params.x, params.y);
+              void runPromise(
+                Effect.tryPromise(() => copyContextMenuImage(contents, params)).pipe(
+                  Effect.catch(() => logWindowWarning("failed to copy context-menu image")),
+                ),
+              );
             },
           });
           menuTemplate.push({ type: "separator" });
@@ -919,7 +958,13 @@ export const make = Effect.gen(function* () {
         splash.show();
       }
     });
-    void splash.loadURL(buildConnectingSplashDataUrl(shouldUseDarkColors));
+    const settings = yield* desktopSettings.get;
+    void splash.loadURL(
+      buildConnectingSplashDataUrl(
+        shouldUseDarkColors,
+        settings.wslOnly === true && settings.wslBackendEnabled === true ? "wsl" : "local",
+      ),
+    );
     yield* logWindowInfo("connecting splash shown");
   }).pipe(
     // The splash is best-effort UX — never let it fail startup.
@@ -994,6 +1039,49 @@ export const make = Effect.gen(function* () {
     handleBackendNotReady: Ref.set(backendReadyRef, false).pipe(
       Effect.withSpan("desktop.window.handleBackendNotReady"),
     ),
+    prepareForShutdown: Effect.gen(function* () {
+      const main = yield* currentMainWindow;
+      if (Option.isNone(main) || main.value.isDestroyed()) return true;
+      const window = main.value;
+      const canClose = yield* Effect.tryPromise(() =>
+        window.webContents.executeJavaScript(
+          "window.dispatchEvent(new Event('t3:prepare-shutdown', {cancelable: true}))",
+        ),
+      ).pipe(
+        Effect.timeout("3 seconds"),
+        Effect.catchCause((cause) =>
+          logWindowWarning("could not verify renderer draft flush", { cause }).pipe(
+            Effect.as(false),
+          ),
+        ),
+      );
+      if (!canClose) {
+        window.setOpacity(1);
+        yield* electronWindow.reveal(window);
+        const dialog = yield* Effect.serviceOption(ElectronDialog.ElectronDialog);
+        if (Option.isNone(dialog)) return false;
+        const choice = yield* dialog.value
+          .showMessageBox({
+            type: "warning",
+            title: "Drafts are not saved",
+            message: "Quit without saving draft changes?",
+            detail:
+              "Keep T3 Code open to retry saving or export drafts from the composer. Quitting now can lose unsaved input and attachments.",
+            buttons: ["Keep T3 Code open", "Quit without saving"],
+            defaultId: 0,
+            cancelId: 0,
+            noLink: true,
+          })
+          .pipe(Effect.option);
+        if (Option.isNone(choice) || choice.value.response !== 1) return false;
+      }
+      const dark = yield* electronTheme.shouldUseDarkColors;
+      window.setOpacity(1);
+      yield* Effect.tryPromise(() =>
+        window.loadURL(buildConnectingSplashDataUrl(dark, "closing")),
+      ).pipe(Effect.timeout("3 seconds"), Effect.ignore);
+      return true;
+    }),
     flushMainWindowBounds: Effect.suspend(() => flushMainWindowBounds).pipe(
       Effect.withSpan("desktop.window.flushMainWindowBounds"),
     ),
@@ -1026,6 +1114,17 @@ export const make = Effect.gen(function* () {
       // the previewed page along with the app UI. The preview browser keeps its
       // own zoom, so put each guest back where the preview left it.
       yield* previewManager.reapplyZoom();
+    }),
+    runMainContentsCommand: Effect.fn("desktop.window.runMainContentsCommand")(function* (command) {
+      yield* Effect.annotateCurrentSpan({ command });
+      // The registered main window, never the focused one: with an OAuth popup
+      // focused, Reload would otherwise reload the popup mid sign-in.
+      const window = yield* electronWindow.main;
+      if (Option.isNone(window) || window.value.isDestroyed()) return;
+      const webContents = window.value.webContents;
+      if (command === "reload") webContents.reload();
+      else if (command === "forceReload") webContents.reloadIgnoringCache();
+      else webContents.toggleDevTools();
     }),
     syncAppearance: Effect.gen(function* () {
       const shouldUseDarkColors = yield* electronTheme.shouldUseDarkColors;

@@ -29,9 +29,10 @@ import {
   type VcsRef,
 } from "@t3tools/contracts";
 import { dedupeRemoteBranchesWithLocalMatches, normalizeGitRemoteUrl } from "@t3tools/shared/git";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import { compactTraceAttributes } from "@t3tools/shared/observability";
 import { decodeJsonResult } from "@t3tools/shared/schemaJson";
+import { resolveSpawnCommand } from "@t3tools/shared/shell";
 import { parseT3ProjectFile } from "@t3tools/shared/t3ProjectFile";
 import { resolveProjectFileBackedSetting } from "@t3tools/shared/projectSettings";
 import { gitCommandDuration, gitCommandsTotal, withMetrics } from "../observability/Metrics.ts";
@@ -59,6 +60,10 @@ const RANGE_DIFF_SUMMARY_MAX_OUTPUT_BYTES = 19_000;
 const RANGE_DIFF_PATCH_MAX_OUTPUT_BYTES = 59_000;
 const REVIEW_DIFF_PATCH_MAX_OUTPUT_BYTES = 120_000;
 const REVIEW_METADATA_MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
+// Every status refresh adds the untracked files to a temporary index, and git add's cost grows
+// much faster than the file count (50k files took about 30 seconds). Past this many, the
+// totals are reported incomplete instead.
+const REVIEW_UNTRACKED_MAX_FILES = 5_000;
 const REVIEW_DIFF_FILE_MAX_OUTPUT_BYTES = 1024 * 1024;
 // Patches the clients render are parsed against git's default a/ and b/ path
 // prefixes. A repository or global diff.noprefix or diff.mnemonicPrefix would
@@ -895,12 +900,52 @@ const collectOutput = Effect.fnUntraced(function* (
   };
 });
 
+/**
+ * Git on Windows cannot create or delete a path longer than MAX_PATH (260)
+ * unless `core.longpaths` is set. The OS-level LongPathsEnabled setting does not
+ * cover it, and git leaves it off by default, so deep worktrees fail to check
+ * out and fail midway through removal.
+ *
+ * Passed through `GIT_CONFIG_*` rather than `-c` so argv stays the same on every
+ * platform and nothing is written to the user's config. The entry is appended
+ * after any inherited ones. Windows env names are case-insensitive, so the
+ * inherited count is found regardless of casing and updated under its own name.
+ * A count git would reject is left alone so git still reports it.
+ */
+export const windowsLongPathConfigEnv = (
+  platform: NodeJS.Platform,
+  env: NodeJS.ProcessEnv,
+): NodeJS.ProcessEnv => {
+  if (platform !== "win32") {
+    return {};
+  }
+  const countKey =
+    Object.keys(env).find((key) => key.toUpperCase() === "GIT_CONFIG_COUNT") ?? "GIT_CONFIG_COUNT";
+  const inherited = env[countKey];
+  if (
+    inherited !== undefined &&
+    inherited !== "" &&
+    // Git parses the count with strtoul: leading whitespace, an optional sign
+    // (only -0 is non-negative), digits, and nothing after them.
+    /^[ \t\r\n\v\f]*(?:\+?\d+|-0+)/.exec(inherited)?.[0] !== inherited
+  ) {
+    return {};
+  }
+  const count = inherited === undefined || inherited === "" ? 0 : Number.parseInt(inherited, 10);
+  return {
+    [countKey]: String(count + 1),
+    [`GIT_CONFIG_KEY_${count}`]: "core.longpaths",
+    [`GIT_CONFIG_VALUE_${count}`]: "true",
+  };
+};
+
 export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* () {
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const commandSpawner = yield* ChildProcessSpawner.ChildProcessSpawner;
   const { worktreesDir } = yield* ServerConfig.ServerConfig;
   const crypto = yield* Crypto.Crypto;
+  const hostPlatform = yield* HostProcess.Platform;
 
   const executeRaw: GitVcsDriver.GitVcsDriver["Service"]["execute"] = Effect.fnUntraced(
     function* (input) {
@@ -925,18 +970,24 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
               }),
           ),
         );
+        const env = {
+          ...process.env,
+          // Status polling runs beside the user's own git commands; without this,
+          // `git status` takes index.lock to save its refreshed index.
+          GIT_OPTIONAL_LOCKS: "0",
+          ...input.env,
+          ...trace2Monitor.env,
+        };
+        const spawnEnv = { ...env, ...windowsLongPathConfigEnv(hostPlatform, env) };
+        const resolved = yield* resolveSpawnCommand("git", [], { env: spawnEnv });
+        // A git.cmd wrapper would need cmd.exe, which cuts multi-line commit
+        // messages at the first newline; leave that case to Node's lookup.
+        const executable = resolved.shell ? "git" : resolved.command;
         const child = yield* commandSpawner
           .spawn(
-            ChildProcess.make("git", commandInput.args, {
+            ChildProcess.make(executable, commandInput.args, {
               cwd: commandInput.cwd,
-              env: {
-                ...process.env,
-                // Status polling runs beside the user's own git commands; without this,
-                // `git status` takes index.lock to save its refreshed index.
-                GIT_OPTIONAL_LOCKS: "0",
-                ...input.env,
-                ...trace2Monitor.env,
-              },
+              env: spawnEnv,
             }),
           )
           .pipe(
@@ -2467,9 +2518,13 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
       ["rev-parse", "HEAD"],
       true,
     ).pipe(Effect.map((stdout) => stdout.trim()));
+    // After a successful pull, HEAD before and after decides the result, so its output is not
+    // needed. A large fast-forward's diffstat can exceed the output cap, which must not fail a
+    // pull Git applied.
     yield* executeGit("GitVcsDriver.pullCurrentBranch.pull", cwd, ["pull", "--ff-only"], {
       timeoutMs: 30_000,
       fallbackErrorDetail: "git pull failed",
+      appendTruncationMarker: true,
     });
     const afterSha = yield* runGitStdout(
       "GitVcsDriver.pullCurrentBranch.afterSha",
@@ -2612,13 +2667,13 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
       "hash-object",
       "-t",
       "tree",
-      (yield* HostProcessPlatform) === "win32" ? "NUL" : "/dev/null",
+      (yield* HostProcess.Platform) === "win32" ? "NUL" : "/dev/null",
     ]);
     return stdout.trim();
   });
 
   // Lists untracked files and adds them to a temporary index, so a diff against any commit
-  // shows them as new. Returns null when the list is too big to read. Needs a Scope.
+  // shows them as new. Returns null when the list is too big to read or to index. Needs a Scope.
   const prepareUntrackedReviewIndex = Effect.fn("prepareUntrackedReviewIndex")(function* (
     cwd: string,
     pathArgs: ReadonlyArray<string>,
@@ -2640,6 +2695,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
       (candidate) => onlyPath === undefined || candidate === onlyPath,
     );
     if (paths.length === 0) return { env: undefined };
+    if (paths.length > REVIEW_UNTRACKED_MAX_FILES) return null;
     const env = yield* prepareReviewIndex(cwd, paths).pipe(
       Effect.catchTags({
         PlatformError: (cause) =>
@@ -3045,6 +3101,37 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
       Effect.map((trimmed) => (trimmed.length > 0 ? trimmed : null)),
     );
 
+  const resolveBranchName = Effect.fn("GitVcsDriver.resolveBranchName")(function* (
+    cwd: string,
+    refName: string,
+  ) {
+    const result = yield* executeGit(
+      "GitVcsDriver.resolveBranchName.resolveRef",
+      cwd,
+      ["rev-parse", "--symbolic-full-name", "--verify", "--end-of-options", refName],
+      { allowNonZeroExit: true },
+    );
+    if (result.exitCode !== 0) {
+      // Remote-only bases are often recorded by their unqualified branch name.
+      const remoteName = yield* resolvePrimaryRemoteName(cwd).pipe(
+        Effect.orElseSucceed(() => null),
+      );
+      return remoteName && (yield* remoteBranchExists({ cwd, remoteName, refName }))
+        ? refName
+        : null;
+    }
+    const ref = result.stdout.trim();
+    if (ref.startsWith("refs/heads/")) return ref.slice("refs/heads/".length);
+    if (!ref.startsWith("refs/remotes/")) return null;
+    const remoteNames = yield* listRemoteNames(cwd);
+    return (
+      parseRemoteRefWithRemoteNames(
+        ref.slice("refs/remotes/".length),
+        remoteNames.toSorted((left, right) => right.length - left.length),
+      )?.branchName ?? null
+    );
+  });
+
   const readGitRefsSnapshot = Effect.fn("readGitRefsSnapshot")(function* (gitCommonDir: string) {
     const fetchCwd =
       path.basename(gitCommonDir) === ".git" ? path.dirname(gitCommonDir) : gitCommonDir;
@@ -3357,6 +3444,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
         options?.worktreesDirectory ?? "",
         worktreesDir,
         path,
+        yield* HostProcess.HomeDirectory,
       );
       if (parentDir === null) {
         return yield* new GitCommandError({
@@ -3475,17 +3563,15 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
     }
 
     if (input.newRefName && input.baseRefName) {
-      const remoteNames = yield* listRemoteNames(input.cwd).pipe(Effect.orElseSucceed(() => []));
-      const parsedBaseRef = parseRemoteRefWithRemoteNames(
-        input.baseRefName,
-        remoteNames.toSorted((left, right) => right.length - left.length),
-      );
-      const baseBranch = parsedBaseRef?.branchName ?? input.baseRefName;
-      yield* runGit("GitVcsDriver.createWorktree.configureBaseRef", input.cwd, [
-        "config",
-        `branch.${input.newRefName}.gh-merge-base`,
-        baseBranch,
-      ]);
+      // A checkout can start at a commit or tag, but a PR must target a branch.
+      const baseBranch = yield* resolveBranchName(input.cwd, input.baseRefName);
+      if (baseBranch) {
+        yield* runGit("GitVcsDriver.createWorktree.configureBaseRef", input.cwd, [
+          "config",
+          `branch.${input.newRefName}.gh-merge-base`,
+          baseBranch,
+        ]);
+      }
     }
 
     return {
@@ -3738,7 +3824,9 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
   const removeWorktree: GitVcsDriver.GitVcsDriver["Service"]["removeWorktree"] = Effect.fn(
     "removeWorktree",
   )(function* (input) {
-    const args = ["worktree", "remove"];
+    // Git refuses to remove a worktree with untracked files unless forced, but
+    // its check honors `status.showUntrackedFiles=no` and would delete them.
+    const args = ["-c", "status.showUntrackedFiles=normal", "worktree", "remove"];
     if (input.force) {
       args.push("--force");
     }
@@ -4016,6 +4104,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
     getReviewDiffPreview,
     getReviewDiffFileContents,
     readConfigValue,
+    resolveBranchName,
     listRefs,
     createWorktree: (input, options) =>
       withListRefsInvalidation(input.cwd, createWorktree(input, options)),

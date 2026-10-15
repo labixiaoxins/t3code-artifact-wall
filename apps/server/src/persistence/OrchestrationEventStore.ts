@@ -17,6 +17,7 @@ import {
   CommandId,
   EventId,
   IsoDateTime,
+  isKnownOrchestrationV2EventType,
   NonNegativeInt,
   OrchestrationV2DomainEventJson,
   OrchestrationV2StoredEvent,
@@ -69,7 +70,11 @@ export class OrchestrationEventStore extends Context.Service<
      * Read only V2 thread events from the application log.
      *
      * Reads in fixed-size sequence pages until the filtered range is exhausted;
-     * `limit` caps the total emitted events across pages.
+     * `limit` caps raw rows across pages, including skipped unknown types.
+     *
+     * A row whose `event_type` this build does not know fails the read unless
+     * `skipUnknownEventTypes` is set, which logs and drops it instead. Only
+     * client thread replay opts in; anything that builds server state stays strict.
      */
     readonly readAgentEvents: (input?: {
       readonly afterSequence?: number;
@@ -78,6 +83,7 @@ export class OrchestrationEventStore extends Context.Service<
       readonly commandId?: CommandId;
       readonly eventType?: OrchestrationV2DomainEvent["type"];
       readonly limit?: number;
+      readonly skipUnknownEventTypes?: boolean;
     }) => Stream.Stream<OrchestrationV2StoredEvent, OrchestrationEventStoreError>;
 
     /** Measure one thread's bounded replay without loading or decoding its payloads. */
@@ -118,10 +124,17 @@ export class OrchestrationEventStore extends Context.Service<
 
     readonly latestApplicationSequence: Effect.Effect<number, OrchestrationEventStoreError>;
 
-    /** Read the finite retained application-event range `(afterSequence, throughSequence]`. */
+    /**
+     * Read the finite retained application-event range `(afterSequence, throughSequence]`.
+     *
+     * A row whose `event_type` this build does not know fails the read unless
+     * `skipUnknownEventTypes` is set, which logs and drops it instead. Only
+     * client shell replay opts in; anything that builds server state stays strict.
+     */
     readonly readApplicationEvents: (input: {
       readonly afterSequence: number;
       readonly throughSequence: number;
+      readonly skipUnknownEventTypes?: boolean;
     }) => Stream.Stream<ApplicationStoredEvent, OrchestrationEventStoreError>;
 
     /** Publish only after the surrounding event/projection transaction commits. */
@@ -266,6 +279,21 @@ function rowToApplicationStoredEvent(
   return row.aggregate_kind === "project" ? rowToProjectEvent(row) : rowToV2StoredEvent(row);
 }
 
+const isKnownProjectEventType = Schema.is(ProjectEventType);
+
+/** Filter only unknown discriminants; known types still undergo strict payload decoding. */
+const keepReplayRow = (row: ApplicationEventRow, skipUnknownEventTypes?: boolean) =>
+  skipUnknownEventTypes !== true ||
+  (row.aggregate_kind === "project"
+    ? isKnownProjectEventType(row.event_type)
+    : isKnownOrchestrationV2EventType(row.event_type))
+    ? Effect.succeed(true)
+    : Effect.logWarning("Skipping an application event row with an unknown event type", {
+        aggregateKind: row.aggregate_kind,
+        sequence: row.sequence,
+        eventTypeLength: row.event_type.length,
+      }).pipe(Effect.as(false));
+
 function inferActorKind(event: UnsequencedProjectEvent): typeof ActorKind.Type {
   if (event.commandId !== null && event.commandId.startsWith("provider:")) {
     return "provider";
@@ -407,9 +435,13 @@ const makeEventStore = Effect.gen(function* () {
         correlation_id
       FROM orchestration_events
       ${
-        input.onlyAgentEvents === true
-          ? sql``
-          : sql`INDEXED BY idx_orchestration_events_application_high_water`
+        // The sequence range otherwise wins and a command lookup scans every
+        // V2 event, which blocks the server for seconds on large histories.
+        input.commandId !== undefined
+          ? sql`INDEXED BY idx_orch_events_command_id`
+          : input.onlyAgentEvents === true
+            ? sql``
+            : sql`INDEXED BY idx_orchestration_events_application_high_water`
       }
       WHERE sequence > ${input.afterSequence}
         AND sequence <= ${input.throughSequence ?? Number.MAX_SAFE_INTEGER}
@@ -530,6 +562,7 @@ const makeEventStore = Effect.gen(function* () {
         );
       },
     ).pipe(
+      Stream.filterEffect((row) => keepReplayRow(row, input?.skipUnknownEventTypes)),
       Stream.mapEffect((row) =>
         rowToV2StoredEvent(row).pipe(
           Effect.mapError(
@@ -622,19 +655,35 @@ const makeEventStore = Effect.gen(function* () {
     ),
   );
 
-  const readApplicationEventPage = (input: {
+  // Advance over raw rows so even a full page of unknown types cannot end replay early.
+  const catchUpApplicationEvents = (input: {
     readonly afterSequence: number;
     readonly throughSequence: number;
-    readonly limit: number;
+    readonly skipUnknownEventTypes?: boolean;
   }): Stream.Stream<ApplicationStoredEvent, OrchestrationEventStoreError> =>
-    Stream.fromEffect(
-      readApplicationRows(input).pipe(
+    Stream.paginate(input.afterSequence, (afterSequence) =>
+      readApplicationRows({
+        afterSequence,
+        throughSequence: input.throughSequence,
+        limit: READ_PAGE_SIZE,
+      }).pipe(
         Effect.mapError(
           toPersistenceSqlError("OrchestrationEventStore.readApplicationEvents:query"),
         ),
+        Effect.map((rows) => {
+          const last = rows.at(-1);
+          return [
+            rows,
+            last === undefined ||
+            rows.length < READ_PAGE_SIZE ||
+            last.sequence >= input.throughSequence
+              ? Option.none()
+              : Option.some(last.sequence),
+          ] as const;
+        }),
       ),
     ).pipe(
-      Stream.flatMap(Stream.fromIterable),
+      Stream.filterEffect((row) => keepReplayRow(row, input.skipUnknownEventTypes)),
       Stream.mapEffect((row) =>
         rowToApplicationStoredEvent(row).pipe(
           Effect.mapError(
@@ -643,32 +692,6 @@ const makeEventStore = Effect.gen(function* () {
         ),
       ),
     );
-
-  const catchUpApplicationEvents = (input: {
-    readonly afterSequence: number;
-    readonly throughSequence: number;
-  }): Stream.Stream<ApplicationStoredEvent, OrchestrationEventStoreError> => {
-    return Stream.paginate(input.afterSequence, (afterSequence) =>
-      readApplicationEventPage({
-        afterSequence,
-        throughSequence: input.throughSequence,
-        limit: READ_PAGE_SIZE,
-      }).pipe(
-        Stream.runCollect,
-        Effect.map((events) => {
-          const last = events.at(-1);
-          return [
-            events,
-            last === undefined ||
-            events.length < READ_PAGE_SIZE ||
-            last.sequence >= input.throughSequence
-              ? Option.none()
-              : Option.some(last.sequence),
-          ] as const;
-        }),
-      ),
-    );
-  };
 
   const streamProjectedApplicationEvents: OrchestrationEventStore["Service"]["streamProjectedApplicationEvents"] =
     (input) =>

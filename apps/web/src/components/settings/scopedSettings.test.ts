@@ -1,11 +1,14 @@
 import {
   DEFAULT_SERVER_SETTINGS,
+  EnvironmentAuthorizationError,
   EnvironmentId,
   ProjectId,
+  ProviderInstanceId,
   type ServerSettings,
 } from "@t3tools/contracts";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { applyServerSettingsPatch } from "@t3tools/shared/serverSettings";
+import * as Cause from "effect/Cause";
 import { resolveWorktreeCleanup } from "@t3tools/shared/projectSettings";
 
 import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
@@ -158,6 +161,7 @@ describe("scoped settings writes", () => {
             worktreeOnDelete: true,
             worktreeOnMerge: true,
             worktreeUnchanged: false,
+            worktreeKeepWhen: "uncommitted-changes",
           },
         },
       },
@@ -181,12 +185,14 @@ describe("scoped settings writes", () => {
         worktreeOnDelete: false,
         worktreeOnMerge: true,
         worktreeUnchanged: false,
+        worktreeKeepWhen: "uncommitted-changes",
       },
       {
         worktreeAfterDays: null,
         worktreeOnDelete: false,
         worktreeOnMerge: false,
         worktreeUnchanged: false,
+        worktreeKeepWhen: "uncommitted-changes",
       },
     ]);
   });
@@ -224,6 +230,89 @@ describe("scoped settings writes", () => {
     expect(persistClient).not.toHaveBeenCalled();
   });
 
+  describe("an environment that saves but drops keys it does not know", () => {
+    // Laptop knows every key; Server is an older build that keeps its settings as they were.
+    const upgradedLaptop = (saved: Partial<ServerSettings>) =>
+      vi.fn(async ({ environmentId }: { environmentId: EnvironmentId }) => ({
+        _tag: "Success" as const,
+        value: {
+          ...DEFAULT_SERVER_SETTINGS,
+          ...(environmentId === laptop.environmentId ? saved : {}),
+        },
+      }));
+    const outcome = async (
+      plan: ReturnType<typeof planScopedSettingsPatch>,
+      persistServer: ReturnType<typeof upgradedLaptop>,
+    ) => {
+      const result = await persistScopedSettingsPatch(plan, persistServer, vi.fn());
+      return {
+        saved: result.savedEnvironments.map(({ label }) => label),
+        failed: result.failedEnvironments.map(({ label, message }) => ({ label, message })),
+      };
+    };
+    const unsupported = [
+      {
+        label: server.label,
+        message: "This environment does not support this setting. Update T3 Code on it.",
+      },
+    ];
+
+    it("reports a dropped toggle", async () => {
+      expect(
+        await outcome(
+          planScopedSettingsPatch(all, environments, { reviewGuidesEnabled: true }),
+          upgradedLaptop({ reviewGuidesEnabled: true }),
+        ),
+      ).toEqual({ saved: [laptop.label], failed: unsupported });
+    });
+
+    it("reports dropped text but accepts the server trimming it", async () => {
+      expect(
+        await outcome(
+          planScopedSettingsPatch(all, environments, { reviewGuideInstructions: " Read tests " }),
+          upgradedLaptop({ reviewGuideInstructions: "Read tests" }),
+        ),
+      ).toEqual({ saved: [laptop.label], failed: unsupported });
+    });
+
+    it("reports a dropped key inside a project override", async () => {
+      expect(
+        await outcome(
+          planScopedSettingsPatch(project, environments, { defaultAutoPull: true }),
+          upgradedLaptop({
+            projectSettingsOverrides: { [laptopProjectId]: { defaultAutoPull: true } },
+          }),
+        ),
+      ).toEqual({ saved: [laptop.label], failed: unsupported });
+    });
+
+    it("reports a nested key dropped beside one that saved", async () => {
+      const patch = { defaultAutoPull: true, enableAgentBrowserAccess: false };
+      const persistServer = vi.fn(async ({ environmentId }: { environmentId: EnvironmentId }) => ({
+        _tag: "Success" as const,
+        value: {
+          ...DEFAULT_SERVER_SETTINGS,
+          projectSettingsOverrides:
+            environmentId === laptop.environmentId
+              ? { [laptopProjectId]: patch }
+              : { [projectId]: { defaultAutoPull: true } },
+        },
+      }));
+      expect(
+        await outcome(planScopedSettingsPatch(project, environments, patch), persistServer),
+      ).toEqual({ saved: [laptop.label], failed: unsupported });
+    });
+
+    it("accepts a write that matches what the environment already had", async () => {
+      expect(
+        await outcome(
+          planScopedSettingsPatch(all, environments, { reviewGuidesEnabled: false }),
+          upgradedLaptop({}),
+        ),
+      ).toEqual({ saved: [laptop.label, server.label], failed: [] });
+    });
+  });
+
   it("persists client keys locally at any scope alongside server keys", async () => {
     const persistServer = vi.fn().mockResolvedValue({ _tag: "Success" });
     const persistClient = vi.fn();
@@ -256,6 +345,7 @@ describe("scoped settings writes", () => {
       {
         environmentId: server.environmentId,
         label: server.label,
+        previous: expect.anything(),
         patch: {
           projectSettingsOverrides: {
             [projectId]: { enableAgentBrowserAccess: false, defaultAutoPull: true },
@@ -265,6 +355,7 @@ describe("scoped settings writes", () => {
       {
         environmentId: laptop.environmentId,
         label: laptop.label,
+        previous: expect.anything(),
         patch: { projectSettingsOverrides: { [laptopProjectId]: { defaultAutoPull: true } } },
       },
     ]);
@@ -293,6 +384,7 @@ describe("scoped settings writes", () => {
                 worktreeOnDelete: false,
                 worktreeOnMerge: true,
                 worktreeUnchanged: false,
+                worktreeKeepWhen: "uncommitted-changes",
               },
             },
           },
@@ -313,6 +405,7 @@ describe("scoped settings writes", () => {
               worktreeOnDelete: true,
               worktreeOnMerge: true,
               worktreeUnchanged: false,
+              worktreeKeepWhen: "uncommitted-changes",
             },
           },
         },
@@ -326,6 +419,7 @@ describe("scoped settings writes", () => {
               worktreeOnDelete: true,
               worktreeOnMerge: false,
               worktreeUnchanged: false,
+              worktreeKeepWhen: "uncommitted-changes",
             },
           },
         },
@@ -382,6 +476,7 @@ describe("scoped settings writes", () => {
       {
         environmentId: server.environmentId,
         label: server.label,
+        previous: expect.anything(),
         patch: { projectSettingsOverrides: { [projectId]: { enableAgentBrowserAccess: false } } },
       },
     ]);
@@ -410,7 +505,15 @@ describe("scoped settings writes", () => {
     const persistServer = vi
       .fn()
       .mockResolvedValueOnce({ _tag: "Success" })
-      .mockResolvedValueOnce({ _tag: "Failure" })
+      .mockResolvedValueOnce({
+        _tag: "Failure",
+        cause: Cause.fail(
+          new EnvironmentAuthorizationError({
+            requiredScope: "settings:write",
+            message: "This connection lacks permission to change settings.",
+          }),
+        ),
+      })
       .mockRejectedValueOnce(new Error("Disconnected during save"))
       .mockResolvedValueOnce({ _tag: "Success" });
     const result = await persistScopedSettingsPatch(
@@ -419,6 +522,14 @@ describe("scoped settings writes", () => {
       vi.fn(),
     );
     expect(result.savedEnvironmentCount).toBe(2);
+    expect(result.savedEnvironments.map(({ label }) => label)).toEqual([
+      laptop.label,
+      fourth.label,
+    ]);
+    expect(result.failedEnvironments.map(({ message }) => message)).toEqual([
+      "This connection lacks permission to change settings.",
+      "Disconnected during save",
+    ]);
     expect(result.failedEnvironments.map(({ label }) => label)).toEqual([
       server.label,
       third.label,
@@ -502,6 +613,7 @@ describe("project overrides at environment scope", () => {
       {
         environmentId: laptop,
         label: laptop,
+        previous: expect.anything(),
         patch: {
           projectSettingsOverrides: { [fleet]: { defaultThreadEnvMode: "local" }, [t3]: null },
         },
@@ -619,4 +731,22 @@ describe("partial object patches at project scope", () => {
       },
     });
   });
+});
+
+it("routes legacy model preference keys exclusively to the selected environment", () => {
+  const patch = {
+    favorites: [{ provider: ProviderInstanceId.make("codex"), model: "sol" }],
+    providerModelPreferences: {},
+  };
+  const plan = planScopedSettingsPatch(named, environments, patch);
+  expect(plan.clientPatch).toEqual({});
+  expect(plan.hasClientWrite).toBe(false);
+  expect(plan.serverWrites).toEqual([
+    {
+      environmentId: server.environmentId,
+      label: server.label,
+      previous: expect.anything(),
+      patch,
+    },
+  ]);
 });

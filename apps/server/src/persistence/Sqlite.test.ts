@@ -5,6 +5,7 @@ import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 
 import * as NodeServices from "@effect/platform-node/NodeServices";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import { assert, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -84,10 +85,63 @@ it.effect("shrinks the WAL file back to the size limit after a large write", () 
   );
 });
 
+it.effect("collects planner statistics for an existing database on open", () => {
+  const tempDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-sqlite-stats-"));
+  const dbPath = NodePath.join(tempDir, "state.sqlite");
+  const persistence = () =>
+    SqlitePersistence.layerFromPath(dbPath).pipe(Layer.provide(NodeServices.layer));
+
+  return Effect.gen(function* () {
+    yield* Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      yield* sql`CREATE TABLE stats_probe(id INTEGER PRIMARY KEY, thread_id TEXT NOT NULL)`;
+      yield* sql`CREATE INDEX stats_probe_thread_idx ON stats_probe(thread_id)`;
+      yield* sql`
+        WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 1000)
+        INSERT INTO stats_probe(thread_id) SELECT 'thread-' || (i % 10) FROM n
+      `;
+    }).pipe(Effect.provide(persistence()));
+
+    // A database written before statistics existed gets them on the next open.
+    yield* Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      const rows = yield* sql<{ readonly stat: string }>`
+        SELECT stat FROM sqlite_stat1 WHERE idx = 'stats_probe_thread_idx'
+      `;
+      assert.deepEqual([...rows], [{ stat: "1000 100" }]);
+    }).pipe(Effect.provide(persistence()));
+  }).pipe(
+    Effect.ensuring(Effect.sync(() => NodeFS.rmSync(tempDir, { recursive: true, force: true }))),
+  );
+});
+
 it.effect("applies busy_timeout in the shared persistence setup", () =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const rows = yield* sql<{ readonly timeout: number }>`PRAGMA busy_timeout`;
     assert.equal(rows[0]?.timeout, 5000);
   }).pipe(Effect.provide(SqlitePersistence.layerMemory)),
+);
+
+it.effect.skipIf(HostProcess.Platform.defaultValue() === "win32")(
+  "creates a database readable only by its owner",
+  () => {
+    const directory = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-sqlite-private-"));
+    const dbPath = NodePath.join(directory, "state.sqlite");
+    return Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      yield* sql`CREATE TABLE privacy_probe(id INTEGER PRIMARY KEY)`;
+      assert.equal(NodeFS.statSync(dbPath).mode & 0o777, 0o600);
+      for (const suffix of ["-wal", "-shm"]) {
+        assert.equal(NodeFS.statSync(`${dbPath}${suffix}`).mode & 0o777, 0o600);
+      }
+    }).pipe(
+      Effect.provide(
+        SqlitePersistence.layerFromPath(dbPath).pipe(Layer.provide(NodeServices.layer)),
+      ),
+      Effect.ensuring(
+        Effect.sync(() => NodeFS.rmSync(directory, { recursive: true, force: true })),
+      ),
+    );
+  },
 );

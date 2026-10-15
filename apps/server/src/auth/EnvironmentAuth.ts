@@ -4,6 +4,8 @@ import {
   AuthAdministrativeScopes,
   AuthOrchestrationOperateScope,
   AuthOrchestrationReadScope,
+  AuthSettingsWriteScope,
+  AuthSourceControlWriteScope,
   AuthStandardClientScopes,
   type AuthAccessTokenResult,
   type AuthBrowserSessionResult,
@@ -16,6 +18,7 @@ import {
   type AuthPairingCredentialResult,
   type AuthSessionId,
   type AuthSessionState,
+  authScopeResponse,
   type ServerAuthDescriptor,
   type ServerAuthSessionMethod,
   type AuthWebSocketTicketResult,
@@ -41,6 +44,7 @@ import * as ServerSecretStore from "./ServerSecretStore.ts";
 import * as SessionStore from "./SessionStore.ts";
 import { REUSABLE_DEV_SESSION_EXPIRES_AT, resolveReusableDevAuth } from "./ReusableDevAuth.ts";
 import { verifyRequestDpopProof } from "./dpop.ts";
+import { DESKTOP_RENDERER_ORIGINS } from "../httpCors.ts";
 import * as SqlitePersistence from "../persistence/Sqlite.ts";
 
 const DEFAULT_SESSION_SUBJECT = "cli-issued-session";
@@ -73,7 +77,10 @@ export interface IssuedBearerSession {
  * token cannot reach the full RPC surface around that cap.
  *
  * A read-only grant holds `orchestration:read` alone. Any other grant also
- * holds `orchestration:operate` and carries its runtime-mode ceiling.
+ * holds `orchestration:operate` and carries its runtime-mode ceiling. A
+ * full-access client may also change environment preferences and clone
+ * repositories, so it holds the scopes those need over RPC. Approving a grant
+ * requires every scope it holds.
  */
 const MCP_CLIENT_SUBJECT = "mcp-client";
 const MCP_CLIENT_SESSION_TTL = Duration.days(30);
@@ -83,7 +90,14 @@ export const mcpClientScopes = (
 ): ReadonlyArray<AuthEnvironmentScope> =>
   access === "read-only"
     ? [AuthOrchestrationReadScope]
-    : [AuthOrchestrationReadScope, AuthOrchestrationOperateScope];
+    : access === "full-access"
+      ? [
+          AuthOrchestrationReadScope,
+          AuthOrchestrationOperateScope,
+          AuthSettingsWriteScope,
+          AuthSourceControlWriteScope,
+        ]
+      : [AuthOrchestrationReadScope, AuthOrchestrationOperateScope];
 
 export interface McpClientSession {
   readonly sessionId: AuthSessionId;
@@ -466,6 +480,7 @@ export class EnvironmentAuth extends Context.Service<
     readonly createBrowserSession: (
       credential: string,
       requestMetadata: AuthClientMetadata,
+      previousSessionToken?: string,
     ) => Effect.Effect<
       {
         readonly response: AuthBrowserSessionResult;
@@ -673,6 +688,47 @@ export function selectRequestCredential(
   return undefined;
 }
 
+type RequestCredentialSource = NonNullable<ReturnType<typeof selectRequestCredential>>["source"];
+
+/** Whether a credential came from a browser cookie rather than an Authorization header. */
+export const isBrowserCookieCredential = (source: RequestCredentialSource | "dev-cookie") =>
+  source === "cookie" || source === "legacy-cookie" || source === "dev-cookie";
+
+function firstHeaderValue(value: string | undefined): string | undefined {
+  const first = value?.split(",")[0]?.trim().toLowerCase();
+  return first && first.length > 0 ? first : undefined;
+}
+
+/**
+ * Whether a cookie-carrying request comes from a page allowed to use it.
+ * Browsers send `Origin` on WebSocket upgrades, cross-origin requests, and
+ * non-GET requests, so an absent header means a same-origin read or a
+ * non-browser client. Otherwise the request must be same-origin by the
+ * browser's own `Sec-Fetch-Site` (which survives the dev proxy rewriting
+ * `Host`), come from this server's own host (directly or behind a proxy that
+ * reports `X-Forwarded-Host`), or come from one of the trusted app origins.
+ */
+function isBrowserOriginAllowed(
+  request: HttpServerRequest.HttpServerRequest,
+  trustedOrigins: ReadonlySet<string>,
+): boolean {
+  const origin = request.headers.origin;
+  if (origin === undefined) return true;
+  if (request.headers["sec-fetch-site"] === "same-origin") return true;
+  if (trustedOrigins.has(origin)) return true;
+  let originHost: string;
+  try {
+    originHost = new URL(origin).host.toLowerCase();
+  } catch {
+    return false;
+  }
+  if (originHost === "") return false;
+  return (
+    originHost === firstHeaderValue(request.headers.host) ||
+    originHost === firstHeaderValue(request.headers["x-forwarded-host"])
+  );
+}
+
 /** @public Service construction is part of the canonical Effect module API. */
 export const make = Effect.gen(function* () {
   const policy = yield* EnvironmentAuthPolicy.EnvironmentAuthPolicy;
@@ -712,24 +768,48 @@ export const make = Effect.gen(function* () {
       })),
     );
 
-  const authenticateRequest = (
-    request: HttpServerRequest.HttpServerRequest,
-  ): Effect.Effect<AuthenticatedSession, ServerAuthCredentialError | ServerAuthInternalError> => {
+  const resolveRequestCredential = (request: HttpServerRequest.HttpServerRequest) => {
     const selectedCredential = selectRequestCredential(
       request,
       sessions.cookieName,
       sessions.legacyCookieName,
     );
-    const dpopToken = parseDpopToken(request);
     const hasAuthorization = request.headers.authorization !== undefined;
     const devCookieToken = devAuth ? request.cookies[devAuth.cookieName] : undefined;
-    const credential =
+    return (
       selectedCredential ??
       (!hasAuthorization && devCookieToken !== undefined
         ? { token: devCookieToken, source: "dev-cookie" as const }
-        : undefined);
+        : undefined)
+    );
+  };
+
+  // Pages the server or its dev setup serves itself. Other origins on the same
+  // site (another localhost port, a LAN IP's other ports) still get the cookie,
+  // so cookie sessions must not authenticate their requests or sockets.
+  const trustedBrowserOrigins = new Set<string>([
+    ...(config.devUrl ? [config.devUrl.origin] : []),
+    ...DESKTOP_RENDERER_ORIGINS,
+    ...config.devAllowedOrigins,
+  ]);
+
+  const authenticateRequest = (
+    request: HttpServerRequest.HttpServerRequest,
+  ): Effect.Effect<AuthenticatedSession, ServerAuthCredentialError | ServerAuthInternalError> => {
+    const dpopToken = parseDpopToken(request);
+    const credential = resolveRequestCredential(request);
     if (!credential?.token) {
       return Effect.fail(new ServerAuthMissingCredentialError({}));
+    }
+    if (
+      isBrowserCookieCredential(credential.source) &&
+      !isBrowserOriginAllowed(request, trustedBrowserOrigins)
+    ) {
+      return Effect.fail(
+        new ServerAuthInvalidCredentialError({
+          diagnostic: "Browser sessions are only accepted from the app's own origin.",
+        }),
+      );
     }
     return authenticateToken(credential.token).pipe(
       Effect.flatMap((session) => {
@@ -772,7 +852,7 @@ export const make = Effect.gen(function* () {
           ({
             authenticated: true,
             auth: descriptor,
-            scopes: session.scopes,
+            ...authScopeResponse(session.scopes),
             sessionMethod: session.method,
             ...(session.expiresAt ? { expiresAt: DateTime.toUtc(session.expiresAt) } : {}),
           }) satisfies AuthSessionState,
@@ -786,12 +866,11 @@ export const make = Effect.gen(function* () {
       Effect.withSpan("EnvironmentAuth.getSessionState"),
     );
 
-  const createBrowserSession: EnvironmentAuth["Service"]["createBrowserSession"] = (
-    credential,
-    requestMetadata,
-  ) => {
+  const createBrowserSession: EnvironmentAuth["Service"]["createBrowserSession"] = Effect.fn(
+    "EnvironmentAuth.createBrowserSession",
+  )(function* (credential, requestMetadata, previousSessionToken) {
     if (devAuth?.matches(credential)) {
-      return sessions.verify(credential).pipe(
+      return yield* sessions.verify(credential).pipe(
         mapSessionVerificationErrors,
         Effect.flatMap((session) =>
           DateTime.now.pipe(
@@ -800,7 +879,7 @@ export const make = Effect.gen(function* () {
                 ({
                   response: {
                     authenticated: true,
-                    scopes: session.scopes,
+                    ...authScopeResponse(session.scopes),
                     sessionMethod: session.method,
                     expiresAt: DateTime.toUtc(DateTime.add(now, { days: 30 })),
                   } satisfies AuthBrowserSessionResult,
@@ -814,38 +893,40 @@ export const make = Effect.gen(function* () {
         Effect.withSpan("EnvironmentAuth.createBrowserSession"),
       );
     }
-    return bootstrapCredentials.consume(credential).pipe(
-      Effect.mapError(toBootstrapExchangeError),
-      Effect.flatMap((grant) =>
-        sessions
-          .issue({
-            method: "browser-session-cookie",
-            subject: grant.subject,
-            scopes: grant.scopes,
-            client: {
-              ...requestMetadata,
-              ...(grant.label ? { label: grant.label } : {}),
-            },
-          })
-          .pipe(
-            Effect.mapError((cause) => new ServerAuthAuthenticatedSessionIssueError({ cause })),
-          ),
-      ),
-      Effect.map(
-        (session) =>
-          ({
-            response: {
-              authenticated: true,
-              scopes: session.scopes,
-              sessionMethod: session.method,
-              expiresAt: DateTime.toUtc(session.expiresAt),
-            } satisfies AuthBrowserSessionResult,
-            sessionToken: session.token,
-          }) satisfies BootstrapExchangeResult,
-      ),
-      Effect.withSpan("EnvironmentAuth.createBrowserSession"),
-    );
-  };
+    const previousSession =
+      previousSessionToken === undefined
+        ? undefined
+        : yield* sessions.verify(previousSessionToken).pipe(
+            Effect.catchIf(SessionStore.isSessionCredentialInvalidError, () => Effect.void),
+            Effect.mapError((cause) => new ServerAuthSessionCredentialValidationError({ cause })),
+          );
+    const grant = yield* bootstrapCredentials
+      .consume(credential)
+      .pipe(Effect.mapError(toBootstrapExchangeError));
+    const session = yield* sessions
+      .issue({
+        method: "browser-session-cookie",
+        subject: grant.subject,
+        scopes: grant.scopes,
+        ...(previousSession?.method === "browser-session-cookie"
+          ? { replaceSessionId: previousSession.sessionId }
+          : {}),
+        client: {
+          ...requestMetadata,
+          ...(grant.label ? { label: grant.label } : {}),
+        },
+      })
+      .pipe(Effect.mapError((cause) => new ServerAuthAuthenticatedSessionIssueError({ cause })));
+    return {
+      response: {
+        authenticated: true,
+        ...authScopeResponse(session.scopes),
+        sessionMethod: session.method,
+        expiresAt: DateTime.toUtc(session.expiresAt),
+      } satisfies AuthBrowserSessionResult,
+      sessionToken: session.token,
+    } satisfies BootstrapExchangeResult;
+  });
 
   type ResolvedBootstrapGrant = Pick<
     PairingGrantStore.BootstrapGrant,
@@ -855,15 +936,24 @@ export const make = Effect.gen(function* () {
   };
   const resolveBootstrapGrant = (
     credential: string,
-    input?: { readonly proofKeyThumbprint?: string },
+    input?: {
+      readonly proofKeyThumbprint?: string;
+      readonly requestedScopes?: ReadonlyArray<AuthEnvironmentScope>;
+    },
   ): Effect.Effect<
     ResolvedBootstrapGrant,
-    ServerAuthInvalidCredentialError | ServerAuthInternalError
+    ServerAuthInvalidCredentialError | ServerAuthInternalError | ServerAuthScopeNotGrantedError
   > => {
     if (!devAuth?.matches(credential)) {
       return bootstrapCredentials
         .consume(credential, input)
-        .pipe(Effect.mapError(toBootstrapExchangeError));
+        .pipe(
+          Effect.mapError((cause) =>
+            cause._tag === "BootstrapCredentialScopeNotGrantedError"
+              ? new ServerAuthScopeNotGrantedError({})
+              : toBootstrapExchangeError(cause),
+          ),
+        );
     }
     return sessions.verify(credential).pipe(
       mapSessionVerificationErrors,
@@ -879,12 +969,18 @@ export const make = Effect.gen(function* () {
   };
 
   const exchangeBootstrapCredentialForAccessToken: EnvironmentAuth["Service"]["exchangeBootstrapCredentialForAccessToken"] =
-    (credential, requestedScopes, requestMetadata, input) =>
-      resolveBootstrapGrant(credential, input).pipe(
+    (credential, requestedScopes, requestMetadata, input) => {
+      return resolveBootstrapGrant(credential, {
+        ...input,
+        ...(requestedScopes !== undefined ? { requestedScopes } : {}),
+      }).pipe(
         Effect.flatMap((grant) =>
           Effect.gen(function* () {
-            const grantedScopes = requestedScopes ?? grant.scopes;
-            if (!grantedScopes.every((scope) => grant.scopes.includes(scope))) {
+            const grantedScopes =
+              requestedScopes === undefined
+                ? grant.scopes
+                : [...new Set(requestedScopes)].filter((scope) => grant.scopes.includes(scope));
+            if (grantedScopes.length === 0) {
               return yield* new ServerAuthScopeNotGrantedError({});
             }
             return yield* sessions
@@ -934,6 +1030,7 @@ export const make = Effect.gen(function* () {
         ),
         Effect.withSpan("EnvironmentAuth.exchangeBootstrapCredentialForAccessToken"),
       );
+    };
 
   const issuePairingCredentialForSubject = (input: {
     readonly scopes: ReadonlyArray<AuthEnvironmentScope>;
@@ -992,6 +1089,7 @@ export const make = Effect.gen(function* () {
         ];
         return pairingLinks
           .filter((pairingLink) => !excludedSubjects.includes(pairingLink.subject))
+          .map((link) => ({ ...link, ...authScopeResponse(link.scopes) }))
           .toSorted(
             (left, right) => right.createdAt.epochMilliseconds - left.createdAt.epochMilliseconds,
           );
@@ -1097,6 +1195,7 @@ export const make = Effect.gen(function* () {
       Effect.map((clientSessions) =>
         clientSessions.map((clientSession): AuthClientSession => ({
           ...clientSession,
+          ...authScopeResponse(clientSession.scopes),
           current: clientSession.sessionId === currentSessionId,
         })),
       ),
@@ -1215,14 +1314,13 @@ export const make = Effect.gen(function* () {
   const authenticateBrowserSession: EnvironmentAuth["Service"]["authenticateBrowserSession"] = (
     request,
   ) => {
-    const token =
-      request.cookies[sessions.cookieName] ??
-      (sessions.legacyCookieName ? request.cookies[sessions.legacyCookieName] : undefined) ??
-      (devAuth ? request.cookies[devAuth.cookieName] : undefined);
-    if (!token) return Effect.fail(new ServerAuthMissingCredentialError({}));
-    return authenticateToken(token).pipe(
+    const credential = resolveRequestCredential(request);
+    if (!credential || !isBrowserCookieCredential(credential.source)) {
+      return Effect.fail(new ServerAuthMissingCredentialError({}));
+    }
+    return authenticateRequest(request).pipe(
       Effect.filterOrFail(
-        (session) => session.method === "browser-session-cookie" && !session.proofKeyThumbprint,
+        (session) => session.method === "browser-session-cookie",
         () => new ServerAuthInvalidCredentialError({ diagnostic: "Not a browser session." }),
       ),
       Effect.withSpan("EnvironmentAuth.authenticateBrowserSession"),
@@ -1238,6 +1336,8 @@ export const make = Effect.gen(function* () {
       Effect.catchTags({
         ServerAuthInvalidCredentialError: () =>
           Effect.fail(new ServerAuthMcpApprovalCodeError({ reason: "unknown_or_used" })),
+        ServerAuthScopeNotGrantedError: () =>
+          Effect.fail(new ServerAuthMcpApprovalCodeError({ reason: "insufficient_scope" })),
       }),
       Effect.flatMap((grant) =>
         grant.method !== "one-time-token" && grant.method !== "reusable-dev-token"

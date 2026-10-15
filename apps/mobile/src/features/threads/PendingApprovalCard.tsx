@@ -10,6 +10,7 @@ import { AppText as Text } from "../../components/AppText";
 import type { PendingApproval } from "../../lib/threadActivity";
 
 export interface PendingApprovalCardProps {
+  readonly canOperateThread: boolean;
   readonly approval: PendingApproval;
   readonly respondingApprovalId: RuntimeRequestId | null;
   readonly onRespond: (
@@ -46,7 +47,7 @@ export function PendingApprovalCard(props: PendingApprovalCardProps) {
         </Text>
       ) : null}
       {!canRespond ? (
-        <Text className="font-sans text-sm leading-5 text-adaptive-neutral-600-400">
+        <Text className="font-sans text-sm leading-5 text-foreground-muted">
           The provider process for this request is no longer available. Interrupt or restart the run
           to continue.
         </Text>
@@ -66,11 +67,16 @@ export function PendingApprovalCard(props: PendingApprovalCardProps) {
                   ? "danger"
                   : "secondary"
             }
-            disabled={disabled}
+            disabled={disabled || !props.canOperateThread}
             onPress={() => void props.onRespond(props.approval.requestId, option.decision)}
           />
         ))}
       </View>
+      {!props.canOperateThread ? (
+        <Text className="font-sans text-xs text-foreground-muted">
+          This connection cannot respond to approvals.
+        </Text>
+      ) : null}
     </View>
   );
 }

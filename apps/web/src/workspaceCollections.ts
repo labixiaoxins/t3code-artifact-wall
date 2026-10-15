@@ -15,9 +15,12 @@ export const COLLECTION_ORDER = [
 /** A presentation layer: physical workspaces and resume identities never move. */
 export function workspaceCollection(path: string): (typeof COLLECTION_ORDER)[number] {
   const p = path.replaceAll("\\", "/").replace(/\/+$/, "");
-  if (/(?:\/work\/.*(?:smoke|test)(?:\/|$)|\/automations?(?:\/|$))/i.test(p)) return "自动化与测试";
-  if (/\/Documents\/(?:项目管理|项目资料)(?:\/|$)/.test(p)) return "项目管理";
-  if (/\/Documents\/自媒体(?:\/|$)/.test(p)) return "自媒体";
+  if (/(?:\/\.hermes(?:\/|$)|\/work\/.*(?:smoke|test)(?:\/|$)|\/automations?(?:\/|$))/i.test(p))
+    return "自动化与测试";
+  if (/\/Documents\/(?:项目管理|项目资料)(?:\/|$)|\/Obsidian\/.*\/03-项目复盘(?:\/|$)/.test(p))
+    return "项目管理";
+  if (/\/Documents\/(?:自媒体|小岛经济学)(?:\/|$)|\/Obsidian\/.*\/公众号文章(?:\/|$)/.test(p))
+    return "自媒体";
   if (/\/Documents\/公司管理(?:\/|$)/.test(p)) return "公司管理";
   if (/\/Documents\/交易(?:\/|$)/.test(p)) return "交易";
   if (

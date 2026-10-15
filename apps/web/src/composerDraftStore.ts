@@ -38,8 +38,9 @@ import * as Equal from "effect/Equal";
 import * as Effect from "effect/Effect";
 import { DeepMutable } from "effect/Types";
 import { createModelSelection, normalizeModelSlug } from "@t3tools/shared/model";
-import { useMemo } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { getLocalStorageItem } from "./hooks/useLocalStorage";
+import { readThreadPreviewState } from "./previewStateStore";
 import { resolveAppModelSelection, resolveAppModelSelectionForInstance } from "./modelSelection";
 import {
   DEFAULT_INTERACTION_MODE,
@@ -74,7 +75,7 @@ import {
 import { create } from "zustand";
 import { persist, type PersistStorage, type StorageValue } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
-import { createDeferredStorage, createMemoryStorage } from "./lib/storage";
+import { createComposerDraftPersistence } from "./lib/composerDraftPersistence";
 import { getDefaultServerModel } from "./providerModels";
 import { replaceComposerContextReferences } from "@t3tools/shared/composerContextReferences";
 import { UnifiedSettings } from "@t3tools/contracts/settings";
@@ -101,18 +102,51 @@ type ComposerPersistState =
   | { capturedState: ComposerDraftStoreState }
   | PersistedComposerDraftStoreState;
 
-const composerDebouncedStorage = createDeferredStorage<StorageValue<ComposerPersistState>>(
-  typeof localStorage !== "undefined" ? localStorage : createMemoryStorage(),
-  (value) =>
-    JSON.stringify({
-      state:
-        "capturedState" in value.state
-          ? partializeComposerDraftStoreState(value.state.capturedState)
-          : value.state,
-      version: value.version,
-    }),
-  COMPOSER_PERSIST_DEBOUNCE_MS,
+const serverDraftMemory = new Map<string, string>();
+const serverDraftStorage = {
+  getItem: (name: string) => serverDraftMemory.get(name) ?? null,
+  setItem: (name: string, value: string) => {
+    serverDraftMemory.set(name, value);
+  },
+  removeItem: (name: string) => {
+    serverDraftMemory.delete(name);
+  },
+};
+const composerDebouncedStorage = createComposerDraftPersistence<StorageValue<ComposerPersistState>>(
+  {
+    storage: () => (typeof window === "undefined" ? serverDraftStorage : window.localStorage),
+    serialize: (value) =>
+      JSON.stringify({
+        state:
+          "capturedState" in value.state
+            ? partializeComposerDraftStoreState(value.state.capturedState)
+            : value.state,
+        version: value.version,
+      }),
+    debounceMs: COMPOSER_PERSIST_DEBOUNCE_MS,
+  },
 );
+
+export function useComposerDraftPersistenceStatus() {
+  return useSyncExternalStore(
+    composerDebouncedStorage.subscribe,
+    composerDebouncedStorage.getStatus,
+    composerDebouncedStorage.getStatus,
+  );
+}
+
+export const retryComposerDraftPersistence = composerDebouncedStorage.retry;
+
+export function exportComposerDraftRecovery() {
+  return JSON.stringify({
+    format: "t3-composer-draft-recovery-v1",
+    ...composerDebouncedStorage.recovery(),
+    currentRecord: {
+      state: partializeComposerDraftStoreState(composerDraftStore.getState()),
+      version: COMPOSER_DRAFT_STORAGE_VERSION,
+    },
+  });
+}
 
 const composerPersistStorage: PersistStorage<ComposerPersistState> = {
   getItem: (name) => {
@@ -133,6 +167,17 @@ const composerPersistStorage: PersistStorage<ComposerPersistState> = {
 if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
   window.addEventListener("beforeunload", () => {
     composerDebouncedStorage.flush();
+  });
+  window.addEventListener("pagehide", () => composerDebouncedStorage.flush());
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") composerDebouncedStorage.flush();
+    });
+  }
+  window.addEventListener("t3:prepare-shutdown", (event) => {
+    composerDebouncedStorage.flush();
+    if (["unavailable", "corrupt"].includes(composerDebouncedStorage.getStatus()))
+      event.preventDefault();
   });
 }
 
@@ -1556,6 +1601,16 @@ function getComposerDraftState(
   return state.draftsByThreadKey[threadKey] ?? null;
 }
 
+/**
+ * A draft holding an open page, such as one started for a link another app
+ * opened, is work in progress even with an empty composer.
+ */
+function draftThreadHasOpenPreview(draftThread: DraftThreadState | undefined): boolean {
+  if (draftThread === undefined) return false;
+  const ref = scopeThreadRef(draftThread.environmentId, draftThread.threadId);
+  return Object.keys(readThreadPreviewState(ref).sessions).length > 0;
+}
+
 function isComposerThreadKeyInUse(mappings: Record<string, string>, threadKey: string): boolean {
   return Object.values(mappings).includes(threadKey);
 }
@@ -2174,10 +2229,10 @@ export function partializeComposerDraftStoreState(
   state: ComposerDraftStoreState,
 ): PersistedComposerDraftStoreState {
   // Draft sessions worth persisting: mapped (a new-thread flow targets
-  // them), promoting (mid-send), or holding real user content (they back a
-  // sidebar row). Everything else is a zombie — and its composer blob must
-  // be dropped WITH it, or model/mode-only entries would persist forever
-  // keyed to a session that no longer exists.
+  // them), promoting (mid-send), holding real user content (they back a
+  // sidebar row), or holding an open page. Everything else is a zombie — and
+  // its composer blob must be dropped WITH it, or model/mode-only entries
+  // would persist forever keyed to a session that no longer exists.
   const mappedDraftKeys = new Set(
     Object.values(state.logicalProjectDraftThreadKeyByLogicalProjectKey),
   );
@@ -2187,7 +2242,8 @@ export function partializeComposerDraftStoreState(
         ([threadKey, draftThread]) =>
           mappedDraftKeys.has(threadKey) ||
           isDraftThreadPromoting(draftThread) ||
-          composerDraftHasUserContent(state.draftsByThreadKey[threadKey]),
+          composerDraftHasUserContent(state.draftsByThreadKey[threadKey]) ||
+          draftThreadHasOpenPreview(draftThread),
       )
       .map(([threadKey]) => threadKey),
   );
@@ -2792,7 +2848,8 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
               !isDraftThreadPromoting(previousDraftThread) &&
               !composerDraftHasUserContent(
                 state.draftsByThreadKey[previousThreadKeyForLogicalProject],
-              )
+              ) &&
+              !draftThreadHasOpenPreview(previousDraftThread)
             ) {
               delete nextDraftThreadsByThreadKey[previousThreadKeyForLogicalProject];
               if (state.draftsByThreadKey[previousThreadKeyForLogicalProject] !== undefined) {

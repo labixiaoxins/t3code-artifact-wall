@@ -64,6 +64,7 @@ describe("native device stream transport", () => {
       readyState = 1;
       binaryType = "";
       onopen: (() => void) | null = null;
+      onmessage: ((event: { data: ArrayBuffer }) => void) | null = null;
       onclose: ((event: { code: number; reason: string }) => void) | null = null;
       send = vi.fn();
       close = vi.fn();
@@ -111,10 +112,12 @@ describe("native device stream transport", () => {
     expect(imageUrl.searchParams.get("hostId")).toBe("ssh-host");
     expect(fetch).toHaveBeenCalledTimes(1);
     socket.onopen?.();
+    expect(socket.send).not.toHaveBeenCalled();
+    socket.onmessage?.({ data: Uint8Array.of(0x83).buffer });
     client.setOrientation("landscape_right");
     client.pressButton("home");
     client.sendTouch("begin", 0.25, 0.75);
-    const messages = socket.send.mock.calls.slice(1).map(([bytes]) => {
+    const messages = socket.send.mock.calls.map(([bytes]) => {
       const packet = bytes as Uint8Array;
       return {
         tag: packet[0],
@@ -179,6 +182,7 @@ describe("native device stream transport", () => {
       client.start();
       const replacement = await reopened;
       replacement.onopen?.();
+      if (platform === "ios") replacement.onmessage?.({ data: Uint8Array.of(0x83).buffer });
       replacement.send.mockClear();
       events.onInputConnected.mockClear();
 
@@ -336,6 +340,7 @@ describe("iOS input startup", () => {
     packet[0] = 0x82;
     packet.set(json, 1);
     socket.onmessage?.({ data: packet.buffer });
+    socket.onmessage?.({ data: Uint8Array.of(0x83).buffer });
     client.sendTouch("begin", 0.2, 0.7);
     const sent = socket.send.mock.calls[0]![0] as Uint8Array;
     expect(JSON.parse(new TextDecoder().decode(sent.subarray(1)))).toEqual({
@@ -385,10 +390,14 @@ function recoveryFixture(platform: "ios" | "android" = "ios", preferMjpeg = true
     configure() {
       this.state = "configured";
     }
+    reset = vi.fn(() => {
+      this.state = "unconfigured";
+      this.decodeQueueSize = 0;
+    });
     close() {
       this.state = "closed";
     }
-    decode() {}
+    decode = vi.fn();
     readonly callbacks: { output: (frame: VideoFrame) => void; error: () => void };
     constructor(callbacks: { output: (frame: VideoFrame) => void; error: () => void }) {
       this.callbacks = callbacks;
@@ -480,6 +489,166 @@ describe("shared device stream readiness and recovery", () => {
     vi.unstubAllGlobals();
   });
 
+  it("waits for iOS input admission and respects native input loss and recovery", async () => {
+    const { client, sockets, events } = recoveryFixture();
+    client.start();
+    await vi.advanceTimersByTimeAsync(0);
+    const socket = sockets[0]!;
+    socket.onopen?.();
+    expect(events.onInputConnected).not.toHaveBeenCalledWith(true);
+    socket.onmessage?.({ data: new Uint8Array([0x83]).buffer });
+    expect(events.onInputConnected).toHaveBeenLastCalledWith(true);
+    const config = (inputUnavailable: boolean) => {
+      const json = new TextEncoder().encode(
+        JSON.stringify({ width: 400, height: 800, orientation: "portrait", inputUnavailable }),
+      );
+      const packet = new Uint8Array(1 + json.length);
+      packet[0] = 0x82;
+      packet.set(json, 1);
+      socket.onmessage?.({ data: packet.buffer });
+    };
+    config(true);
+    expect(events.onInputConnected).toHaveBeenLastCalledWith(
+      false,
+      "Simulator input is unavailable",
+    );
+    socket.send.mockClear();
+    client.sendTouch("begin", 0.2, 0.3);
+    client.pressButton("home");
+    expect(socket.send).not.toHaveBeenCalled();
+    config(false);
+    expect(events.onInputConnected).toHaveBeenLastCalledWith(true, undefined);
+    client.sendTouch("begin", 0.2, 0.3);
+    expect(socket.send).toHaveBeenCalledOnce();
+    client.stop();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("requires admission on each iOS socket and does not mistake config for admission", async () => {
+    const { client, sockets, events, imageReady } = recoveryFixture();
+    client.start();
+    await vi.advanceTimersByTimeAsync(0);
+    imageReady();
+    const config = (socket: (typeof sockets)[number], unavailable: boolean) => {
+      const json = new TextEncoder().encode(
+        JSON.stringify({
+          width: 400,
+          height: 800,
+          orientation: "portrait",
+          inputUnavailable: unavailable,
+          supportsHingeAngle: true,
+        }),
+      );
+      socket.onmessage?.({ data: Uint8Array.of(0x82, ...json).buffer });
+    };
+    const controls = () => {
+      client.sendTouch("begin", 0.2, 0.3);
+      client.pressButton("home");
+      client.sendKey({ code: "KeyA" } as KeyboardEvent, "down");
+      client.setOrientation("landscape_left");
+      client.controlDuo({ control: "angle", value: 90 });
+    };
+    const first = sockets[0]!;
+    config(first, false);
+    controls();
+    expect(first.send).not.toHaveBeenCalled();
+    expect(events.onInputConnected).not.toHaveBeenCalledWith(true, undefined);
+    config(first, true);
+    first.onmessage?.({ data: Uint8Array.of(0x83).buffer });
+    controls();
+    expect(first.send).not.toHaveBeenCalled();
+    expect(events.onInputConnected).toHaveBeenLastCalledWith(false);
+    config(first, false);
+    client.pressButton("home");
+    expect(first.send).toHaveBeenCalled();
+    first.onclose?.({ code: 1013, reason: "retry" });
+    await vi.advanceTimersByTimeAsync(1_000);
+    const replacement = sockets[1]!;
+    config(replacement, false);
+    controls();
+    expect(replacement.send).not.toHaveBeenCalled();
+    first.onmessage?.({ data: Uint8Array.of(0x83).buffer });
+    expect(events.onInputConnected).toHaveBeenLastCalledWith(false, undefined);
+    replacement.onmessage?.({ data: Uint8Array.of(0x83).buffer });
+    client.pressButton("home");
+    expect(replacement.send).toHaveBeenCalledOnce();
+    client.stop();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("reopens a backlogged iOS feed for a fresh keyframe while keeping input connected", async () => {
+    const { client, videoBodies, decoders, events, decodedFrame, signals, sockets, drawImage } =
+      recoveryFixture("ios", false);
+    client.start();
+    await vi.advanceTimersByTimeAsync(0);
+    const socket = sockets[0]!;
+    socket.onmessage?.({ data: Uint8Array.of(0x83).buffer });
+    const body = videoBodies[0]!;
+    body.enqueue(new Uint8Array([...envelope(1, [1, 0x64, 0, 0x1f]), ...envelope(2, [1])]));
+    await vi.advanceTimersByTimeAsync(0);
+    decodedFrame();
+    const decoder = decoders[0]!;
+    decoder.decodeQueueSize = 9;
+    body.enqueue(new Uint8Array([...envelope(3, [2]), ...envelope(3, [3])]));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(signals[1]!.aborted).toBe(true);
+    expect(decoder.state).toBe("closed");
+    expect(events.onStatus).toHaveBeenLastCalledWith(
+      "connecting",
+      expect.stringContaining("fell behind"),
+    );
+    expect(socket.close).not.toHaveBeenCalled();
+    client.sendTouch("begin", 0.2, 0.3);
+    expect(socket.send).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(videoBodies).toHaveLength(2);
+    // The old feed never produces another IDR. Only a fresh subscription can recover.
+    videoBodies[1]!.enqueue(
+      new Uint8Array([...envelope(1, [1, 0x64, 0, 0x1f]), ...envelope(2, [4])]),
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(decoders[1]!.decode).toHaveBeenCalledOnce();
+    drawImage.mockClear();
+    decodedFrame(0);
+    expect(drawImage).not.toHaveBeenCalled();
+    decodedFrame();
+    expect(drawImage).toHaveBeenCalledOnce();
+    expect(events.onMjpegFallback).not.toHaveBeenCalled();
+    expect(events.onStatus).toHaveBeenLastCalledWith("streaming", undefined);
+    expect(events.onInputConnected).toHaveBeenLastCalledWith(true);
+    client.stop();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("does not repaint a delayed JPEG seed over newer decoded video", async () => {
+    const { client, videoBodies, drawImage, decodedFrame } = recoveryFixture("ios", false);
+    let resolveBitmap!: (bitmap: ImageBitmap) => void;
+    vi.stubGlobal(
+      "createImageBitmap",
+      () =>
+        new Promise((resolve) => {
+          resolveBitmap = resolve;
+        }),
+    );
+    client.start();
+    await vi.advanceTimersByTimeAsync(0);
+    videoBodies[0]!.enqueue(
+      new Uint8Array([
+        ...envelope(4, [1]),
+        ...envelope(1, [1, 0x64, 0, 0x1f]),
+        ...envelope(2, [2]),
+      ]),
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    decodedFrame();
+    const close = vi.fn();
+    resolveBitmap({ width: 400, height: 800, close } as unknown as ImageBitmap);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(drawImage).toHaveBeenCalledOnce();
+    expect(close).toHaveBeenCalledOnce();
+    client.stop();
+  });
+
   it("waits for actual MJPEG dimensions without requiring a multipart load event", async () => {
     const { client, events, image } = recoveryFixture();
     client.start();
@@ -523,7 +692,7 @@ describe("shared device stream readiness and recovery", () => {
     expect(sockets[0]!.close).toHaveBeenCalledOnce();
     expect(image.src).toBe("");
     client.pressButton("home");
-    expect(sockets[0]!.send).toHaveBeenCalledTimes(1);
+    expect(sockets[0]!.send).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);
   });
 
@@ -713,22 +882,35 @@ describe("shared device stream readiness and recovery", () => {
   });
 });
 
-it("reports a stalled AVCC body after its initial image instead of leaving a frozen streaming state", async () => {
-  const { client, videoBodies, events, signals } = recoveryFixture("ios", false);
+it("reopens a stalled AVCC body without disconnecting input, then receives fresh video", async () => {
+  const { client, videoBodies, events, signals, sockets, decodedFrame } = recoveryFixture(
+    "ios",
+    false,
+  );
   const close = vi.fn();
   vi.stubGlobal("createImageBitmap", () => Promise.resolve({ width: 400, height: 800, close }));
   try {
     client.start();
     await vi.advanceTimersByTimeAsync(0);
+    sockets[0]!.onmessage?.({ data: new Uint8Array([0x83]).buffer });
     videoBodies[0]!.enqueue(new Uint8Array(envelope(4, [1])));
     await vi.advanceTimersByTimeAsync(0);
     expect(events.onStatus).toHaveBeenLastCalledWith("streaming", undefined);
     await vi.advanceTimersByTimeAsync(15_000);
     expect(events.onStatus).toHaveBeenLastCalledWith(
-      "error",
+      "connecting",
       expect.stringContaining("stopped receiving video"),
     );
-    expect(signals.every((signal) => signal.aborted)).toBe(true);
+    expect(signals[1]!.aborted).toBe(true);
+    expect(sockets[0]!.close).not.toHaveBeenCalled();
+    expect(events.onInputConnected).toHaveBeenLastCalledWith(true);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(videoBodies).toHaveLength(2);
+    videoBodies[1]!.enqueue(new Uint8Array(envelope(1, [1, 0x64, 0, 0x1f])));
+    await vi.advanceTimersByTimeAsync(0);
+    decodedFrame();
+    expect(events.onStatus).toHaveBeenLastCalledWith("streaming", undefined);
+    client.stop();
     expect(vi.getTimerCount()).toBe(0);
   } finally {
     client.stop();

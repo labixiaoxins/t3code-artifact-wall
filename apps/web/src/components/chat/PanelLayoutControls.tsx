@@ -6,6 +6,7 @@ import { memo, type ReactElement } from "react";
 import type { ThreadPanelPresentation } from "../../rightPanelLayout";
 import { PopoverCreateHandle, PopoverTrigger } from "../ui/popover";
 import { Toggle } from "../ui/toggle";
+import { useIsMobile } from "../../hooks/useMediaQuery";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 
 export interface PanelLayoutControlsProps {
@@ -19,7 +20,6 @@ export interface PanelLayoutControlsProps {
   threadPanelPresentation: ThreadPanelPresentation;
   threadPanelPopoverHandle?: ReturnType<typeof PopoverCreateHandle>;
   threadPanelShortcutLabel: string | null;
-  threadPanelHasAttention: boolean;
   rightPanelAvailable: boolean;
   rightPanelOpen: boolean;
   rightPanelShortcutLabel: string | null;
@@ -40,7 +40,6 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
   threadPanelPresentation,
   threadPanelPopoverHandle,
   threadPanelShortcutLabel,
-  threadPanelHasAttention,
   rightPanelAvailable,
   rightPanelOpen,
   rightPanelShortcutLabel,
@@ -49,28 +48,26 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
   onToggleThreadPanel,
   onToggleRightPanel,
 }: PanelLayoutControlsProps) {
+  const mobile = useIsMobile();
   const threadPanelToggle = (
     <Toggle
       className="relative shrink-0 [-webkit-app-region:no-drag]"
       pressed={threadPanelOpen}
+      onPressedChange={mobile ? onToggleThreadPanel : undefined}
       aria-label="Toggle thread details panel"
       variant="ghost"
       size="sm"
     >
       <SquareMenuIcon className="size-4" />
-      {threadPanelHasAttention ? (
-        <span
-          className="absolute right-1 top-1 size-1.5 rounded-full bg-warning ring-2 ring-background"
-          aria-hidden="true"
-        />
-      ) : null}
     </Toggle>
   );
   const threadPanelTooltip = (trigger: ReactElement) => (
     <Tooltip>
       <TooltipTrigger
         render={trigger}
-        {...(threadPanelPresentation === "popover" ? {} : { onClick: onToggleThreadPanel })}
+        {...(mobile || threadPanelPresentation === "popover"
+          ? {}
+          : { onClick: onToggleThreadPanel })}
       />
       <TooltipPopup side="bottom">
         Toggle thread details
@@ -85,7 +82,7 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
       data-panel-layout-controls
     >
       {showThreadPanelControl
-        ? threadPanelPresentation === "popover"
+        ? !mobile && threadPanelPresentation === "popover"
           ? threadPanelTooltip(
               <PopoverTrigger handle={threadPanelPopoverHandle} render={threadPanelToggle} />,
             )

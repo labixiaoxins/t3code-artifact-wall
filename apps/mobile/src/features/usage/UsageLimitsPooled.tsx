@@ -8,7 +8,6 @@ import {
   collectLimitPools,
   cursorUsageWindowDetails,
   displayLimitWindows,
-  formatDuration,
   formatResetsIn,
   remainingPercent,
   type LimitAccount,
@@ -27,7 +26,11 @@ import { environmentPresentations } from "../../state/presentation";
 import { ResetCredits } from "./UsageLimitsSection";
 import { useProviderColors } from "./usageProviders";
 
-const DRIVER_LABEL: Partial<Record<string, string>> = { codex: "Codex", claudeAgent: "Claude" };
+const DRIVER_LABEL: Partial<Record<string, string>> = {
+  codex: "Codex",
+  claudeAgent: "Claude",
+  antigravity: "Antigravity",
+};
 const PACE_LABEL = { ahead: "Ahead of pace", on: "On pace", under: "Under pace" } as const;
 
 function accountName(account: LimitAccount) {
@@ -119,7 +122,9 @@ function PoolWindowCard({
       {nextRefill ? (
         <Text className="text-xs tabular-nums text-foreground-muted">
           ↻ +{nextRefill.restoresPercent}%{" "}
-          {nextRefill.at <= now ? "now" : `in ${formatDuration(nextRefill.at - now)}`}
+          {formatResetsIn(nextRefill.member.window, now)
+            ?.replace("resets in ", "in ")
+            .replace("resets now", "now")}
         </Text>
       ) : null}
       <View className="flex-row gap-1">
@@ -178,9 +183,16 @@ function PoolWindowCard({
               </Text>
               <View className="flex-row items-center gap-1">
                 {resetsIn ? (
-                  <Text className="text-xs tabular-nums text-foreground-muted">
-                    {resetsIn.replace("resets in ", "↻ ")}
-                  </Text>
+                  <>
+                    <SymbolView
+                      name="arrow.clockwise"
+                      size={12}
+                      tintColorClassName="accent-foreground-muted"
+                    />
+                    <Text className="text-xs tabular-nums text-foreground-muted">
+                      {resetsIn.replace("resets in ", "")}
+                    </Text>
+                  </>
                 ) : null}
                 {credits ? (
                   <>
@@ -257,7 +269,13 @@ export function UsageLimitsSection({
                   <PoolWindowCard
                     key={`${window.kind}:${window.id}`}
                     pool={window}
-                    color={pool.driver === "claudeAgent" ? colors.claude : colors.codex}
+                    color={
+                      pool.driver === "claudeAgent"
+                        ? colors.claude
+                        : pool.driver === "antigravity"
+                          ? colors.antigravity
+                          : colors.codex
+                    }
                     now={now}
                     environmentIds={
                       selectedEnvironmentIds === null ? null : [...selectedEnvironmentIds]

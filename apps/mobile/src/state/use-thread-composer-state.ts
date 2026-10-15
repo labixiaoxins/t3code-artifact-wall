@@ -1,6 +1,9 @@
+import { AuthOrchestrationOperateScope } from "@t3tools/contracts";
+import { readEnvironmentScope } from "./session";
 import type { ComposerTextPaste } from "../native/T3ComposerEditor.types";
 import { useAtomValue } from "@effect/atom-react";
 import { threadRuntimeIsActive } from "@t3tools/client-runtime/state/shell";
+import { resolvePendingHandoff } from "@t3tools/client-runtime/handoff";
 import {
   deriveProviderSubagentStatus,
   deriveRunlessWorkStartedAt,
@@ -37,7 +40,10 @@ import { composerContextSendBlockReason, reidentifyComposerContext } from "../li
 import { uuidv4 } from "../lib/uuid";
 
 import { makeQueuedMessageMetadata } from "../lib/commandMetadata";
-import { isModelSelectionUnavailable } from "../lib/modelOptions";
+import {
+  describeUnavailableModelSelection,
+  isModelSelectionUnavailable,
+} from "../lib/modelOptions";
 import { resolveProviderInteractionMode } from "./legacy-plan-mode";
 import {
   convertPastedImagesToAttachments,
@@ -329,6 +335,15 @@ export function useThreadComposerState() {
   const selectedThreadQueueCount = selectedThreadQueuedMessages.length;
   const selectedThread = selectedThreadShell;
   const modelSelection = selectedDraft?.modelSelection ?? selectedThread?.modelSelection ?? null;
+  const pendingHandoff = useMemo(
+    () =>
+      resolvePendingHandoff(
+        selectedThreadProjection?.projection,
+        modelSelection,
+        selectedEnvironmentRuntime?.serverConfig?.providers ?? [],
+      ),
+    [modelSelection, selectedThreadProjection, selectedEnvironmentRuntime?.serverConfig?.providers],
+  );
   const runtimeMode = selectedDraft?.runtimeMode ?? selectedThread?.runtimeMode ?? null;
   const selectedProvider = selectedEnvironmentRuntime?.serverConfig?.providers.find(
     (provider) => provider.instanceId === modelSelection?.instanceId,
@@ -548,6 +563,12 @@ export function useThreadComposerState() {
 
   const onSendMessage = useCallback(
     async (followUpOverride?: ActiveTurnComposerAction) => {
+      if (
+        selectedThreadShell &&
+        selectedEnvironmentRuntime?.connectionState === "connected" &&
+        !readEnvironmentScope(selectedThreadShell.environmentId, AuthOrchestrationOperateScope)
+      )
+        return null;
       if (!selectedThreadShell) {
         return null;
       }
@@ -608,12 +629,14 @@ export function useThreadComposerState() {
       const serverConfig = selectedEnvironmentRuntime?.serverConfig;
       if (
         selectedEnvironmentRuntime?.connectionState === "connected" &&
-        isModelSelectionUnavailable(serverConfig, modelSelection)
+        isModelSelectionUnavailable(serverConfig, modelSelection, thread.projectId)
       ) {
-        Alert.alert(
-          "Antigravity model unavailable",
-          "Set up Antigravity on web or desktop, or choose another model.",
+        const { title, detail } = describeUnavailableModelSelection(
+          serverConfig,
+          modelSelection,
+          thread.projectId,
         );
+        Alert.alert(title, detail);
         return null;
       }
       const provider = serverConfig?.providers.find(
@@ -624,6 +647,8 @@ export function useThreadComposerState() {
           ? parseCodexFeedbackCommand(text)
           : null;
       if (feedbackCommand) {
+        if (!readEnvironmentScope(selectedThreadShell.environmentId, AuthOrchestrationOperateScope))
+          return null;
         if (thread.activeProviderThreadId === null) {
           Alert.alert("Start a Codex thread first", "Send a message before you submit feedback.");
           return null;
@@ -667,8 +692,20 @@ export function useThreadComposerState() {
         alternateModifier: followUpOverride !== undefined && followUpOverride !== followUpBehavior,
         activeTurnDefault: followUpBehavior,
       });
-      const followUpDispatchMode =
-        followUpAction === "auto" ? null : followUpAction === "queue" ? "queue" : "auto";
+      // A send while the worktree is still being set up waits behind that setup,
+      // so the server can hold it if the setup ends without a worktree.
+      // Before detail loads, the shell's latest run can be a queued follow-up
+      // while its runtime still reports the setup.
+      const setupRunning = [selectedThreadActivityRun?.status, selectedThreadRuntime?.status].some(
+        (status) => status === "preparing" || status === "starting",
+      );
+      const followUpDispatchMode = setupRunning
+        ? "queue"
+        : followUpAction === "auto"
+          ? null
+          : followUpAction === "queue"
+            ? "queue"
+            : "auto";
 
       const metadata = makeQueuedMessageMetadata();
       const messageId = MessageId.make(metadata.messageId);
@@ -725,7 +762,9 @@ export function useThreadComposerState() {
       saveQueuedRunEdit,
       selectedEnvironmentRuntime?.connectionState,
       selectedEnvironmentRuntime?.serverConfig,
+      selectedThreadActivityRun?.status,
       selectedThreadCreation,
+      selectedThreadRuntime?.status,
       selectedThreadShell,
       uploadThreadFeedback,
     ],
@@ -1062,6 +1101,7 @@ export function useThreadComposerState() {
     cancelQueuedRunEdit,
     onRemoveQueuedEditAttachment,
     modelSelection,
+    pendingHandoff,
     canSwitchThreadProvider,
     runtimeMode,
     interactionMode,

@@ -1,4 +1,7 @@
+import { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
+import { formatInlineContextReference } from "./lib/composerContextReferences";
+import { threadContextRecord, threadContextReference } from "./lib/composerContextRecords";
 
 import {
   buildPendingUserInputAnswers,
@@ -6,10 +9,38 @@ import {
   countAnsweredPendingUserInputQuestions,
   derivePendingUserInputProgress,
   findFirstUnansweredPendingUserInputQuestionIndex,
+  projectPendingUserInputAnswer,
   resolvePendingUserInputAnswer,
   setPendingUserInputCustomAnswer,
   togglePendingUserInputOptionSelection,
 } from "./pendingUserInput";
+
+describe("projectPendingUserInputAnswer", () => {
+  const record = threadContextRecord(
+    {
+      environmentId: EnvironmentId.make("env-answer"),
+      threadId: ThreadId.make("reference-thread"),
+    },
+    "Reference work",
+  );
+
+  it("sends thread chips as readable links with the actual thread ID", () => {
+    const answer = `Compare ${formatInlineContextReference(threadContextReference(record))}`;
+    expect(projectPendingUserInputAnswer(answer, [record])).toBe(
+      "Compare [Reference work](t3-thread://v1/reference-thread)",
+    );
+  });
+
+  it("leaves plain answers unchanged when the draft has unreferenced thread records", () => {
+    expect(projectPendingUserInputAnswer("Plain answer", [record])).toBe("Plain answer");
+  });
+
+  it("preserves option values and exact answer text", () => {
+    const options = [" first\t", "second"];
+    expect(projectPendingUserInputAnswer(options, [record])).toBe(options);
+    expect(projectPendingUserInputAnswer("  Edited answer\n", [record])).toBe("  Edited answer\n");
+  });
+});
 
 const singleSelectQuestion = {
   id: "scope",
@@ -54,6 +85,34 @@ const nativeChoiceQuestion = {
 } as const;
 
 describe("resolvePendingUserInputAnswer", () => {
+  it("preserves exact editor text, including a deliberately cleared answer", () => {
+    const question = { ...singleSelectQuestion, initialAnswer: "  Proposed message\n" };
+    expect(resolvePendingUserInputAnswer(question, { customAnswer: question.initialAnswer })).toBe(
+      question.initialAnswer,
+    );
+    expect(resolvePendingUserInputAnswer(question, { customAnswer: "  Edited message\n\n" })).toBe(
+      "  Edited message\n\n",
+    );
+    expect(resolvePendingUserInputAnswer(question, { customAnswer: "" })).toBe("");
+    expect(resolvePendingUserInputAnswer(question, { customAnswer: " \n" })).toBe(" \n");
+    expect(
+      setPendingUserInputCustomAnswer(
+        { selectedOptionValues: ["Orchestration-first"] },
+        "",
+        question,
+      ),
+    ).toEqual({ customAnswer: "" });
+    const questions = [question, { ...singleSelectQuestion, id: "follow-up" }];
+    const drafts = { scope: { customAnswer: "" } };
+    expect(findFirstUnansweredPendingUserInputQuestionIndex(questions, drafts)).toBe(1);
+    expect(derivePendingUserInputProgress([question], drafts, 0)).toMatchObject({
+      customAnswer: "",
+      resolvedAnswer: "",
+      canAdvance: true,
+      isComplete: true,
+    });
+  });
+
   it("prefers a custom answer over selected options", () => {
     expect(
       resolvePendingUserInputAnswer(singleSelectQuestion, {

@@ -25,9 +25,9 @@ import * as SqlitePersistence from "../persistence/Sqlite.ts";
 import { CodexProviderCapabilitiesV2 } from "./Adapters/CodexAdapterV2.ts";
 import * as Orchestrator from "./Orchestrator.ts";
 import * as ProjectionStore from "./ProjectionStore.ts";
-import type { ProviderAdapterV2Shape } from "./ProviderAdapter.ts";
 import * as ProviderAdapterRegistry from "./ProviderAdapterRegistry.ts";
 import * as ProviderReplayHarness from "./testkit/ProviderReplayHarness.ts";
+import type * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
 
 const instanceId = ProviderInstanceId.make("codex");
 const modelSelection = { instanceId, model: "gpt-5.1-codex" };
@@ -37,7 +37,7 @@ const adapter = {
   getCapabilities: () => Effect.succeed(CodexProviderCapabilitiesV2),
   planSelectionTransition: () => Effect.succeed({ type: "apply_on_next_turn" as const }),
   openSession: () => Effect.die("No provider process needed for metadata controls"),
-} as ProviderAdapterV2Shape;
+} as ProviderAdapter.ProviderAdapterV2["Service"];
 const layerDatabase = SqlitePersistence.layerMemory;
 const layerTest = Layer.mergeAll(
   layerDatabase,
@@ -622,5 +622,164 @@ it.effect("keeps delegated child pull-request links independent of the parent", 
     const parentAfterChildLink = yield* projections.getThreadProjection(parentThreadId);
     assert.deepEqual(parentAfterChildLink.thread.linkedPullRequest, parentPullRequest);
     assert.deepEqual(parentAfterChildLink.thread.pullRequests, parent.thread.pullRequests);
+  }).pipe(Effect.provide(layerTest)),
+);
+
+it.effect("creates a fresh continuation with persisted lineage and settles without archiving", () =>
+  Effect.gen(function* () {
+    const orchestrator = yield* Orchestrator.OrchestratorV2;
+    const projections = yield* ProjectionStore.ProjectionStoreV2;
+    const source = ThreadId.make("handoff-source");
+    const target = ThreadId.make("handoff-target");
+    const projectId = ProjectId.make("handoff-project");
+    const base = {
+      type: "thread.create" as const,
+      projectId,
+      title: "Demo",
+      modelSelection,
+      runtimeMode: "approval-required" as const,
+      interactionMode: "plan" as const,
+      branch: "local/demo",
+      worktreePath: "/tmp/demo-worktree",
+      createdBy: "user" as const,
+      creationSource: "web" as const,
+    };
+    yield* orchestrator.dispatch({
+      ...base,
+      threadId: source,
+      commandId: CommandId.make("handoff-source-create"),
+    });
+    yield* orchestrator.dispatch({
+      ...base,
+      title: "Demo（续）",
+      threadId: target,
+      continuationOfThreadId: source,
+      commandId: CommandId.make("handoff-target-create"),
+    });
+    const fresh = yield* projections.getThreadProjection(target);
+    // The link lives outside lineage so strict official decoders keep working.
+    assert.deepEqual(fresh.thread.lineage, {
+      parentThreadId: null,
+      rootThreadId: target,
+      relationshipToParent: null,
+    });
+    assert.equal(fresh.thread.continuedFromThreadId, source);
+    assert.isNull(fresh.thread.activeProviderThreadId);
+    assert.isEmpty(fresh.messages);
+    assert.isEmpty(fresh.providerThreads);
+    const shell = yield* projections.getThreadShell(target);
+    assert.isNull(shell?.lineage.parentThreadId);
+    assert.equal(shell?.continuedFromThreadId, source);
+    assert.equal(shell?.worktreePath, base.worktreePath);
+    yield* orchestrator.dispatch({
+      type: "thread.settle",
+      threadId: source,
+      commandId: CommandId.make("handoff-settle"),
+    });
+    const old = yield* projections.getThread(source);
+    assert.equal(old.settledOverride, "settled");
+    assert.isNull(old.archivedAt);
+    assert.isNull(old.deletedAt);
+    const invalid = yield* Effect.exit(
+      orchestrator.dispatch({
+        ...base,
+        projectId: ProjectId.make("other-project"),
+        threadId: ThreadId.make("invalid-continuation"),
+        continuationOfThreadId: source,
+        commandId: CommandId.make("invalid-continuation"),
+      }),
+    );
+    assert.equal(invalid._tag, "Failure");
+  }).pipe(Effect.provide(layerTest)),
+);
+
+it.effect("queues handoff behind active work and preserves the chosen continuation title", () =>
+  Effect.gen(function* () {
+    const orchestrator = yield* Orchestrator.OrchestratorV2;
+    const projections = yield* ProjectionStore.ProjectionStoreV2;
+    const threadId = ThreadId.make("handoff-queue");
+    const now = yield* DateTime.now;
+    yield* orchestrator.dispatch({
+      type: "thread.create",
+      commandId: CommandId.make("handoff-queue-create"),
+      threadId,
+      projectId: ProjectId.make("handoff-queue-project"),
+      title: "Demo（续）",
+      modelSelection,
+      runtimeMode: "approval-required",
+      interactionMode: "plan",
+      branch: null,
+      worktreePath: null,
+      createdBy: "user",
+      creationSource: "web",
+    });
+    const providerThreadId = ProviderThreadId.make("handoff-queue-provider");
+    yield* projections.apply({
+      id: EventId.make("handoff-queue-provider"),
+      type: "provider-thread.updated",
+      threadId,
+      occurredAt: now,
+      payload: {
+        id: providerThreadId,
+        driver: adapter.driver,
+        providerInstanceId: instanceId,
+        providerSessionId: null,
+        appThreadId: threadId,
+        ownerNodeId: null,
+        nativeThreadRef: null,
+        nativeConversationHeadRef: null,
+        status: "active",
+        firstRunOrdinal: 1,
+        lastRunOrdinal: 1,
+        handoffIds: [],
+        forkedFrom: null,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+    const runId = RunId.make("handoff-active-run");
+    yield* projections.apply({
+      id: EventId.make("handoff-active-run-created"),
+      type: "run.created",
+      threadId,
+      occurredAt: now,
+      payload: {
+        id: runId,
+        threadId,
+        ordinal: 1,
+        providerInstanceId: instanceId,
+        modelSelection,
+        providerThreadId,
+        userMessageId: MessageId.make("handoff-active-user"),
+        rootNodeId: null,
+        activeAttemptId: null,
+        status: "running",
+        requestedAt: now,
+        startedAt: now,
+        completedAt: null,
+        checkpointId: null,
+        contextHandoffId: null,
+      },
+    });
+    yield* orchestrator.dispatch({
+      type: "message.dispatch",
+      commandId: CommandId.make("handoff-queue-send"),
+      threadId,
+      messageId: MessageId.make("handoff-queue-message"),
+      text: "请写 HANDOFF 文件，之后停止。",
+      attachments: [],
+      modelSelection,
+      dispatchMode: { type: "queue_after_active" },
+      createdBy: "user",
+      creationSource: "web",
+    });
+    const projection = yield* projections.getThreadProjection(threadId);
+    assert.equal(
+      projection.runs.find((run) => run.userMessageId === "handoff-queue-message")?.status,
+      "queued",
+    );
+    assert.equal(projection.thread.title, "Demo（续）");
+    assert.isUndefined(projection.thread.titleRegeneration);
+    assert.equal(projection.messages.at(-1)?.text, "请写 HANDOFF 文件，之后停止。");
   }).pipe(Effect.provide(layerTest)),
 );

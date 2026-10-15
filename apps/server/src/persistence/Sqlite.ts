@@ -23,6 +23,10 @@ const layerSetup = Layer.effectDiscard(
     // largest size until the last connection closes.
     yield* sql.unsafe(`PRAGMA journal_size_limit = ${WAL_SIZE_LIMIT_BYTES};`);
     yield* runMigrations();
+    // Without sqlite_stat1 the planner guesses at index selectivity. 0x10012
+    // analyzes tables whose indexes lack stats or whose row count changed 10x,
+    // under a temporary analysis_limit. Otherwise it only checks table sizes.
+    yield* sql`PRAGMA optimize = 0x10012;`;
   }),
 );
 
@@ -32,7 +36,18 @@ export const layerFromPath = Effect.fn("makeSqlitePersistenceLive")(function* (d
   yield* fs.makeDirectory(path.dirname(dbPath), { recursive: true });
 
   return Layer.provideMerge(
-    layerSetup,
+    Layer.mergeAll(
+      layerSetup,
+      Layer.effectDiscard(
+        Effect.gen(function* () {
+          yield* fs.chmod(dbPath, 0o600);
+          for (const suffix of ["-wal", "-shm"]) {
+            const sidecar = `${dbPath}${suffix}`;
+            if (yield* fs.exists(sidecar)) yield* fs.chmod(sidecar, 0o600);
+          }
+        }),
+      ),
+    ),
     NodeSqliteClient.layer({
       filename: dbPath,
       spanAttributes: {

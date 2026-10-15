@@ -50,6 +50,7 @@ export function buildHomeProjectScopes(input: {
   );
   return buildProjectGroups({
     projects,
+    groupScratchProjects: true,
     settings: {
       sidebarProjectGroupingMode: input.projectGroupingMode,
       sidebarProjectGroupingOverrides: {},
@@ -63,6 +64,26 @@ export function buildHomeProjectScopes(input: {
       projectRefs: group.memberProjectRefs,
     };
   });
+}
+
+// Prefers an exact scope key so a caller-supplied project ID that equals another
+// project's normalized workspace root cannot select the wrong group.
+export function findHomeProjectScope(
+  scopes: ReadonlyArray<HomeProjectScope>,
+  key: string | null,
+): HomeProjectScope | null {
+  if (key === null) {
+    return null;
+  }
+  return (
+    scopes.find((scope) => scope.key === key) ??
+    scopes.find((scope) =>
+      scope.projectRefs.some(
+        (projectRef) => scopedProjectKey(projectRef.environmentId, projectRef.projectId) === key,
+      ),
+    ) ??
+    null
+  );
 }
 
 export function sortHomeProjectScopes(input: {

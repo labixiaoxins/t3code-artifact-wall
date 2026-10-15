@@ -43,6 +43,12 @@ export const T3ProjectFileScript = Schema.Struct({
         "When true, the script runs automatically after a worktree is created for a new thread.",
     }),
   ),
+  runOnSettle: Schema.optionalKey(
+    Schema.Boolean.annotate({
+      description:
+        "When true, the script runs in the thread's worktree each time the thread settles, for example to delete build output. Threads without their own worktree skip it.",
+    }),
+  ),
   async: Schema.optionalKey(
     Schema.Boolean.annotate({
       description:
@@ -120,7 +126,10 @@ export const PROJECT_FILE_BACKED_SETTINGS = {
   defaultThreadEnvMode: { field: "defaultThreadEnvMode", builtIn: "local" },
   worktreeSubmodules: { field: "worktreeSubmodules", builtIn: "recursive" },
 } as const satisfies {
-  readonly [K in ProjectScopedServerSettingKey]?: {
+  // `providerInstances` is scoped per project but overrides field by field
+  // rather than replacing a whole `ServerSettings` value (see its doc comment
+  // in settings.ts), so it cannot be file-backed and is excluded here.
+  readonly [K in ProjectScopedServerSettingKey & keyof ServerSettings]?: {
     readonly field: {
       readonly [F in keyof T3ProjectFile]: T3ProjectFile[F] extends
         | Exclude<ServerSettings[K], null>

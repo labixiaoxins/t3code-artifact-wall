@@ -21,6 +21,9 @@ import {
 } from "./shell";
 import { environmentThreadDetails, environmentThreadShells } from "./threads";
 import { waitForAtomValue } from "./waitForAtomValue";
+import { createHandoffSummaryAtom } from "./handoffShellSummary";
+import { parseScopedThreadKey, scopedThreadKey } from "@t3tools/client-runtime/environment";
+import { presentThreadShell } from "@t3tools/client-runtime/state/models";
 
 const EMPTY_THREAD_REFS: ReadonlyArray<ScopedThreadRef> = Object.freeze([]);
 const EMPTY_VISIBLE_TURN_ITEMS: ReadonlyArray<OrchestrationV2ProjectedTurnItem> = Object.freeze([]);
@@ -93,6 +96,24 @@ export function useThreadShells(enabled = true): ReadonlyArray<EnvironmentThread
   );
 }
 
+const handoffShellSummaryAtom = Atom.family((key: string) => {
+  const ref = parseScopedThreadKey(key)!;
+  const relevantShells = Atom.make((get) =>
+    get(environmentThreadShells.environmentThreadsAtom(ref.environmentId))
+      .filter(
+        (shell) =>
+          shell.lineage.parentThreadId === ref.threadId ||
+          shell.continuedFromThreadId === ref.threadId,
+      )
+      .map((shell) => presentThreadShell(ref.environmentId, shell)),
+  );
+  return createHandoffSummaryAtom(relevantShells, ref.threadId);
+});
+
+export function useThreadHandoffSummary(ref: ScopedThreadRef) {
+  return useAtomValue(handoffShellSummaryAtom(scopedThreadKey(ref)));
+}
+
 export function useAllEnvironmentShellsBootstrapped(): boolean {
   return useAtomValue(allEnvironmentShellsBootstrappedAtom);
 }
@@ -114,6 +135,12 @@ export function useProject(ref: ScopedProjectRef | null): EnvironmentProject | n
 export function useThreadShell(ref: ScopedThreadRef | null): EnvironmentThreadShell | null {
   return useAtomValue(
     ref === null ? EMPTY_THREAD_SHELL_ATOM : environmentThreadShells.threadShellAtom(ref),
+  );
+}
+
+export function useChildThreadInputs(ref: ScopedThreadRef | null) {
+  return useAtomValue(
+    ref === null ? EMPTY_THREAD_SHELLS_ATOM : environmentThreadShells.childThreadInputsAtom(ref),
   );
 }
 

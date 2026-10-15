@@ -8,6 +8,7 @@ import {
 } from "@t3tools/contracts";
 import { collectComposerInlineTokens } from "@t3tools/shared/composerInlineTokens";
 import {
+  ATTACHMENT_ONLY_BOOTSTRAP_PROMPT,
   collectComposerContextReferences,
   formatComposerContextReference,
   projectComposerContextForProvider,
@@ -207,6 +208,52 @@ describe("mobile composer context", () => {
 });
 
 describe("host context compatibility", () => {
+  it("sends an image-only prompt as the attachment-only prompt and keeps the image", () => {
+    const context: OrchestrationMessageContext = { version: 1, records: [image] };
+    const reference = formatComposerContextReference(image);
+    expect(serializeComposerMessageForServer(reference, context, true)).toEqual({
+      text: ATTACHMENT_ONLY_BOOTSTRAP_PROMPT,
+      context,
+    });
+    const withProse = `${reference} what is this?`;
+    expect(serializeComposerMessageForServer(withProse, context, true)).toEqual({
+      text: withProse,
+      context,
+    });
+  });
+
+  it("carries the current PR diff file within the composer wire limits", () => {
+    const metadata = {
+      number: 42,
+      title: "Fix checkout",
+      url: "https://github.com/example/repo/pull/42",
+      headBranch: "fix-checkout",
+      baseBranch: "main",
+      state: "open" as const,
+      isDraft: false,
+    };
+    const record = pullRequestComposerContext(metadata, "pr-42", "src/checkout.ts");
+    expect(record.filePath).toBe("src/checkout.ts");
+    const prompt = projectComposerContextForProvider({
+      text: formatComposerContextReference(record),
+      records: [record],
+    });
+    expect(prompt).toContain(metadata.url);
+    expect(prompt).toContain("src/checkout.ts");
+    expect(composerContextSendBlockReason({ version: 1, records: [record] })).toBeNull();
+    const large = pullRequestComposerContext(
+      {
+        ...metadata,
+        title: "x".repeat(3000),
+        headBranch: "y".repeat(3000),
+        baseBranch: "z".repeat(3000),
+      },
+      "pr-42",
+      `src/${"[long file]".repeat(500)}.ts`,
+    );
+    expect(composerContextSendBlockReason({ version: 1, records: [large] })).toBeNull();
+  });
+
   it.each(["existing-thread", "new-task"])("serializes %s sends for an older host", (path) => {
     const pr = pullRequestComposerContext(
       {

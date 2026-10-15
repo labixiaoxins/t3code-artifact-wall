@@ -18,7 +18,7 @@ import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 
 import * as EventSink from "../orchestration-v2/EventSink.ts";
-import * as IdAllocator from "../orchestration-v2/IdAllocator.ts";
+import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
 import * as LegacyV1ThreadImporter from "../orchestration-v2/legacy/LegacyV1ThreadImporter.ts";
 import * as ProjectionStore from "../orchestration-v2/ProjectionStore.ts";
 import {
@@ -30,6 +30,7 @@ import {
 import * as ProjectStore from "../orchestration-v2/ProjectStore.ts";
 import * as ThreadCommandExecutor from "../orchestration-v2/ThreadCommandExecutor.ts";
 import { planThreadDeletion } from "../orchestration-v2/ThreadDeletion.ts";
+import * as ServerSettings from "../serverSettings.ts";
 import * as ProjectEnrichmentService from "./ProjectEnrichmentService.ts";
 import * as WorkspacePaths from "../workspace/WorkspacePaths.ts";
 
@@ -153,6 +154,7 @@ export const make = Effect.gen(function* () {
   const idAllocator = yield* IdAllocator.IdAllocatorV2;
   const legacyImporter = yield* LegacyV1ThreadImporter.LegacyV1ThreadImporter;
   const threadCommands = yield* ThreadCommandExecutor.ThreadCommandExecutor;
+  const serverSettings = yield* ServerSettings.ServerSettingsService;
   // Commands for one project run in order. Commands that claim a workspace root
   // also hold that root, so two projects cannot both claim it.
   const projectLocks = yield* KeyedLock.make<ProjectId>();
@@ -486,6 +488,22 @@ export const make = Effect.gen(function* () {
     );
   });
 
+  // A machine-disabled provider instance that a deleted project's override
+  // once turned on must not stay probed and alive forever. Nothing else
+  // removes the entry, so deletion is where it goes; best-effort because a
+  // settings write failure should not block the deletion it is cleaning up
+  // after, and a server crash before a replay never revisits this project.
+  const clearProjectSettingsOverrides = (projectId: ProjectId) =>
+    serverSettings.updateSettings({ projectSettingsOverrides: { [projectId]: null } }).pipe(
+      Effect.asVoid,
+      Effect.catchCause((cause) =>
+        Effect.logWarning(
+          `Failed to clear settings overrides for deleted project ${projectId}.`,
+          cause,
+        ),
+      ),
+    );
+
   const deleteProject: ProjectService["Service"]["delete"] = Effect.fn("ProjectService.delete")(
     function* (input) {
       const { projectId } = input;
@@ -496,10 +514,14 @@ export const make = Effect.gen(function* () {
         return yield* new ProjectNotFoundError({ projectId });
       }
 
-      if (existing.value.deletedAt === null) {
+      const isFirstDelete = existing.value.deletedAt === null;
+      if (isFirstDelete) {
         yield* deleteChildThreads(input);
       }
       yield* commit({ type: "project.delete", commandId: input.commandId, projectId });
+      if (isFirstDelete) {
+        yield* clearProjectSettingsOverrides(projectId);
+      }
       yield* projectEnrichment.invalidate([existing.value.workspaceRoot]);
       return yield* readCommitted(projectId);
     },

@@ -19,6 +19,7 @@ import * as Stream from "effect/Stream";
 import * as ThreadLaunch from "../../../orchestration-v2/ThreadLaunchService.ts";
 import * as ThreadManagement from "../../../orchestration-v2/ThreadManagementService.ts";
 import * as ServerConfig from "../../../config.ts";
+import * as ServerSettings from "../../../serverSettings.ts";
 import * as Project from "../../../project/ProjectService.ts";
 import * as ManagedProjectFolders from "../../../project/ManagedProjectFolders.ts";
 import * as GitVcsDriver from "../../../vcs/GitVcsDriver.ts";
@@ -47,6 +48,7 @@ it.effect("attributes a launched thread's first message to the calling thread", 
     } as OrchestrationV2ThreadShell;
     let launchedSender: ThreadId | undefined;
     const layerDependencies = Layer.mergeAll(
+      ServerSettings.layerTest(),
       NodeCrypto.layer,
       Layer.succeed(McpInvocationContext.McpInvocationContext, {
         environmentId: EnvironmentId.make("environment"),
@@ -118,6 +120,7 @@ it.effect("launches a scratch thread into the Scratch project", () =>
     } as OrchestrationV2ThreadShell;
     const launched: Array<ThreadLaunch.ThreadLaunchInput> = [];
     const layerDependencies = Layer.mergeAll(
+      ServerSettings.layerTest(),
       NodeCrypto.layer,
       Layer.succeed(McpInvocationContext.McpInvocationContext, {
         environmentId: EnvironmentId.make("environment"),
@@ -215,6 +218,7 @@ it.effect("starts a project from just a title when workspaceRoot is omitted", ()
       deletedAt: null,
     };
     const layerDependencies = Layer.mergeAll(
+      ServerSettings.layerTest(),
       NodeCrypto.layer,
       Layer.succeed(McpInvocationContext.McpInvocationContext, {
         environmentId: EnvironmentId.make("environment"),
@@ -301,10 +305,18 @@ const clientLaunchHarness = (input: {
   readonly runtimeModeCeiling: "approval-required" | "auto-accept-edits" | "auto" | "full-access";
   readonly launched: Array<ThreadLaunch.ThreadLaunchInput>;
   readonly workspaceRoot?: string;
+  readonly checkWorktreeBase?: ThreadLaunch.ThreadLaunchService["Service"]["checkWorktreeBase"];
 }) => {
   const projectId = ProjectId.make("project:client-target");
-  const modelSelection = { instanceId: ProviderInstanceId.make("claude"), model: "claude-opus" };
+  // "claudeAgent" is the real default instance id for the Claude driver
+  // (see `defaultInstanceIdForDriver`), so it resolves as enabled by default
+  // under the project-scoped provider instance gate the launch path now runs.
+  const modelSelection = {
+    instanceId: ProviderInstanceId.make("claudeAgent"),
+    model: "claude-opus",
+  };
   const layerDependencies = Layer.mergeAll(
+    ServerSettings.layerTest(),
     NodeCrypto.layer,
     Layer.succeed(McpInvocationContext.McpInvocationContext, {
       environmentId: EnvironmentId.make("environment"),
@@ -320,6 +332,7 @@ const clientLaunchHarness = (input: {
     }),
     Layer.mock(ThreadManagement.ThreadManagementService)({}),
     Layer.mock(ThreadLaunch.ThreadLaunchService)({
+      checkWorktreeBase: input.checkWorktreeBase ?? (() => Effect.void),
       launch: (launch) => {
         input.launched.push(launch);
         return Effect.succeed({
@@ -453,4 +466,48 @@ it.effect("a launch binds only an existing checkout that is one of the project's
       code: "invalid_request",
     });
   }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+);
+
+it.effect("a launch into a new worktree creates nothing when its base ref has no commit", () =>
+  Effect.gen(function* () {
+    const launched: Array<ThreadLaunch.ThreadLaunchInput> = [];
+    const { projectId, dependencies } = clientLaunchHarness({
+      runtimeModeCeiling: "auto",
+      launched,
+      checkWorktreeBase: ({ projectId, workspaceStrategy }) =>
+        workspaceStrategy.type === "worktree" && workspaceStrategy.baseRef === "t3/renamed"
+          ? Effect.fail(
+              new ThreadLaunch.ThreadLaunchBaseRefError({
+                projectId,
+                projectTitle: "Client target",
+                workspaceRoot: "/projects/client-target",
+                baseRef: workspaceStrategy.baseRef,
+              }),
+            )
+          : Effect.void,
+    });
+    const toolkit = yield* ProjectToolkit.pipe(
+      Effect.provide(
+        McpToolAccess.HandlersLayer.layer(ProjectHandlers.layer).pipe(Layer.provide(dependencies)),
+      ),
+    );
+    const launchFrom = (baseRef: string) =>
+      toolkit
+        .handle("t3_thread_launch", {
+          title: "Fix",
+          projectId,
+          workspaceStrategy: { type: "worktree", baseRef, startFromOrigin: false },
+        })
+        .pipe(Stream.unwrap, Stream.runCollect, Effect.provide(dependencies));
+
+    const refused = (yield* launchFrom("t3/renamed")).at(-1)?.result;
+    expect(refused).toMatchObject({ code: "invalid_request" });
+    expect((refused as { message: string }).message).toContain(
+      'Base ref "t3/renamed" does not resolve to a commit in project "Client target" (/projects/client-target). No thread was created.',
+    );
+    expect(launched).toHaveLength(0);
+
+    expect((yield* launchFrom("main")).at(-1)?.result).toMatchObject({ projectId });
+    expect(launched).toHaveLength(1);
+  }),
 );

@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 
 import type { AppSymbolName } from "./AppSymbol";
 import { AppText as Text } from "./AppText";
@@ -14,6 +14,7 @@ export interface AndroidHeaderAction {
   readonly icon: AppSymbolName;
   readonly onPress: () => void;
   readonly disabled?: boolean;
+  readonly loading?: boolean;
   readonly selected?: boolean;
 }
 
@@ -29,6 +30,7 @@ export function AndroidHeaderIconButton(props: {
 
 export function AndroidScreenHeader(props: {
   readonly title: string;
+  readonly titleContent?: ReactNode;
   readonly subtitle?: string | null;
   readonly actions?: ReadonlyArray<AndroidHeaderAction>;
   readonly leading?: ReactNode;
@@ -70,9 +72,11 @@ export function AndroidScreenHeader(props: {
         {props.leading}
 
         <View className={cn("min-w-0 flex-1", !props.onBack && "pl-1")}>
-          <Text numberOfLines={1} style={titleTypography} className="text-header-foreground">
-            {props.title}
-          </Text>
+          {props.titleContent ?? (
+            <Text numberOfLines={1} style={titleTypography} className="text-header-foreground">
+              {props.title}
+            </Text>
+          )}
           {props.subtitle ? (
             <Text
               numberOfLines={1}
@@ -84,16 +88,26 @@ export function AndroidScreenHeader(props: {
           ) : null}
         </View>
 
-        {visibleActions.map((action) => (
-          <AndroidHeaderIconButton
-            key={action.accessibilityLabel}
-            accessibilityLabel={action.accessibilityLabel}
-            disabled={action.disabled}
-            selected={action.selected}
-            icon={action.icon}
-            onPress={action.onPress}
-          />
-        ))}
+        {visibleActions.map((action) =>
+          action.loading ? (
+            <View
+              key={action.accessibilityLabel}
+              accessibilityLabel={action.accessibilityLabel}
+              className="size-12 items-center justify-center"
+            >
+              <ActivityIndicator colorClassName="accent-header-foreground" />
+            </View>
+          ) : (
+            <AndroidHeaderIconButton
+              key={action.accessibilityLabel}
+              accessibilityLabel={action.accessibilityLabel}
+              disabled={action.disabled}
+              selected={action.selected}
+              icon={action.icon}
+              onPress={action.onPress}
+            />
+          ),
+        )}
         {overflowActions.length > 0 ? (
           <AndroidAnchoredMenu
             actions={overflowActions.map((action, index) => ({

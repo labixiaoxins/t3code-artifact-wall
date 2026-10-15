@@ -120,6 +120,23 @@ describe("artifact wall environment authentication", () => {
     mocks.fetch.mockRejectedValue(error);
     await expect(load(controller.signal)).rejects.toBe(error);
   });
+  it("supports an authenticated same-origin tailnet phone without widening cross-origin access", async () => {
+    mocks.connection.mockReturnValue({
+      ...connection(null),
+      httpBaseUrl: "http://fictional.tailnet.test:3773",
+    });
+    vi.stubGlobal("window", {
+      location: {
+        href: "http://fictional.tailnet.test:3773/",
+        origin: "http://fictional.tailnet.test:3773",
+      },
+    });
+    await expect(load()).resolves.toEqual([artifact]);
+    expect(new URL(mocks.fetch.mock.calls[0]![0]).origin).toBe(
+      "http://fictional.tailnet.test:3773",
+    );
+    expect(mocks.fetch.mock.calls[0]?.[1]).toMatchObject({ credentials: "include" });
+  });
   it("blocks remote and DPoP origins without sending credentials", async () => {
     mocks.connection.mockReturnValue({ ...connection(), httpBaseUrl: "https://remote.test" });
     await expect(load()).rejects.toThrow("产物墙仅在本机连接可用");

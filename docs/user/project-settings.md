@@ -27,6 +27,14 @@ again.
 Providers and diagnostics are per machine: they show one environment at a time, the primary
 one until you pick another. Every other setting fans out to the selection.
 
+With a project selected, a provider's switch in **Settings → Providers** turns it on or off for
+that project only, in either direction: a provider off on the machine can be used in one project,
+and one on everywhere can be kept out of another. That project's model pickers follow the switch,
+and no new turn there can start on a provider it turned off, including queued messages and
+follow-ups from delegated tasks. A turn already running when the switch flips finishes. A delegated
+task's result still lands in its parent thread, which sees it on its next turn. Reset returns the project to the
+machine's setting. Every other provider setting stays per machine.
+
 On mobile, open **Settings** and use the filter in its header to choose connected environments
 and a project. The filter stays available in server-setting pages. With **All projects** selected,
 the **Server settings** categories and auto-settle controls in **Thread behavior** edit the
@@ -143,15 +151,22 @@ captures and log retention remain machine-wide.
 
 Worktrees can be removed after a chosen number of inactive days, after merging, or when they
 have no commits beyond the default branch. Only T3-managed worktrees are eligible. Active
-sessions, shared worktrees, uncommitted changes, and ignored files other than `node_modules`
-prevent removal. Branches and thread history stay; starting another turn recreates the checkout.
-Merge cleanup requires the commits to be included in the remote default branch, so squash merges
-may need the inactivity rule instead.
+sessions and shared worktrees prevent removal. **Keep worktrees with local changes** defaults
+to **Uncommitted changes**, which protects tracked edits and untracked files but deletes ignored
+files such as `.env` and build output. **Any local files** also protects ignored files other than
+`node_modules`. **Edited tracked files** protects only tracked edits and allows untracked and
+ignored files to be deleted. Branches and thread history stay; starting another turn recreates the checkout.
+Merge cleanup requires a merged pull request whose commits are included in the remote default
+branch. A squash or rebase merge on GitHub also counts when the pull request targeted the default
+branch and the worktree is still at the pull request's last commit.
 
 Enable **Delete worktrees with deleted threads** to remove safe worktrees after their last
 thread is deleted, including archived threads and worktrees left by earlier deletions. The
 server waits for sessions and terminals to stop and retries skipped worktrees after restart.
 Existing prompts for deleting a worktree manually remain available when this policy is off.
+
+Choose **Delete now** to run the enabled rules immediately. The latest results show which
+worktrees were removed or kept and why, plus any failures.
 
 Browser captures and rotated logs have separate retention periods. Expired capture links stop
 working. Current logs, message attachments, and browser profiles are kept.

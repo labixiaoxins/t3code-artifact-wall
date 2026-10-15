@@ -3,7 +3,8 @@ import type {
   NativeStackNavigationOptions,
   NativeStackNavigationProp,
 } from "@react-navigation/native-stack";
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { use, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { NativeWorkspaceTabActivityContext } from "./v5-workspace-context";
 import type { ColorValue } from "react-native";
 
 export { NativeHeaderToolbar } from "./NativeHeaderToolbar";
@@ -19,6 +20,8 @@ export type AppNativeStackNavigationOptions = Omit<
   NativeStackNavigationOptions,
   "headerTintColor" | "unstable_headerLeftItems" | "unstable_headerRightItems"
 > & {
+  /** Nested navigator leaves apply their own horizontal safe area. */
+  readonly nativeContentInsetHorizontally?: boolean;
   readonly headerTintColor?: string | ColorValue;
   readonly unstable_headerCenterItems?: unknown;
   readonly unstable_headerLeftItems?: unknown;
@@ -144,6 +147,7 @@ export function NativeStackScreenOptions(props: {
   readonly name?: string;
 }) {
   const navigation = useNativeStackNavigation();
+  const tabActive = use(NativeWorkspaceTabActivityContext)?.active ?? true;
   const lastAppliedOptionsSignatureRef = useRef<string | undefined>(undefined);
   const latestOptionFunctionsRef = useRef(new Map<string, (...args: unknown[]) => unknown>());
   const optionFunctionWrappersRef = useRef(new Map<string, (...args: unknown[]) => unknown>());
@@ -158,6 +162,10 @@ export function NativeStackScreenOptions(props: {
     : undefined;
 
   useLayoutEffect(() => {
+    if (!tabActive) {
+      lastAppliedOptionsSignatureRef.current = undefined;
+      return;
+    }
     if (!navigation || !stableOptions) {
       return;
     }
@@ -169,7 +177,7 @@ export function NativeStackScreenOptions(props: {
     }
     lastAppliedOptionsSignatureRef.current = signature;
     navigation.setOptions(stableOptions);
-  }, [navigation, props.optionsVersion, stableOptions]);
+  }, [navigation, props.optionsVersion, stableOptions, tabActive]);
 
   useEffect(() => {
     if (!navigation || !props.listeners) {

@@ -188,11 +188,17 @@ describe("thread relationships", () => {
   });
 
   it.each([
-    ["running", "running"],
-    [null, "completed"],
+    ["running", "running", "running"],
+    ["waiting", "completed", "waiting"],
+    [null, "queued", "queued"],
+    [null, "failed", "failed"],
+    [null, "interrupted", "interrupted"],
+    [null, "cancelled", "cancelled"],
+    [null, "completed", "completed"],
+    [null, "rolled_back", "interrupted"],
   ])(
-    "shows a subagent whose child activity is %s as %s after its delegated task settled",
-    (childActivity, expected) => {
+    "shows child activity %s and latest status %s as %s after its delegated task settled",
+    (childActivity, childStatus, expected) => {
       const parent = ThreadId.make("thread-parent");
       const child = ThreadId.make("thread-child");
       const graph = deriveThreadRelationshipGraph({
@@ -200,8 +206,9 @@ describe("thread relationships", () => {
           { id: parent, status: "completed", forkedFrom: null, lineage: { parentThreadId: null } },
           {
             id: child,
-            status: childActivity ?? "completed",
+            status: childStatus,
             activityRunStatus: childActivity,
+            latestRunId: "run-child-followup",
             forkedFrom: null,
             lineage: { parentThreadId: parent, relationshipToParent: "subagent" },
           },
@@ -502,4 +509,34 @@ describe("web thread lineage ordering", () => {
       }),
     ).toEqual([first, second, third]);
   });
+});
+
+it("keeps continuation links bidirectional without offering native fork merge-back", () => {
+  const source = ThreadId.make("handoff-source");
+  const target = ThreadId.make("handoff-target");
+  const graph = deriveThreadRelationshipGraph({
+    threads: [
+      { id: source, lineage: { parentThreadId: null } },
+      {
+        id: target,
+        lineage: { parentThreadId: null, rootThreadId: target, relationshipToParent: null },
+        continuedFromThreadId: source,
+      },
+    ] as never,
+    projection: null,
+  });
+  expect(graph.edges).toEqual([
+    { sourceThreadId: source, targetThreadId: target, kind: "transfer", status: undefined },
+  ]);
+  expect(relatedThreadIds(graph, source)).toEqual([target]);
+  expect(relatedThreadIds(graph, target)).toEqual([source]);
+  expect(
+    resolveMergeBackTargetThreadId({
+      thread: {
+        lineage: { parentThreadId: null, relationshipToParent: null },
+        continuedFromThreadId: source,
+        forkedFrom: null,
+      },
+    } as never),
+  ).toBeNull();
 });

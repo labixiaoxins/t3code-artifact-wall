@@ -2,12 +2,14 @@ import { useIsFocused } from "@react-navigation/native";
 import { useEvent } from "expo";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { ActivityIndicator, AppState, Pressable, View } from "react-native";
+import { AppState, Pressable, View } from "react-native";
 
+import { AppActivityIndicator } from "./AppActivityIndicator";
 import { AppText } from "./AppText";
 import { SymbolView } from "./AppSymbol";
 import { VideoThumbnailImage } from "./VideoThumbnailImage";
-import { useMediaActions, type MediaActionsSource } from "../lib/mediaActions";
+import { useMediaActions } from "../state/mediaActions";
+import { type MediaActionsSource } from "../lib/mediaActionsSource";
 import { MediaActionsMenu } from "./MediaActionsMenu";
 
 /** Loads only after Play or opening the viewer. Source replacement never starts playback itself. */
@@ -95,7 +97,7 @@ function LoadedMediaVideo(props: {
         </View>
       ) : loadState === "pending" || status === "loading" ? (
         <View pointerEvents="none" className="absolute inset-0 items-center justify-center">
-          <ActivityIndicator color="#ffffff" accessibilityLabel="Loading video" />
+          <AppActivityIndicator color="#ffffff" accessibilityLabel="Loading video" />
         </View>
       ) : null}
     </View>
@@ -159,7 +161,7 @@ function MediaVideoPlayerContent(props: MediaVideoPlayerProps) {
             {props.unavailable ? (
               <AppText className="text-sm text-white/80">Video unavailable</AppText>
             ) : props.uri === null ? (
-              <ActivityIndicator color="#ffffff" accessibilityLabel="Loading video" />
+              <AppActivityIndicator color="#ffffff" accessibilityLabel="Loading video" />
             ) : (
               <View className="size-12 items-center justify-center rounded-full bg-black/60">
                 <SymbolView name="play" size={28} tintColor="#ffffff" type="monochrome" />

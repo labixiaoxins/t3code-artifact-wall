@@ -1,3 +1,4 @@
+import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
 import { findErrorTraceId } from "@t3tools/client-runtime/errors";
 import {
   type EnvironmentConnectionPresentation,
@@ -189,7 +190,7 @@ export function CloudEnvironmentConnectRows({
         ? {
             secondaryActionProps: {
               children: "Copy trace ID",
-              onClick: () => void navigator.clipboard?.writeText(traceId),
+              onClick: () => void writeTextToClipboard(traceId, "trace ID").catch(() => undefined),
             },
           }
         : undefined,

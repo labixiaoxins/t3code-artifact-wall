@@ -1,14 +1,15 @@
+import { LegendList } from "@legendapp/list/react-native";
 import type { ProjectEntry } from "@t3tools/contracts";
+import { AppActivityIndicator } from "../../components/AppActivityIndicator";
 import { SymbolView } from "../../components/AppSymbol";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, View } from "react-native";
+import { Platform, Pressable, RefreshControl, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppText as Text } from "../../components/AppText";
 import { PierreEntryIcon } from "../../components/PierreEntryIcon";
 import { cn } from "../../lib/cn";
-import { IOS_NAV_BAR_HEIGHT } from "../../lib/layoutMetrics";
-import { NATIVE_LIQUID_GLASS_SUPPORTED } from "../../native/native-glass";
+import { useNativeColumnLayoutMetrics } from "../../native/native-layout-metrics";
 import {
   buildFileTree,
   flattenFileTree,
@@ -17,8 +18,6 @@ import {
 } from "./fileTree";
 
 const fileTreeCache = new WeakMap<ReadonlyArray<ProjectEntry>, ReadonlyArray<FileTreeNode>>();
-const FILE_TREE_INITIAL_RENDER_COUNT = 20;
-const FILE_TREE_RENDER_BATCH_SIZE = 12;
 const OPTIMISTIC_SELECTION_TIMEOUT_MS = 1_000;
 
 function cachedFileTree(entries: ReadonlyArray<ProjectEntry>): ReadonlyArray<FileTreeNode> {
@@ -44,8 +43,8 @@ const FileTreeRow = memo(function FileTreeRow(props: {
   readonly item: VisibleFileTreeNode;
   readonly selected: boolean;
   readonly expanded: boolean;
-  readonly loaded: boolean;
-  readonly onPressDirectory: (path: string) => void;
+  readonly loading: boolean;
+  readonly onPressDirectory: (path: string, expand: boolean) => void;
   readonly onPreviewFile?: (path: string) => void;
   readonly onPressFile: (path: string) => void;
 }) {
@@ -55,6 +54,7 @@ const FileTreeRow = memo(function FileTreeRow(props: {
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={node.path}
+      accessibilityState={{ selected: props.selected }}
       onPressIn={() => {
         if (node.kind === "file") {
           props.onPreviewFile?.(node.path);
@@ -62,14 +62,14 @@ const FileTreeRow = memo(function FileTreeRow(props: {
       }}
       onPress={() => {
         if (node.kind === "directory") {
-          props.onPressDirectory(node.path);
+          props.onPressDirectory(node.path, !props.expanded);
           return;
         }
         props.onPressFile(node.path);
       }}
       className={cn(
         "mx-2 min-h-[42px] flex-row items-center gap-2 rounded-[12px] px-2 active:bg-subtle",
-        props.selected && "bg-subtle-strong",
+        props.selected && "bg-thread-selected",
       )}
       style={{ paddingLeft: 8 + depth * 18 }}
     >
@@ -88,7 +88,7 @@ const FileTreeRow = memo(function FileTreeRow(props: {
         className={cn(
           "min-w-0 flex-1 text-sm leading-normal",
           props.selected
-            ? "font-t3-bold text-foreground"
+            ? "font-t3-bold text-thread-selected-foreground"
             : node.ignored
               ? "font-t3-medium text-foreground-tertiary"
               : "font-t3-medium text-foreground-secondary",
@@ -97,10 +97,8 @@ const FileTreeRow = memo(function FileTreeRow(props: {
       >
         {node.name}
       </Text>
-      {node.kind === "directory" && props.loaded ? (
-        <Text className="text-2xs font-t3-medium text-foreground-tertiary">
-          {node.children.length}
-        </Text>
+      {node.kind === "directory" && props.expanded && props.loading ? (
+        <AppActivityIndicator size="small" accessibilityLabel={`Loading ${node.name}`} />
       ) : null}
     </Pressable>
   );
@@ -110,10 +108,11 @@ export function FileTreeBrowser(props: {
   readonly entries: ReadonlyArray<ProjectEntry>;
   readonly error: string | null;
   readonly isPending: boolean;
+  readonly isRefreshing: boolean;
   readonly searchQuery: string;
   readonly searchTruncated: boolean;
   readonly selectedPath: string | null;
-  readonly loadedDirectories: ReadonlySet<string>;
+  readonly loadingDirectories: ReadonlySet<string>;
   readonly onLoadDirectory: (path: string) => void;
   readonly onPreviewFile?: (path: string) => void;
   readonly onRefresh: () => void;
@@ -125,14 +124,13 @@ export function FileTreeBrowser(props: {
     readonly selectedPathAtPress: string | null;
   } | null>(null);
   const insets = useSafeAreaInsets();
-  // Native transparent-header height ≈ safe-area top + nav bar (~44). Matches the
-  // observed adjustedContentInset bottom (~102) seen in the native trace.
-  const headerInset = NATIVE_LIQUID_GLASS_SUPPORTED ? insets.top + IOS_NAV_BAR_HEIGHT : 0;
+  const columnMetrics = useNativeColumnLayoutMetrics();
+  const headerInset = Platform.OS === "ios" ? (columnMetrics?.safeArea.top ?? insets.top) : 0;
   const {
     onLoadDirectory,
     onPreviewFile,
     onSelectFile,
-    loadedDirectories,
+    loadingDirectories,
     selectedPath: controlledSelectedPath,
   } = props;
   const controlledSelectedPathRef = useRef(controlledSelectedPath);
@@ -184,17 +182,21 @@ export function FileTreeBrowser(props: {
     [],
   );
 
-  const toggleDirectory = useCallback((path: string) => {
-    setExpandedPaths((current) => {
-      const next = new Set(current);
-      if (next.has(path)) {
-        next.delete(path);
-      } else {
-        next.add(path);
-      }
-      return next;
-    });
-  }, []);
+  const toggleDirectory = useCallback(
+    (path: string, expand: boolean) => {
+      if (expand) onLoadDirectory(path);
+      setExpandedPaths((current) => {
+        const next = new Set(current);
+        if (next.has(path)) {
+          next.delete(path);
+        } else {
+          next.add(path);
+        }
+        return next;
+      });
+    },
+    [onLoadDirectory],
+  );
   const handleSelectFile = useCallback(
     (path: string) => {
       if (pendingSelectionTimeoutRef.current !== null) {
@@ -218,7 +220,7 @@ export function FileTreeBrowser(props: {
         item={item}
         selected={item.node.kind === "file" && item.node.path === selectedPath}
         expanded={expandedPaths.has(item.node.path)}
-        loaded={loadedDirectories.has(item.node.path)}
+        loading={loadingDirectories.has(item.node.path)}
         onPressDirectory={toggleDirectory}
         onPreviewFile={onPreviewFile}
         onPressFile={handleSelectFile}
@@ -228,37 +230,38 @@ export function FileTreeBrowser(props: {
       expandedPaths,
       handleSelectFile,
       onPreviewFile,
-      loadedDirectories,
+      loadingDirectories,
       selectedPath,
       toggleDirectory,
     ],
   );
 
-  // SPIKE: render the FlatList as the screen's DIRECT content (no wrapping View), and
-  // mirror the Home ScrollView exactly — `contentInsetAdjustmentBehavior: "automatic"`
-  // with NO manual contentInset. iOS only applies the nav-bar top inset + scroll-edge
-  // blur to a scroll view in the screen's primary position; a scroll view buried in
-  // flex-1 Views is ignored, which is why the tree rendered under the header with no blur.
+  const extraData = useMemo(
+    () => ({ expandedPaths, loadingDirectories, selectedPath }),
+    [expandedPaths, loadingDirectories, selectedPath],
+  );
+
+  // UIKit owns the header inset on every supported iOS version. Keep the
+  // list as direct screen content so automatic inset adjustment can find it.
   return (
-    <FlatList
+    <LegendList
+      contentInsetStartAdjustment={headerInset}
       alwaysBounceVertical
       className="flex-1"
       data={visibleNodes}
       keyExtractor={(item) => item.node.path}
-      contentInsetAdjustmentBehavior={NATIVE_LIQUID_GLASS_SUPPORTED ? "automatic" : "never"}
-      scrollIndicatorInsets={
-        NATIVE_LIQUID_GLASS_SUPPORTED
-          ? { top: headerInset, left: 0, right: 0, bottom: 0 }
-          : undefined
-      }
+      contentInsetAdjustmentBehavior={Platform.OS === "ios" ? "automatic" : "never"}
+      automaticallyAdjustsScrollIndicatorInsets={Platform.OS === "ios"}
       keyboardDismissMode="on-drag"
       keyboardShouldPersistTaps="handled"
-      initialNumToRender={FILE_TREE_INITIAL_RENDER_COUNT}
-      maxToRenderPerBatch={FILE_TREE_RENDER_BATCH_SIZE}
-      updateCellsBatchingPeriod={16}
-      windowSize={5}
+      estimatedItemSize={42}
+      recycleItems
+      maintainVisibleContentPosition
+      extraData={extraData}
       contentContainerStyle={{ paddingTop: 8, paddingBottom: 8 }}
-      refreshControl={<RefreshControl refreshing={props.isPending} onRefresh={props.onRefresh} />}
+      refreshControl={
+        <RefreshControl refreshing={props.isRefreshing} onRefresh={props.onRefresh} />
+      }
       renderItem={renderItem}
       ListHeaderComponent={
         <>
@@ -295,7 +298,7 @@ export function FileTreeBrowser(props: {
               </Pressable>
             </>
           ) : props.isPending ? (
-            <ActivityIndicator size="small" />
+            <AppActivityIndicator size="small" />
           ) : (
             <>
               <Text className="text-sm font-t3-bold text-foreground">No files found</Text>

@@ -10,6 +10,7 @@ import { pullRequestDetailToVcsStatus } from "@t3tools/client-runtime/state/pull
 import {
   resolveEnvironmentMachineKind,
   type EnvironmentId,
+  type ScopedThreadRef,
   type ThreadLinkedPullRequest,
   type ThreadPullRequestLink,
   type VcsStatusResult,
@@ -28,8 +29,15 @@ import {
   type ThreadPullRequestBadge,
 } from "@t3tools/shared/threadPullRequests";
 import { useRender } from "@base-ui/react/use-render";
-import { type ReactNode, type AnimationEvent, type MouseEvent, type ReactElement } from "react";
+import {
+  type ReactNode,
+  type AnimationEvent,
+  type MouseEvent,
+  type ReactElement,
+  type ComponentProps,
+} from "react";
 import { cn } from "../lib/utils";
+import { revealThreadTerminal } from "../lib/revealThreadTerminal";
 
 import { parseChangeRequestUrl } from "../lib/openPullRequestLink";
 import { useEnvironmentQuery } from "../state/query";
@@ -37,8 +45,9 @@ import { linkedPullRequestDetailAtom, useSharedPullRequestSummary } from "../sta
 import { useThreadRunningTerminalIds } from "../state/terminalSessions";
 import { vcsEnvironment } from "../state/vcs";
 import { useUiStateStore } from "../uiStateStore";
-import { resolveChangeRequestPresentation } from "../sourceControlPresentation";
+import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import {
+  pullRequestMatchesSearchQuery,
   resolveThreadLastVisitedAt,
   resolveThreadStatusPill,
   type ThreadStatusPill,
@@ -130,15 +139,10 @@ export function linkedPullRequestSnapshotStatus(
 ): LinkedThreadPullRequestStatus | null {
   const snapshot = link.snapshot;
   if (snapshot === null) return null;
-  const kind = link.url.includes("/-/merge_requests/")
-    ? "gitlab"
-    : link.url.includes("/pullrequest/")
-      ? "azure-devops"
-      : link.url.includes("/pull-requests/")
-        ? "bitbucket"
-        : link.url.includes("/pulls/")
-          ? "forgejo"
-          : "github";
+  // A link records no host kind, so read it from the URL's change request path.
+  const kind = (
+    sourceControlClients.findByChangeRequestUrl(link.url) ?? sourceControlClients.get(undefined)
+  ).kind;
   return {
     pr: {
       number: link.number,
@@ -298,7 +302,7 @@ function PullRequestBadge({
     },
   });
   return (
-    <Tooltip>
+    <Tooltip key={opensList ? "list" : "link"}>
       <TooltipTrigger render={control}>
         <span
           className={cn("contents font-normal text-xs tabular-nums", presentation.toneClassName)}
@@ -315,22 +319,26 @@ function PullRequestBadge({
         variant="glass"
         className="pointer-events-auto w-80 max-w-[calc(100vw-2rem)] text-left whitespace-normal"
       >
-        {visibleThreadPullRequests(pullRequests).length > 0 ? (
-          <ThreadPullRequestsMiniList
-            pullRequests={pullRequests}
-            onOpenPullRequest={onOpenPullRequest}
-          />
-        ) : number !== undefined && url !== undefined ? (
-          <ul className="flex flex-col gap-1">
-            <ThreadPullRequestMiniListItem
-              number={number}
-              url={url}
-              title={status?.tooltipTitle ?? presentation.label}
-              presentation={presentation}
+        {/* The viewport pads 8px inline and 4px block; pull the rows out so their hover
+            highlight sits 4px from every edge. */}
+        <div className="-mx-1">
+          {visibleThreadPullRequests(pullRequests).length > 0 ? (
+            <ThreadPullRequestsMiniList
+              pullRequests={pullRequests}
               onOpenPullRequest={onOpenPullRequest}
             />
-          </ul>
-        ) : null}
+          ) : number !== undefined && url !== undefined ? (
+            <ul className="flex flex-col gap-1">
+              <ThreadPullRequestMiniListItem
+                number={number}
+                url={url}
+                title={status?.tooltipTitle ?? presentation.label}
+                presentation={presentation}
+                onOpenPullRequest={onOpenPullRequest}
+              />
+            </ul>
+          ) : null}
+        </div>
       </TooltipPopup>
     </Tooltip>
   );
@@ -437,12 +445,12 @@ export function prStatusIndicator(
   provider: VcsStatusResult["sourceControlProvider"] | null | undefined,
 ): PrStatusIndicator | null {
   if (!pr) return null;
-  const presentation = resolveChangeRequestPresentation(provider);
+  const { shortLabel } = sourceControlClients.get(provider?.kind).changeRequest;
   const state = resolvePullRequestState({ state: pr.state, isDraft: pr.isDraft === true });
 
-  const tooltipLead = `${presentation.shortName} #${pr.number} - ${state.label}`;
+  const tooltipLead = `${shortLabel} #${pr.number} - ${state.label}`;
   return {
-    label: `${presentation.shortName} ${state.label.toLowerCase()}`,
+    label: `${shortLabel} ${state.label.toLowerCase()}`,
     colorClass: state.toneClassName,
     Icon: state.Icon,
     tooltip: `${tooltipLead}: ${pr.title}`,
@@ -781,6 +789,55 @@ export function synchronizeTerminalPulse(event: AnimationEvent<SVGSVGElement>) {
   }
 }
 
+export function ThreadTerminalStatusButton({
+  threadRef,
+  terminalIds,
+  onThreadActivate,
+}: {
+  threadRef: ScopedThreadRef;
+  terminalIds: readonly string[];
+  onThreadActivate: (threadRef: ScopedThreadRef) => void;
+}) {
+  const terminalId = terminalIds[0];
+  if (terminalId === undefined) return null;
+  const status = terminalStatusFromRunningIds(terminalIds);
+  const label =
+    terminalIds.length === 1
+      ? "1 terminal process running. Open terminal"
+      : `${terminalIds.length} terminal processes running. Open terminal`;
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            aria-label={label}
+            data-testid={`sidebar-terminal-status-${threadRef.threadId}`}
+            className={cn(
+              "inline-flex shrink-0 cursor-pointer items-center justify-center rounded-sm outline-none hover:opacity-80 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+              status?.colorClass,
+            )}
+            onPointerDown={(event) => event.stopPropagation()}
+            onKeyDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              revealThreadTerminal(threadRef, terminalId);
+              onThreadActivate(threadRef);
+            }}
+          />
+        }
+      >
+        <TerminalIcon
+          className="size-3.5 motion-safe:animate-status-pulse"
+          onAnimationStart={synchronizeTerminalPulse}
+        />
+      </TooltipTrigger>
+      <TooltipPopup side="top">{label}</TooltipPopup>
+    </Tooltip>
+  );
+}
+
 export function ThreadWorktreeIndicator({
   thread,
 }: {
@@ -914,7 +971,7 @@ export function ThreadRowLeadingStatus({
       gitCwd !== null
       ? vcsEnvironment.status({
           environmentId: thread.environmentId,
-          input: { cwd: gitCwd },
+          input: { cwd: gitCwd, includeRemote: false },
         })
       : null,
   );
@@ -1045,4 +1102,80 @@ export function ThreadRowTrailingStatus({ thread }: { thread: SidebarThreadSumma
       ) : null}
     </span>
   );
+}
+
+/** Number presentation for compact thread search results. */
+function ThreadPullRequestNumber({
+  number,
+  className,
+  ...props
+}: ComponentProps<"span"> & { number: number }) {
+  return (
+    <span {...props} className={cn("shrink-0 text-xs tabular-nums", className)}>
+      #{number}
+    </span>
+  );
+}
+
+function settledPrHoverColorClass(state: NonNullable<ThreadPr>["state"], isDraft = false): string {
+  switch (state) {
+    case "open":
+      if (isDraft) {
+        return "group-hover/sidebar-row:text-zinc-500 dark:group-hover/sidebar-row:text-zinc-400/80";
+      }
+      return "group-hover/sidebar-row:text-emerald-600 dark:group-hover/sidebar-row:text-emerald-300/90";
+    case "merged":
+      return "group-hover/sidebar-row:text-violet-600 dark:group-hover/sidebar-row:text-violet-300/90";
+    case "closed":
+      return "group-hover/sidebar-row:text-red-600 dark:group-hover/sidebar-row:text-red-300/90";
+  }
+}
+
+export function ThreadSearchPullRequestNumber({
+  thread,
+  query,
+  enabled = true,
+  settled = false,
+}: {
+  thread: SidebarThreadSummary;
+  query: string;
+  enabled?: boolean;
+  settled?: boolean;
+}) {
+  const matchedLink = visibleThreadPullRequests(thread.pullRequests).find((pr) =>
+    pullRequestMatchesSearchQuery({ pullRequests: [pr] }, query),
+  );
+  const fallbackCandidates =
+    thread.pullRequests.length === 0
+      ? [thread.linkedPullRequest, thread.branchPullRequest]
+      : [thread.branchPullRequest];
+  const legacyReference = matchedLink
+    ? undefined
+    : fallbackCandidates.find(
+        (pr) => pr != null && pullRequestMatchesSearchQuery({ linkedPullRequest: pr }, query),
+      );
+  const legacyStatus = useLinkedThreadPullRequest(
+    thread.environmentId,
+    legacyReference,
+    enabled,
+    undefined,
+    legacyReference,
+  );
+  const reference = matchedLink ?? legacyReference;
+  const linked = matchedLink ? linkedPullRequestSnapshotStatus(matchedLink) : legacyStatus;
+  const status = prStatusIndicator(linked?.pr ?? null, linked?.sourceControlProvider);
+  return reference ? (
+    <ThreadPullRequestNumber
+      number={reference.number}
+      className={
+        settled
+          ? cn(
+              "text-secondary-label transition-colors",
+              linked?.pr && settledPrHoverColorClass(linked.pr.state, linked.pr.isDraft),
+            )
+          : (status?.colorClass ?? "text-secondary-label")
+      }
+      aria-label={status?.tooltip ?? `Pull request #${reference.number}`}
+    />
+  ) : null;
 }

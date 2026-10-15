@@ -18,10 +18,15 @@ import * as Schema from "effect/Schema";
 
 import * as EffectOutbox from "./EffectOutbox.ts";
 import * as EventSink from "./EventSink.ts";
-import * as IdAllocator from "./IdAllocator.ts";
+import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
 import * as ProjectionStore from "./ProjectionStore.ts";
 import * as ServerSettings from "../serverSettings.ts";
 import { restartContinuationRun } from "./RestartContinuation.ts";
+import { isBufferedProviderNotification } from "./NotificationMailbox.ts";
+import {
+  endOrphanedNativeSubagent,
+  endRunlessRootTurns,
+} from "@t3tools/provider-core/server/subagentProjection";
 import {
   cancelledRosterTaskWork,
   cancelledTurnItemWork,
@@ -85,10 +90,6 @@ function isBackgroundCapableTurnItemType(type: string): boolean {
 }
 
 function isNonterminalTurnItemStatus(status: string): boolean {
-  return status === "pending" || status === "running" || status === "waiting";
-}
-
-function isNonterminalSubagentStatus(status: string): boolean {
   return status === "pending" || status === "running" || status === "waiting";
 }
 
@@ -284,10 +285,35 @@ export const make = Effect.gen(function* () {
           cancelledBackgroundNativeIds.add(item.nativeItemRef.nativeId);
         }
       };
-      // Queued runs have not started provider work. Preserve their execution
-      // identities and order, but require explicit consent before draining them.
-      for (const run of projection.runs) {
-        if (run.status !== "queued" || run.queueHeld === true) continue;
+      const queuedRuns = projection.runs.filter((run) => run.status === "queued");
+      const queuedMessages =
+        queuedRuns.length === 0
+          ? []
+          : (yield* projections
+              .getThreadRecords(projection.thread.id, ["messages"], {
+                messageIds: queuedRuns.map((run) => run.userMessageId),
+              })
+              .pipe(
+                Effect.mapError(
+                  (cause) =>
+                    new ProviderRuntimeRecoveryError({
+                      operation: "read-projections",
+                      threadId: projection.thread.id,
+                      cause,
+                    }),
+                ),
+              )).messages;
+      const bufferedMessageIds = new Set(
+        queuedMessages.filter(isBufferedProviderNotification).map((message) => message.id),
+      );
+      // Buffered wakes lost their output with the process. Durable queued messages
+      // keep their execution identities and order until the user resumes them.
+      for (const run of queuedRuns) {
+        if (bufferedMessageIds.has(run.userMessageId)) {
+          runs.push(run);
+          continue;
+        }
+        if (run.queueHeld === true) continue;
         events.push({
           id: yield* allocateEventId(),
           type: "run.updated",
@@ -360,26 +386,6 @@ export const make = Effect.gen(function* () {
             providerInstanceId: run.providerInstanceId,
             occurredAt: now,
             payload: { ...node, status: "cancelled", completedAt: now },
-          });
-        }
-        for (const subagent of projection.subagents.filter(
-          (candidate) =>
-            candidate.runId === run.id &&
-            !isAppOwnedDelegation(candidate) &&
-            (candidate.status === "pending" ||
-              candidate.status === "running" ||
-              candidate.status === "waiting"),
-        )) {
-          events.push({
-            id: yield* allocateEventId(),
-            type: "subagent.updated",
-            threadId: projection.thread.id,
-            runId: run.id,
-            nodeId: subagent.id,
-            driver: subagent.driver,
-            providerInstanceId: subagent.providerInstanceId,
-            occurredAt: now,
-            payload: { ...subagent, status: "cancelled", completedAt: now, updatedAt: now },
           });
         }
         for (const providerTurn of projection.providerTurns.filter(
@@ -486,103 +492,34 @@ export const make = Effect.gen(function* () {
             });
           }
         }
-        if (item.type !== "subagent") {
-          continue;
-        }
-        // Cancelling only the turn item would leave the linked subagent entity
-        // non-terminal forever, since the dead provider process can no longer
-        // emit its terminal event. Match the exact linked id so a subagent
-        // that already finished is never overwritten.
-        const staleSubagent = projection.subagents.find(
-          (candidate) =>
-            candidate.id === item.subagentId && isNonterminalSubagentStatus(candidate.status),
-        );
-        if (staleSubagent !== undefined) {
-          events.push({
-            id: yield* allocateEventId(),
-            type: "subagent.updated",
-            threadId: projection.thread.id,
-            ...(item.runId === null ? {} : { runId: item.runId }),
-            nodeId: staleSubagent.id,
-            driver: staleSubagent.driver,
-            providerInstanceId: staleSubagent.providerInstanceId,
-            occurredAt: now,
-            payload: { ...staleSubagent, status: "cancelled", completedAt: now, updatedAt: now },
-          });
-        }
-        const staleSubagentNode = projection.nodes.find(
-          (candidate) =>
-            candidate.id === item.subagentId && isNonterminalNodeStatus(candidate.status),
-        );
-        if (staleSubagentNode !== undefined && !cancelledStaleNodeIds.has(staleSubagentNode.id)) {
-          cancelledStaleNodeIds.add(staleSubagentNode.id);
-          events.push({
-            id: yield* allocateEventId(),
-            type: "node.updated",
-            threadId: projection.thread.id,
-            ...(item.runId === null ? {} : { runId: item.runId }),
-            nodeId: staleSubagentNode.id,
-            providerInstanceId,
-            occurredAt: now,
-            payload: { ...staleSubagentNode, status: "cancelled", completedAt: now },
-          });
-        }
       }
-      // A provider-native subagent thread has no runs: its work is a runless
-      // root turn, plus items under it (Claude's live progress item), that
-      // only the dead provider process could settle. Left running, the child
+      // No provider process outlives the server, so a native subagent still open
+      // here never reports its end, whatever state its run and item are in.
+      for (const subagent of projection.subagents ?? []) {
+        events.push(
+          ...(yield* endOrphanedNativeSubagent({
+            projection,
+            subagentId: subagent.id,
+            status: "cancelled",
+            now,
+            emitted: events,
+            allocateEventId,
+          })),
+        );
+      }
+      // A provider-native subagent thread has no runs; left running, the child
       // would show as working forever.
-      const cancelledStaleItemIds = new Set(
-        events.flatMap((event) => (event.type === "turn-item.updated" ? [event.payload.id] : [])),
-      );
-      for (const node of projection.nodes) {
-        if (
-          node.kind !== "root_turn" ||
-          node.runId !== null ||
-          !isNonterminalNodeStatus(node.status) ||
-          cancelledStaleNodeIds.has(node.id)
-        ) {
-          continue;
-        }
-        cancelledStaleNodeIds.add(node.id);
-        events.push({
-          id: yield* allocateEventId(),
-          type: "node.updated",
+      events.push(
+        ...(yield* endRunlessRootTurns({
           threadId: projection.thread.id,
-          nodeId: node.id,
           providerInstanceId: projection.thread.providerInstanceId,
-          occurredAt: now,
-          payload: { ...node, status: "cancelled", completedAt: now },
-        });
-        for (const item of projection.turnItems) {
-          if (
-            item.nodeId !== node.id ||
-            item.runId !== null ||
-            !isNonterminalTurnItemStatus(item.status) ||
-            cancelledStaleItemIds.has(item.id)
-          ) {
-            continue;
-          }
-          cancelledStaleItemIds.add(item.id);
-          events.push({
-            id: yield* allocateEventId(),
-            type: "turn-item.updated",
-            threadId: projection.thread.id,
-            nodeId: node.id,
-            providerInstanceId: projection.thread.providerInstanceId,
-            occurredAt: now,
-            payload: {
-              ...item,
-              status: "cancelled",
-              completedAt: now,
-              updatedAt: now,
-              ...(item.type === "reasoning" || item.type === "assistant_message"
-                ? { streaming: false }
-                : {}),
-            },
-          });
-        }
-      }
+          projection,
+          status: "cancelled",
+          now,
+          emitted: events,
+          allocateEventId,
+        })),
+      );
       // All provider processes are gone on startup/shutdown: clear any
       // persisted Waiting roster (including idle threads from settled roots)
       // and idle active threads without resurrecting active status.
@@ -650,7 +587,7 @@ export const make = Effect.gen(function* () {
       }
       const continuationRun =
         continueAfterRestart && trigger === "startup"
-          ? restartContinuationRun(projection)
+          ? restartContinuationRun(projection, now)
           : undefined;
       const effects: Array<EffectOutbox.PendingOrchestrationEffectV2> = continuationRun
         ? [
@@ -786,7 +723,7 @@ export const make = Effect.gen(function* () {
             .continueThreadsAfterServerUpdate
         )
           return;
-        const run = restartContinuationRun(projection);
+        const run = restartContinuationRun(projection, yield* DateTime.now);
         if (!run) return;
         const commandId = CommandId.make(`command:restart-prepare:${run.id}`);
         yield* eventSink.writeWithEffects({

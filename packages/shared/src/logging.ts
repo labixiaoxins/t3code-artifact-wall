@@ -70,7 +70,7 @@ export class RotatingFileSink {
     this.throwOnError = options.throwOnError ?? false;
 
     try {
-      NodeFS.mkdirSync(NodePath.dirname(this.filePath), { recursive: true });
+      NodeFS.mkdirSync(NodePath.dirname(this.filePath), { recursive: true, mode: 0o700 });
     } catch (cause) {
       throw new RotatingFileSinkError({
         operation: "initialize",
@@ -80,6 +80,19 @@ export class RotatingFileSink {
     }
     this.pruneOverflowBackups();
     this.currentSize = this.readCurrentSize();
+    // Existing rotations can contain prompts and tool output from earlier builds.
+    for (const filePath of [
+      this.filePath,
+      ...Array.from({ length: this.maxFiles }, (_, index) => this.withSuffix(index + 1)),
+    ]) {
+      try {
+        if (NodeFS.statSync(filePath).isFile()) NodeFS.chmodSync(filePath, 0o600);
+      } catch (cause) {
+        if (isFileNotFoundError(cause)) continue;
+        if (this.throwOnError)
+          throw new RotatingFileSinkError({ operation: "initialize", filePath, cause });
+      }
+    }
   }
 
   write(chunk: string | Buffer): void {
@@ -91,7 +104,7 @@ export class RotatingFileSink {
         this.rotate();
       }
 
-      NodeFS.appendFileSync(this.filePath, buffer);
+      NodeFS.appendFileSync(this.filePath, buffer, { mode: 0o600 });
       this.currentSize += buffer.length;
     } catch (cause) {
       if (isRotatingFileSinkError(cause)) {

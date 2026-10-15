@@ -1,5 +1,7 @@
+import { SourceControlProviderKind } from "@t3tools/contracts";
 import * as Arr from "effect/Array";
 import * as Cache from "effect/Cache";
+import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as Crypto from "effect/Crypto";
 import * as ByteSize from "effect/ByteSize";
@@ -12,8 +14,11 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Order from "effect/Order";
 import * as Path from "effect/Path";
+import * as PubSub from "effect/PubSub";
 import * as Ref from "effect/Ref";
 import * as Schema from "effect/Schema";
+import * as Scope from "effect/Scope";
+import * as Stream from "effect/Stream";
 import {
   GitActionProgressEvent,
   GitActionProgressPhase,
@@ -32,9 +37,9 @@ import {
   ModelSelection,
   type ProjectId,
   SourceControlProviderError,
-  type SourceControlProviderKind,
   type SourceControlWritingStyleSettings,
   type ThreadId,
+  type ThreadPullRequestKey,
   type VcsCreateWorktreeInput,
   type VcsCreateWorktreeResult,
 } from "@t3tools/contracts";
@@ -51,10 +56,16 @@ import {
   sanitizeFeatureBranchName,
 } from "@t3tools/shared/git";
 import {
+  canonicalRepositoryKey,
   getChangeRequestTerminologyForKind,
   isSshRemoteUrl,
   type ChangeRequestTerminology,
 } from "@t3tools/shared/sourceControl";
+import { parseChangeRequestUrl } from "@t3tools/shared/changeRequestUrl";
+import {
+  normalizeThreadPullRequestKey,
+  threadPullRequestKeyOf,
+} from "@t3tools/shared/threadPullRequests";
 
 import { GitManagerError, GitPullRequestMaterializationError } from "@t3tools/contracts";
 import * as TextGeneration from "../textGeneration/TextGeneration.ts";
@@ -72,8 +83,8 @@ import { detachStackFrame } from "./detachStackFrame.ts";
 import * as ServerSettings from "../serverSettings.ts";
 import type { GitManagerServiceError } from "@t3tools/contracts";
 import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
+import * as SourceControlProvider from "@t3tools/source-control-core/server/SourceControlProvider";
 import * as SourceControlProviderRegistry from "../sourceControl/SourceControlProviderRegistry.ts";
-import { detectPrTemplate } from "../sourceControl/PrTemplateDetection.ts";
 import type { ChangeRequest } from "@t3tools/contracts";
 
 export interface GitActionProgressReporter {
@@ -95,6 +106,8 @@ export type GitBranchPullRequest = NonNullable<VcsStatusResult["pr"]> & {
   readonly updatedAt: string | null;
   readonly closedAt?: string | null;
   readonly mergedAt?: string | null;
+  /** The pull request's head commit, when the host read reports it. */
+  readonly headSha?: string | null;
 };
 
 interface SourceControlTextGenerationSettings {
@@ -119,10 +132,14 @@ export class GitManager extends Context.Service<
       input: VcsStatusInput,
       options?: GitRemoteStatusOptions,
     ) => Effect.Effect<VcsStatusRemoteResult | null, GitManagerServiceError>;
-    /** Resolve the PR for a saved branch without changing the current checkout. */
+    /**
+     * Resolve the PR for a saved branch without changing the current checkout.
+     * `refresh` asks the host again. `freshGitState` rereads the branch's git
+     * state without forcing a host refresh; use it before persisting a result.
+     */
     readonly branchPullRequest: (
       input: { readonly cwd: string; readonly branch: string },
-      options?: { readonly refresh?: boolean },
+      options?: { readonly refresh?: boolean; readonly freshGitState?: boolean },
     ) => Effect.Effect<GitBranchPullRequest | null, GitManagerServiceError>;
     readonly invalidateLocalStatus: (cwd: string) => Effect.Effect<void, never>;
     readonly invalidateRemoteStatus: (cwd: string) => Effect.Effect<void, never>;
@@ -137,6 +154,15 @@ export class GitManager extends Context.Service<
       input: GitRunStackedActionInput,
       options?: GitRunStackedActionOptions,
     ) => Effect.Effect<GitRunStackedActionResult, GitManagerServiceError>;
+    /**
+     * Pull requests a branch PR lookup saw in a new state (merged, closed, reopened), so thread
+     * links can catch up before the next sync sweep. Best effort.
+     */
+    readonly subscribePullRequestStateChanges: Effect.Effect<
+      Stream.Stream<ThreadPullRequestKey>,
+      never,
+      Scope.Scope
+    >;
   }
 >()("t3/git/GitManager") {}
 
@@ -162,6 +188,10 @@ const PR_LOOKUP_NO_OPEN_PR_CACHE_TTL = Duration.minutes(5);
 const PR_LOOKUP_FAILURE_BASE_TTL = Duration.seconds(20);
 const PR_LOOKUP_FAILURE_MAX_TTL = Duration.minutes(15);
 const PR_LOOKUP_CACHE_CAPACITY = 2_048;
+// How long branchPullRequest reuses the git state around a cached PR answer.
+// Matches PR_LOOKUP_NO_OPEN_PR_CACHE_TTL, the delay already accepted for a
+// change made outside the app.
+const PR_LOOKUP_GIT_STATE_TTL = Duration.minutes(5);
 const isSourceControlProviderError = Schema.is(SourceControlProviderError);
 
 /**
@@ -201,6 +231,7 @@ interface PullRequestInfo extends OpenPrInfo, PullRequestHeadRemoteInfo {
   closedAt?: string | null;
   mergedAt?: string | null;
   updatedAt: Option.Option<DateTime.Utc>;
+  headSha?: string | undefined;
 }
 
 const pullRequestUpdatedAtDescOrder: Order.Order<PullRequestInfo> = Order.mapInput(
@@ -293,27 +324,20 @@ function resolvePullRequestWorktreeLocalBranchName(
   return `t3code/pr-${pullRequest.number}/${suffix}`;
 }
 
+/** The repository's `owner/name` from a remote URL, as `provider` reads its remote paths. */
 export function parseRepositoryNameWithOwnerFromRemoteUrl(
   url: string | null,
-  providerKind?: ChangeRequest["provider"],
+  provider?: Pick<
+    SourceControlProvider.SourceControlProvider["Service"],
+    "repositoryNameFromRemoteUrl"
+  >,
 ): string | null {
   const trimmed = url?.trim() ?? "";
-  if (trimmed.length === 0) {
-    return null;
-  }
-
-  const match =
-    /^(?:[^@/\s]+@[^:/\s]+:|(?:ssh|https?|git):\/\/[^/]+\/)((?:[^/\s]+\/)+[^/\s]+?)(?:\.git)?\/?$/iu.exec(
-      trimmed,
-    );
-  const repositoryNameWithOwner = match?.[1]?.trim() ?? "";
-  // Forgejo HTTP paths can include an installation mount; its API always names owner/repo.
-  if (providerKind === "forgejo" && /^https?:\/\//iu.test(trimmed)) {
-    return repositoryNameWithOwner.length > 0
-      ? repositoryNameWithOwner.split("/").slice(-2).join("/")
-      : null;
-  }
-  return repositoryNameWithOwner.length > 0 ? repositoryNameWithOwner : null;
+  if (trimmed.length === 0) return null;
+  return (
+    provider?.repositoryNameFromRemoteUrl?.(trimmed) ??
+    SourceControlProvider.repositoryPathFromRemoteUrl(trimmed)
+  );
 }
 
 function parseRepositoryOwnerLogin(nameWithOwner: string | null): string | null {
@@ -460,6 +484,7 @@ function toPullRequestInfo(summary: ChangeRequest): PullRequestInfo {
     url: summary.url,
     baseRefName: summary.baseRefName,
     headRefName: summary.headRefName,
+    ...(summary.headSha !== undefined ? { headSha: summary.headSha } : {}),
     state: summary.state ?? "open",
     ...(summary.isDraft === true ? { isDraft: true } : {}),
     closedAt: summary.closedAt ?? null,
@@ -603,24 +628,18 @@ function parseCustomCommitMessage(raw: string): { subject: string; body: string 
   };
 }
 
-// Without the owner selector, a bare branch name also lists same-named
-// branches on other forks (`main`, `patch-1`), so GitHub probes ask for a full
-// page and let matchesBranchHeadContext pick the right head. gh fetches up to
-// 100 in one request, and GitHub prices a first:100 connection like first:1.
-const GITHUB_HEAD_BRANCH_PROBE_LIMIT = 100;
-
-// `gh pr list --head` filters on the head ref name alone and accepts anything, so an
-// `owner:branch` or `remote:branch` selector silently lists zero pull requests
-// while spending a GraphQL call. Git branch names cannot contain ":", and the
-// bare head branch is always among the selectors, so GitHub probes skip them and
-// leave the owner check to matchesBranchHeadContext.
-function probeableHeadSelectors(
-  providerKind: SourceControlProviderKind,
+/** The selectors and page size `provider` asks about when looking up a branch's change requests. */
+function headBranchProbe(
+  provider: SourceControlProvider.SourceControlProvider["Service"],
   headSelectors: ReadonlyArray<string>,
-): ReadonlyArray<string> {
-  return providerKind === "github"
-    ? headSelectors.filter((selector) => !selector.includes(":"))
-    : headSelectors;
+  state: "open" | "all",
+) {
+  return (
+    provider.headBranchProbe?.({ headSelectors, state }) ?? {
+      headSelectors,
+      limit: state === "open" ? 1 : 20,
+    }
+  );
 }
 
 function appendUnique(values: string[], next: string | null | undefined): void {
@@ -721,7 +740,8 @@ export const make = Effect.gen(function* () {
     readonly threadId?: ThreadId | undefined;
   }) {
     const settings = yield* serverSettingsService.getSettings;
-    if (!hasProjectSettingsOverrides(settings)) return settings;
+    if (!hasProjectSettingsOverrides(settings))
+      return { settings, projectId: null as ProjectId | null };
     const projectId: ProjectId | null = yield* input.threadId !== undefined
       ? threads.getThreadShell(input.threadId).pipe(
           Effect.map((thread) => thread?.projectId ?? null),
@@ -731,7 +751,7 @@ export const make = Effect.gen(function* () {
           Effect.map((project) => Option.getOrNull(project)?.projectId ?? null),
           Effect.orElseSucceed(() => null),
         );
-    return resolveProjectSettings(settings, projectId).settings;
+    return { settings: resolveProjectSettings(settings, projectId).settings, projectId };
   });
   // Best effort: a settings read failure falls back to the default location.
   const readWorktreesDirectory = serverSettingsService.getSettings.pipe(
@@ -745,7 +765,7 @@ export const make = Effect.gen(function* () {
       options?.submodules !== undefined
         ? options.submodules
         : yield* projectSettingsFor(input).pipe(
-            Effect.map((settings) => settings.worktreeSubmodules),
+            Effect.map(({ settings }) => settings.worktreeSubmodules),
             Effect.orElseSucceed(() => null),
           );
     const worktreesDirectory = yield* readWorktreesDirectory;
@@ -756,7 +776,10 @@ export const make = Effect.gen(function* () {
     Effect.gen(function* () {
       const root = yield* fileSystem.realPath(cwd);
       const instructionPath = yield* fileSystem.realPath(path.join(root, fileName));
-      if (!instructionPath.startsWith(`${root}${path.sep}`)) {
+      // A drive root such as `D:\` already ends with a separator, so compare
+      // with path.relative instead of a `${root}${sep}` prefix.
+      const relative = path.relative(root, instructionPath);
+      if (relative === "" || relative.startsWith("..") || path.isAbsolute(relative)) {
         return "";
       }
       const info = yield* fileSystem.stat(instructionPath);
@@ -950,11 +973,45 @@ export const make = Effect.gen(function* () {
       const repositoryNameWithOwner = resolveHeadRepositoryNameWithOwner(pullRequest) ?? "";
 
       if (repositoryNameWithOwner.length === 0) {
-        yield* gitCore.fetchPullRequestBranch({
-          cwd,
-          prNumber: pullRequest.number,
-          branch: localBranch,
-        });
+        yield* gitCore
+          .fetchPullRequestBranch({
+            cwd,
+            prNumber: pullRequest.number,
+            branch: localBranch,
+          })
+          .pipe(
+            // Azure DevOps, GitLab and Bitbucket publish no `refs/pull/<n>/head`. A head in the
+            // same repository is a branch on the primary remote, so it is fetched by name instead,
+            // but only when that remote is the pull request's own repository: Azure finds a pull
+            // request by number anywhere in the organization. Only while it is open, too: the
+            // branch of a closed one may have moved on past the head it was closed with.
+            Effect.catch((cause) =>
+              pullRequest.isCrossRepository === true || pullRequest.state !== "open"
+                ? Effect.fail(cause)
+                : Effect.gen(function* () {
+                    const remoteName = yield* gitCore.resolvePrimaryRemoteName(cwd);
+                    const remoteUrl = yield* gitCore.readConfigValue(
+                      cwd,
+                      `remote.${remoteName}.url`,
+                    );
+                    const pullRequestKey = pullRequestRepositoryKey(pullRequest.url);
+                    if (
+                      remoteUrl === null ||
+                      pullRequestKey === null ||
+                      canonicalRepositoryKey(pullRequestKey) !==
+                        canonicalRepositoryKey(normalizeGitRemoteUrl(remoteUrl))
+                    ) {
+                      return yield* cause;
+                    }
+                    yield* gitCore.fetchRemoteBranch({
+                      cwd,
+                      remoteName,
+                      remoteBranch: pullRequest.headBranch,
+                      localBranch,
+                    });
+                  }),
+            ),
+          );
         return;
       }
 
@@ -1118,6 +1175,26 @@ export const make = Effect.gen(function* () {
     prLookupFailureStreakByKey.set(key, streak);
     return prLookupFailureTtl(streak);
   };
+  // The last state a branch PR lookup read per pull request. The thread details panel shows
+  // this lookup, so a merge it sees must reach the thread's link and settlement right away.
+  const pullRequestStateChanges = yield* PubSub.sliding<ThreadPullRequestKey>(64);
+  const lookupStates = new Map<string, PullRequestInfo["state"]>();
+  const noteLookupState = (pr: PullRequestInfo) =>
+    Effect.suspend(() => {
+      const parsed = parseChangeRequestUrl(pr.url);
+      if (parsed === null || parsed.number !== pr.number) return Effect.void;
+      const key = normalizeThreadPullRequestKey(parsed);
+      const id = threadPullRequestKeyOf(key);
+      // An unseen pull request counts as open, so only a terminal first read announces.
+      const previous = lookupStates.get(id) ?? "open";
+      lookupStates.delete(id);
+      if (lookupStates.size >= PR_LOOKUP_CACHE_CAPACITY) {
+        const oldest = lookupStates.keys().next().value;
+        if (oldest !== undefined) lookupStates.delete(oldest);
+      }
+      lookupStates.set(id, pr.state);
+      return previous === pr.state ? Effect.void : PubSub.publish(pullRequestStateChanges, key);
+    });
   const prLookupCache = yield* Cache.makeWith(
     (key: string) => {
       const [
@@ -1150,6 +1227,7 @@ export const make = Effect.gen(function* () {
           return { latest: null, headContext };
         }
         const latest = yield* findLatestPrForHeadContext(cwd, headContext);
+        if (latest !== null) yield* noteLookupState(latest);
         return { latest, headContext };
       });
     },
@@ -1269,8 +1347,21 @@ export const make = Effect.gen(function* () {
         ),
       ),
       Effect.map(({ pr }) => pr),
-      Effect.catch((error) =>
-        Effect.logWarning("PR lookup failed; keeping last known PR state.").pipe(
+      Effect.catch((error) => {
+        // No prior PR means there is no badge to preserve or remote to verify.
+        const fallback = lastKnownPrByBranchKey.get(branchKey)?.pr
+          ? resolveLookupHeadContext(cwd, details).pipe(
+              Effect.map(({ headContext }) =>
+                resolveLastKnownPr(branchKey, {
+                  upstreamRef: details.upstreamRef,
+                  headBranch: headContext.headBranch,
+                  remoteName: headContext.remoteName,
+                  headRemoteUrlKey: headContext.headRemoteUrlKey,
+                }),
+              ),
+            )
+          : Effect.succeed(null);
+        return Effect.logWarning("PR lookup failed.").pipe(
           Effect.annotateLogs({
             operation: "lookupStatusPr",
             branch: details.branch,
@@ -1282,22 +1373,14 @@ export const make = Effect.gen(function* () {
               ? {
                   provider: error.provider,
                   providerOperation: error.operation,
-                  providerCommand: error.command ?? "unknown",
+                  ...(error.command === undefined ? {} : { providerCommand: error.command }),
                   errorDetail: error.detail,
                 }
               : {}),
           }),
-          Effect.andThen(resolveLookupHeadContext(cwd, details)),
-          Effect.map(({ headContext }) =>
-            resolveLastKnownPr(branchKey, {
-              upstreamRef: details.upstreamRef,
-              headBranch: headContext.headBranch,
-              remoteName: headContext.remoteName,
-              headRemoteUrlKey: headContext.headRemoteUrlKey,
-            }),
-          ),
-        ),
-      ),
+          Effect.andThen(fallback),
+        );
+      }),
     );
   });
   const readRemoteStatus = Effect.fn("readRemoteStatus")(function* (
@@ -1387,15 +1470,14 @@ export const make = Effect.gen(function* () {
       /^https?:\/\//iu.test(remoteUrl) &&
       (repositoryNameWithOwner?.split("/").length ?? 0) > 2
     ) {
-      const detected = detectSourceControlProviderFromGitRemoteUrl(remoteUrl);
-      const kind =
-        detected?.kind === "unknown"
-          ? yield* sourceControlProvider(cwd).pipe(
-              Effect.map((provider) => provider.kind),
-              Effect.orElseSucceed(() => undefined),
-            )
-          : detected?.kind;
-      repositoryNameWithOwner = parseRepositoryNameWithOwnerFromRemoteUrl(remoteUrl, kind);
+      const kind = detectSourceControlProviderFromGitRemoteUrl(remoteUrl)?.kind;
+      const provider =
+        kind === undefined
+          ? undefined
+          : yield* (
+              kind === "unknown" ? sourceControlProvider(cwd) : sourceControlProviders.get(kind)
+            ).pipe(Effect.orElseSucceed(() => undefined));
+      repositoryNameWithOwner = parseRepositoryNameWithOwnerFromRemoteUrl(remoteUrl, provider);
     }
     return {
       remoteUrlKey: remoteUrl ? normalizeGitRemoteUrl(remoteUrl) : null,
@@ -1417,20 +1499,6 @@ export const make = Effect.gen(function* () {
           ],
           { concurrency: "unbounded" },
         );
-
-  const resolvePrLookupRepositoryIdentity = Effect.fn("resolvePrLookupRepositoryIdentity")(
-    function* (cwd: string, branch: string, remoteNameOverride?: string) {
-      const remoteName =
-        remoteNameOverride ?? (yield* readConfigValueNullable(cwd, `branch.${branch}.remote`));
-      const [headRemote, targetRemote] = yield* resolveHeadAndOriginContexts(cwd, remoteName);
-      return {
-        remoteName,
-        headRemoteUrlKey:
-          headRemote.remoteUrlKey ?? (remoteName === null ? targetRemote.remoteUrlKey : null),
-        targetRemoteUrlKey: targetRemote.remoteUrlKey,
-      };
-    },
-  );
 
   const resolveBranchHeadContext = Effect.fn("resolveBranchHeadContext")(function* (
     cwd: string,
@@ -1548,7 +1616,94 @@ export const make = Effect.gen(function* () {
       }
       if (matching.includes("origin")) return "origin";
       return matching[0] ?? null;
-    }).pipe(Effect.orElseSucceed(() => null));
+    });
+  });
+
+  // A no-upstream branch may have local commits after its last push. Prefer a
+  // unique exact ref, then a unique remote tip in its history; never break a
+  // fork tie by remote order.
+  const findPublishedBranchRemote = Effect.fn("findPublishedBranchRemote")(function* (
+    cwd: string,
+    branch: string,
+  ) {
+    const localRef = `refs/heads/${branch}`;
+    const remoteNames = (yield* gitCore.execute({
+      operation: "GitManager.findPublishedBranchRemote.remotes",
+      cwd,
+      args: ["remote"],
+      timeoutMs: 5_000,
+    })).stdout
+      .split("\n")
+      .map((name) => name.trim())
+      .filter((name) => name.length > 0);
+    if (remoteNames.length === 0) return null;
+
+    const refs = yield* gitCore.execute({
+      operation: "GitManager.findPublishedBranchRemote",
+      cwd,
+      args: [
+        "for-each-ref",
+        "--format=%(refname)%00%(objectname)",
+        localRef,
+        ...remoteNames.map((name) => `refs/remotes/${name}/${branch}`),
+      ],
+      timeoutMs: 5_000,
+    });
+    const oidByRef = new Map(
+      refs.stdout
+        .split("\n")
+        .map((line) => line.trim().split("\u0000"))
+        .filter((entry): entry is [string, string] => entry.length === 2),
+    );
+    const localOid = oidByRef.get(localRef);
+    if (!localOid) return null;
+
+    const remoteRefs = remoteNames.flatMap((name) => {
+      const oid = oidByRef.get(`refs/remotes/${name}/${branch}`);
+      return oid ? [{ name, oid }] : [];
+    });
+    const exactRemotes = remoteRefs.filter((remote) => remote.oid === localOid);
+    if (exactRemotes.length > 1) return null;
+    let remoteName = exactRemotes[0]?.name;
+    if (remoteName === undefined) {
+      const ancestorRemotes = yield* Effect.forEach(
+        remoteRefs,
+        (remote) =>
+          gitCore
+            .execute({
+              operation: "GitManager.findPublishedBranchRemote.ancestor",
+              cwd,
+              args: ["merge-base", "--is-ancestor", remote.oid, localOid],
+              allowNonZeroExit: true,
+              timeoutMs: 5_000,
+            })
+            .pipe(
+              Effect.flatMap((result) => {
+                // `merge-base --is-ancestor` reports 0 for ancestor and 1
+                // for not-ancestor; any other non-zero exit is a failed
+                // probe, not a negative result. A failed probe rejects the
+                // whole inference instead of letting a surviving probe win
+                // by default and attach the wrong fork's PR.
+                if (result.exitCode === 0) return Effect.succeed(remote.name);
+                if (result.exitCode === 1) return Effect.succeed(null);
+                return new GitCommandError({
+                  operation: "GitManager.findPublishedBranchRemote.ancestor",
+                  command: "git merge-base --is-ancestor",
+                  cwd,
+                  exitCode: result.exitCode,
+                  detail: "Ancestry probe failed; rejecting ancestry inference.",
+                });
+              }),
+            ),
+        { concurrency: "unbounded" },
+      );
+      const matches = ancestorRemotes.filter((name) => name !== null);
+      if (matches.length !== 1) return null;
+      remoteName = matches[0];
+    }
+    if (remoteName === undefined) return null;
+    const remoteUrl = yield* readConfigValueNullable(cwd, `remote.${remoteName}.url`);
+    return remoteUrl === null ? null : remoteName;
   });
 
   // `git worktree add -b feature origin/main` makes the new local branch track
@@ -1573,6 +1728,17 @@ export const make = Effect.gen(function* () {
     },
   ) {
     const headContext = yield* resolveBranchHeadContext(cwd, details);
+    if (details.upstreamRef === null) {
+      const remoteName = yield* findPublishedBranchRemote(cwd, details.branch).pipe(
+        Effect.orElseSucceed(() => null),
+      );
+      if (remoteName !== null && remoteName !== headContext.remoteName) {
+        return {
+          headContext: yield* resolveBranchHeadContext(cwd, { ...details, remoteName }),
+          lookup: true,
+        };
+      }
+    }
     const upstreamHeadIsDefault =
       headContext.headBranch === details.defaultBranch ||
       (details.defaultBranch === null &&
@@ -1584,7 +1750,11 @@ export const make = Effect.gen(function* () {
     ) {
       return { headContext, lookup: true };
     }
-    const remoteName = yield* findRemoteTrackingRemote(cwd, details.branch, headContext.remoteName);
+    const remoteName = yield* findRemoteTrackingRemote(
+      cwd,
+      details.branch,
+      headContext.remoteName,
+    ).pipe(Effect.orElseSucceed(() => null));
     if (remoteName === null) {
       return { headContext, lookup: false };
     }
@@ -1604,7 +1774,7 @@ export const make = Effect.gen(function* () {
    * terminal and agent pushes land), and configured upstream metadata survives
    * when a merged change request's remote branch is deleted. Together they
    * distinguish branches known to have reached a host from genuinely local
-   * branches. The ref glob spans every remote so a fork branch still counts. A
+   * branches. The remote ref check includes names containing slashes. A
    * repository that tracks no remotes at all cannot answer the question,
    * because then every branch looks unpublished; it, and any failed probe,
    * keeps the lookup.
@@ -1638,11 +1808,11 @@ export const make = Effect.gen(function* () {
         return false;
       }
 
-      const [tracksAnyRemote, tracksThisBranch] = yield* Effect.all(
-        [matchesRef("refs/remotes"), matchesRef(`refs/remotes/*/${headContext.headBranch}`)],
+      const [tracksAnyRemote, trackedRemote] = yield* Effect.all(
+        [matchesRef("refs/remotes"), findRemoteTrackingRemote(cwd, headContext.headBranch, null)],
         { concurrency: "unbounded" },
       );
-      return tracksAnyRemote && !tracksThisBranch;
+      return tracksAnyRemote && trackedRemote === null;
     }).pipe(Effect.orElseSucceed(() => false));
   });
 
@@ -1658,13 +1828,13 @@ export const make = Effect.gen(function* () {
     >,
   ) {
     const provider = yield* sourceControlProvider(cwd);
-    const headSelectors = probeableHeadSelectors(provider.kind, headContext.headSelectors);
-    for (const headSelector of headSelectors) {
+    const probe = headBranchProbe(provider, headContext.headSelectors, "open");
+    for (const headSelector of probe.headSelectors) {
       const pullRequests = yield* provider.listChangeRequests({
         cwd,
         headSelector,
         state: "open",
-        limit: provider.kind === "github" ? GITHUB_HEAD_BRANCH_PROBE_LIMIT : 1,
+        limit: probe.limit,
       });
       const normalizedPullRequests = pullRequests.map(toPullRequestInfo);
 
@@ -1690,12 +1860,13 @@ export const make = Effect.gen(function* () {
     const parsedByNumber = new Map<number, PullRequestInfo>();
 
     const provider = yield* sourceControlProvider(cwd);
-    for (const headSelector of probeableHeadSelectors(provider.kind, headContext.headSelectors)) {
+    const probe = headBranchProbe(provider, headContext.headSelectors, "all");
+    for (const headSelector of probe.headSelectors) {
       const pullRequests = yield* provider.listChangeRequests({
         cwd,
         headSelector,
         state: "all",
-        limit: provider.kind === "github" ? GITHUB_HEAD_BRANCH_PROBE_LIMIT : 20,
+        limit: probe.limit,
       });
 
       for (const pr of pullRequests.map(toPullRequestInfo)) {
@@ -1720,7 +1891,9 @@ export const make = Effect.gen(function* () {
   ) {
     const terms = yield* sourceControlProvider(cwd).pipe(
       Effect.map((provider) => getChangeRequestTerminologyForKind(provider.kind)),
-      Effect.orElseSucceed(() => getChangeRequestTerminologyForKind("unknown")),
+      Effect.orElseSucceed(() =>
+        getChangeRequestTerminologyForKind(SourceControlProviderKind.make("unknown")),
+      ),
     );
     const summary = summarizeGitActionResult(result, terms);
     let latestOpenPr: PullRequestInfo | null = null;
@@ -1815,7 +1988,11 @@ export const make = Effect.gen(function* () {
     headContext: Pick<BranchHeadContext, "isCrossRepository" | "remoteName">,
   ) {
     const configured = yield* gitCore.readConfigValue(cwd, `branch.${branch}.gh-merge-base`);
-    if (configured) return configured;
+    if (configured) {
+      // Older worktree handoffs recorded checkout revisions as PR target branches.
+      const configuredBranch = yield* gitCore.resolveBranchName(cwd, configured);
+      if (configuredBranch) return configuredBranch;
+    }
 
     if (upstreamRef && !headContext.isCrossRepository) {
       const upstreamBranch = extractBranchNameFromRemoteRef(upstreamRef, {
@@ -2086,8 +2263,10 @@ export const make = Effect.gen(function* () {
     const rangeContext = yield* gitCore.readRangeContext(cwd, baseRangeRef);
     const policy = yield* resolveStylePolicy(cwd, settings);
     const changeRequestTemplate =
-      settings.style.followChangeRequestTemplates && provider.kind === "github"
-        ? Option.getOrUndefined(yield* detectPrTemplate(cwd, baseRangeRef, gitCore.execute))
+      settings.style.followChangeRequestTemplates && provider.readChangeRequestTemplate
+        ? Option.getOrUndefined(
+            yield* provider.readChangeRequestTemplate({ cwd, treeish: baseRangeRef }),
+          )
         : undefined;
 
     const generated = yield* textGeneration.generatePrContent({
@@ -2173,32 +2352,134 @@ export const make = Effect.gen(function* () {
     });
     return mergeGitStatusParts(local, remote);
   });
-  const branchPullRequest: GitManager["Service"]["branchPullRequest"] = Effect.fn(
-    "branchPullRequest",
-  )(function* ({ cwd, branch }, options) {
-    const cacheCwd = yield* normalizeStatusCacheKey(cwd);
-    const remotes = yield* gitCore.execute({
-      operation: "GitManager.branchPullRequest.remotes",
-      cwd: cacheCwd,
-      args: ["remote"],
+  // Discovery and the settlement sweep call branchPullRequest for every thread
+  // each minute, and most calls find the PR answer already cached. The git
+  // state around that answer (remotes, the branch's upstream, the remote HEAD,
+  // remote URLs) is remembered per checkout for PR_LOOKUP_GIT_STATE_TTL, so
+  // those calls start no git process. T3's own git actions (invalidateStatus)
+  // and `refresh` read it again, and a change made outside T3 shows within the
+  // TTL. A merged or closed answer can settle a thread or remove its worktree,
+  // so branchPullRequest confirms one against fresh reads, and discovery asks
+  // for fresh reads (`freshGitState`) before it persists an answer.
+  const prLookupGitStateByKey = new Map<
+    string,
+    { readonly readAtMs: number; readonly value: string | null }
+  >();
+  const rememberPrLookupGitState = <E>(
+    cwd: string,
+    key: string,
+    fresh: boolean,
+    read: Effect.Effect<string | null, E>,
+  ) =>
+    Effect.gen(function* () {
+      const entryKey = `${cwd}\u0000${key}`;
+      const readAtMs = yield* Clock.currentTimeMillis;
+      const remembered = prLookupGitStateByKey.get(entryKey);
+      if (
+        !fresh &&
+        remembered !== undefined &&
+        readAtMs - remembered.readAtMs < Duration.toMillis(PR_LOOKUP_GIT_STATE_TTL)
+      ) {
+        return remembered.value;
+      }
+      // invalidateStatus bumps the epoch. A read that started before a T3 git
+      // action, or before a newer read finished, must not replace their state.
+      const epoch = prLookupEpoch(cwd);
+      const value = yield* read;
+      const latest = prLookupGitStateByKey.get(entryKey);
+      if (prLookupEpoch(cwd) !== epoch || (latest !== undefined && latest.readAtMs > readAtMs)) {
+        return value;
+      }
+      prLookupGitStateByKey.delete(entryKey);
+      if (prLookupGitStateByKey.size >= PR_LOOKUP_CACHE_CAPACITY) {
+        const oldestKey = prLookupGitStateByKey.keys().next().value;
+        if (oldestKey !== undefined) prLookupGitStateByKey.delete(oldestKey);
+      }
+      prLookupGitStateByKey.set(entryKey, { readAtMs, value });
+      return value;
     });
-    const remoteNames = remotes.stdout
+  const forgetPrLookupGitState = (cwd: string) =>
+    normalizeStatusCacheKey(cwd).pipe(
+      Effect.map((cacheCwd) => {
+        const prefix = `${cacheCwd}\u0000`;
+        for (const key of prLookupGitStateByKey.keys()) {
+          if (key.startsWith(prefix)) prLookupGitStateByKey.delete(key);
+        }
+      }),
+    );
+  const resolvePrLookupRepositoryIdentity = Effect.fn("resolvePrLookupRepositoryIdentity")(
+    function* (
+      cwd: string,
+      branch: string,
+      remoteNameOverride: string | undefined,
+      fresh: boolean,
+    ) {
+      const readConfig = (key: string) =>
+        rememberPrLookupGitState(
+          cwd,
+          `config\u0000${key}`,
+          fresh,
+          gitCore.readConfigValue(cwd, key),
+        ).pipe(Effect.orElseSucceed(() => null));
+      const readRemoteUrlKey = (remoteName: string | null) =>
+        remoteName === null
+          ? Effect.succeed(null)
+          : readConfig(`remote.${remoteName}.url`).pipe(
+              Effect.map((remoteUrl) => (remoteUrl ? normalizeGitRemoteUrl(remoteUrl) : null)),
+            );
+      const remoteName = remoteNameOverride ?? (yield* readConfig(`branch.${branch}.remote`));
+      const [headRemoteUrlKey, targetRemoteUrlKey] =
+        remoteName === "origin"
+          ? yield* readRemoteUrlKey("origin").pipe(Effect.map((key) => [key, key] as const))
+          : yield* Effect.all([readRemoteUrlKey(remoteName), readRemoteUrlKey("origin")], {
+              concurrency: "unbounded",
+            });
+      return {
+        remoteName,
+        headRemoteUrlKey: headRemoteUrlKey ?? (remoteName === null ? targetRemoteUrlKey : null),
+        targetRemoteUrlKey,
+      };
+    },
+  );
+  const lookupBranchPullRequest = Effect.fn("lookupBranchPullRequest")(function* (
+    cacheCwd: string,
+    branch: string,
+    options: { readonly refresh: boolean; readonly freshGitState: boolean },
+  ) {
+    const remember = <E>(key: string, read: Effect.Effect<string | null, E>) =>
+      rememberPrLookupGitState(cacheCwd, key, options.freshGitState, read);
+    const remotes = yield* remember(
+      "remotes",
+      gitCore
+        .execute({
+          operation: "GitManager.branchPullRequest.remotes",
+          cwd: cacheCwd,
+          args: ["remote"],
+        })
+        .pipe(Effect.map((result) => result.stdout)),
+    );
+    const remoteNames = (remotes ?? "")
       .split("\n")
       .map((remoteName) => remoteName.trim())
       .filter((remoteName) => remoteName.length > 0);
     const [firstRemoteName] = remoteNames;
     if (firstRemoteName === undefined) return null;
-    const branchRef = yield* gitCore.execute({
-      operation: "GitManager.branchPullRequest.branchRef",
-      cwd: cacheCwd,
-      args: [
-        "for-each-ref",
-        "--format=%(refname)%00%(upstream:short)%00%(upstream:remotename)%00%(upstream:remoteref)",
-        `refs/heads/${branch}`,
-      ],
-    });
+    const branchRef = yield* remember(
+      `branchRef\u0000${branch}`,
+      gitCore
+        .execute({
+          operation: "GitManager.branchPullRequest.branchRef",
+          cwd: cacheCwd,
+          args: [
+            "for-each-ref",
+            "--format=%(refname)%00%(upstream:short)%00%(upstream:remotename)%00%(upstream:remoteref)",
+            `refs/heads/${branch}`,
+          ],
+        })
+        .pipe(Effect.map((result) => result.stdout)),
+    );
     const expectedRefName = `refs/heads/${branch}`;
-    const exactBranch = branchRef.stdout
+    const exactBranch = (branchRef ?? "")
       .split("\n")
       .find((line) => line.split("\u0000", 1)[0] === expectedRefName);
     const [refName = "", savedUpstream = "", savedRemoteName = "", savedRemoteRef = ""] =
@@ -2218,20 +2499,31 @@ export const make = Effect.gen(function* () {
       const upstreamBranch = savedRemoteRef.replace(/^refs\/heads\//, "");
       upstreamRef = `${remoteName}/${upstreamBranch}`;
     } else if (!localBranchExists) {
-      const trackingRefs = yield* gitCore.execute({
-        operation: "GitManager.branchPullRequest.remoteTrackingRefs",
-        cwd: cacheCwd,
-        args: ["for-each-ref", "--format=%(refname)", "refs/remotes"],
-      });
-      const refNames = new Set(
-        trackingRefs.stdout
-          .split("\n")
-          .map((remoteRef) => remoteRef.trim())
-          .filter((remoteRef) => remoteRef.length > 0),
+      const trackingRemotes = yield* remember(
+        `trackingRemotes\u0000${branch}`,
+        gitCore
+          .execute({
+            operation: "GitManager.branchPullRequest.remoteTrackingRefs",
+            cwd: cacheCwd,
+            args: ["for-each-ref", "--format=%(refname)", "refs/remotes"],
+          })
+          .pipe(
+            Effect.map((trackingRefs) => {
+              const refNames = new Set(
+                trackingRefs.stdout
+                  .split("\n")
+                  .map((remoteRef) => remoteRef.trim())
+                  .filter((remoteRef) => remoteRef.length > 0),
+              );
+              return remoteNames
+                .filter((candidate) => refNames.has(`refs/remotes/${candidate}/${branch}`))
+                .join("\n");
+            }),
+          ),
       );
-      const matchingRemoteNames = remoteNames.filter((candidate) =>
-        refNames.has(`refs/remotes/${candidate}/${branch}`),
-      );
+      const matchingRemoteNames = (trackingRemotes ?? "")
+        .split("\n")
+        .filter((candidate) => candidate.length > 0);
       if (matchingRemoteNames.length > 1) {
         return yield* new GitManagerError({
           operation: "branchPullRequest",
@@ -2245,9 +2537,10 @@ export const make = Effect.gen(function* () {
       }
     }
     const defaultRemoteName = remoteNames.includes("origin") ? "origin" : firstRemoteName;
-    const defaultBranch = yield* gitCore
-      .resolveDefaultBranchName(cacheCwd, defaultRemoteName)
-      .pipe(Effect.orElseSucceed(() => null));
+    const defaultBranch = yield* remember(
+      `defaultBranch\u0000${defaultRemoteName}`,
+      gitCore.resolveDefaultBranchName(cacheCwd, defaultRemoteName),
+    ).pipe(Effect.orElseSucceed(() => null));
     const cacheKey = prLookupCacheKey(cacheCwd, {
       branch,
       upstreamRef,
@@ -2255,7 +2548,7 @@ export const make = Effect.gen(function* () {
       localBranchExists,
       ...(localBranchExists ? {} : { remoteName }),
     });
-    if (options?.refresh) {
+    if (options.refresh) {
       // A completed turn can create a PR or reuse a merged PR's branch.
       // Refresh successful answers, but keep failed lookups' retry backoff.
       const cached = yield* Cache.getOption(prLookupCache, cacheKey).pipe(
@@ -2273,6 +2566,7 @@ export const make = Effect.gen(function* () {
       cacheCwd,
       branch,
       identityRemoteName(cached.headContext),
+      options.freshGitState,
     );
     const canVerifyIdentity = (headContext: BranchHeadContext, identity: typeof currentIdentity) =>
       !(
@@ -2296,6 +2590,7 @@ export const make = Effect.gen(function* () {
         cacheCwd,
         branch,
         identityRemoteName(cached.headContext),
+        true,
       );
       if (
         !canVerifyIdentity(cached.headContext, refreshedIdentity) ||
@@ -2321,10 +2616,27 @@ export const make = Effect.gen(function* () {
       ...toStatusPr(latest),
       closedAt: latest.closedAt ?? null,
       mergedAt: latest.mergedAt ?? null,
+      headSha: latest.headSha ?? null,
       // Hosting CLIs can select an upstream repository instead of origin.
       // The returned PR URL names the repository that actually owns it.
       repositoryKey: pullRequestRepositoryKey(latest.url),
     };
+  });
+  const branchPullRequest: GitManager["Service"]["branchPullRequest"] = Effect.fn(
+    "branchPullRequest",
+  )(function* ({ cwd, branch }, options) {
+    const cacheCwd = yield* normalizeStatusCacheKey(cwd);
+    const refresh = options?.refresh === true;
+    const freshGitState = refresh || options?.freshGitState === true;
+    const pullRequest = yield* lookupBranchPullRequest(cacheCwd, branch, {
+      refresh,
+      freshGitState,
+    });
+    if (pullRequest === null || pullRequest.state === "open" || freshGitState) return pullRequest;
+    return yield* lookupBranchPullRequest(cacheCwd, branch, {
+      refresh: false,
+      freshGitState: true,
+    });
   });
   const invalidateLocalStatus: GitManager["Service"]["invalidateLocalStatus"] = Effect.fn(
     "invalidateLocalStatus",
@@ -2344,6 +2656,7 @@ export const make = Effect.gen(function* () {
       // refresh); it also bypasses the slow PR-lookup cache. The periodic
       // status poll only invalidates local/remote and keeps the PR cache warm.
       yield* bumpPrLookupEpoch(cwd);
+      yield* forgetPrLookupGitState(cwd);
     },
   );
 
@@ -2618,7 +2931,7 @@ export const make = Effect.gen(function* () {
           worktreesDirectory: yield* readWorktreesDirectory,
           // Best effort: a settings read failure falls back to the checkout's t3.json.
           submodules: yield* projectSettingsFor(input).pipe(
-            Effect.map((settings) => settings.worktreeSubmodules),
+            Effect.map(({ settings }) => settings.worktreeSubmodules),
             Effect.orElseSucceed(() => null),
           ),
         },
@@ -2698,14 +3011,6 @@ export const make = Effect.gen(function* () {
             detail: "Feature-branch checkout is only supported for commit actions.",
           });
         }
-        if (input.action === "create_pr" && initialStatus.hasWorkingTreeChanges) {
-          return yield* new GitManagerError({
-            operation: "runStackedAction",
-            cwd: input.cwd,
-            detail: "Commit local changes before creating a PR.",
-          });
-        }
-
         const phases: GitActionProgressPhase[] = [
           ...(input.featureBranch ? (["branch"] as const) : []),
           ...(wantsCommit ? (["commit"] as const) : []),
@@ -2738,7 +3043,7 @@ export const make = Effect.gen(function* () {
         let preResolvedCommitSuggestion: CommitAndBranchSuggestion | undefined = undefined;
 
         const textGenerationSettings = yield* projectSettingsFor(input).pipe(
-          Effect.flatMap((settings) =>
+          Effect.flatMap(({ settings, projectId }) =>
             settings.sourceControlWriterModelSelection === null
               ? Effect.succeed({
                   modelSelection: settings.textGenerationModelSelection,
@@ -2749,6 +3054,7 @@ export const make = Effect.gen(function* () {
                     modelSelection: ServerSettings.resolveSourceControlWriterModelSelection(
                       settings,
                       providers,
+                      projectId,
                     ),
                     style: settings.sourceControlWritingStyle,
                   })),
@@ -2791,7 +3097,9 @@ export const make = Effect.gen(function* () {
         const changeRequestTerms = wantsPr
           ? yield* sourceControlProvider(input.cwd).pipe(
               Effect.map((provider) => getChangeRequestTerminologyForKind(provider.kind)),
-              Effect.orElseSucceed(() => getChangeRequestTerminologyForKind("unknown")),
+              Effect.orElseSucceed(() =>
+                getChangeRequestTerminologyForKind(SourceControlProviderKind.make("unknown")),
+              ),
             )
           : null;
 
@@ -2891,6 +3199,9 @@ export const make = Effect.gen(function* () {
     resolvePullRequest,
     preparePullRequestThread,
     runStackedAction,
+    subscribePullRequestStateChanges: PubSub.subscribe(pullRequestStateChanges).pipe(
+      Effect.map((subscription) => Stream.fromSubscription(subscription)),
+    ),
   });
 });
 

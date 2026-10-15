@@ -95,7 +95,9 @@ it("bounds the note so it cannot crowd out the turn's context", () => {
     label: `sleep ${index}`,
   }));
   const note = restartCancelledBackgroundWorkNote(work);
-  assert.lengthOf(note.split("\n"), 12);
+  assert.lengthOf(note.split("\n"), 13);
+  assert.include(note, "Cancellation does not undo side effects");
+  assert.include(note, "existing user authorization");
   assert.isTrue(note.endsWith("- and 15 more"));
   const command = cancelledTurnItemWork({
     type: "command_execution",

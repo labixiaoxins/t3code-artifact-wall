@@ -29,7 +29,6 @@ import android.widget.EditText
 import expo.modules.kotlin.AppContext
 import expo.modules.kotlin.viewevent.EventDispatcher
 import expo.modules.kotlin.views.ExpoView
-import expo.modules.t3markdowntext.T3ContextChip
 import org.json.JSONObject
 import kotlin.math.max
 
@@ -37,6 +36,9 @@ class T3ComposerEditorView(context: Context, appContext: AppContext) : ExpoView(
   context,
   appContext
 ) {
+  // React Native ignores the editor's requestLayout(), which makes TextView defer caret scrolls.
+  override val shouldUseAndroidLayout = true
+
   private val editor = SelectionAwareEditText(context)
   private val defaultHighlightColor = editor.highlightColor
   private val defaultSelectionColor = context.resolveThemeColor(

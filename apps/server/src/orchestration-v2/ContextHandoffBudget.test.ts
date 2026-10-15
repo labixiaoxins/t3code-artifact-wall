@@ -1,4 +1,4 @@
-import type { ProviderAdapterV2HistoricalContext } from "./ProviderAdapter.ts";
+import type * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
 import { assert, describe, it } from "@effect/vitest";
 import {
   ContextHandoffId,
@@ -23,7 +23,7 @@ import {
   historyResponseItems,
   selectHistory,
   historicalMessage,
-} from "./ContextHandoffBudget.ts";
+} from "@t3tools/provider-core/server/handoffBudget";
 import { projectContextHandoffForWire } from "./WireProjection.ts";
 import { deliverContextHandoffs } from "./ContextHandoffDelivery.ts";
 
@@ -146,6 +146,67 @@ describe("handoff budget", () => {
       }),
     );
     assert.equal(historyResponseItems([command!], "Activity")[1]?.type, "message");
+    const tool = historicalMessage({
+      ...base,
+      type: "dynamic_tool",
+      toolName: "publish_asset",
+      input: { token: "never-copy-this-secret" },
+      output: { image: "large-payload" },
+    });
+    assert.include(tool!.text, "publish_asset");
+    assert.include(tool!.text, "outcome is uncertain");
+    assert.include(tool!.text, base.id);
+    assert.notInclude(tool!.text, "never-copy-this-secret");
+    assert.notInclude(tool!.text, "large-payload");
+  });
+
+  it.each(
+    ["code", "visual", "slides", "research", "mock-publication"].flatMap((task) =>
+      [4_000, 8_000, 16_000].map((budget) => ({ task, budget })),
+    ),
+  )("keeps user corrections ahead of noisy logs: $task, $budget bytes", ({ task, budget }) => {
+    const original = message(
+      `${task}:original`,
+      "user",
+      "Keep the original files and preserve existing authorization scope.",
+    );
+    const correction = message(
+      `${task}:correction`,
+      "user",
+      "Use final-v3; do not publish. The previous v2 is obsolete.",
+    );
+    const latest = message(`${task}:latest`, "user", "Continue the remaining work.");
+    const file = {
+      ...message(`${task}:file`, "assistant", `File change: /fixture/${task}/final-v3.pdf`),
+      kind: "file_change",
+    };
+    const candidates = [
+      original,
+      correction,
+      {
+        ...message(`${task}:log`, "assistant", "irrelevant log ".repeat(20_000)),
+        kind: "command_execution",
+        status: "completed",
+      },
+      file,
+      latest,
+      message(`${task}:answer`, "assistant", "Partial progress. ".repeat(500)),
+    ];
+    const selected = selectHistory({
+      messages: candidates,
+      coverage: "Read source items before retrying uncertain operations",
+      budget,
+    });
+    assert.deepEqual(
+      selected.messages.filter((m) => m.role === "user"),
+      [original, correction, latest],
+    );
+    assert.include(
+      selected.messages.map((m) => m.itemId),
+      file.itemId,
+    );
+    assert.include(selected.omittedItemIds, `${task}:log`);
+    assert.isAtMost(historyCost(selected.messages, selected.context), budget);
   });
 
   it("retains short conversations verbatim in role and order", () => {
@@ -501,7 +562,7 @@ describe("handoff delivery", () => {
         providerThread,
         budget: 16_000,
         alreadyDeliveredItemIds: new Set<string>(),
-        inject: (value: ProviderAdapterV2HistoricalContext) =>
+        inject: (value: ProviderAdapter.ProviderAdapterV2HistoricalContext) =>
           Effect.sync(() => {
             history.push(...historyResponseItems(value.messages, value.context));
             return true;
@@ -588,7 +649,7 @@ describe("handoff delivery", () => {
         ...handoff,
         id: ContextHandoffId.make(`handoff:retry:${index}`),
       }));
-      let captured: ProviderAdapterV2HistoricalContext | undefined;
+      let captured: ProviderAdapter.ProviderAdapterV2HistoricalContext | undefined;
       const result = yield* deliverContextHandoffs({
         handoffs: many,
         providerThread,

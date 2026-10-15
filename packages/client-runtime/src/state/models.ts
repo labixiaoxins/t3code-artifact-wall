@@ -22,6 +22,8 @@ import { formatSubagentDisplayTitle } from "./subagentDisplay.ts";
 
 export interface EnvironmentProject extends OrchestrationProjectShell {
   readonly environmentId: EnvironmentId;
+  /** Derived from the environment's configured scratch root, never persisted. */
+  readonly isScratch?: true;
 }
 
 /**
@@ -98,6 +100,11 @@ export interface EnvironmentThreadShell {
   readonly branch: string | null;
   readonly worktreePath: string | null;
   readonly lineage: OrchestrationV2ThreadShell["lineage"];
+  /**
+   * Thread this one continues after a context handoff (local customization). Only
+   * top-level, non-forked threads count; subagents and forks never continue anything.
+   */
+  readonly continuedFromThreadId: ThreadId | null;
   readonly forkedFrom: OrchestrationV2ThreadShell["forkedFrom"];
   readonly activeProviderThreadId: OrchestrationV2ThreadShell["activeProviderThreadId"];
   readonly latestRun: ThreadRunSummary | null;
@@ -246,6 +253,10 @@ export function presentThreadShell(
     linkedPullRequest: thread.linkedPullRequest ?? null,
     branchPullRequest: thread.branchPullRequest ?? null,
     lineage: thread.lineage,
+    continuedFromThreadId:
+      thread.lineage.relationshipToParent === null && thread.forkedFrom === null
+        ? (thread.continuedFromThreadId ?? null)
+        : null,
     forkedFrom: thread.forkedFrom,
     activeProviderThreadId: thread.activeProviderThreadId,
     latestRun,

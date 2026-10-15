@@ -1,5 +1,7 @@
+import { ContinuationHistoryPanel } from "./ContinuationHistoryPanel";
 import { ArtifactWall } from "./ArtifactWall";
-import { Menu, MenuTrigger, MenuPopup } from "../ui/menu";
+import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/shell";
+import type { OrchestrationV2ThreadProjection } from "@t3tools/contracts";
 import type {
   EditorId,
   EnvironmentId,
@@ -7,35 +9,24 @@ import type {
   ResolvedKeybindingsConfig,
   ThreadId,
 } from "@t3tools/contracts";
-import { AlertTriangleIcon, MoreHorizontalIcon, XIcon } from "lucide-react";
 
 import type { DraftId } from "../../composerDraftStore";
 import { useT3ProjectFileScripts } from "../../hooks/useT3ProjectFileScripts";
-import {
-  shouldShowEnvironmentIndicator,
-  type EnvMode,
-  type EnvironmentOption,
-} from "../BranchToolbar.logic";
+import { type EnvMode, type EnvironmentOption } from "../BranchToolbar.logic";
 import { BranchToolbar } from "../BranchToolbar";
-import { BranchToolbarEnvironmentSelector } from "../BranchToolbarEnvironmentSelector";
-import GitActionsControl from "../GitActionsControl";
+import BaseGitActionsControl from "../GitActionsControl";
 import ProjectScriptsControl, {
   type NewProjectScriptInput,
   type ProjectScriptActionResult,
 } from "../ProjectScriptsControl";
-import { Button } from "../ui/button";
-import type { ComponentProps } from "react";
+import { memo, type ComponentProps } from "react";
 import { ThreadDetailsCard } from "./ThreadDetailsCard";
 import { OpenInPicker } from "./OpenInPicker";
 import { ThreadDetailsSection } from "./ThreadDetailsSection";
 import { ThreadAutomationsPanel } from "./ThreadAutomationsPanel";
 import { ThreadRelationshipsPanel } from "./ThreadRelationshipsControl";
 
-interface VersionMismatchIssue {
-  readonly clientVersion: string;
-  readonly serverVersion: string;
-  readonly serverLabel: string;
-}
+const GitActionsControl = memo(BaseGitActionsControl);
 
 export interface ThreadDetailsPanelProps extends Pick<
   ComponentProps<typeof ThreadDetailsCard>,
@@ -45,6 +36,11 @@ export interface ThreadDetailsPanelProps extends Pick<
   environmentId: EnvironmentId;
   threadId: ThreadId;
   draftId?: DraftId;
+  continuation?: {
+    thread: EnvironmentThreadShell;
+    projection: OrchestrationV2ThreadProjection | null;
+    onQuote: (text: string) => boolean;
+  };
   onAttachArtifactFiles?: (files: File[]) => void;
   activeProjectName: string | undefined;
   activeProjectScripts: ReadonlyArray<ProjectScript> | undefined;
@@ -69,8 +65,6 @@ export interface ThreadDetailsPanelProps extends Pick<
   onCheckoutPullRequestRequest?: (reference: string) => void;
   onComposerFocusRequest: () => void;
   onOpenChanges?: () => void;
-  versionMismatch: VersionMismatchIssue | null;
-  onDismissVersionMismatch: () => void;
   onRunProjectScript: (script: ProjectScript) => void;
   onAddProjectScript: (input: NewProjectScriptInput) => Promise<ProjectScriptActionResult>;
   onUpdateProjectScript: (
@@ -85,14 +79,7 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
     props.environmentId,
     props.activeProjectScripts ? props.gitCwd : null,
   );
-  // Same rule as the composer strip: a lone remote machine still gets a row,
-  // shown as a static label because there is nothing to pick.
-  const canPickEnvironment = props.availableEnvironments.length > 1;
-  const showEnvironment = shouldShowEnvironmentIndicator({
-    activeEnvironment:
-      props.availableEnvironments.find((env) => env.environmentId === props.environmentId) ?? null,
-    canPickEnvironment,
-  });
+  const activeThreadRef = { environmentId: props.environmentId, threadId: props.threadId };
   const branchToolbarProps = {
     showGitControls: props.isGitRepo,
     environmentId: props.environmentId,
@@ -125,6 +112,9 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
     >
       {(density) => (
         <>
+          {!props.draftId && props.continuation ? (
+            <ContinuationHistoryPanel environmentId={props.environmentId} {...props.continuation} />
+          ) : null}
           {!props.draftId && props.onAttachArtifactFiles ? (
             <ArtifactWall
               environmentId={props.environmentId}
@@ -138,96 +128,40 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
             separated={false}
             showHeading={false}
           >
-            {props.versionMismatch ? (
-              <div className="mx-1 mb-2 flex gap-2 rounded-xl border border-warning/30 bg-warning/6 p-3">
-                <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0 text-warning" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium">Client and server versions differ</p>
-                  <p className="mt-1 text-2xs leading-relaxed text-muted-foreground">
-                    Client {props.versionMismatch.clientVersion} ·{" "}
-                    {props.versionMismatch.serverLabel} {props.versionMismatch.serverVersion}
-                  </p>
-                </div>
-                <Button
-                  size="icon-xs"
-                  variant="ghost"
-                  aria-label="Dismiss version mismatch warning"
-                  onClick={props.onDismissVersionMismatch}
-                >
-                  <XIcon className="size-3.5" />
-                </Button>
-              </div>
-            ) : null}
-
             <div className="flex flex-col">
-              {density === "full" && showEnvironment ? (
-                <BranchToolbarEnvironmentSelector
-                  displayMode="panel"
+              {density === "full" ? (
+                <BranchToolbar
+                  layout="panel"
+                  panelSection="workspace"
+                  availableEnvironments={props.availableEnvironments}
+                  onEnvironmentChange={props.onEnvironmentChange}
                   autoEnvironmentLabel={props.autoEnvironmentLabel}
                   onAutoEnvironment={props.onAutoEnvironment}
-                  envLocked={props.envLocked}
-                  environmentId={props.environmentId}
-                  availableEnvironments={props.availableEnvironments}
-                  {...(canPickEnvironment
-                    ? { onEnvironmentChange: props.onEnvironmentChange }
-                    : {})}
+                  {...branchToolbarProps}
                 />
               ) : null}
 
-              <div className="flex min-w-0 items-start gap-1">
-                <div className="min-w-0 flex-1">
-                  {density === "full" ? (
-                    <BranchToolbar
-                      layout="panel"
-                      panelSection="workspace"
-                      {...branchToolbarProps}
-                    />
-                  ) : null}
-                </div>
-                <Menu>
-                  <MenuTrigger
-                    render={<Button size="icon-xs" variant="ghost" aria-label="工作目录更多操作" />}
-                  >
-                    <MoreHorizontalIcon className="size-3.5" />
-                  </MenuTrigger>
-                  <MenuPopup align="end" keepMounted>
-                    {props.activeProjectScripts ? (
-                      <ProjectScriptsControl
-                        presentation="menu"
-                        displayMode="panel"
-                        scripts={props.activeProjectScripts}
-                        fileScripts={fileScripts}
-                        keybindings={props.keybindings}
-                        preferredScriptId={props.preferredScriptId}
-                        onRunScript={props.onRunProjectScript}
-                        onAddScript={props.onAddProjectScript}
-                        onUpdateScript={props.onUpdateProjectScript}
-                        onDeleteScript={props.onDeleteProjectScript}
-                      />
-                    ) : null}
-                    {!props.isGitRepo && props.gitCwd && props.activeProjectName ? (
-                      <GitActionsControl
-                        presentation="menu"
-                        displayMode="panel"
-                        gitCwd={props.gitCwd}
-                        activeThreadRef={{
-                          environmentId: props.environmentId,
-                          threadId: props.threadId,
-                        }}
-                        {...(props.draftId ? { draftId: props.draftId } : {})}
-                      />
-                    ) : null}
-                  </MenuPopup>
-                </Menu>
-              </div>
-
               {density !== "essential" && props.showOpenInPicker ? (
                 <OpenInPicker
-                  environmentId={props.environmentId}
                   keybindings={props.keybindings}
+                  environmentId={props.environmentId}
                   availableEditors={props.availableEditors}
                   openInCwd={props.gitCwd}
                   displayMode="panel"
+                />
+              ) : null}
+
+              {props.activeProjectScripts ? (
+                <ProjectScriptsControl
+                  environmentId={props.environmentId}
+                  displayMode="panel"
+                  scripts={props.activeProjectScripts}
+                  fileScripts={fileScripts}
+                  preferredScriptId={props.preferredScriptId}
+                  onRunScript={props.onRunProjectScript}
+                  onAddScript={props.onAddProjectScript}
+                  onUpdateScript={props.onUpdateProjectScript}
+                  onDeleteScript={props.onDeleteProjectScript}
                 />
               ) : null}
             </div>
@@ -244,15 +178,12 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
                 {props.isGitRepo ? (
                   <BranchToolbar layout="panel" panelSection="branch" {...branchToolbarProps} />
                 ) : null}
-                {props.activeProjectName && props.isGitRepo ? (
+                {props.activeProjectName ? (
                   <GitActionsControl
                     displayMode="panel"
                     compact={density !== "full"}
                     gitCwd={props.gitCwd}
-                    activeThreadRef={{
-                      environmentId: props.environmentId,
-                      threadId: props.threadId,
-                    }}
+                    activeThreadRef={activeThreadRef}
                     {...(props.draftId ? { draftId: props.draftId } : {})}
                     {...(props.onOpenChanges ? { onOpenChanges: props.onOpenChanges } : {})}
                   />
