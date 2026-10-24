@@ -20,6 +20,11 @@ const router = vi.hoisted(() => ({
   navigate: vi.fn(async () => {}),
   state: { matches: [{ params: {} as Record<string, string> }] },
 }));
+vi.mock("../state/use-atom-query-runner", () => ({ useAtomQueryRunner: () => vi.fn() }));
+vi.mock("../state/session", async (original) => ({
+  ...(await original<typeof import("../state/session")>()),
+  readEnvironmentScope: () => true,
+}));
 vi.mock("react", async (original) => ({
   ...(await original<typeof import("react")>()),
   useCallback: (callback: unknown) => callback,
@@ -157,9 +162,8 @@ describe("archive Undo", () => {
 
   it("shows no Undo when the archive failed", async () => {
     commands.archive.mockResolvedValue({ _tag: "Failure", cause: new Error("nope") });
-    const add = vi.spyOn(toastManager, "add").mockReturnValue("toast");
     await useThreadActions().archiveThread(target);
-    expect(add).not.toHaveBeenCalled();
+    expect(useThreadUndoNotice.getState().notice).toBeNull();
   });
 });
 

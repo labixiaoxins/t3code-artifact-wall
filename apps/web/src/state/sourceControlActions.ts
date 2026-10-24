@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useAtomValue } from "@effect/atom-react";
 import type {
   AtomCommandFailure,
@@ -9,21 +10,25 @@ import {
   type VcsActionOperation,
   type RunVcsStackedActionInput,
 } from "@t3tools/client-runtime/state/vcs";
-import type {
-  EnvironmentId,
-  GitResolvePullRequestResult,
-  SourceControlCloneProtocol,
-  SourceControlRepositoryVisibility,
-  ThreadId,
+import {
+  AuthOrchestrationOperateScope,
+  AuthSourceControlWriteScope,
+  EnvironmentAuthorizationError,
+  type EnvironmentId,
+  type GitResolvePullRequestResult,
+  type SourceControlCloneProtocol,
+  type SourceControlProviderKind,
+  type SourceControlRepositoryVisibility,
+  type ThreadId,
 } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
 import * as Option from "effect/Option";
 import { AsyncResult } from "effect/reactivity";
-import { useCallback } from "react";
 
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import { gitEnvironment } from "./git";
 import { useEnvironmentQuery } from "./query";
+import { readEnvironmentScope, useEnvironmentScope } from "./session";
 import { sourceControlEnvironment } from "./sourceControl";
 import { useAtomCommand } from "./use-atom-command";
 import { vcsActionManager, vcsEnvironment } from "./vcs";
@@ -45,11 +50,15 @@ interface SourceControlActionState<
   R extends AtomCommandResult<unknown, unknown>,
 > {
   readonly isPending: boolean;
+  readonly isAllowed: boolean;
   readonly error: unknown;
   readonly run: (
     ...args: TArgs
   ) => Promise<
-    AtomCommandResult<AtomCommandSuccess<R>, AtomCommandFailure<R> | VcsActionUnavailableError>
+    AtomCommandResult<
+      AtomCommandSuccess<R>,
+      AtomCommandFailure<R> | VcsActionUnavailableError | EnvironmentAuthorizationError
+    >
   >;
   readonly resetError: () => void;
 }
@@ -73,41 +82,53 @@ function useAction<
   readonly onSuccess?: () => void;
   readonly managedExternally?: boolean;
 }): SourceControlActionState<TArgs, R> {
+  const isAllowed = useEnvironmentScope(input.scope.environmentId, AuthSourceControlWriteScope);
   const operation = ACTION_OPERATION[input.kind];
   const state = useAtomValue(vcsActionManager.stateAtom(input.scope));
   const ownsState = state.operation === operation;
 
-  const resetError = useCallback(() => {
+  const resetError = () => {
     vcsActionManager.resetError(appAtomRegistry, input.scope, operation);
-  }, [input.scope, operation]);
+  };
 
-  const run = useCallback(
-    async (...args: TArgs) => {
-      const execute = async (): Promise<
-        AtomCommandResult<AtomCommandSuccess<R>, AtomCommandFailure<R>>
-      > => {
-        const result = await input.action(...args);
-        if (AsyncResult.isSuccess(result)) {
-          input.onSuccess?.();
-        }
-        return result as AtomCommandResult<AtomCommandSuccess<R>, AtomCommandFailure<R>>;
-      };
-      return input.managedExternally === true
-        ? execute()
-        : vcsActionManager.track(
-            appAtomRegistry,
-            input.scope,
-            {
-              operation,
-              label: input.label,
-            },
-            execute,
-          );
-    },
-    [input.action, input.label, input.managedExternally, input.onSuccess, input.scope, operation],
-  );
+  const run = async (...args: TArgs) => {
+    if (
+      input.scope.environmentId === null ||
+      !readEnvironmentScope(input.scope.environmentId, AuthSourceControlWriteScope)
+    ) {
+      return AsyncResult.failure<never, EnvironmentAuthorizationError>(
+        Cause.fail(
+          new EnvironmentAuthorizationError({
+            requiredScope: AuthSourceControlWriteScope,
+            message: "This connection cannot change source control.",
+          }),
+        ),
+      );
+    }
+    const execute = async (): Promise<
+      AtomCommandResult<AtomCommandSuccess<R>, AtomCommandFailure<R>>
+    > => {
+      const result = await input.action(...args);
+      if (AsyncResult.isSuccess(result)) {
+        input.onSuccess?.();
+      }
+      return result as AtomCommandResult<AtomCommandSuccess<R>, AtomCommandFailure<R>>;
+    };
+    return input.managedExternally === true
+      ? execute()
+      : vcsActionManager.track(
+          appAtomRegistry,
+          input.scope,
+          {
+            operation,
+            label: input.label,
+          },
+          execute,
+        );
+  };
 
   return {
+    isAllowed,
     error: ownsState ? state.error : null,
     isPending: ownsState && state.isRunning,
     resetError,
@@ -139,7 +160,7 @@ export function useSourceControlActionRunning(
 
 export function useVcsInitAction(scope: SourceControlActionScope) {
   const init = useAtomCommand(vcsEnvironment.init, { reportFailure: false });
-  const action = useCallback(async () => {
+  const action = async () => {
     const target = resolveScope(scope);
     if (target === null) {
       return AsyncResult.failure<never, VcsActionUnavailableError>(
@@ -156,8 +177,8 @@ export function useVcsInitAction(scope: SourceControlActionScope) {
       environmentId: target.environmentId,
       input: { cwd: target.cwd },
     });
-  }, [init, scope]);
-  return useAction({ kind: "init", label: "Initializing repository", scope, action });
+  };
+  return useAction({ kind: "init", label: uiText("Initializing repository"), scope, action });
 }
 
 export function useVcsPullAction(scope: SourceControlActionScope) {
@@ -170,7 +191,7 @@ export function useVcsPullAction(scope: SourceControlActionScope) {
         })
       : null,
   );
-  const action = useCallback(async () => {
+  const action = async () => {
     const target = resolveScope(scope);
     if (target === null) {
       return AsyncResult.failure<never, VcsActionUnavailableError>(
@@ -187,10 +208,10 @@ export function useVcsPullAction(scope: SourceControlActionScope) {
       environmentId: target.environmentId,
       input: { cwd: target.cwd },
     });
-  }, [pull, scope]);
+  };
   return useAction({
     kind: "pull",
-    label: "Pulling latest changes...",
+    label: uiText("Pulling latest changes..."),
     scope,
     action,
     onSuccess: status.refresh,
@@ -210,27 +231,24 @@ export function useGitStackedAction(scope: SourceControlActionScope) {
       : null,
   );
 
-  const action = useCallback(
-    async (input: RunVcsStackedActionInput) => {
-      if (resolveScope(scope) === null) {
-        return AsyncResult.failure<never, VcsActionUnavailableError>(
-          Cause.fail(
-            new VcsActionUnavailableError({
-              operation: "run_change_request",
-              environmentId: scope.environmentId,
-              cwd: scope.cwd,
-            }),
-          ),
-        );
-      }
-      return runStackedAction(input);
-    },
-    [runStackedAction, scope],
-  );
+  const action = async (input: RunVcsStackedActionInput) => {
+    if (resolveScope(scope) === null) {
+      return AsyncResult.failure<never, VcsActionUnavailableError>(
+        Cause.fail(
+          new VcsActionUnavailableError({
+            operation: "run_change_request",
+            environmentId: scope.environmentId,
+            cwd: scope.cwd,
+          }),
+        ),
+      );
+    }
+    return runStackedAction(input);
+  };
 
   return useAction({
     kind: "runStackedAction",
-    label: "Running source control action",
+    label: uiText("Running source control action"),
     scope,
     action,
     onSuccess: status.refresh,
@@ -250,39 +268,36 @@ export function useSourceControlPublishRepositoryAction(scope: SourceControlActi
         })
       : null,
   );
-  const action = useCallback(
-    async (input: {
-      provider: "github" | "gitlab" | "forgejo" | "bitbucket" | "azure-devops";
-      repository: string;
-      visibility: SourceControlRepositoryVisibility;
-      remoteName: string;
-      protocol: SourceControlCloneProtocol;
-    }) => {
-      const target = resolveScope(scope);
-      if (target === null) {
-        return AsyncResult.failure<never, VcsActionUnavailableError>(
-          Cause.fail(
-            new VcsActionUnavailableError({
-              operation: "publish_repository",
-              environmentId: scope.environmentId,
-              cwd: scope.cwd,
-            }),
-          ),
-        );
-      }
-      return publishRepository({
-        environmentId: target.environmentId,
-        input: {
-          cwd: target.cwd,
-          ...input,
-        },
-      });
-    },
-    [publishRepository, scope],
-  );
+  const action = async (input: {
+    provider: SourceControlProviderKind;
+    repository: string;
+    visibility: SourceControlRepositoryVisibility;
+    remoteName: string;
+    protocol: SourceControlCloneProtocol;
+  }) => {
+    const target = resolveScope(scope);
+    if (target === null) {
+      return AsyncResult.failure<never, VcsActionUnavailableError>(
+        Cause.fail(
+          new VcsActionUnavailableError({
+            operation: "publish_repository",
+            environmentId: scope.environmentId,
+            cwd: scope.cwd,
+          }),
+        ),
+      );
+    }
+    return publishRepository({
+      environmentId: target.environmentId,
+      input: {
+        cwd: target.cwd,
+        ...input,
+      },
+    });
+  };
   return useAction({
     kind: "publishRepository",
-    label: "Publishing repository",
+    label: uiText("Publishing repository"),
     scope,
     action,
     onSuccess: status.refresh,
@@ -293,35 +308,50 @@ export function usePreparePullRequestThreadAction(scope: SourceControlActionScop
   const preparePullRequestThread = useAtomCommand(gitEnvironment.preparePullRequestThread, {
     reportFailure: false,
   });
-  const action = useCallback(
-    async (input: { reference: string; mode: "local" | "worktree"; threadId?: ThreadId }) => {
-      const target = resolveScope(scope);
-      if (target === null) {
-        return AsyncResult.failure<never, VcsActionUnavailableError>(
-          Cause.fail(
-            new VcsActionUnavailableError({
-              operation: "prepare_pull_request_thread",
-              environmentId: scope.environmentId,
-              cwd: scope.cwd,
-            }),
-          ),
-        );
-      }
-      return preparePullRequestThread({
-        environmentId: target.environmentId,
-        input: {
-          cwd: target.cwd,
-          reference: input.reference,
-          mode: input.mode,
-          ...(input.threadId ? { threadId: input.threadId } : {}),
-        },
-      });
-    },
-    [preparePullRequestThread, scope],
-  );
+  const action = async (input: {
+    reference: string;
+    mode: "local" | "worktree";
+    threadId?: ThreadId;
+  }) => {
+    const target = resolveScope(scope);
+    if (target === null) {
+      return AsyncResult.failure<never, VcsActionUnavailableError>(
+        Cause.fail(
+          new VcsActionUnavailableError({
+            operation: "prepare_pull_request_thread",
+            environmentId: scope.environmentId,
+            cwd: scope.cwd,
+          }),
+        ),
+      );
+    }
+    if (
+      input.mode === "worktree" &&
+      input.threadId !== undefined &&
+      !readEnvironmentScope(target.environmentId, AuthOrchestrationOperateScope)
+    ) {
+      return AsyncResult.failure<never, EnvironmentAuthorizationError>(
+        Cause.fail(
+          new EnvironmentAuthorizationError({
+            requiredScope: AuthOrchestrationOperateScope,
+            message: "This connection cannot change threads.",
+          }),
+        ),
+      );
+    }
+    return preparePullRequestThread({
+      environmentId: target.environmentId,
+      input: {
+        cwd: target.cwd,
+        reference: input.reference,
+        mode: input.mode,
+        ...(input.threadId ? { threadId: input.threadId } : {}),
+      },
+    });
+  };
   return useAction({
     kind: "preparePullRequestThread",
-    label: "Preparing pull request thread",
+    label: uiText("Preparing pull request thread"),
     scope,
     action,
   });

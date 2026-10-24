@@ -67,6 +67,7 @@ function makeLiveActivities(
   return {
     register: () => Effect.void,
     listTargets: () => Effect.succeed([]),
+    listIdleArmedTargets: () => Effect.succeed([]),
     markDelivery: () => Effect.void,
     markStartQueued: () => Effect.void,
     clearStartQueued: () => Effect.void,
@@ -192,6 +193,7 @@ function makeAgentActivityPublisher(
   return {
     publish: () => Effect.succeed({ ok: true, deliveries: [] }),
     replayForLiveActivityRegistration: () => Effect.succeed(null),
+    endIdleLiveActivities: Effect.void,
     ...overrides,
   };
 }
@@ -483,9 +485,6 @@ describe("MobileRegistrations", () => {
           },
         });
 
-        // Activities are armed by the app in the foreground; a device
-        // registration alone never remote-starts one, even when work is
-        // already active and a push-to-start token is on file.
         expect(result).toEqual({ ok: true });
         expect(registeredDevices).toHaveLength(1);
         expect(queuedStarts).toEqual([]);

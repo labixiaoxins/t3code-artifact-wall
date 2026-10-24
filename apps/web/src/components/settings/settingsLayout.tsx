@@ -1,4 +1,8 @@
+import { uiText } from "~/i18n";
 import { SettingsGroup } from "./SettingsGroup";
+import { AuthSettingsWriteScope } from "@t3tools/contracts";
+import { usePrimaryEnvironmentId, usePrimaryEnvironment } from "../../state/environments";
+import { useEnvironmentScope, useEnvironmentsWithScope } from "../../state/session";
 import { InfoIcon, Undo2Icon } from "lucide-react";
 import { DEFAULT_SERVER_SETTINGS, type ServerSettings } from "@t3tools/contracts";
 import * as Equal from "effect/Equal";
@@ -7,10 +11,8 @@ import {
   createContext,
   type ComponentPropsWithoutRef,
   type ReactNode,
-  useCallback,
   useContext,
   useEffect,
-  useMemo,
   useState,
 } from "react";
 
@@ -27,6 +29,7 @@ import { SettingsScopeSentence } from "./SettingsScopeSentence";
 import {
   isProjectScopedSettingKey,
   listProjectOverrides,
+  type ProjectOverrideEntry,
   scopedSettingsAreMixed,
   scopedSettingsSource,
 } from "./scopedSettings";
@@ -69,14 +72,14 @@ function SettingsSearchTargetProvider({
   onTargetHandled?: () => void;
   children: ReactNode;
 }) {
-  const value = useMemo(
-    () => ({ targetId, highlightTarget, onTargetHandled }),
-    [highlightTarget, onTargetHandled, targetId],
-  );
+  const value = { targetId, highlightTarget, onTargetHandled };
   return <SettingsSearchTargetContext value={value}>{children}</SettingsSearchTargetContext>;
 }
 
+let pendingTargetScroll: AbortController | undefined;
+
 function scrollAndFocusSettingsTarget(target: HTMLElement, highlight = true): void {
+  pendingTargetScroll?.abort();
   const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const markedScrollTarget =
     typeof target.querySelector === "function"
@@ -88,23 +91,70 @@ function scrollAndFocusSettingsTarget(target: HTMLElement, highlight = true): vo
       ? (target.firstElementChild as HTMLElement)
       : target);
 
-  scrollTarget.scrollIntoView({
-    behavior: prefersReducedMotion ? "auto" : "smooth",
-    block: "center",
-  });
+  const scroll = () =>
+    scrollTarget.scrollIntoView({
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+      block: "center",
+    });
+  scroll();
+  const panel = target.parentElement?.closest<HTMLElement>(
+    '[data-slot="collapsible-panel"][data-open]',
+  );
+  const heightTransition = () =>
+    panel
+      ?.getAnimations()
+      .find(
+        (animation) =>
+          animation instanceof CSSTransition && animation.transitionProperty === "height",
+      );
+  if (panel && (panel.hasAttribute("data-starting-style") || heightTransition())) {
+    const controller = new AbortController();
+    pendingTargetScroll = controller;
+    const { signal } = controller;
+    const finishScroll = () => {
+      if (signal.aborted) return;
+      controller.abort();
+      if (
+        panel.hasAttribute("data-open") &&
+        target.isConnected &&
+        document.activeElement === target
+      ) {
+        scroll();
+      }
+    };
+    const waitForHeight = () => {
+      const transition = heightTransition();
+      if (transition) {
+        void transition.finished.then(finishScroll, () => controller.abort());
+      } else {
+        finishScroll();
+      }
+    };
+    // Base UI clears the starting style before the height transition finishes.
+    if (panel.hasAttribute("data-starting-style")) {
+      const observer = new MutationObserver(() => {
+        if (!panel.hasAttribute("data-starting-style")) {
+          observer.disconnect();
+          waitForHeight();
+        }
+      });
+      observer.observe(panel, { attributes: true, attributeFilter: ["data-starting-style"] });
+      signal.addEventListener("abort", () => observer.disconnect(), { once: true });
+    } else {
+      waitForHeight();
+    }
+    target.addEventListener("blur", () => controller.abort(), { once: true, signal });
+  }
   target.focus({ preventScroll: true });
   target.classList.remove("settings-search-target-pulse");
   if (!highlight || prefersReducedMotion) return;
   void target.offsetWidth;
   target.classList.add("settings-search-target-pulse");
-  // The class also suppresses the focus outline (the pulse is the destination
-  // indicator), so drop it once the element is no longer the destination.
   target.addEventListener("blur", () => target.classList.remove("settings-search-target-pulse"), {
     once: true,
   });
 }
 
-/** The row id a settings-search jump is currently trying to reach, if any. */
 export function useSettingsSearchTargetId(): string | null {
   return useContext(SettingsSearchTargetContext).targetId;
 }
@@ -112,15 +162,12 @@ export function useSettingsSearchTargetId(): string | null {
 export function useSettingsSearchTarget<T extends HTMLElement>(id: string | undefined) {
   const { targetId, highlightTarget, onTargetHandled } = useContext(SettingsSearchTargetContext);
   const isSearchTarget = id !== undefined && id === targetId;
-  const targetRef = useCallback(
-    (target: T | null) => {
-      if (target && isSearchTarget) {
-        scrollAndFocusSettingsTarget(target, highlightTarget);
-        onTargetHandled();
-      }
-    },
-    [highlightTarget, isSearchTarget, onTargetHandled],
-  );
+  const targetRef = (target: T | null) => {
+    if (target && isSearchTarget) {
+      scrollAndFocusSettingsTarget(target, highlightTarget);
+      onTargetHandled();
+    }
+  };
 
   return targetRef;
 }
@@ -137,17 +184,15 @@ export function SettingsSearchTarget({
   );
 }
 
-/** Layout for the composer model/traits pickers in a settings row: drop the composer's max-width. */
 export const SETTINGS_PICKER_TRIGGER_CLASSNAME = "min-w-0 max-w-none shrink-0";
 
-/** Info affordance explaining how a setting interacts with the shared background policy. */
 export function PolicyTooltip({ children }: { readonly children: string }) {
   return (
     <Tooltip>
       <TooltipTrigger
         delay={200}
         render={
-          <Button size="icon-micro" variant="ghost-muted" aria-label="Background policy details">
+          <Button size="icon-micro" variant="ghost-muted" aria-label={uiText("Background policy details")}>
             <InfoIcon className="size-3.5" />
           </Button>
         }
@@ -157,7 +202,6 @@ export function PolicyTooltip({ children }: { readonly children: string }) {
   );
 }
 
-/** Re-render every `intervalMs`; return a stable timestamp snapshot for render-time relative labels. */
 export function useRelativeTimeTick(intervalMs = 1_000) {
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => {
@@ -167,11 +211,11 @@ export function useRelativeTimeTick(intervalMs = 1_000) {
   return nowMs;
 }
 
-/** Muted section headings have no descriptions; explanatory copy belongs to individual settings. */
 export function SettingsSection({
   title,
   hideTitle = false,
   icon,
+  titleAction,
   headerAction,
   variant = "grouped",
   children,
@@ -181,6 +225,7 @@ export function SettingsSection({
   title: string;
   hideTitle?: boolean;
   icon?: ReactNode;
+  titleAction?: ReactNode;
   headerAction?: ReactNode;
   variant?: "grouped" | "plain";
   children: ReactNode;
@@ -201,11 +246,12 @@ export function SettingsSection({
           data-settings-scroll-target
           className="flex min-h-7 items-start justify-between gap-4 px-3 sm:px-4"
         >
-          <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-1">
             <h2 className="flex min-h-7 items-center gap-2 text-sm font-normal text-foreground/70">
               {icon}
               {title}
             </h2>
+            {titleAction}
           </div>
           <div className="flex min-h-7 min-w-7 items-center justify-end">{headerAction}</div>
         </div>
@@ -237,21 +283,32 @@ export function SettingsUnavailableGroup({
   );
 }
 
-/**
- * One setting. `serverScoped` marks rows whose value lives in the primary
- * environment's settings.json; where there is no primary (the hosted app)
- * the control goes inert with a tooltip instead of showing an editable
- * default that would never save.
- *
- * Keep descriptions short enough for one line where possible. Allow wrapping
- * for clarity or narrow screens instead of truncating or forcing no-wrap.
- *
- * Control sizing across settings follows three tiers so rows share a baseline:
- * - `control` slot: `size="sm"` (Button, Select, Input, NumberField) or `icon-sm`.
- * - Section `headerAction`s and buttons inside list items, cards, toolbars: `xs` / `icon-xs`.
- * - Inline affordances (reset arrows, info tooltips, table-cell buttons): `icon-micro`.
- * Dialog footers keep the app-wide default button size.
- */
+function projectOverrides(
+  context: ReturnType<typeof useOptionalSettingsScope>,
+  scopedKeys: ReadonlyArray<keyof ServerSettings>,
+): SettingOverridingProject[] {
+  if (context === null || scopedKeys.length === 0) return [];
+  return listProjectOverrides(context.connectedEnvironments, scopedKeys).flatMap((entry) => {
+    const group = context.groups.find((candidate) =>
+      candidate.memberProjects.some(
+        (member) => member.environmentId === entry.environmentId && member.id === entry.projectId,
+      ),
+    );
+    if (!group) return [];
+    return [
+      {
+        ...entry,
+        label: group.displayName,
+        open: () =>
+          context.selectScope({
+            project: group.projectKey,
+            ...(context.search.machine ? { machine: context.search.machine } : {}),
+          }),
+      },
+    ];
+  });
+}
+
 export function SettingsRow({
   title,
   description,
@@ -270,7 +327,6 @@ export function SettingsRow({
   description?: ReactNode;
   status?: ReactNode;
   resetAction?: ReactNode;
-  /** Replaces the default override clear for rows with side effects beyond the settings key. */
   onResetOverride?: () => void;
   control?: ReactNode;
   serverScoped?: boolean;
@@ -281,13 +337,22 @@ export function SettingsRow({
   const targetRef = useSettingsSearchTarget<HTMLDivElement>(rowProps.id);
   const primarySettingsAvailable = usePrimarySettingsAvailable();
   const context = useOptionalSettingsScope();
+  const primaryEnvironmentId = usePrimaryEnvironmentId();
+  const primaryEnvironment = usePrimaryEnvironment();
+  const primaryCanWrite = useEnvironmentScope(primaryEnvironmentId, AuthSettingsWriteScope);
+  const writableIds = useEnvironmentsWithScope(
+    context?.connectedEnvironments ?? [],
+    AuthSettingsWriteScope,
+  );
+  const canWriteSettings = context
+    ? context.connectedEnvironments.length > 0 &&
+      context.connectedEnvironments.every((target) => writableIds.has(target.environmentId))
+    : primaryCanWrite;
   const clearOverrides = useClearScopedSettings();
   const clearProjectOverrides = useClearProjectOverrides();
   const isProjectScope =
     context !== null && (context.scope.kind === "project" || context.scope.kind === "checkout");
   const scopedKeys = settingKeys.filter(isProjectScopedSettingKey);
-  // A project scope can only edit keys that support overrides; the rest stay
-  // visible so the user sees the inherited value, but cannot change it here.
   const environmentWide = isProjectScope && serverScoped && scopedKeys.length === 0;
   const mixed =
     mixedOverride ?? (context !== null && scopedSettingsAreMixed(context.targets, settingKeys));
@@ -295,53 +360,27 @@ export function SettingsRow({
     context && isProjectScope ? scopedSettingsSource(context.targets, scopedKeys) : null;
   const unavailable =
     serverScoped &&
-    !(context ? context.connectedEnvironments.length > 0 : primarySettingsAvailable);
+    (!canWriteSettings ||
+      !(context ? context.connectedEnvironments.length > 0 : primarySettingsAvailable));
   const inheritedFrom =
     source === "environment" && context?.scope.environmentIds.length === 1
       ? (context.environments.find(
           (environment) => environment.environmentId === context.scope.environmentIds[0],
         )?.label ?? "environment")
       : "environment";
-  const environmentSettingsById = useMemo(
-    () =>
-      new Map(
-        (context?.connectedEnvironments ?? []).flatMap((environment) =>
-          environment.serverConfig
-            ? [[environment.environmentId, environment.serverConfig.settings] as const]
-            : [],
-        ),
-      ),
-    [context?.connectedEnvironments],
+  const environmentSettingsById = new Map(
+    (context?.connectedEnvironments ?? []).flatMap((environment) =>
+      environment.serverConfig
+        ? [[environment.environmentId, environment.serverConfig.settings] as const]
+        : [],
+    ),
   );
-  // At environment scope, projects with their own value keep it when the
-  // environment default changes; the chain names them and can reset them.
-  const overridingProjects = useMemo((): SettingOverridingProject[] => {
-    if (context === null || isProjectScope || scopedKeys.length === 0) return [];
-    return listProjectOverrides(context.connectedEnvironments, scopedKeys).flatMap((entry) => {
-      const group = context.groups.find((candidate) =>
-        candidate.memberProjects.some(
-          (member) => member.environmentId === entry.environmentId && member.id === entry.projectId,
-        ),
-      );
-      if (!group) return [];
-      return [
-        {
-          ...entry,
-          label: group.displayName,
-          open: () =>
-            context.selectScope({
-              project: group.projectKey,
-              ...(context.search.machine ? { machine: context.search.machine } : {}),
-            }),
-        },
-      ];
-    });
-  }, [context, isProjectScope, scopedKeys]);
+  const overridingProjects = isProjectScope ? [] : projectOverrides(context, scopedKeys);
   const renderedReset = unavailable ? null : isProjectScope && scopedKeys.length > 0 ? (
     source === "project" || source === "mixed" ? (
       <SettingResetButton
-        label={typeof title === "string" ? title : "override"}
-        tooltip="Reset to inherited value"
+        label={typeof title === "string" ? title : uiText("override")}
+        tooltip={uiText("Reset to inherited value")}
         onClick={() => (onResetOverride ? onResetOverride() : clearOverrides(scopedKeys))}
       />
     ) : null
@@ -352,10 +391,9 @@ export function SettingsRow({
     <Tooltip>
       <TooltipTrigger
         render={
-          // Focusable so keyboard users can still reach the explanation.
           <span
             tabIndex={0}
-            className="flex w-full items-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring @min-[32rem]/settings-row:w-auto"
+            className="flex w-full items-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring @min-[32rem]/settings-row:w-auto"
           />
         }
       >
@@ -369,21 +407,25 @@ export function SettingsRow({
       <TooltipPopup side="top">{message}</TooltipPopup>
     </Tooltip>
   );
-  // A mixed selection keeps the real control with "Mixed" as its placeholder
-  // (the multi-selection inspector convention): the popover shows who has
-  // what, and picking a value applies it to every target.
   const renderedControl =
     unavailable && control
       ? inertControl(
-          context
-            ? "Reconnect the selected environment to change this setting."
-            : PRIMARY_SETTINGS_UNAVAILABLE_MESSAGE,
+          !canWriteSettings
+            ? `This connection lacks permission to change settings on ${
+                context
+                  ? context.connectedEnvironments
+                      .filter((target) => !writableIds.has(target.environmentId))
+                      .map((target) => target.label)
+                      .join(", ") || "the selected environment"
+                  : (primaryEnvironment?.label ?? "the primary environment")
+              }.`
+            : context
+              ? "Reconnect the selected environment to change this setting."
+              : PRIMARY_SETTINGS_UNAVAILABLE_MESSAGE,
         )
       : environmentWide && control
         ? inertControl("Environment-wide setting. Select an environment to change it.")
         : control;
-  // Server rows get an indicator beside the title that opens the resolution
-  // chain per target at every scope; client rows keep a plain status only.
   const customized =
     context !== null &&
     settingKeys.some((key) =>
@@ -415,7 +457,12 @@ export function SettingsRow({
         environments={context.connectedEnvironments}
         keys={settingKeys}
         overridingProjects={overridingProjects}
-        onClearOverrides={(entries) => clearProjectOverrides(entries, scopedKeys)}
+        {...(canWriteSettings
+          ? {
+              onClearOverrides: (entries: readonly ProjectOverrideEntry[]) =>
+                clearProjectOverrides(entries, scopedKeys),
+            }
+          : {})}
       />
     ) : null;
   const renderedStatus = status;
@@ -489,7 +536,7 @@ export function SettingResetButton({
           <Button
             size="icon-micro"
             variant="ghost-muted"
-            aria-label={`Reset ${label} to default`}
+            aria-label={uiText("Reset {0} to default", {"0": label})}
             disabled={disabled}
             onClick={(event) => {
               event.stopPropagation();
@@ -520,7 +567,7 @@ export function SettingsPageContainer({
     select: (location) => location.state.settingsTargetHighlight !== false,
   });
   const targetId = hash.replace(/^#/, "") || null;
-  const clearTargetHash = useCallback(() => {
+  const clearTargetHash = () => {
     void navigate({
       hash: "",
       replace: true,
@@ -528,7 +575,7 @@ export function SettingsPageContainer({
       hashScrollIntoView: false,
       state: { settingsTargetHighlight: true },
     });
-  }, [navigate]);
+  };
 
   return (
     <SettingsSearchTargetProvider

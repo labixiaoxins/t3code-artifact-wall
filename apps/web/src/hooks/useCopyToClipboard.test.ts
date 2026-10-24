@@ -1,14 +1,24 @@
+import { manualClipboard } from "../manualClipboard";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
-
 import { COMPOSER_CONTEXT_CLIPBOARD_MIME } from "@t3tools/shared/composerContextClipboard";
-
 import {
   ClipboardApiUnavailableError,
   ClipboardWriteError,
   writeTextToClipboard,
 } from "./useCopyToClipboard";
-
 describe("writeTextToClipboard", () => {
+  afterEach(() => manualClipboard.clear());
+  it("reveals the exact failed text for manual selection when HTTP copying is blocked", async () => {
+    vi.stubGlobal("window", {});
+    vi.stubGlobal("navigator", {});
+    vi.stubGlobal("document", {});
+    await expect(writeTextToClipboard("虚构手动复制内容")).rejects.toBeInstanceOf(
+      ClipboardApiUnavailableError,
+    );
+    expect(manualClipboard.getSnapshot()).toBe("虚构手动复制内容");
+    manualClipboard.clear();
+    expect(manualClipboard.getSnapshot()).toBeNull();
+  });
   it("reserves plain text even when an extra flavor attempts to replace it", async () => {
     const write = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("window", {});
@@ -25,13 +35,14 @@ describe("writeTextToClipboard", () => {
         "text/html": "<b>original</b>",
       }),
     ).resolves.toBe(true);
-    const items = write.mock.calls[0]![0] as Array<{ data: Record<string, Blob> }>;
+    const items = write.mock.calls[0]![0] as Array<{
+      data: Record<string, Blob>;
+    }>;
     expect(await items[0]!.data["text/plain"]!.text()).toBe("original");
   });
   afterEach(() => {
     vi.unstubAllGlobals();
   });
-
   it("keeps caller-built rich HTML when attaching a context fragment", async () => {
     const write = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("window", {});
@@ -44,37 +55,33 @@ describe("writeTextToClipboard", () => {
     );
     const fragment = JSON.stringify({ version: 1, source: {}, records: [] });
     const rich = "<p><strong>Message</strong></p>";
-
     await expect(
       writeTextToClipboard("Message", "message", {
         [COMPOSER_CONTEXT_CLIPBOARD_MIME]: fragment,
         "text/html": rich,
       }),
     ).resolves.toBe(true);
-
-    const items = write.mock.calls[0]![0] as Array<{ data: Record<string, Blob> }>;
+    const items = write.mock.calls[0]![0] as Array<{
+      data: Record<string, Blob>;
+    }>;
     const html = await items[0]!.data["text/html"]!.text();
     expect(html).toContain(rich);
     expect(html).toContain("data-t3-context-fragment=");
   });
-
   it("reports unavailable clipboard support with structural context", async () => {
     vi.stubGlobal("window", {});
     vi.stubGlobal("navigator", {});
     vi.stubGlobal("document", undefined);
-
     const error = await writeTextToClipboard("plan contents", "plan").then(
       () => undefined,
       (cause: unknown) => cause,
     );
-
     expect(error).toBeInstanceOf(ClipboardApiUnavailableError);
     expect(error).toMatchObject({
       target: "plan",
     });
     expect((error as Error).message).not.toContain("plan contents");
   });
-
   it.each(["success", "denied", "throws"] as const)(
     "cleans up the Clipboard API fallback when copying %s",
     async (result) => {
@@ -100,7 +107,6 @@ describe("writeTextToClipboard", () => {
         style: {},
         value: "",
       };
-
       vi.stubGlobal("window", {});
       vi.stubGlobal("navigator", {});
       vi.stubGlobal("document", {
@@ -109,16 +115,13 @@ describe("writeTextToClipboard", () => {
         createElement: vi.fn(() => textarea),
         execCommand,
       });
-
       const pendingCopy = writeTextToClipboard("remote command", "command");
-      // The fallback must run during the original user gesture, before any await.
       expect(execCommand).toHaveBeenCalledWith("copy");
       if (result === "success") {
         await expect(pendingCopy).resolves.toBe(true);
       } else {
         await expect(pendingCopy).rejects.toBeInstanceOf(ClipboardApiUnavailableError);
       }
-
       expect(textarea.value).toBe("remote command");
       expect(textarea.style).toMatchObject({ fontSize: "16px" });
       expect(appendChild).toHaveBeenCalledWith(textarea);
@@ -129,31 +132,25 @@ describe("writeTextToClipboard", () => {
       expect(restoreFocus).toHaveBeenCalledOnce();
     },
   );
-
   it("uses the Clipboard API without touching the fallback when it is available", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     const execCommand = vi.fn();
     vi.stubGlobal("window", {});
     vi.stubGlobal("navigator", { clipboard: { writeText } });
     vi.stubGlobal("document", { execCommand });
-
     await expect(writeTextToClipboard("remote command", "command")).resolves.toBe(true);
-
     expect(writeText).toHaveBeenCalledWith("remote command");
     expect(execCommand).not.toHaveBeenCalled();
   });
-
   it("preserves the exact clipboard failure without exposing copied contents", async () => {
     const cause = new Error("browser clipboard failure");
     const writeText = vi.fn().mockRejectedValue(cause);
     vi.stubGlobal("window", {});
     vi.stubGlobal("navigator", { clipboard: { writeText } });
-
     const error = await writeTextToClipboard("secret clipboard contents", "error-message").then(
       () => undefined,
       (failure: unknown) => failure,
     );
-
     expect(writeText).toHaveBeenCalledWith("secret clipboard contents");
     expect(error).toBeInstanceOf(ClipboardWriteError);
     expect(error).toMatchObject({
@@ -162,7 +159,6 @@ describe("writeTextToClipboard", () => {
     });
     expect((error as Error).message).not.toContain("secret clipboard contents");
   });
-
   it.each([true, false])(
     "keeps empty values as a no-op with Clipboard API support: %s",
     async (available) => {
@@ -171,7 +167,6 @@ describe("writeTextToClipboard", () => {
       const execCommand = vi.fn();
       vi.stubGlobal("navigator", available ? { clipboard: { writeText } } : {});
       vi.stubGlobal("document", { execCommand });
-
       await expect(writeTextToClipboard("", "plan")).resolves.toBe(false);
       expect(writeText).not.toHaveBeenCalled();
       expect(execCommand).not.toHaveBeenCalled();

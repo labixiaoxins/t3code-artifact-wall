@@ -1,6 +1,5 @@
 import type { TurnTokenUsage } from "@t3tools/contracts";
 import type * as EffectCodexSchema from "effect-codex-app-server/schema";
-
 type CodexCumulativeTokenUsage = {
   readonly inputTokens: number;
   readonly cachedInputTokens: number;
@@ -8,7 +7,6 @@ type CodexCumulativeTokenUsage = {
   readonly outputTokens: number;
   readonly reasoningTokens: number;
 };
-
 interface CodexTurnTokenUsageAccumulator {
   inputTokens: number;
   cachedInputTokens: number;
@@ -18,13 +16,11 @@ interface CodexTurnTokenUsageAccumulator {
   observed: boolean;
   hasSubagents: boolean;
 }
-
 export interface CodexTurnTokenUsageState {
   baseline: CodexCumulativeTokenUsage | undefined;
   activeTurnId: string | undefined;
   readonly byTurnId: Map<string, CodexTurnTokenUsageAccumulator>;
 }
-
 function codexTokenUsageBreakdown(
   usage: EffectCodexSchema.V2ThreadTokenUsageUpdatedNotification__TokenUsageBreakdown,
 ): CodexCumulativeTokenUsage {
@@ -38,7 +34,6 @@ function codexTokenUsageBreakdown(
     reasoningTokens: usage.reasoningOutputTokens,
   };
 }
-
 export function makeCodexTurnTokenUsageState(): CodexTurnTokenUsageState {
   return {
     baseline: undefined,
@@ -46,7 +41,6 @@ export function makeCodexTurnTokenUsageState(): CodexTurnTokenUsageState {
     byTurnId: new Map(),
   };
 }
-
 export function getCodexTurnAccumulator(
   state: CodexTurnTokenUsageState,
   turnId: string,
@@ -65,13 +59,9 @@ export function getCodexTurnAccumulator(
   state.byTurnId.set(turnId, created);
   return created;
 }
-
 /**
- * Usage added by one `thread/tokenUsage/updated` notification. Codex reports a
- * running `total` for the thread and `last`, the usage of the newest model
- * response. Within a turn the growth of `total` equals `last`. Without a prior
- * total (first update after resume or rollback), or when Codex reset the
- * running total, `last` is the delta.
+ * Codex reports a running `total` for the thread and `last`, the usage of the
+ * newest model response.
  */
 function codexTurnTokenUsageDelta(
   previous: CodexCumulativeTokenUsage | undefined,
@@ -99,7 +89,6 @@ function codexTurnTokenUsageDelta(
     reasoningTokens: current.reasoningTokens - previous.reasoningTokens,
   };
 }
-
 export function accumulateCodexTurnTokenUsage(
   state: CodexTurnTokenUsageState,
   turnId: string,
@@ -112,7 +101,6 @@ export function accumulateCodexTurnTokenUsage(
     state.baseline = current;
     return;
   }
-
   const accumulator = getCodexTurnAccumulator(state, turnId);
   const delta = codexTurnTokenUsageDelta(
     state.baseline,
@@ -120,7 +108,6 @@ export function accumulateCodexTurnTokenUsage(
     codexTokenUsageBreakdown(usage.last),
   );
   state.baseline = current;
-
   if (
     delta.inputTokens > 0 ||
     delta.cachedInputTokens > 0 ||
@@ -139,7 +126,6 @@ export function accumulateCodexTurnTokenUsage(
     accumulator.cacheCreationTokens += delta.cacheCreationTokens;
   }
 }
-
 export function completeCodexTurnTokenUsage(
   state: CodexTurnTokenUsageState,
   turnId: string,
@@ -148,6 +134,19 @@ export function completeCodexTurnTokenUsage(
   const usage = state.byTurnId.get(turnId);
   state.byTurnId.delete(turnId);
   if (state.activeTurnId === turnId) state.activeTurnId = undefined;
+  return codexTurnUsageSnapshot(usage, completed);
+}
+/** Read-only partial report; does not finalize the turn or reset its accumulator. */
+export function snapshotCodexTurnTokenUsage(
+  state: CodexTurnTokenUsageState,
+  turnId: string,
+): TurnTokenUsage {
+  return codexTurnUsageSnapshot(state.byTurnId.get(turnId), false);
+}
+function codexTurnUsageSnapshot(
+  usage: CodexTurnTokenUsageAccumulator | undefined,
+  completed: boolean,
+): TurnTokenUsage {
   if (!usage) {
     return {
       usageStatus: "unavailable",
@@ -155,7 +154,6 @@ export function completeCodexTurnTokenUsage(
       hasSubagents: false,
     };
   }
-
   if (!usage.observed) {
     return {
       usageStatus: "unavailable",
@@ -163,10 +161,7 @@ export function completeCodexTurnTokenUsage(
       hasSubagents: usage.hasSubagents,
     };
   }
-
-  // Codex counts cache reads and writes inside inputTokens. Clamp the
-  // subsets so the record keeps the documented relationships even if a
-  // counter drifts.
+  // Codex counts cache reads and writes inside inputTokens.
   return {
     usageStatus: completed ? "complete" : "partial",
     usageScope: "main_agent",

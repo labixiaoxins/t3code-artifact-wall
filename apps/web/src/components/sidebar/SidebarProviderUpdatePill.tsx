@@ -1,9 +1,10 @@
+import { uiText } from "~/i18n";
 import { Spinner } from "~/components/ui/spinner";
 import { useNavigate } from "@tanstack/react-router";
 import { useAtomValue } from "@effect/atom-react";
 import type { ServerProvider } from "@t3tools/contracts";
 import { CircleCheckIcon, DownloadIcon, TriangleAlertIcon, XIcon } from "lucide-react";
-import { useCallback, useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useEffectEvent, useState, type CSSProperties } from "react";
 
 import { primaryServerProvidersAtom } from "../../state/server";
 import {
@@ -56,15 +57,13 @@ export function SidebarProviderUpdatePill() {
     dismissedKeys,
   });
 
-  useEffect(() => {
-    if (visibleAfterIso === undefined && effectiveVisibleAfterIso !== undefined) {
-      setVisibleAfterIso(effectiveVisibleAfterIso);
-    }
-  }, [effectiveVisibleAfterIso, visibleAfterIso]);
+  if (visibleAfterIso === undefined && effectiveVisibleAfterIso !== undefined) {
+    setVisibleAfterIso(effectiveVisibleAfterIso);
+  }
 
-  const openProviderSettings = useCallback(() => {
+  const openProviderSettings = () => {
     void navigate({ to: "/settings/providers" });
-  }, [navigate]);
+  };
   const displayedView = renderedView ?? view;
   const dismissAfterVisibleMs = displayedView?.dismissAfterVisibleMs;
   const viewKey = displayedView?.key ?? null;
@@ -73,37 +72,32 @@ export function SidebarProviderUpdatePill() {
     displayedView?.tone !== "loading" &&
     exitingKey !== viewKey;
 
-  const startExit = useCallback(
-    (key: string, nextView: ProviderUpdateSidebarPillView | null, dismissKey?: string) => {
-      if (exitingKey === key) {
-        return;
-      }
-      setPendingView(nextView);
-      setExitingKey(key);
-      setDismissAfterExitKey(dismissKey ?? null);
-    },
-    [exitingKey],
-  );
-
-  useEffect(() => {
-    if (exitingKey !== null) {
+  const startExit = (
+    key: string,
+    nextView: ProviderUpdateSidebarPillView | null,
+    dismissKey?: string,
+  ) => {
+    if (exitingKey === key) {
       return;
     }
+    setPendingView(nextView);
+    setExitingKey(key);
+    setDismissAfterExitKey(dismissKey ?? null);
+  };
+
+  if (exitingKey === null) {
     if (!renderedView) {
       if (view) {
         setRenderedView(view);
       }
-      return;
-    }
-    if (!view) {
+    } else if (!view) {
       startExit(renderedView.key, null);
-      return;
-    }
-    if (view.key !== renderedView.key) {
+    } else if (view.key !== renderedView.key) {
       startExit(renderedView.key, view);
-      return;
     }
-  }, [exitingKey, renderedView, startExit, view]);
+  }
+
+  const exitAfterVisible = useEffectEvent((key: string) => startExit(key, null, key));
 
   useEffect(() => {
     if (!dismissAfterVisibleMs || !viewKey) {
@@ -113,11 +107,11 @@ export function SidebarProviderUpdatePill() {
       return;
     }
     const timeoutId = window.setTimeout(() => {
-      startExit(viewKey, null, viewKey);
+      exitAfterVisible(viewKey);
     }, dismissAfterVisibleMs);
 
     return () => window.clearTimeout(timeoutId);
-  }, [dismissAfterVisibleMs, exitingKey, startExit, viewKey]);
+  }, [dismissAfterVisibleMs, exitingKey, viewKey]);
 
   if (!displayedView) {
     return null;
@@ -194,15 +188,15 @@ export function SidebarProviderUpdatePill() {
             render={
               <button
                 type="button"
-                aria-label="Dismiss provider update notice"
-                className="relative z-[1] mr-1 flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-md opacity-70 outline-none hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={uiText("Dismiss provider update notice")}
+                className="relative z-[1] mr-1 flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-md opacity-70 outline-none hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                 onClick={() => startExit(displayedView.key, null, displayedView.key)}
               >
                 <XIcon className="size-3.5 shrink-0" />
               </button>
             }
           />
-          <TooltipPopup side="top">Dismiss until provider status changes</TooltipPopup>
+          <TooltipPopup side="top">{uiText("Dismiss until provider status changes")}</TooltipPopup>
         </Tooltip>
       )}
     </div>

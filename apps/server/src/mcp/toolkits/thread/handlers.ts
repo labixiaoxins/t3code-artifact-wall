@@ -70,7 +70,6 @@ const readQuestion = Effect.fn("mcp.readQuestion")(function* (input: {
     });
   return { ...context, request, item };
 });
-/** A tool that changes `threadId`, or the caller's own thread when it is omitted. */
 const writesThread = <P extends { readonly threadId?: ThreadId | undefined }, A, E, R>(
   handle: (params: P) => Effect.Effect<A, E, R>,
 ) => McpToolAccess.writesThreads((params: P) => [params.threadId], handle);
@@ -85,12 +84,12 @@ export const layer = McpToolAccess.toLayer(ThreadToolkit, {
           code: "invalid_request",
           message: "The scheduled task was not found.",
         });
-      const { task } = yield* scheduler
+      const { task, threadId } = yield* scheduler
         .runNow({ id: input.taskId })
         .pipe(Effect.mapError(unavailable));
       return {
         taskId: task.id,
-        threadId: task.threadId,
+        threadId,
         lastRunStatus: task.lastRunStatus,
         runCount: task.runCount,
         nextRunAt: task.nextRunAt,
@@ -101,8 +100,6 @@ export const layer = McpToolAccess.toLayer(ThreadToolkit, {
     Effect.gen(function* () {
       const { caller } = yield* readCaller();
       const { projectId: requested, ...query } = input;
-      // Like the other project tools, an omitted project means the caller's own; a client
-      // outside a thread searches every project.
       const projectId = requested ?? caller?.projectId;
       const threadSearch = yield* ThreadSearch.ThreadSearch;
       const result = yield* threadSearch.search(query).pipe(Effect.mapError(unavailable));
@@ -292,8 +289,13 @@ export const layer = McpToolAccess.toLayer(ThreadToolkit, {
   ),
   t3_thread_organize: writesThread((input) =>
     Effect.gen(function* () {
-      const { threads, projection } = yield* readThread(input.threadId);
+      const { threads, projection, caller } = yield* readThread(input.threadId);
       const common = { commandId: yield* newCommandId(), threadId: projection.thread.id };
+      if (input.action === "settle") {
+        return yield* threads
+          .settleThread({ ...common, byOwnAgent: caller?.id === projection.thread.id })
+          .pipe(Effect.mapError(dispatchFailure));
+      }
       let command: OrchestrationV2Command;
       switch (input.action) {
         case "snooze":

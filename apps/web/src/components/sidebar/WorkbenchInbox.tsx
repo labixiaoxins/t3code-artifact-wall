@@ -8,7 +8,7 @@ import { isModelPickerOpen } from "../../modelPickerVisibility";
 import { sidebarProviderLabel } from "../../sidebarProviderGrouping";
 import { InboxStatusMark } from "./InboxStatusMark";
 import { useEffect, useId, useMemo, useState } from "react";
-import { BookmarkIcon, InboxIcon, HistoryIcon, XIcon } from "lucide-react";
+import { BookmarkIcon, InboxIcon, XIcon } from "lucide-react";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { ScopedThreadRef } from "@t3tools/contracts";
 import type { SidebarThreadSummary } from "../../types";
@@ -26,11 +26,13 @@ import {
   sortedAttentionThreads,
   sidebarRelativeTime,
 } from "../../sidebarInboxPresentation";
+import { ActiveWorkOverview } from "./ActiveWorkOverview";
+import { onOpenRecentWork } from "../../workbenchNavigation";
 import { threadEnvironment } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { isAtomCommandInterrupted } from "@t3tools/client-runtime/state/runtime";
 import { Button } from "../ui/button";
-import { Popover, PopoverTrigger, PopoverPopup, PopoverTitle, PopoverClose } from "../ui/popover";
+import { Dialog, DialogPopup, DialogTitle, DialogClose } from "../ui/dialog";
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "../ui/sidebar";
 
 export function WorkbenchInbox({
@@ -48,6 +50,7 @@ export function WorkbenchInbox({
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
   const nextShortcut = shortcutLabelForCommand(keybindings, "inbox.next");
   const [view, setView] = useState<"resume" | null>(null);
+  useEffect(() => onOpenRecentWork(() => setView("resume")), []);
   const [expanded, setExpanded] = useState(() => {
     try {
       return localStorage.getItem("t3code:inbox-expanded") !== "false";
@@ -203,20 +206,14 @@ export function WorkbenchInbox({
     </section>
   );
   const panel = (
-    <PopoverPopup
-      side="right"
-      align="start"
-      sideOffset={12}
-      width="lg"
-      padding="compact"
-      collisionPadding={{ top: 56, right: 12, bottom: 12, left: 12 }}
-    >
+    <DialogPopup showCloseButton={false}>
+    <div className="p-4">
       <div className="mb-3 border-b px-1 pb-3 pt-1">
         <div className="flex items-center justify-between gap-2">
-          <PopoverTitle>继续上次</PopoverTitle>
-          <PopoverClose render={<Button variant="ghost" size="icon" aria-label="关闭面板" />}>
+          <DialogTitle>最近访问与留待继续</DialogTitle>
+          <DialogClose render={<Button variant="ghost" size="icon" aria-label="关闭面板" />}>
             <XIcon />
-          </PopoverClose>
+          </DialogClose>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">找回最近访问或留待继续的会话。</p>
       </div>
@@ -263,169 +260,169 @@ export function WorkbenchInbox({
           </p>
         </>
       </div>
-    </PopoverPopup>
+    </div>
+    </DialogPopup>
   );
   return (
-    <SidebarMenu>
-      <SidebarMenuItem>
-        <SidebarMenuButton
-          aria-expanded={expanded}
-          aria-controls={`${inboxId}-attention`}
-          title={nextShortcut ? `下一条待我处理 (${nextShortcut})` : "待我处理"}
-          onClick={() => {
-            const next = !expanded;
-            try {
-              localStorage.setItem("t3code:inbox-expanded", String(next));
-              setExpanded(next);
-            } catch {
-              setStorageError(true);
-            }
-          }}
-        >
-          <InboxIcon />
-          <span className="flex-1">待我处理</span>
-          <span
-            className={`text-xs tabular-nums ${actionable.length + errors.length ? "text-primary" : "text-muted-foreground"}`}
+    <>
+      <ActiveWorkOverview
+        threads={threads}
+        projects={projects}
+        activeKey={activeKey}
+        navigate={navigate}
+        incomplete={incomplete}
+      />
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            aria-expanded={expanded}
+            aria-controls={`${inboxId}-attention`}
+            title={nextShortcut ? `下一条待我处理 (${nextShortcut})` : "待我处理"}
+            onClick={() => {
+              const next = !expanded;
+              try {
+                localStorage.setItem("t3code:inbox-expanded", String(next));
+                setExpanded(next);
+              } catch {
+                setStorageError(true);
+              }
+            }}
           >
-            {actionable.length + errors.length}
-          </span>
-        </SidebarMenuButton>
-        {(expanded && attention.length > 0) || incomplete || storageError ? (
-          <div id={`${inboxId}-attention`} className="ml-4 border-l border-sidebar-border pl-2">
-            {incomplete ? (
-              <p role="status" className="py-1 text-xs text-muted-foreground">
-                部分连接尚未就绪，以下可能是上次同步的记录；数量不代表全部。
-              </p>
-            ) : null}
-            {storageError ? (
-              <p role="alert" className="py-1 text-xs text-destructive">
-                本机记录保存失败，请检查浏览器存储空间后重试。
-              </p>
-            ) : null}
-            {expanded && attention.length ? (
-              <>
-                <ul className="max-h-64 overflow-y-auto" aria-label="待我处理会话">
-                  {page.rows.map((thread) => {
-                    const key = inboxThreadKey(thread),
-                      reason = reasons.get(key);
-                    const label = attentionThreadLabel(thread, threads, reason ?? null);
-                    const project = projectByThread.get(key);
-                    const provider =
-                      project?.providerLabel ??
-                      sidebarProviderLabel(thread.modelSelection.instanceId);
-                    return (
-                      <li
-                        key={key}
-                        data-inbox-thread={thread.id}
-                        className="group/inbox flex min-w-0 items-center gap-1 rounded-md p-1 hover:bg-accent/50 focus-within:bg-accent/50"
-                      >
-                        {reason ? <InboxStatusMark reason={reason} /> : null}
-                        <button
-                          type="button"
-                          className="min-w-0 flex-1 text-left outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
-                          onClick={() => navigate(scopeThreadRef(thread.environmentId, thread.id))}
+            <InboxIcon />
+            <span className="flex-1">待我处理</span>
+            <span
+              className={`text-xs tabular-nums ${actionable.length + errors.length ? "text-primary" : "text-muted-foreground"}`}
+            >
+              {actionable.length + errors.length}
+            </span>
+          </SidebarMenuButton>
+          {(expanded && attention.length > 0) || incomplete || storageError ? (
+            <div id={`${inboxId}-attention`} className="ml-4 border-l border-sidebar-border pl-2">
+              {incomplete ? (
+                <p role="status" className="py-1 text-xs text-muted-foreground">
+                  部分连接尚未就绪，以下可能是上次同步的记录；数量不代表全部。
+                </p>
+              ) : null}
+              {storageError ? (
+                <p role="alert" className="py-1 text-xs text-destructive">
+                  本机记录保存失败，请检查浏览器存储空间后重试。
+                </p>
+              ) : null}
+              {expanded && attention.length ? (
+                <>
+                  <ul className="max-h-64 overflow-y-auto" aria-label="待我处理会话">
+                    {page.rows.map((thread) => {
+                      const key = inboxThreadKey(thread),
+                        reason = reasons.get(key);
+                      const label = attentionThreadLabel(thread, threads, reason ?? null);
+                      const project = projectByThread.get(key);
+                      const provider =
+                        project?.providerLabel ??
+                        sidebarProviderLabel(thread.modelSelection.instanceId);
+                      return (
+                        <li
+                          key={key}
+                          data-inbox-thread={thread.id}
+                          className="group/inbox flex min-w-0 items-center gap-1 rounded-md p-1 hover:bg-accent/50 focus-within:bg-accent/50"
                         >
-                          <span className="block truncate text-sm" title={label.title}>
-                            {label.title}
-                          </span>
-                          <span
-                            className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground"
-                            title={
-                              label.detail ??
-                              `${project?.displayName ?? "项目"} · ${provider} · ${reason}`
+                          {reason ? <InboxStatusMark reason={reason} /> : null}
+                          <button
+                            type="button"
+                            className="min-w-0 flex-1 text-left outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+                            onClick={() =>
+                              navigate(scopeThreadRef(thread.environmentId, thread.id))
                             }
                           >
-                            {label.detail ? (
-                              <span className="min-w-0 truncate">{label.detail}</span>
-                            ) : (
-                              <>
-                                <span className="min-w-0 shrink truncate">
-                                  {project?.displayName ?? "项目"}
-                                </span>
-                                <span className="shrink-0">·</span>
-                                <span className="shrink-0">{provider}</span>
-                                <span className="shrink-0">·</span>
-                                <span className="shrink-0">{reason}</span>
-                              </>
-                            )}
-                          </span>
-                        </button>
-                        <div className="shrink-0 text-xs">
-                          <span className="text-muted-foreground group-hover/inbox:hidden group-focus-within/inbox:hidden">
-                            {sidebarRelativeTime(attentionTimestamp(thread))}
-                          </span>
-                          <div className="hidden items-center group-hover/inbox:flex group-focus-within/inbox:flex">
-                            {reason === "运行失败" ? (
+                            <span className="block truncate text-sm" title={label.title}>
+                              {label.title}
+                            </span>
+                            <span
+                              className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground"
+                              title={
+                                label.detail ??
+                                `${project?.displayName ?? "项目"} · ${provider} · ${reason}`
+                              }
+                            >
+                              {label.detail ? (
+                                <span className="min-w-0 truncate">{label.detail}</span>
+                              ) : (
+                                <>
+                                  <span className="min-w-0 shrink truncate">
+                                    {project?.displayName ?? "项目"}
+                                  </span>
+                                  <span className="shrink-0">·</span>
+                                  <span className="shrink-0">{provider}</span>
+                                  <span className="shrink-0">·</span>
+                                  <span className="shrink-0">{reason}</span>
+                                </>
+                              )}
+                            </span>
+                          </button>
+                          <div className="shrink-0 text-xs">
+                            <span className="text-muted-foreground group-hover/inbox:hidden group-focus-within/inbox:hidden">
+                              {sidebarRelativeTime(attentionTimestamp(thread))}
+                            </span>
+                            <div className="hidden items-center group-hover/inbox:flex group-focus-within/inbox:flex">
+                              {reason === "运行失败" ? (
+                                <Button
+                                  size="xs"
+                                  variant="ghost"
+                                  onClick={() =>
+                                    change(
+                                      "acknowledgedErrors",
+                                      thread,
+                                      thread.latestRun?.runId ?? null,
+                                    )
+                                  }
+                                >
+                                  已知悉
+                                </Button>
+                              ) : null}
+                              {reason === "有新结果" ? (
+                                <Button
+                                  size="xs"
+                                  variant="ghost"
+                                  onClick={() => void markSeen(thread)}
+                                >
+                                  已看
+                                </Button>
+                              ) : null}
                               <Button
                                 size="xs"
                                 variant="ghost"
+                                aria-pressed={Boolean(saved[key])}
                                 onClick={() =>
                                   change(
-                                    "acknowledgedErrors",
+                                    "saved",
                                     thread,
-                                    thread.latestRun?.runId ?? null,
+                                    saved[key] ? null : new Date().toISOString(),
                                   )
                                 }
                               >
-                                已知悉
+                                {saved[key] ? "取消稍后" : "稍后"}
                               </Button>
-                            ) : null}
-                            {reason === "有新结果" ? (
-                              <Button
-                                size="xs"
-                                variant="ghost"
-                                onClick={() => void markSeen(thread)}
-                              >
-                                已看
-                              </Button>
-                            ) : null}
-                            <Button
-                              size="xs"
-                              variant="ghost"
-                              aria-pressed={Boolean(saved[key])}
-                              onClick={() =>
-                                change(
-                                  "saved",
-                                  thread,
-                                  saved[key] ? null : new Date().toISOString(),
-                                )
-                              }
-                            >
-                              {saved[key] ? "取消稍后" : "稍后"}
-                            </Button>
+                            </div>
                           </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-                {attention.length > 5 ? (
-                  <Button size="xs" variant="ghost" onClick={() => setShowAll(!showAll)}>
-                    {showAll ? "收起" : `更多 ${page.hidden}`}
-                  </Button>
-                ) : null}
-              </>
-            ) : null}
-          </div>
-        ) : null}
-      </SidebarMenuItem>
-      <SidebarMenuItem>
-        <Popover open={view === "resume"} onOpenChange={(open) => setView(open ? "resume" : null)}>
-          <PopoverTrigger
-            id={`${inboxId}-resume`}
-            render={<SidebarMenuButton isActive={view === "resume"} />}
-          >
-            <HistoryIcon />
-            <span className="flex-1">继续上次</span>
-            {recent.some((thread) => saved[inboxThreadKey(thread)]) ? (
-              <span className="text-xs text-muted-foreground">
-                已留存 {recent.filter((thread) => saved[inboxThreadKey(thread)]).length}
-              </span>
-            ) : null}
-          </PopoverTrigger>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {attention.length > 5 ? (
+                    <Button size="xs" variant="ghost" onClick={() => setShowAll(!showAll)}>
+                      {showAll ? "收起" : `更多 ${page.hidden}`}
+                    </Button>
+                  ) : null}
+                </>
+              ) : null}
+            </div>
+          ) : null}
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <Dialog open={view === "resume"} onOpenChange={(open) => setView(open ? "resume" : null)}>
           {panel}
-        </Popover>
-      </SidebarMenuItem>
-    </SidebarMenu>
+          </Dialog>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    </>
   );
 }

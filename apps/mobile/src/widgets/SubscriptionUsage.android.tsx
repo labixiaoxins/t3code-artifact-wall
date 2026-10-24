@@ -19,14 +19,26 @@ import type { SubscriptionUsageSnapshot as SubscriptionUsageProps } from "./subs
 export function SubscriptionUsage(props: SubscriptionUsageProps, environment: WidgetEnvironment) {
   "widget";
   // The widget runtime evaluates this function without the app's module scope.
-  // Android has no timeline, so freshness is decided on every render; the
-  // expiry alarm and each tap trigger one while the app is closed.
   const now = Date.now();
-  // The 4x3 default cell fits two quotas per provider with their reset text.
   const limit = 2;
-  const colors = getMaterialColors({
-    scheme: environment.colorScheme === "dark" ? "dark" : "light",
-  });
+  const mode = props.theme?.mode;
+  const appearance =
+    mode === "light" || mode === "dark"
+      ? mode
+      : environment.colorScheme === "dark"
+        ? "dark"
+        : "light";
+  const palette = props.theme?.[appearance];
+  const colors = palette
+    ? {
+        surface: palette.background,
+        onSurface: palette.foreground,
+        onSurfaceVariant: palette.secondary,
+        surfaceVariant: palette.track,
+        primary: palette.accent,
+        error: palette.danger,
+      }
+    : getMaterialColors({ scheme: appearance });
   const muted = colors.onSurfaceVariant;
   const providers = props.providers ?? [
     { name: "Codex", detail: "Open T3 to connect", windows: [], expiresAt: 0, totalWindows: 0 },

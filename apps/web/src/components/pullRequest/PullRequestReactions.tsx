@@ -1,3 +1,5 @@
+import { uiText } from "~/i18n";
+import { useAtomCommand } from "~/state/use-atom-command";
 import type {
   EnvironmentId,
   PullRequestReaction,
@@ -9,7 +11,6 @@ import { useState } from "react";
 
 import { cn } from "~/lib/utils";
 import { pullRequestEnvironment } from "~/state/pullRequests";
-import { useAtomCommand } from "~/state/use-atom-command";
 
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import { toastManager } from "../ui/toast";
@@ -23,18 +24,16 @@ import {
 } from "./pullRequestReactions.logic";
 
 const PILL_CLASS =
-  "inline-flex h-6 shrink-0 items-center gap-1 rounded-full border px-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring";
+  "inline-flex h-6 shrink-0 items-center gap-1 rounded-full border px-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring";
 
 const EMPTY_PENDING: ReadonlyMap<PullRequestReactionContent, boolean> = new Map();
 
-/** What the host last said, so a press in flight is forgotten the moment the real counts land. */
 function reactionsSignature(reactions: ReadonlyArray<PullRequestReaction>): string {
   return reactions
     .map((reaction) => `${reaction.content}:${reaction.count}:${reaction.viewerHasReacted ? 1 : 0}`)
     .join(" ");
 }
 
-/** Reaction counts and an always-visible picker, routed to the supplied host subject. */
 export function PullRequestReactionBar({
   reactions,
   canReact,
@@ -58,7 +57,9 @@ export function PullRequestReactionBar({
     readonly signature: string;
     readonly values: ReadonlyMap<PullRequestReactionContent, boolean>;
   }>({ signature: "", values: EMPTY_PENDING });
-  const setReaction = useAtomCommand(pullRequestEnvironment.setReaction, { reportFailure: false });
+  const setReaction = useAtomCommand(pullRequestEnvironment.setReaction, {
+    reportFailure: false,
+  });
 
   const signature = reactionsSignature(reactions);
   const values = pending.signature === signature ? pending.values : EMPTY_PENDING;
@@ -81,7 +82,7 @@ export function PullRequestReactionBar({
         next.delete(content);
         return { signature: current.signature, values: next };
       });
-      toastManager.add({ type: "error", title: "The reaction could not be saved" });
+      toastManager.add({ type: "error", title: uiText("The reaction could not be saved") });
       return;
     }
     onRefresh();
@@ -124,7 +125,7 @@ export function PullRequestReactionBar({
             render={
               <button
                 type="button"
-                aria-label="Add a reaction"
+                aria-label={uiText("Add a reaction")}
                 className={cn(
                   PILL_CLASS,
                   "border-border/70 px-1.5 text-muted-foreground hover:border-primary/60 hover:text-foreground",
@@ -146,7 +147,7 @@ export function PullRequestReactionBar({
                     aria-pressed={reacted}
                     aria-label={pullRequestReactionName(content)}
                     className={cn(
-                      "flex size-7 items-center justify-center rounded-md text-base outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring",
+                      "flex size-7 items-center justify-center rounded-md text-base outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                       reacted && "bg-primary/10",
                     )}
                     onClick={() => {

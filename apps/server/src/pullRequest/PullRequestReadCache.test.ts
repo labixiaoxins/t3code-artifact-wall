@@ -13,12 +13,12 @@ import * as Queue from "effect/Queue";
 import * as TestClock from "effect/testing/TestClock";
 import * as KeyValueStore from "effect/persistence/KeyValueStore";
 import * as ServerConfig from "../config.ts";
+import { ServerActivation } from "../serverActivation.ts";
 import * as PullRequestReadCache from "./PullRequestReadCache.ts";
 
 const cacheLayer = (directory: string) =>
   PullRequestReadCache.make.pipe(Effect.provide(KeyValueStore.layerFileSystem(directory)));
 
-/** Sets every file's mtime to `age` before the current test clock time. */
 const ageFiles = (directory: string, names: ReadonlyArray<string>, age: Duration.Duration) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
@@ -44,7 +44,6 @@ it.layer(NodeServices.layer)("PR filesystem cache", (it) => {
       );
       const unrelated = "unrelated.json";
       yield* fs.writeFileString(`${directory}/${unrelated}`, "{}");
-      // Starts with the store id but is not an entry file.
       const prefixed = "pr-v2-backup.json";
       yield* fs.writeFileString(`${directory}/${prefixed}`, "{}");
       const justExpired = Duration.sum(
@@ -63,6 +62,96 @@ it.layer(NodeServices.layer)("PR filesystem cache", (it) => {
     }),
   );
 
+  it.effect("shares one scoped prune loop across cache layer consumers", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const activation = yield* Deferred.make<void>();
+      let scans = 0;
+      const observedFs = FileSystem.FileSystem.of({
+        ...fs,
+        // An empty directory keeps every sweep synchronous under the test clock.
+        readDirectory: () =>
+          Effect.sync(() => {
+            scans++;
+            return [];
+          }),
+      });
+      const caches: Array<PullRequestReadCache.PullRequestReadCache["Service"]> = [];
+      const sharedLayer = PullRequestReadCache.layer.pipe(
+        Layer.provide(Layer.succeed(FileSystem.FileSystem, observedFs)),
+      );
+      const consumers = Array.from({ length: 6 }, () =>
+        Layer.effectDiscard(
+          Effect.gen(function* () {
+            caches.push(yield* PullRequestReadCache.PullRequestReadCache);
+          }),
+        ).pipe(Layer.provide(sharedLayer)),
+      );
+      const scanCounts: Array<number> = [];
+
+      yield* Effect.scoped(
+        Effect.gen(function* () {
+          yield* Layer.build(Layer.mergeAll(consumers[0]!, ...consumers.slice(1)));
+          assert.strictEqual(caches.length, 6);
+          assert.strictEqual(new Set(caches).size, 1);
+          scanCounts.push(scans);
+          yield* Deferred.succeed(activation, undefined);
+          yield* TestClock.adjust(Duration.zero);
+          scanCounts.push(scans);
+          yield* TestClock.adjust("59 minutes");
+          scanCounts.push(scans);
+          yield* TestClock.adjust("1 minute");
+          scanCounts.push(scans);
+          yield* TestClock.adjust("1 hour");
+          scanCounts.push(scans);
+        }).pipe(Effect.provideService(ServerActivation, Deferred.await(activation))),
+      );
+      yield* TestClock.adjust("2 hours");
+      assert.deepStrictEqual([...scanCounts, scans], [0, 1, 1, 2, 3, 3]);
+    }).pipe(
+      Effect.scoped,
+      Effect.provide(ServerConfig.layerTest(process.cwd(), { prefix: "t3-pr-cache-shared-" })),
+    ),
+  );
+
+  it.effect("uses memory without starting cleanup when the cache directory is unavailable", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const { providerStatusCacheDir } = yield* ServerConfig.ServerConfig;
+      yield* fs.remove(providerStatusCacheDir, { recursive: true });
+      yield* fs.writeFileString(providerStatusCacheDir, "blocks the cache directory");
+      let scans = 0;
+      const observedFs = FileSystem.FileSystem.of({
+        ...fs,
+        readDirectory: () =>
+          Effect.sync(() => {
+            scans++;
+            return [];
+          }),
+      });
+      yield* Effect.gen(function* () {
+        const cache = yield* PullRequestReadCache.PullRequestReadCache;
+        let reads = 0;
+        const lookup = Effect.sync(() => String(++reads));
+        assert.strictEqual(yield* cache.get("summary", lookup, ["pr"]), "1");
+        assert.strictEqual(yield* cache.get("summary", lookup, ["pr"]), "1");
+        yield* cache.invalidate("pr");
+        assert.strictEqual(yield* cache.get("summary", lookup, ["pr"]), "2");
+        yield* TestClock.adjust("1 hour");
+        assert.strictEqual(scans, 0);
+      }).pipe(
+        Effect.provide(
+          PullRequestReadCache.layer.pipe(
+            Layer.provide(Layer.succeed(FileSystem.FileSystem, observedFs)),
+          ),
+        ),
+      );
+    }).pipe(
+      Effect.scoped,
+      Effect.provide(ServerConfig.layerTest(process.cwd(), { prefix: "t3-pr-cache-fallback-" })),
+    ),
+  );
+
   it.effect("sweeps the cache directory every hour once the layer is built", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
@@ -71,15 +160,11 @@ it.layer(NodeServices.layer)("PR filesystem cache", (it) => {
       yield* TestClock.setTime(DateTime.toEpochMillis(DateTime.makeUnsafe("2026-10-01T00:00:00Z")));
       yield* (yield* cacheLayer(directory)).get("summary", Effect.succeed("cached"));
       const [entry] = yield* fs.readDirectory(directory);
-      // Within the max age at the first two sweeps, past it at the third.
       yield* ageFiles(
         directory,
         [entry!],
         Duration.subtract(PullRequestReadCache.ENTRY_FILE_MAX_AGE, Duration.minutes(90)),
       );
-      // A sweep's last file operation is the entry's stat when it keeps the
-      // entry, and its removal otherwise. Waiting for it means the sweep has
-      // finished before the clock moves.
       const operations = yield* Queue.unbounded<string>();
       const observedFs = FileSystem.FileSystem.of({
         ...fs,

@@ -17,15 +17,16 @@ describe("compileClaudeModelSelection", () => {
   it("compiles context, effort, and settings together", () => {
     expect(
       compileClaudeModelSelection(
-        selection("claude-fable-5", [
+        selection("claude-opus-4-6", [
           { id: "contextWindow", value: "1m" },
-          { id: "effort", value: "ultracode" },
+          { id: "effort", value: "max" },
+          { id: "fastMode", value: true },
         ]),
       ),
     ).toMatchObject({
-      apiModelId: "claude-fable-5[1m]",
-      effort: "xhigh",
-      settings: { ultracode: true },
+      apiModelId: "claude-opus-4-6[1m]",
+      effort: "max",
+      settings: { fastMode: true },
     });
   });
 
@@ -46,6 +47,25 @@ describe("compileClaudeModelSelection", () => {
         selection("claude-sonnet-4-6", [{ id: "effort", value: "ultrathink" }]),
       ),
     ).toMatchObject({ effort: "high", promptEffort: "ultrathink" });
+  });
+
+  it("keeps explicit effort for models missing from the local catalog", () => {
+    expect(
+      compileClaudeModelSelection(
+        selection("claude-pool-model-not-in-catalog", [{ id: "effort", value: "max" }]),
+      ).effort,
+    ).toBe("max");
+    expect(
+      compileClaudeModelSelection(selection("claude-pool-model-not-in-catalog", [])).effort,
+    ).toBeUndefined();
+  });
+
+  it("omits unsupported effort for models missing from the local catalog", () => {
+    expect(
+      compileClaudeModelSelection(
+        selection("claude-pool-model-not-in-catalog", [{ id: "effort", value: "brutal" }]),
+      ).effort,
+    ).toBeUndefined();
   });
 
   it("compiles the thinking toggle for models that expose it", () => {

@@ -6,11 +6,9 @@ import {
   markdownImageSourceFragment,
   type MarkdownImageSource,
 } from "./markdownImages.ts";
-import {
-  fileBasename,
-  splitFilePathPosition,
-  splitMarkdownLinkSearchAndHash,
-} from "./markdownLinks.ts";
+import { fileBasename } from "@t3tools/shared/path";
+import { splitFilePathPosition } from "@t3tools/shared/fileLinks";
+import { splitMarkdownLinkSearchAndHash } from "@t3tools/shared/markdownLinks";
 import {
   mediaFileReference,
   mediaReferenceFileName,
@@ -20,7 +18,6 @@ import {
 
 export type MediaSourceResource = Extract<AssetResource, { readonly _tag: "media-file" }>;
 
-/** What a piece of authored media is and how its bytes can be reached. */
 export type ResolvedMediaSource = {
   readonly kind: "image" | "video";
   readonly mimeType: string;

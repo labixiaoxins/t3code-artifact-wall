@@ -21,7 +21,22 @@ export interface ArtifactCandidate {
   source: WallArtifact["source"];
   createdAt: string;
 }
-const EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp", "gif", "html", "pdf", "pptx", "mp4"]);
+const EXTENSIONS = new Set([
+  "png",
+  "jpg",
+  "jpeg",
+  "webp",
+  "gif",
+  "html",
+  "pdf",
+  "pptx",
+  "mp4",
+  "md",
+  "docx",
+  "xlsx",
+  "csv",
+  "txt",
+]);
 export function artifactKind(extension: string): WallArtifact["kind"] {
   return ["png", "jpg", "jpeg", "webp", "gif"].includes(extension)
     ? "image"
@@ -69,7 +84,7 @@ export function referencedPaths(value: unknown): string[] {
         }
       }
       const pattern =
-        /\]\(<?([^\n]*?\.(?:png|jpe?g|webp|gif|html|pdf|pptx|mp4))(?:\:\d+)?>?\)|[`"']([^\n`"']*?\.(?:png|jpe?g|webp|gif|html|pdf|pptx|mp4))[`"']|(?:^|[\s=(])((?:\/|\.\.?\/)?[^\s<>`"'()[\]{}:,;]+\.(?:png|jpe?g|webp|gif|html|pdf|pptx|mp4))(?=$|[\s)\],;:.])/gim;
+        /\]\(<?([^\n]*?\.(?:png|jpe?g|webp|gif|html|pdf|pptx|mp4|md|docx|xlsx|csv|txt))(?:\:\d+)?>?\)|[`"']([^\n`"']*?\.(?:png|jpe?g|webp|gif|html|pdf|pptx|mp4|md|docx|xlsx|csv|txt))[`"']|(?:^|[\s=(])((?:\/|\.\.?\/)?[^\s<>`"'()[\]{}:,;]+\.(?:png|jpe?g|webp|gif|html|pdf|pptx|mp4|md|docx|xlsx|csv|txt))(?=$|[\s)\],;:.])/gim;
       for (const match of item.matchAll(pattern)) {
         const path = (match[1] ?? match[2] ?? match[3])?.replace(/^<|>$/g, "");
         if (path) paths.push(path);
@@ -279,6 +294,7 @@ export async function resolveArtifactCandidates(
     const bases = NodePath.isAbsolute(reference)
       ? [cwd]
       : [...rootsFor(candidate.threadId)].slice(0, 50);
+    const matches = new Set<string>();
     for (const base of bases) {
       // Structured attachments retain their existing extension policy.
       const path =
@@ -286,10 +302,13 @@ export async function resolveArtifactCandidates(
           ? candidate.path
           : resolveArtifactReference(reference, base);
       if (path && (await exists(path))) {
-        resolved.push({ ...candidate, path });
-        break;
+        matches.add(path);
+        // An explicit absolute path or a path relative to the actual workspace
+        // is authoritative. Inferred roots must not pick between namesakes.
+        if (NodePath.isAbsolute(reference) || base === cwd) break;
       }
     }
+    if (matches.size === 1) resolved.push({ ...candidate, path: [...matches][0]! });
   }
   return resolved;
 }

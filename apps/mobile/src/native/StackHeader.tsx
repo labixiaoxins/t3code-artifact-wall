@@ -1,12 +1,12 @@
 import { useNavigation, type ParamListBase } from "@react-navigation/native";
 import type {
+  NativeStackHeaderItemMenu,
   NativeStackNavigationOptions,
   NativeStackNavigationProp,
 } from "@react-navigation/native-stack";
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { isValidElement, use, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { NativeWorkspaceTabActivityContext } from "./v5-workspace-context";
 import type { ColorValue } from "react-native";
-
-export { NativeHeaderToolbar } from "./NativeHeaderToolbar";
 
 export {
   nativeHeaderScrollEdgeEffects,
@@ -19,6 +19,8 @@ export type AppNativeStackNavigationOptions = Omit<
   NativeStackNavigationOptions,
   "headerTintColor" | "unstable_headerLeftItems" | "unstable_headerRightItems"
 > & {
+  readonly nativeContentInsetHorizontally?: boolean;
+  readonly nativeSidebarFilter?: NativeStackHeaderItemMenu;
   readonly headerTintColor?: string | ColorValue;
   readonly unstable_headerCenterItems?: unknown;
   readonly unstable_headerLeftItems?: unknown;
@@ -53,6 +55,29 @@ function normalizeScreenOptions(
   return normalized as NativeStackNavigationOptions;
 }
 
+// React tags elements, component types and contexts with `$$typeof`; their other
+// fields are React internals. In development an element's `_owner` is a fiber that
+// reaches the whole tree, including contexts that hold their default value outside
+// render, and React Navigation's NavigationStateContext default throws when read.
+function isReactObject(value: object): boolean {
+  return "$$typeof" in value;
+}
+
+const identityIds = new WeakMap<object, number>();
+let nextIdentityId = 0;
+
+function identitySignature(value: unknown): string {
+  if (value === null || (typeof value !== "object" && typeof value !== "function")) {
+    return String(value);
+  }
+  let id = identityIds.get(value);
+  if (id === undefined) {
+    id = nextIdentityId++;
+    identityIds.set(value, id);
+  }
+  return `identity:${id}`;
+}
+
 function optionsSignature(value: unknown, seen = new WeakSet<object>()): string {
   if (value === null) return "null";
   switch (typeof value) {
@@ -73,6 +98,11 @@ function optionsSignature(value: unknown, seen = new WeakSet<object>()): string 
       return `bigint:${String(value)}`;
     case "object": {
       const object = value as object;
+      if (isValidElement(object)) {
+        // Elements are recreated on every render, so compare what they render.
+        return `element:${identitySignature(object.type)}:${String(object.key)}:${optionsSignature(object.props, seen)}`;
+      }
+      if (isReactObject(object)) return identitySignature(object);
       if (seen.has(object)) return "[circular]";
       seen.add(object);
       if (Array.isArray(value)) {
@@ -119,7 +149,7 @@ function stabilizeOptionFunctions(
     );
   }
   if (value !== null && typeof value === "object") {
-    if (seen.has(value) || "current" in value) return value;
+    if (seen.has(value) || "current" in value || isReactObject(value)) return value;
     seen.add(value);
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
@@ -144,6 +174,7 @@ export function NativeStackScreenOptions(props: {
   readonly name?: string;
 }) {
   const navigation = useNativeStackNavigation();
+  const tabActive = use(NativeWorkspaceTabActivityContext)?.active ?? true;
   const lastAppliedOptionsSignatureRef = useRef<string | undefined>(undefined);
   const latestOptionFunctionsRef = useRef(new Map<string, (...args: unknown[]) => unknown>());
   const optionFunctionWrappersRef = useRef(new Map<string, (...args: unknown[]) => unknown>());
@@ -158,18 +189,20 @@ export function NativeStackScreenOptions(props: {
     : undefined;
 
   useLayoutEffect(() => {
+    if (!tabActive) {
+      lastAppliedOptionsSignatureRef.current = undefined;
+      return;
+    }
     if (!navigation || !stableOptions) {
       return;
     }
     const signature = optionsSignature([stableOptions, props.optionsVersion]);
-    // Avoid re-entering navigation state when semantically equal options are
-    // reapplied every layout (common when callers pass unstable object literals).
     if (lastAppliedOptionsSignatureRef.current === signature) {
       return;
     }
     lastAppliedOptionsSignatureRef.current = signature;
     navigation.setOptions(stableOptions);
-  }, [navigation, props.optionsVersion, stableOptions]);
+  }, [navigation, props.optionsVersion, stableOptions, tabActive]);
 
   useEffect(() => {
     if (!navigation || !props.listeners) {

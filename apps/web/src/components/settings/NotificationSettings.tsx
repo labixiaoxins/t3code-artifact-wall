@@ -1,3 +1,5 @@
+import { uiText } from "~/i18n";
+import { settlePromise } from "@t3tools/client-runtime/state/runtime";
 import { useState } from "react";
 
 import {
@@ -22,7 +24,7 @@ export function NotificationSettings() {
       {...searchableSetting("thread-notifications")}
       description={
         permissionMessage ??
-        "System alerts when a thread finishes, fails, or needs input or approval. Applies to this device while T3 Code is open."
+        uiText("System alerts when a thread finishes, fails, or needs input or approval. Applies to this device while T3 Code is open.")
       }
       control={
         <Select
@@ -46,27 +48,25 @@ export function NotificationSettings() {
                 return;
               }
               setRequesting(true);
-              try {
-                const permission = await Notification.requestPermission();
-                if (permission !== "granted") {
-                  setPermissionMessage(
-                    "Allow notifications in your browser or system settings, then choose this option again. Sound only is still available.",
-                  );
-                  return;
-                }
-              } catch {
+              const permission = await settlePromise(() => Notification.requestPermission());
+              setRequesting(false);
+              if (permission._tag === "Failure") {
                 setPermissionMessage(
                   "Notifications are unavailable in this browser. Sound only is still available.",
                 );
                 return;
-              } finally {
-                setRequesting(false);
+              }
+              if (permission.value !== "granted") {
+                setPermissionMessage(
+                  "Allow notifications in your browser or system settings, then choose this option again. Sound only is still available.",
+                );
+                return;
               }
             }
             updateSettings({ notificationMode: value });
           }}
         >
-          <SelectTrigger size="sm" className="w-full sm:w-56" aria-label="Thread notifications">
+          <SelectTrigger size="sm" className="w-full sm:w-56" aria-label={uiText("Thread notifications")}>
             <SelectValue>{NOTIFICATION_MODE_LABELS[mode]}</SelectValue>
           </SelectTrigger>
           <SelectPopup align="end" alignItemWithTrigger={false}>

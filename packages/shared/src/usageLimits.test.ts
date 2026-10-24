@@ -22,6 +22,7 @@ import {
   formatResetsIn,
   limitsNotice,
   paceOf,
+  paceRemainingPercent,
   providersWithLimits,
   remainingPercent,
   usesChatGptSharing,
@@ -56,8 +57,23 @@ function provider(overrides: Partial<ServerProvider>): ServerProvider {
 }
 
 describe("pace", () => {
+  it.each([
+    ["2026-09-03T12:01:00.000Z", "resets in 1m"],
+    ["2026-09-03T12:00:59.999Z", "Resets momentarily"],
+    ["2026-09-03T12:00:00.001Z", "Resets momentarily"],
+    ["2026-09-03T12:00:00.000Z", "resets now"],
+    ["2026-09-03T11:59:59.999Z", "resets now"],
+  ])("formats the reset boundary at %s", (resetsAt, label) => {
+    expect(formatResetsIn({ ...window, resetsAt }, now)).toBe(label);
+  });
+
+  it("ignores invalid reset timestamps", () => {
+    expect(formatResetsIn({ ...window, resetsAt: "invalid" }, now)).toBeNull();
+  });
+
   it("places the clock three fifths through a five-hour window with two hours left", () => {
     expect(elapsedShare(window, now)).toBeCloseTo(0.6);
+    expect(paceRemainingPercent(window, now)).toBe(40);
     expect(paceOf(window, now)).toBe("under");
     expect(paceOf({ ...window, usedPercent: 62 }, now)).toBe("on");
     expect(paceOf({ ...window, usedPercent: 80 }, now)).toBe("ahead");
@@ -66,7 +82,14 @@ describe("pace", () => {
   it("has no pace without a reset or a duration", () => {
     expect(paceOf({ ...window, resetsAt: undefined }, now)).toBeNull();
     expect(paceOf({ ...window, windowDurationMins: undefined }, now)).toBeNull();
+    expect(paceRemainingPercent({ ...window, resetsAt: undefined }, now)).toBeNull();
+    expect(paceRemainingPercent({ ...window, windowDurationMins: undefined }, now)).toBeNull();
     expect(formatResetsIn({ ...window, resetsAt: undefined }, now)).toBeNull();
+  });
+
+  it("keeps pace marks within the bar before a window starts and after it expires", () => {
+    expect(paceRemainingPercent(window, Date.parse("2026-09-03T08:00:00.000Z"))).toBe(100);
+    expect(paceRemainingPercent(window, Date.parse("2026-09-03T15:00:00.000Z"))).toBe(0);
   });
 
   it("phrases the reset as a countdown", () => {
@@ -193,14 +216,12 @@ describe("pools", () => {
     expect(accounts[0]).toMatchObject({
       key: "env-a:claude",
       sourceLabel: null,
-      // Desktop's read is fresher, so its credits and its redeem are the ones on show.
       redeem: { environmentId: "env-b", input: { instanceId: "claude" } },
       environments: [
         { environmentId: "env-a", label: "Laptop" },
         { environmentId: "env-b", label: "Desktop" },
       ],
     });
-    // The fresher native snapshot wins; the hub row is pre-filtered by email.
     expect(accounts[0]?.limits.windows[0]?.usedPercent).toBe(55);
   });
 
@@ -357,12 +378,10 @@ describe("pools", () => {
       ],
     ]);
     const [account] = collectLimitAccounts(input);
-    // Only the hub path clears the routing cooldown it holds for this account.
     expect(account?.redeem).toEqual({
       environmentId: "env-a",
       input: { sourceId: "hub", accountId: "claude-same@example.com.json", creditId: "hub-credit" },
     });
-    // The fresher native balance is still the one shown.
     expect(account?.limits.resetCredits?.availableCount).toBe(3);
   });
 
@@ -496,6 +515,125 @@ describe("pools", () => {
     expect(account?.redeem?.environmentId).toBe("env-2");
   });
 
+  it("keeps one email in two workspaces apart while merging each workspace's duplicates", () => {
+    const login = (instanceId: string, workspaceId: string, usedPercent: number) =>
+      provider({
+        instanceId: ProviderInstanceId.make(instanceId),
+        auth: { status: "authenticated", email: "same@example.com", workspaceId },
+        usageLimits: { checkedAt, windows: [{ ...weekly, usedPercent }] },
+      });
+    const hubAccount = (id: string, workspaceId?: string) => ({
+      id,
+      driver: ProviderDriverKind.make("codex"),
+      email: "same@example.com",
+      ...(workspaceId ? { workspaceId } : {}),
+      usageLimits: { checkedAt, windows: [{ ...weekly, usedPercent: 50 }] },
+    });
+    const input = new Map([
+      [
+        EnvironmentId.make("env-a"),
+        {
+          ...laptop,
+          serverConfig: {
+            providers: [login("business", "ws-business", 8), login("personal", "ws-plus", 26)],
+            usageLimitSources: [
+              { ...source, accounts: [hubAccount("plus.json", "ws-plus"), hubAccount("x.json")] },
+            ],
+          },
+        },
+      ],
+      [
+        EnvironmentId.make("env-b"),
+        {
+          entry: { target: { label: "Desktop" } },
+          serverConfig: { providers: [login("personal", "ws-plus", 26)] },
+        },
+      ],
+    ]);
+    const accounts = collectLimitAccounts(input);
+    expect(accounts.map((account) => account.key)).toEqual([
+      "env-a:business",
+      "env-a:personal",
+      "hub:x.json",
+    ]);
+    expect(accounts[0]?.limits.windows[0]?.usedPercent).toBe(8);
+    const withoutEmail = (id: string, workspaceId: string) => {
+      const { email: _email, ...account } = hubAccount(id, workspaceId);
+      return account;
+    };
+    const sameFile = new Map([
+      [
+        EnvironmentId.make("env-a"),
+        {
+          ...laptop,
+          serverConfig: {
+            providers: [],
+            usageLimitSources: [{ ...source, accounts: [withoutEmail("a.json", "ws-1")] }],
+          },
+        },
+      ],
+      [
+        EnvironmentId.make("env-b"),
+        {
+          ...laptop,
+          serverConfig: {
+            providers: [],
+            usageLimitSources: [{ ...source, accounts: [withoutEmail("a.json", "ws-2")] }],
+          },
+        },
+      ],
+    ]);
+    expect(collectLimitAccounts(sameFile).map((account) => account.key)).toEqual([
+      "hub:a.json:ws-1",
+      "hub:a.json:ws-2",
+    ]);
+    expect(accounts[1]?.environments.map((environment) => environment.label)).toEqual([
+      "Laptop",
+      "Desktop",
+    ]);
+  });
+
+  it("joins a report without a workspace to the only workspace signed in with its email", () => {
+    const native = provider({
+      driver: claude,
+      auth: { status: "authenticated", email: "same@example.com", workspaceId: "org-a" },
+      usageLimits: { checkedAt, windows: [window] },
+    });
+    const hubAccount = {
+      id: "claude.json",
+      driver: claude,
+      email: "same@example.com",
+      usageLimits: { checkedAt, windows: [window] },
+    };
+    const withOther = (other: ServerProvider) =>
+      new Map([
+        [
+          EnvironmentId.make("env-a"),
+          {
+            ...laptop,
+            serverConfig: {
+              providers: [native, other],
+              usageLimitSources: [{ ...source, accounts: [hubAccount] }],
+            },
+          },
+        ],
+      ]);
+    const unrelated = provider({ instanceId: ProviderInstanceId.make("codex-2") });
+    expect(collectLimitAccounts(withOther(unrelated)).map((account) => account.key)).toEqual([
+      "env-a:codex",
+    ]);
+    const unreadable = provider({
+      ...native,
+      instanceId: ProviderInstanceId.make("team"),
+      auth: { ...native.auth, workspaceId: "org-b" },
+      usageLimits: { checkedAt, windows: [], unavailable: { reason: "probeFailed" } },
+    });
+    expect(collectLimitAccounts(withOther(unreadable)).map((account) => account.key)).toEqual([
+      "env-a:codex",
+      "hub:claude.json",
+    ]);
+  });
+
   it("names an environment once however many of its instances share the account", () => {
     const shared = provider({
       auth: { status: "authenticated", email: "same@example.com" },
@@ -525,15 +663,60 @@ describe("pools", () => {
     };
     const hub = { ...source, accounts: [seat] };
     const input = new Map([
-      [EnvironmentId.make("env-a"), { ...laptop, serverConfig: { usageLimitSources: [hub] } }],
+      [
+        EnvironmentId.make("env-a"),
+        { ...laptop, serverConfig: { providers: [], usageLimitSources: [hub] } },
+      ],
       [
         EnvironmentId.make("env-b"),
-        { entry: { target: { label: "Desktop" } }, serverConfig: { usageLimitSources: [hub] } },
+        {
+          entry: { target: { label: "Desktop" } },
+          serverConfig: { providers: [], usageLimitSources: [hub] },
+        },
       ],
     ]);
     const accounts = collectLimitAccounts(input);
     expect(accounts.map((account) => account.key)).toEqual(["hub:claude-team-seat.json"]);
     expect(accounts[0]?.displayName).toBe("claude-team-seat");
+  });
+
+  it("pools Codex windows by kind, whichever slot reported them", () => {
+    const codexAccount = (id: string, slots: readonly string[]) => ({
+      id,
+      driver: ProviderDriverKind.make("codex"),
+      usageLimits: {
+        checkedAt,
+        windows: slots.map((slot) => ({ ...weekly, id: slot, usedPercent: 50 })),
+      },
+    });
+    const pooled = (accounts: ReturnType<typeof codexAccount>[]) =>
+      collectLimitPools(
+        collectLimitAccounts(
+          new Map([
+            [
+              EnvironmentId.make("env-a"),
+              {
+                ...laptop,
+                serverConfig: { providers: [], usageLimitSources: [{ ...source, accounts }] },
+              },
+            ],
+          ]),
+        ),
+        now,
+      )[0]?.windows ?? [];
+    for (const order of [
+      [codexAccount("business", ["primary"]), codexAccount("plus", ["secondary"])],
+      [codexAccount("plus", ["secondary"]), codexAccount("business", ["primary"])],
+    ]) {
+      const windows = pooled(order);
+      expect(windows.map((window) => window.id)).toEqual(["weekly"]);
+      expect(windows[0]?.members).toHaveLength(2);
+    }
+    expect(
+      pooled([codexAccount("a", ["secondary"]), codexAccount("b", ["primary", "secondary"])]).map(
+        (window) => window.id,
+      ),
+    ).toEqual(["weekly", "weekly:secondary"]);
   });
 
   it("pools windows by id across accounts and orders resets by when they land", () => {
@@ -594,7 +777,6 @@ describe("pools", () => {
       ["codex", 1],
     ]);
     const [session, week] = pools[0]!.windows;
-    // A member with no reset has no clock, so it does not vote on pace.
     const untimed = collectLimitPools(
       collectLimitAccounts(input).map((account) =>
         account.key === "hub:b"
@@ -609,9 +791,7 @@ describe("pools", () => {
       ),
       now,
     );
-    // Only a votes: 80% used, 80% elapsed.
     expect(untimed[0]?.windows[0]?.pace).toBe("on");
-    // a is 80% through its window and b 60%: the pool is 70% elapsed, 60% used.
     expect(session).toMatchObject({
       id: "five_hour",
       remainingPercent: 40,
@@ -661,7 +841,6 @@ describe("pools", () => {
       ["weekly", 1],
       ["monthly", 1],
     ]);
-    // Session resets determine the account order for every row.
     expect(session?.members.map((member) => member.account.key)).toEqual(["hub:a", "hub:b"]);
     expect(pools[0]?.accounts.map((account) => account.key)).toEqual(["hub:a", "hub:b"]);
   });
@@ -692,6 +871,63 @@ describe("pooled account columns", () => {
       row.columns.map((member) => (member.window ? member.account.key : null)),
     );
 
+  it.each([
+    ["claudeAgent", "13:00", 40, "14:00", 100],
+    ["codex", "14:00", 100, "14:00", 100],
+    ["claudeAgent", "15:00", 100, "15:00", 100],
+    ["codex", "15:00", 40, "14:00", 60],
+  ] as const)(
+    "%s session resetting at %s with %i percent spent becomes usable at %s with %i percent restored",
+    (driver, sessionReset, usedPercent, usableAt, restoresPercent) => {
+      const at = (time: string) => `2026-09-03T${time}:00.000Z`;
+      const a = {
+        ...account("a", [
+          {
+            ...window,
+            id: driver === "codex" ? "primary" : window.id,
+            usedPercent,
+            resetsAt: at(sessionReset),
+          },
+          {
+            ...weekly,
+            id: driver === "codex" ? "secondary" : weekly.id,
+            usedPercent: 100,
+            resetsAt: at("14:00"),
+          },
+        ]),
+        driver: ProviderDriverKind.make(driver),
+      };
+      const [session] = collectLimitPools([a], now)[0]!.windows;
+      expect.soft(session?.remainingPercent).toBe(0);
+      expect(session?.resets[0]).toMatchObject({
+        at: Date.parse(at(usableAt)),
+        restoresPercent,
+      });
+    },
+  );
+
+  it("excludes weekly-blocked sessions from the pool without changing snapshots or model allowances", () => {
+    const blocked = account("blocked", [
+      window,
+      { ...weekly, usedPercent: 100 },
+      { ...weekly, id: "seven_day_fable", usedPercent: 20 },
+    ]);
+    const accounts = [
+      blocked,
+      account("available", [
+        { ...window, usedPercent: 20 },
+        { ...weekly, usedPercent: 99 },
+        { ...weekly, id: "seven_day_fable", usedPercent: 40 },
+      ]),
+      { ...blocked, key: "cursor", driver: ProviderDriverKind.make("cursor") },
+    ];
+    const snapshot = structuredClone(accounts);
+    const [claude, cursor] = collectLimitPools(accounts, now);
+    expect.soft(claude?.windows.map((row) => row.remainingPercent)).toEqual([40, 1, 70]);
+    expect.soft(cursor?.windows.map((row) => row.remainingPercent)).toEqual([60, 0, 80]);
+    expect(accounts).toEqual(snapshot);
+  });
+
   it("keeps session columns across rows with opposite reset and usage orders", () => {
     const accounts = [
       account("a", [
@@ -712,6 +948,52 @@ describe("pooled account columns", () => {
     expect(pool!.windows[1]!.resets.map((reset) => reset.member.account.key)).toEqual(["a", "b"]);
     expect(pool!.windows[1]!.remainingPercent).toBe(50);
     expect(keys(collectLimitPools(accounts.toReversed(), now)[0]!)).toEqual(keys(pool!));
+  });
+
+  it.each([undefined, "invalid", "2026-09-03T11:30:00.000Z"])(
+    "keeps blocked sessions empty without predicting a refill from a missing or stale clock (%s)",
+    (resetsAt) => {
+      const [pool] = collectLimitPools(
+        [
+          account("session-clock", [
+            { ...window, resetsAt },
+            { ...weekly, usedPercent: 100 },
+          ]),
+          account("weekly-clock", [window, { ...weekly, usedPercent: 100, resetsAt }]),
+        ],
+        now,
+      );
+      expect(pool!.windows[0]).toMatchObject({ remainingPercent: 0, pace: null, resets: [] });
+      expect(pool!.windows[0]!.columns.map((column) => column.window?.resetsAt)).toEqual([
+        undefined,
+        undefined,
+      ]);
+    },
+  );
+
+  it("orders by usable session refill and clears suppression after a fresh weekly reading", () => {
+    const blocked = account("blocked", [
+      { ...window, resetsAt: "2026-09-03T13:00:00.000Z" },
+      { ...weekly, usedPercent: 100, resetsAt: "2026-09-03T15:00:00.000Z" },
+    ]);
+    const available = account("available", [window]);
+    const [before] = collectLimitPools([blocked, available], now);
+    expect(before!.accounts.map((account) => account.key)).toEqual(["available", "blocked"]);
+    expect(before!.windows[0]!.remainingPercent).toBe(30);
+    const refreshed = {
+      ...blocked,
+      limits: {
+        checkedAt: "2026-09-03T12:00:00.000Z",
+        windows: [blocked.limits.windows[0]!, { ...weekly, usedPercent: 10 }],
+      },
+    };
+    const [after] = collectLimitPools([refreshed, available], now);
+    expect(after!.accounts.map((account) => account.key)).toEqual(["blocked", "available"]);
+    expect(after!.windows[0]!.remainingPercent).toBe(60);
+    expect(after!.windows[0]!.resets[0]).toMatchObject({
+      at: Date.parse("2026-09-03T13:00:00.000Z"),
+      restoresPercent: 20,
+    });
   });
 
   it("preserves gaps without counting missing windows toward pooled quota", () => {
@@ -910,6 +1192,35 @@ describe("/usage-limits", () => {
     });
   });
 
+  it("gives a hub credit to no native row when its email is signed in to two workspaces", () => {
+    const workspaces = ["ws-a", "ws-b"].map((workspaceId) =>
+      provider({
+        instanceId: ProviderInstanceId.make(workspaceId),
+        usageLimits: limits,
+        auth: { status: "authenticated", email: "same@example.com", workspaceId },
+      }),
+    );
+    const hub = [
+      {
+        ...sources[0]!,
+        accounts: [
+          {
+            id: "duplicate",
+            driver: selected.driver,
+            email: "same@example.com",
+            usageLimits: { ...limits, resetCredits: { availableCount: 2, nextCreditId: "c" } },
+          },
+        ],
+      },
+    ];
+    const report = collectProviderUsageLimits(workspaces[0]!.instanceId, workspaces, hub, now);
+    expect(report?.accounts.map((account) => account.resetCreditInput)).toEqual([
+      { instanceId: "ws-a" },
+      { instanceId: "ws-b" },
+      { sourceId: "hub", accountId: "duplicate", creditId: "c" },
+    ]);
+  });
+
   it("redeems a native duplicate through the hub even when the native snapshot is fresher", () => {
     const fresher = provider({
       usageLimits: {
@@ -939,18 +1250,15 @@ describe("/usage-limits", () => {
       },
     ];
     const report = collectProviderUsageLimits(fresher.instanceId, [fresher], stale, now);
-    // Only redeeming through the hub clears the routing cooldown it holds for
-    // this account, so the hub wins the path even with a staler balance.
     expect(report?.accounts[0]?.resetCreditInput).toEqual({
       sourceId: "hub",
       accountId: "duplicate",
       creditId: "hub-credit",
     });
-    // The fresher native balance is still the one shown.
     expect(report?.accounts[0]?.limits.resetCredits?.availableCount).toBe(3);
   });
 
-  it("keeps accounts and custom instances separate, filtering by driver", () => {
+  it("keeps unidentified custom instances separate, filtering by driver", () => {
     const report = collectProviderUsageLimits(
       selected.instanceId,
       [
@@ -991,6 +1299,93 @@ describe("/usage-limits", () => {
     expect(report?.notices).toEqual([]);
   });
 
+  it("keeps the freshest usable native duplicate and the freshest native credits in either order", () => {
+    const failed = provider({
+      auth: selected.auth,
+      usageLimits: {
+        ...limits,
+        checkedAt: "2026-09-03T11:40:00.000Z",
+        unavailable: { reason: "probeFailed" },
+      },
+    });
+    const credited = provider({
+      instanceId: ProviderInstanceId.make("codex-credit"),
+      auth: selected.auth,
+      usageLimits: {
+        checkedAt: "2026-09-03T11:20:00.000Z",
+        windows: [{ ...window, usedPercent: 50 }],
+        resetCredits: { availableCount: 2 },
+      },
+    });
+    const staleCredit = provider({
+      ...credited,
+      instanceId: ProviderInstanceId.make("codex-stale-credit"),
+      usageLimits: { ...limits, resetCredits: { availableCount: 3 } },
+    });
+    const freshest = provider({
+      instanceId: ProviderInstanceId.make("codex-fresh"),
+      auth: selected.auth,
+      usageLimits: {
+        checkedAt: "2026-09-03T11:30:00.000Z",
+        windows: [{ ...window, usedPercent: 55 }],
+      },
+    });
+    const duplicates = [failed, staleCredit, credited, freshest];
+    for (const providers of [duplicates, duplicates.toReversed()]) {
+      const report = collectProviderUsageLimits(failed.instanceId, providers, sources, now);
+      expect(report?.accounts.map((account) => account.id)).toEqual(["codex-fresh", "hub:oss"]);
+      expect(report?.accounts[0]).toMatchObject({
+        limits: {
+          checkedAt: "2026-09-03T11:30:00.000Z",
+          windows: [{ usedPercent: 55 }],
+          resetCredits: { availableCount: 2 },
+        },
+        resetCreditInput: { instanceId: "codex-credit" },
+      });
+      expect(report?.accounts[0]?.limits.unavailable).toBeUndefined();
+    }
+  });
+
+  it("merges native workspace duplicates only while the workspace evidence is unambiguous", () => {
+    const known = provider({
+      ...selected,
+      instanceId: ProviderInstanceId.make("workspace-a"),
+      auth: { ...selected.auth, workspaceId: "ws-a" },
+    });
+    const fresh = provider({
+      ...known,
+      instanceId: ProviderInstanceId.make("workspace-a-fresh"),
+      usageLimits: { ...limits, checkedAt: "2026-09-03T11:30:00.000Z" },
+    });
+    const natives = [known, fresh, selected];
+    expect(
+      collectProviderUsageLimits(selected.instanceId, natives, [], now)?.accounts.map(
+        (account) => account.id,
+      ),
+    ).toEqual(["workspace-a-fresh"]);
+
+    const unreadable = provider({
+      instanceId: ProviderInstanceId.make("workspace-b"),
+      auth: { ...selected.auth, workspaceId: "ws-b" },
+    });
+    expect(
+      collectProviderUsageLimits(
+        selected.instanceId,
+        [...natives, unreadable],
+        [],
+        now,
+      )?.accounts.map((account) => account.id),
+    ).toEqual(["workspace-a-fresh", "codex"]);
+    expect(
+      collectProviderUsageLimits(
+        selected.instanceId,
+        [...natives, { ...unreadable, usageLimits: limits }],
+        [],
+        now,
+      )?.accounts.map((account) => account.id),
+    ).toEqual(["workspace-a-fresh", "codex", "workspace-b"]);
+  });
+
   it("supports a source-only provider and keeps duplicates when the native probe failed", () => {
     expect(
       collectProviderUsageLimits(selected.instanceId, [provider({})], sources, now)?.accounts.map(
@@ -1023,12 +1418,10 @@ describe("/usage-limits", () => {
     expect(
       collectProviderUsageLimits(selected.instanceId, [selected], [claudeOnly], now)?.notices,
     ).toEqual([]);
-    // A read failure clears the accounts, so the error must not depend on a match.
     const unreadable = { ...failing, accounts: [] };
     expect(
       collectProviderUsageLimits(selected.instanceId, [selected], [unreadable], now)?.notices,
     ).toEqual(["Accounts: token expired"]);
-    // A source-only provider still gets the report, carrying only the error.
     const sourceOnly = collectProviderUsageLimits(
       selected.instanceId,
       [provider({})],
@@ -1051,7 +1444,6 @@ describe("/usage-limits", () => {
       supported?.workspaceSnapshots?.[0]?.slashCommands.map((command) => command.name),
     ).toEqual(["usage-limits"]);
     expect(withUsageLimitsCommands([withWorkspace], [])[0]?.slashCommands).toEqual([]);
-    // A provider's own command of the same name is left alone without coverage.
     const ownCommand = provider({
       slashCommands: [{ name: "usage-limits", description: "Provider's own" }],
     });
@@ -1203,5 +1595,63 @@ describe("ChatGPT sharing presentation", () => {
         auth: { status: "unauthenticated", subscriptionSharing: true },
       }),
     ).toBe(false);
+  });
+});
+
+describe("Antigravity limit presentation", () => {
+  it("keeps the shared Claude/GPT bucket separate from Gemini and pairs their windows", () => {
+    const antigravity = provider({
+      instanceId: ProviderInstanceId.make("antigravity"),
+      driver: ProviderDriverKind.make("antigravity"),
+      usageLimits: {
+        checkedAt: "2026-10-09T12:00:00.000Z",
+        windows: [
+          { ...window, id: "3p-5h", label: "Claude & GPT (shared) · 5-hour", usedPercent: 90 },
+          { ...window, id: "gemini-5h", label: "Gemini · 5-hour", usedPercent: 20 },
+          {
+            ...window,
+            id: "3p-weekly",
+            kind: "weekly",
+            label: "Claude & GPT (shared) · Weekly",
+            usedPercent: 100,
+          },
+          {
+            ...window,
+            id: "gemini-weekly",
+            kind: "weekly",
+            label: "Gemini · Weekly",
+            usedPercent: 10,
+          },
+        ],
+      },
+    });
+    const accounts = collectLimitAccounts(
+      new Map([
+        [
+          EnvironmentId.make("a"),
+          {
+            entry: { target: { label: "Local" } },
+            serverConfig: {
+              providers: [
+                provider({
+                  usageLimits: { checkedAt: "2026-10-09T12:00:00.000Z", windows: [window] },
+                }),
+                antigravity,
+              ],
+            },
+          },
+        ],
+      ]),
+    );
+    const pools = collectLimitPools(accounts, now);
+    expect(pools.map((pool) => pool.driver)).toEqual(["codex", "antigravity"]);
+    const windows = displayLimitWindows(pools[1]!);
+    expect(windows.map((window) => window.id)).toEqual([
+      "gemini-5h",
+      "gemini-weekly",
+      "3p-5h",
+      "3p-weekly",
+    ]);
+    expect(windows.map((window) => window.remainingPercent)).toEqual([80, 90, 10, 0]);
   });
 });

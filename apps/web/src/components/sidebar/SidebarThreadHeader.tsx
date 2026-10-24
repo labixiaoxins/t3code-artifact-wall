@@ -1,15 +1,4 @@
-/**
- * The sidebar header: one row holding search, project scope and new thread.
- *
- * Search owns the row's text and spans it. Project scope collapses to an icon
- * that sits with new-project and new-thread as a segmented group at the end.
- * The scope icon swaps to the project favicon while a project is selected,
- * so the header still names the scope after the row that showed it is gone.
- *
- * The scope picker itself is passed in: its combobox state lives with the rest
- * of the sidebar's scope logic. `searchFieldRef` lands on the search field so
- * the picker's popup can anchor to that width rather than to its 28px trigger.
- */
+import { uiText } from "~/i18n";
 import { FolderPlusIcon, SearchIcon, SquarePenIcon, XIcon } from "lucide-react";
 import {
   type ComponentProps,
@@ -18,26 +7,19 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-
 import { cn } from "~/lib/utils";
 import { Button } from "../ui/button";
 import { SidebarInput, SidebarMenuButton } from "../ui/sidebar";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-
 export interface SidebarThreadHeaderProps {
-  /** Lands on the search field so a popup can anchor to its width. */
   searchFieldRef?: RefObject<HTMLDivElement | null>;
-  /** Without projects there is nothing to scope, so those controls stay out. */
   hasProjects: boolean;
-  /** The project scope combobox, rendered as the first icon of the group. */
   projectScope: ReactNode;
   onNewProject: () => void;
-  /** Receives the click so Shift+click can skip the project picker. */
   onNewThread: (event: ReactMouseEvent) => void;
   newThreadDisabled: boolean;
   newThreadShortcutLabel: string | null | undefined;
   newThreadInProjectShortcutLabel: string | null | undefined;
-  /** Shift+click only matters once there is more than one project to pick. */
   showNewThreadInProjectHint: boolean;
   searchInputRef: RefObject<HTMLInputElement | null>;
   searchQuery: string;
@@ -48,7 +30,6 @@ export interface SidebarThreadHeaderProps {
   activeSearchResultIndex: number;
   onClearSearch: () => void;
 }
-
 export function SidebarThreadHeader({
   searchFieldRef,
   hasProjects,
@@ -76,25 +57,26 @@ export function SidebarThreadHeader({
   const newThreadLabel = newThreadShortcutLabel
     ? `New thread (${newThreadShortcutLabel})`
     : "New thread";
-
   return (
-    <div className="flex items-center gap-1">
+    <div className={"flex items-center gap-1"}>
       <div
         ref={searchFieldRef}
-        className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium text-sidebar-muted-foreground hover:bg-sidebar-row-hover hover:text-sidebar-foreground"
+        className={
+          "flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium text-sidebar-muted-foreground hover:bg-sidebar-row-hover hover:text-sidebar-foreground"
+        }
       >
-        <SearchIcon className="size-4 shrink-0 text-(--sidebar-icon-color)" />
+        <SearchIcon className={"size-4 shrink-0 text-(--sidebar-icon-color)"} />
         <SidebarInput
           ref={searchInputRef}
           nativeInput
-          type="search"
+          type={"search"}
           value={searchQuery}
           onChange={(event) => onSearchQueryChange(event.currentTarget.value)}
           onKeyDown={onSearchKeyDown}
-          placeholder="搜索"
-          aria-label="搜索会话"
-          role="combobox"
-          aria-autocomplete="list"
+          placeholder={"\u641C\u7D22"}
+          aria-label={"\u641C\u7D22\u4F1A\u8BDD"}
+          role={"combobox"}
+          aria-autocomplete={"list"}
           aria-expanded={resultsVisible}
           aria-controls={resultsVisible ? "sidebar-thread-search-results" : undefined}
           aria-activedescendant={
@@ -102,44 +84,41 @@ export function SidebarThreadHeader({
               ? `sidebar-thread-search-result-${activeSearchResultIndex}`
               : undefined
           }
-          className="min-w-0 flex-1"
+          className={"min-w-0 flex-1"}
         />
         {isSearching ? (
           <Button
-            type="button"
-            size="icon-micro"
-            variant="ghost-muted"
-            className="shrink-0"
-            aria-label="Clear thread search"
+            type={"button"}
+            size={"icon-micro"}
+            variant={"ghost-muted"}
+            className={"shrink-0"}
+            aria-label={uiText("Clear thread search")}
             onClick={() => {
               onClearSearch();
               searchInputRef.current?.focus();
             }}
           >
-            <XIcon className="size-3" />
+            <XIcon className={"size-3"} />
           </Button>
         ) : null}
       </div>
-      {/* Unfilled like the search field beside it: the buttons carry their own
-          hover states, and a background well reads far louder on themed
-          palettes than on the base light and dark ones. */}
-      <div className="flex shrink-0 items-center">
+      <div className={"flex shrink-0 items-center"}>
         {hasProjects ? (
           <>
             {projectScope}
-            <SidebarHeaderIconButton label="Add project" onClick={onNewProject}>
+            <SidebarHeaderIconButton label={uiText("Add project")} onClick={onNewProject}>
               <FolderPlusIcon />
             </SidebarHeaderIconButton>
           </>
         ) : null}
         <SidebarHeaderIconButton
-          label="New thread"
+          label={uiText("New thread")}
           tooltip={
             showNewThreadInProjectHint ? (
-              <span className="flex flex-col gap-0.5">
+              <span className={"flex flex-col gap-0.5"}>
                 <span>{newThreadLabel}</span>
-                <span className="text-muted-foreground">
-                  New thread in current project: Shift+click
+                <span className={"text-muted-foreground"}>
+                  {uiText("New thread in current project: Shift+click")}
                   {newThreadInProjectShortcutLabel ? ` (${newThreadInProjectShortcutLabel})` : ""}
                 </span>
               </span>
@@ -156,12 +135,6 @@ export function SidebarThreadHeader({
     </div>
   );
 }
-
-/**
- * Icon button with a tooltip, sized for the header's segmented pair. Spreads
- * unknown props through so it can serve as a popup trigger's render target,
- * which injects its own handlers, ref and aria state.
- */
 export function SidebarHeaderIconButton({
   label,
   tooltip = label,
@@ -169,7 +142,6 @@ export function SidebarHeaderIconButton({
   children,
   ...rest
 }: {
-  /** Accessible name; also the tooltip unless `tooltip` says more. */
   label: string;
   tooltip?: ReactNode;
   className?: string | undefined;
@@ -183,8 +155,8 @@ export function SidebarHeaderIconButton({
       <TooltipTrigger
         render={
           <SidebarMenuButton
-            size="icon"
-            type="button"
+            size={"icon"}
+            type={"button"}
             aria-label={label}
             {...rest}
             className={cn("relative size-7 shrink-0", className)}
@@ -192,13 +164,14 @@ export function SidebarHeaderIconButton({
         }
       >
         {children}
-        {/* Coarse-pointer hit area, matching the rest of the sidebar chrome. */}
         <span
           aria-hidden
-          className="pointer-events-none absolute left-1/2 top-1/2 size-[max(100%,3rem)] -translate-1/2 pointer-fine:hidden"
+          className={
+            "pointer-events-none absolute left-1/2 top-1/2 size-[max(100%,3rem)] -translate-1/2 pointer-fine:hidden"
+          }
         />
       </TooltipTrigger>
-      <TooltipPopup side="top">{tooltip}</TooltipPopup>
+      <TooltipPopup side={"top"}>{tooltip}</TooltipPopup>
     </Tooltip>
   );
 }

@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useAtomValue } from "@effect/atom-react";
 
 import { undoLatestThreadAction, useThreadUndoNotice } from "../../hooks/showThreadUndoNotice";
@@ -19,7 +20,7 @@ export function SidebarThreadUndoNotice() {
       <AlertDescription>
         {notice.action} {notice.count} {noun},{" "}
         <InlineButton onClick={undoLatestThreadAction}>
-          {shortcut ? `${shortcut} to undo` : "Undo"}
+          {shortcut ? uiText("{0} to undo", {"0": shortcut}) : uiText("Undo")}
         </InlineButton>
       </AlertDescription>
     </Alert>

@@ -1,7 +1,9 @@
 "use client";
+import { uiText } from "~/i18n";
+
 
 import { PlusIcon, XIcon } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { hexToHsv, hsvToHex, type HsvColor } from "../../lib/color";
 import { ColorHueSlider, ColorSaturationValuePlane } from "../ui/color-picker";
@@ -21,25 +23,22 @@ function ProviderCustomColorPanel(props: {
   const currentColor = hsvToHex(hsv.h, hsv.s, hsv.v);
   const [hexDraft, setHexDraft] = useState<string | null>(null);
 
-  const commitHsv = useCallback(
-    (nextHsv: HsvColor) => {
-      setHsv(nextHsv);
-      onCommit(hsvToHex(nextHsv.h, nextHsv.s, nextHsv.v));
-    },
-    [onCommit],
-  );
+  const commitHsv = (nextHsv: HsvColor) => {
+    setHsv(nextHsv);
+    onCommit(hsvToHex(nextHsv.h, nextHsv.s, nextHsv.v));
+  };
 
   return (
     <div className="w-56 bg-popover">
       <ColorSaturationValuePlane
-        label="Accent color"
+        label={uiText("Accent color")}
         value={hsv}
         onChange={commitHsv}
         variant="edge"
       />
       <div className="grid gap-3 p-3">
         <ColorHueSlider
-          label="Accent color hue"
+          label={uiText("Accent color hue")}
           value={hsv.h}
           onChange={(h) => commitHsv({ ...hsv, h })}
         />
@@ -56,7 +55,7 @@ function ProviderCustomColorPanel(props: {
           }}
           onBlur={() => setHexDraft(null)}
           font="mono"
-          aria-label="Custom hex accent color"
+          aria-label={uiText("Custom hex accent color")}
           spellCheck={false}
         />
       </div>
@@ -81,10 +80,10 @@ function ProviderCustomColorPicker(props: {
             size="icon-sm"
             variant="ghost-muted"
             style={normalized ? { backgroundColor: normalized } : undefined}
-            aria-label={`${normalized ? "Change" : "Add"} accent color for ${props.displayName}`}
+            aria-label={uiText("{0} accent color for {1}", {"0": normalized ? "Change" : "Add", "1": props.displayName})}
           >
             {normalized ? (
-              <span className="sr-only">Change accent color</span>
+              <span className="sr-only">{uiText("Change accent color")}</span>
             ) : (
               <PlusIcon aria-hidden />
             )}
@@ -108,8 +107,7 @@ function ProviderCustomColorPicker(props: {
                   onClick={props.onClear}
                 >
                   <XIcon className="size-3.5" aria-hidden />
-                  Clear color
-                </Button>
+                  {uiText("Clear color") + " "}</Button>
               }
             />
           </div>
@@ -125,7 +123,6 @@ export function ProviderAccentColorPicker(props: {
   readonly onCommit: (value: string) => void;
   readonly description?: string;
   readonly commitDelayMs?: number;
-  /** `inline` renders only the swatch row, for callers that supply their own label. */
   readonly layout?: "stacked" | "inline";
 }) {
   const {
@@ -162,36 +159,33 @@ export function ProviderAccentColorPicker(props: {
     };
   }, []);
 
-  const commitAccentColor = useCallback(
-    (value: string) => {
-      const normalizedValue = normalizeProviderAccentColor(value) ?? "";
-      setOptimisticValue(normalizedValue);
+  const commitAccentColor = (value: string) => {
+    const normalizedValue = normalizeProviderAccentColor(value) ?? "";
+    setOptimisticValue(normalizedValue);
 
-      if (commitDelayMs <= 0) {
-        pendingCommitRef.current = null;
-        if (commitTimeoutRef.current !== null) {
-          clearTimeout(commitTimeoutRef.current);
-          commitTimeoutRef.current = null;
-        }
-        onCommit(normalizedValue);
-        return;
-      }
-
-      pendingCommitRef.current = normalizedValue;
+    if (commitDelayMs <= 0) {
+      pendingCommitRef.current = null;
       if (commitTimeoutRef.current !== null) {
         clearTimeout(commitTimeoutRef.current);
-      }
-      commitTimeoutRef.current = setTimeout(() => {
         commitTimeoutRef.current = null;
-        const pendingCommit = pendingCommitRef.current;
-        pendingCommitRef.current = null;
-        if (pendingCommit !== null) {
-          onCommitRef.current(pendingCommit);
-        }
-      }, commitDelayMs);
-    },
-    [commitDelayMs, onCommit],
-  );
+      }
+      onCommit(normalizedValue);
+      return;
+    }
+
+    pendingCommitRef.current = normalizedValue;
+    if (commitTimeoutRef.current !== null) {
+      clearTimeout(commitTimeoutRef.current);
+    }
+    commitTimeoutRef.current = setTimeout(() => {
+      commitTimeoutRef.current = null;
+      const pendingCommit = pendingCommitRef.current;
+      pendingCommitRef.current = null;
+      if (pendingCommit !== null) {
+        onCommitRef.current(pendingCommit);
+      }
+    }, commitDelayMs);
+  };
 
   const normalized = normalizeProviderAccentColor(optimisticValue);
   const picker = (
@@ -209,7 +203,7 @@ export function ProviderAccentColorPicker(props: {
 
   return (
     <div className="grid gap-2">
-      <span className="text-xs font-medium text-foreground">Accent color</span>
+      <span className="text-xs font-medium text-foreground">{uiText("Accent color")}</span>
       {picker}
       {description ? <span className="text-xs text-muted-foreground">{description}</span> : null}
     </div>

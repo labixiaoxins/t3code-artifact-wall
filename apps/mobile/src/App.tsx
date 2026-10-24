@@ -1,3 +1,4 @@
+import { PermissionUpdateNotice } from "./features/connection/PermissionUpdateNotice";
 import * as Linking from "expo-linking";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
@@ -9,7 +10,7 @@ import { createStaticNavigation } from "@react-navigation/native";
 
 import { RegistryContext } from "@effect/atom-react";
 import { ThreadArrangementHost } from "./features/threads/ThreadArrangementSheet";
-import { ConfirmDialogHost } from "./components/ConfirmDialogHost";
+import * as Dialog from "./components/ui/Dialog";
 import { CloudAuthProvider } from "./features/cloud/CloudAuthProvider";
 import { prepareNativeShowcaseCapture } from "./features/showcase/nativeShowcaseScene";
 import { IncomingShareProvider } from "./features/sharing/IncomingShareProvider";
@@ -19,12 +20,17 @@ import {
 } from "./features/settings/appearance/AppearancePreferencesProvider";
 import { RootStack } from "./Stack";
 import { appAtomRegistry } from "./state/atom-registry";
-import { OverlayPortalHost } from "./components/OverlayPortal";
+import { subscribeComposerDraftModelReconciliation } from "./state/use-composer-drafts";
+import { environmentThreadShells } from "./state/threads";
+import { environmentShell } from "./state/shell";
+import { OverlayPortalHost } from "./components/ui/OverlayPortal";
 import { shouldHandleAppLink } from "./lib/appLinking";
 import { useMobileNavigationTheme } from "./lib/useMobileNavigationTheme";
+import { useUiRuntimeMemoryWarningGc } from "./lib/useUiRuntimeMemoryWarningGc";
 import { SubscriptionUsageCoordinator } from "./widgets/SubscriptionUsageCoordinator";
 import { VoiceInputProvider } from "./features/voice-input/VoiceInputProvider";
 import { GlobalVoiceInputControl } from "./features/voice-input/GlobalVoiceInputControl";
+import { NativeLayoutMetricsProvider } from "./native/native-layout-metrics";
 
 import "../global.css";
 
@@ -32,13 +38,10 @@ if (process.env.EXPO_PUBLIC_SHOWCASE === "1") {
   prepareNativeShowcaseCapture();
 }
 
-void SplashScreen.preventAutoHideAsync().catch(() => {
-  // The native module can be unavailable in non-native test environments.
-});
+void SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const appLinking = {
   prefixes: [Linking.createURL("/"), "t3code://", "t3code-dev://", "t3code-preview://"],
-  // Keep the compact thread list available beneath a directly opened thread.
   config: { initialRouteName: "Home" },
   filter: shouldHandleAppLink,
 };
@@ -56,6 +59,18 @@ function SplashScreenCoordinator() {
 }
 
 export default function App() {
+  useUiRuntimeMemoryWarningGc();
+  useEffect(
+    () =>
+      subscribeComposerDraftModelReconciliation({
+        registry: appAtomRegistry,
+        threadShellAtom: environmentThreadShells.threadShellAtom,
+        threadRefsAtom: environmentThreadShells.threadRefsAtom,
+        shellStateAtom: environmentShell.stateAtom,
+      }),
+    [],
+  );
+
   return (
     <RegistryContext.Provider value={appAtomRegistry}>
       <CloudAuthProvider>
@@ -75,6 +90,7 @@ function AppContent() {
     <>
       <SplashScreenCoordinator />
       <SubscriptionUsageCoordinator />
+      <PermissionUpdateNotice />
       <GestureHandlerRootView className="flex-1">
         <KeyboardProvider statusBarTranslucent>
           <SafeAreaProvider>
@@ -86,11 +102,13 @@ function AppContent() {
                 header (glass buttons, title, materials) is forced light even when
                 the system is in dark mode. */}
               <GlobalVoiceInputControl>
-                <IncomingShareProvider>
-                  <Navigation linking={appLinking} theme={navigationTheme} />
-                </IncomingShareProvider>
-                <ConfirmDialogHost />
-                <ThreadArrangementHost />
+                <NativeLayoutMetricsProvider>
+                  <IncomingShareProvider>
+                    <Navigation linking={appLinking} theme={navigationTheme} />
+                  </IncomingShareProvider>
+                  <Dialog.Host />
+                  <ThreadArrangementHost />
+                </NativeLayoutMetricsProvider>
               </GlobalVoiceInputControl>
               {/* Anchored-menu overlays render here — in-window, so the
                 keyboard stays up while a dropdown is open. */}

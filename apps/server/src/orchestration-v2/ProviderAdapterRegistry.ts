@@ -17,8 +17,8 @@ import * as ProviderInstanceRegistry from "../provider/ProviderInstanceRegistry.
 import {
   ProviderAdapterDriverCreateError,
   type AnyProviderAdapterDriver,
-} from "./ProviderAdapterDriver.ts";
-import * as ProviderAdapter from "./ProviderAdapter.ts";
+} from "@t3tools/provider-core/server/adapterDriver";
+import * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
 
 const isProviderSetupError = Schema.is(ProviderSetupError);
 
@@ -48,11 +48,11 @@ export type ProviderAdapterRegistryV2Error = typeof ProviderAdapterRegistryV2Err
 export interface ProviderAdapterRegistryV2Shape {
   readonly get: (
     instanceId: ProviderInstanceId,
-  ) => Effect.Effect<ProviderAdapter.ProviderAdapterV2Shape, ProviderAdapterRegistryV2Error>;
+  ) => Effect.Effect<ProviderAdapter.ProviderAdapterV2["Service"], ProviderAdapterRegistryV2Error>;
   readonly list: () => Effect.Effect<ReadonlyArray<ProviderInstanceId>>;
   readonly getMetadata?: (instanceId: ProviderInstanceId) => Effect.Effect<
     {
-      readonly driver: ProviderAdapter.ProviderAdapterV2Shape["driver"];
+      readonly driver: ProviderAdapter.ProviderAdapterV2["Service"]["driver"];
       readonly continuationKey: string;
       readonly enabled: boolean;
       readonly capabilities: OrchestrationV2ProviderCapabilities;
@@ -66,11 +66,6 @@ export class ProviderAdapterRegistryV2 extends Context.Service<
   ProviderAdapterRegistryV2Shape
 >()("t3/orchestration-v2/ProviderAdapterRegistry/ProviderAdapterRegistryV2") {}
 
-/**
- * Production facade over the canonical provider-instance registry. Adapter
- * lookup stays dynamic so instance hot reloads and removals are visible
- * without maintaining a second settings watcher or instance map.
- */
 export const layerFromProviderInstanceRegistry: Layer.Layer<
   ProviderAdapterRegistryV2,
   never,
@@ -134,33 +129,32 @@ export const layerFromProviderInstanceRegistry: Layer.Layer<
                   ),
                 );
               },
-            } satisfies ProviderAdapter.ProviderAdapterV2Shape);
+            } satisfies ProviderAdapter.ProviderAdapterV2["Service"]);
           }),
         ),
       list: () =>
         instances.listInstances.pipe(
           Effect.map((available) => available.map((instance) => instance.instanceId)),
         ),
-      getMetadata: (instanceId) =>
-        Effect.gen(function* () {
-          const instance = yield* instances.getInstance(instanceId);
-          if (instance === undefined) {
-            return yield* new ProviderAdapterRegistryLookupError({ instanceId });
-          }
-          const capabilities = yield* instance.orchestrationAdapter
-            .getCapabilities()
-            .pipe(
-              Effect.mapError(
-                (cause) => new ProviderAdapterRegistryMetadataError({ instanceId, cause }),
-              ),
-            );
-          return {
-            driver: instance.driverKind,
-            continuationKey: instance.continuationIdentity.continuationKey,
-            enabled: instance.enabled,
-            capabilities,
-          };
-        }),
+      getMetadata: Effect.fn("ProviderAdapterRegistry.getMetadata")(function* (instanceId) {
+        const instance = yield* instances.getInstance(instanceId);
+        if (instance === undefined) {
+          return yield* new ProviderAdapterRegistryLookupError({ instanceId });
+        }
+        const capabilities = yield* instance.orchestrationAdapter
+          .getCapabilities()
+          .pipe(
+            Effect.mapError(
+              (cause) => new ProviderAdapterRegistryMetadataError({ instanceId, cause }),
+            ),
+          );
+        return {
+          driver: instance.driverKind,
+          continuationKey: instance.continuationIdentity.continuationKey,
+          enabled: instance.enabled,
+          capabilities,
+        };
+      }),
     });
   }),
 );
@@ -169,23 +163,22 @@ export const ProviderAdapterRegistryBuildError = Schema.Union([ProviderAdapterDr
 export type ProviderAdapterRegistryBuildError = typeof ProviderAdapterRegistryBuildError.Type;
 
 function makeRegistry(
-  adapters: ReadonlyArray<ProviderAdapter.ProviderAdapterV2Shape>,
+  adapters: ReadonlyArray<ProviderAdapter.ProviderAdapterV2["Service"]>,
 ): ProviderAdapterRegistryV2Shape {
   return {
-    get: (instanceId) =>
-      Effect.gen(function* () {
-        const adapter = adapters.find((candidate) => candidate.instanceId === instanceId);
-        if (!adapter) {
-          return yield* new ProviderAdapterRegistryLookupError({ instanceId });
-        }
-        return adapter;
-      }),
+    get: Effect.fn("ProviderAdapterRegistry.get")(function* (instanceId) {
+      const adapter = adapters.find((candidate) => candidate.instanceId === instanceId);
+      if (!adapter) {
+        return yield* new ProviderAdapterRegistryLookupError({ instanceId });
+      }
+      return adapter;
+    }),
     list: () => Effect.succeed(adapters.map((adapter) => adapter.instanceId)),
   };
 }
 
 export function layerFromAdapters(
-  adapters: ReadonlyArray<ProviderAdapter.ProviderAdapterV2Shape>,
+  adapters: ReadonlyArray<ProviderAdapter.ProviderAdapterV2["Service"]>,
 ): Layer.Layer<ProviderAdapterRegistryV2> {
   return Layer.succeed(
     ProviderAdapterRegistryV2,
@@ -194,7 +187,7 @@ export function layerFromAdapters(
 }
 
 export function layerFromAdaptersEffect<R, E>(
-  adapters: Effect.Effect<ReadonlyArray<ProviderAdapter.ProviderAdapterV2Shape>, E, R>,
+  adapters: Effect.Effect<ReadonlyArray<ProviderAdapter.ProviderAdapterV2["Service"]>, E, R>,
 ): Layer.Layer<ProviderAdapterRegistryV2, E, R> {
   return Layer.effect(
     ProviderAdapterRegistryV2,
@@ -203,7 +196,7 @@ export function layerFromAdaptersEffect<R, E>(
 }
 
 export function layerSingle(
-  adapter: ProviderAdapter.ProviderAdapterV2Shape,
+  adapter: ProviderAdapter.ProviderAdapterV2["Service"],
 ): Layer.Layer<ProviderAdapterRegistryV2> {
   return layerFromAdapters([adapter]);
 }
@@ -217,7 +210,7 @@ const decodedConfigEnabled = (config: unknown): boolean | undefined => {
 };
 
 interface LiveAdapterEntry {
-  readonly adapter: ProviderAdapter.ProviderAdapterV2Shape;
+  readonly adapter: ProviderAdapter.ProviderAdapterV2["Service"];
   readonly scope: Scope.Closeable;
   readonly entry: ProviderInstanceConfig;
 }
@@ -323,20 +316,20 @@ const buildAdaptersFromConfigMap = Effect.fn("ProviderAdapterRegistry.buildAdapt
   },
 );
 
-export function makeRegistryFromConfigMap<R>(input: {
+export const makeRegistryFromConfigMap = Effect.fn(
+  "ProviderAdapterRegistry.makeRegistryFromConfigMap",
+)(function* <R>(input: {
   readonly drivers: ReadonlyArray<AnyProviderAdapterDriver<R>>;
   readonly configMap: ProviderInstanceConfigMap;
-}): Effect.Effect<
+}): Effect.fn.Return<
   ProviderAdapterRegistryV2Shape,
   ProviderAdapterRegistryBuildError,
   R | Scope.Scope
 > {
-  return Effect.gen(function* () {
-    const parentScope = yield* Effect.scope;
-    const entries = yield* buildAdaptersFromConfigMap({ ...input, parentScope });
-    return makeRegistry(Array.from(entries.values()).map((entry) => entry.adapter));
-  });
-}
+  const parentScope = yield* Effect.scope;
+  const entries = yield* buildAdaptersFromConfigMap({ ...input, parentScope });
+  return makeRegistry(Array.from(entries.values()).map((entry) => entry.adapter));
+});
 
 export function layerFromDrivers<R>(input: {
   readonly drivers: ReadonlyArray<AnyProviderAdapterDriver<R>>;

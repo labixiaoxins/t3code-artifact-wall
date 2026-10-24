@@ -18,8 +18,17 @@
     },
     "scripts": {
       // Knip loads its preprocessor through a CLI option; native verification and
-      // worktree setup (from t3.json), and the shared typecheck launcher run directly.
-      "entry": ["knip-schemas.ts", "mobile-native-client.ts", "setup-worktree.ts", "typecheck.ts"],
+      // worktree setup (from t3.json) run directly. release-desktop.yml bundles the
+      // Windows verify script with esbuild through a path knip does not trace.
+      "entry": [
+        "knip-schemas.ts",
+        "mobile-native-client.ts",
+        "setup-worktree.ts",
+        "verify-windows-desktop-artifact.ts",
+      ],
+      "ignoreDependencies": ["esbuild"],
+      // The `t3` npm package's files: copied into the package, never imported.
+      "ignore": ["npm-launcher/**"],
     },
     "apps/server": {
       // Vite+ pack entries and the launcher used by installed background services.
@@ -28,15 +37,22 @@
         "src/claude-history-worker.ts!",
         "scripts/cli.ts",
         "scripts/evaluate-thread-titles.ts",
+        "scripts/fetch-expo-schema.ts",
         "scripts/measure-pr-preview.ts",
         "scripts/probe-claude-fork-local-rollback-replay.ts",
         "scripts/update-test-shard-weights.ts",
         "scripts/verify-background-live.ts",
         "src/provider/testFixtures/*.mjs",
+        // graphqlgen reads its config.
+        "graphql.config.ts",
       ],
+      // The generated operations export every selection's class.
+      "ignoreIssues": { "**/*.graphql.ts": ["exports", "types", "namespaceMembers"] },
       // Keep the transitive Effect runtime pinned for standalone npm installs.
       // The Vite+ web build prerequisite.
-      "ignoreDependencies": ["@effect/platform-node-shared", "@t3tools/web"],
+      // Native and disk-loaded provider packages stay external to the bundle; the
+      // CLI archive and desktop sidecar stage them from this manifest.
+      "ignoreDependencies": ["@effect/platform-node-shared", "@t3tools/web", "@napi-rs/keyring"],
     },
     "apps/desktop": {
       // Electron loads these bundles by filename rather than importing them.
@@ -60,10 +76,9 @@
       "ignoreDependencies": ["playwright-core", "electron-builder"],
     },
     "apps/web": {
-      // Vitest loads this through the per-file @vitest-environment directive.
-      "ignoreDependencies": ["jsdom"],
-      // Worktree setup (scripts/setup-worktree.ts) runs this directly.
-      "entry": ["scripts/warm-dep-cache.ts"],
+      // Worktree setup (scripts/setup-worktree.ts) runs this directly, and evidence
+      // fixtures run under node.
+      "entry": ["scripts/warm-dep-cache.ts", "test/fixtures/**/*.mjs"],
       // UI component modules are copied and adapted as cohesive sets. Keep their
       // named subcomponents even before they have callers; the file audit still
       // reports an entire component module when nothing imports it.
@@ -86,7 +101,7 @@
         "@t3tools/mobile-terminal-native",
       ],
     },
-    "apps/mobile/modules/t3-markdown-text": {
+    "apps/mobile/modules/t3-source-text": {
       // React Native codegen discovers component specifications by filename.
       "entry": ["src/*NativeComponent.ts!"],
     },
@@ -107,6 +122,11 @@
       "includeEntryExports": true,
       "entry": ["test/fixtures/*.ts"],
       "ignoreIssues": { "src/_generated/**": ["exports", "types"] },
+    },
+    "packages/source-control-github": {
+      // graphqlgen reads its config; the generated operations export every selection's class.
+      "entry": ["graphql.config.ts"],
+      "ignoreIssues": { "**/*.graphql.ts": ["exports", "types", "namespaceMembers"] },
     },
   },
 }

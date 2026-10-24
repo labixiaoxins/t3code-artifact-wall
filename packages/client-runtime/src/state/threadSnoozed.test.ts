@@ -28,6 +28,7 @@ function makeShell(input: {
   readonly snoozedAt?: string | null;
   readonly sessionStatus?: "starting" | "running" | "ready" | "error";
   readonly pending?: "approval" | "user-input";
+  readonly turnRequestedAt?: string | null;
   readonly turnCompletedAt?: string | null;
 }): ThreadSnoozeShell {
   const threadId = ThreadId.make("thread-1");
@@ -54,7 +55,7 @@ function makeShell(input: {
         : {
             turnId: TurnId.make("turn-1"),
             state: "completed",
-            requestedAt: SNOOZED_AT,
+            requestedAt: input.turnRequestedAt === undefined ? SNOOZED_AT : input.turnRequestedAt,
             startedAt: null,
             completedAt: input.turnCompletedAt,
             assistantMessageId: null,
@@ -99,7 +100,6 @@ describe("effectiveSnoozed", () => {
   });
 
   it("wakes early on a failure that happened after the snooze", () => {
-    // makeShell stamps session.updatedAt at 11:00, after SNOOZED_AT (9:00).
     expect(
       effectiveSnoozed(makeShell({ snoozedUntil: FUTURE_WAKE, sessionStatus: "error" }), {
         now: NOW,
@@ -113,13 +113,52 @@ describe("effectiveSnoozed", () => {
         makeShell({
           snoozedUntil: FUTURE_WAKE,
           sessionStatus: "error",
-          // Snoozed AFTER the error's status edge.
           snoozedAt: "2026-04-10T11:30:00.000Z",
         }),
         { now: NOW },
       ),
     ).toBe(true);
   });
+
+  it.each([
+    {
+      reason: "stale failure",
+      completedAt: "2026-04-10T08:00:00.000Z",
+      pending: undefined,
+      wokeAt: null,
+    },
+    {
+      reason: "fresh failure",
+      completedAt: "2026-04-10T10:00:00.000Z",
+      pending: undefined,
+      wokeAt: "2026-04-10T10:00:00.000Z",
+    },
+    {
+      reason: "approval after a stale failure",
+      completedAt: "2026-04-10T08:00:00.000Z",
+      pending: "approval",
+      wokeAt: "2026-04-10T11:00:00.000Z",
+    },
+    {
+      reason: "input after a stale failure",
+      completedAt: "2026-04-10T08:00:00.000Z",
+      pending: "user-input",
+      wokeAt: "2026-04-10T11:00:00.000Z",
+    },
+  ] as const)(
+    "uses the wake event time for $reason despite newer metadata",
+    ({ completedAt, pending, wokeAt }) => {
+      const shell: ThreadSnoozeShell = {
+        ...makeShell({ snoozedUntil: FUTURE_WAKE }),
+        hasPendingApprovals: pending === "approval",
+        hasPendingUserInput: pending === "user-input",
+        runtime: { status: "failed", updatedAt: "2026-04-10T11:00:00.000Z" },
+        latestRun: { status: "failed", requestedAt: "2026-04-10T07:00:00.000Z", completedAt },
+      };
+      expect(effectiveSnoozed(shell, { now: NOW })).toBe(wokeAt === null);
+      expect(threadWokeAt(shell, { now: NOW })).toBe(wokeAt);
+    },
+  );
 
   it("stays snoozed while the session keeps working — snooze never pauses the agent", () => {
     expect(
@@ -129,13 +168,19 @@ describe("effectiveSnoozed", () => {
     ).toBe(true);
   });
 
-  it("wakes early when a run completes after the snooze was set", () => {
-    expect(
-      effectiveSnoozed(
-        makeShell({ snoozedUntil: FUTURE_WAKE, turnCompletedAt: "2026-04-10T10:30:00.000Z" }),
-        { now: NOW },
-      ),
-    ).toBe(false);
+  it("stays snoozed when a run requested after the snooze completes", () => {
+    const shell = {
+      ...makeShell({ snoozedUntil: FUTURE_WAKE }),
+      latestRun: {
+        status: "completed",
+        requestedAt: "2026-04-10T09:00:00.001Z",
+        startedAt: "2026-04-10T09:15:00.000Z",
+        completedAt: "2026-04-10T10:30:00.000Z",
+      },
+    };
+
+    expect(effectiveSnoozed(shell, { now: NOW })).toBe(true);
+    expect(threadWokeAt(shell, { now: NOW })).toBe(null);
   });
 
   it("ignores runs that completed before the snooze — the user saw that result", () => {
@@ -189,17 +234,21 @@ describe("canSnooze", () => {
         { now: NOW },
       ),
     ).toBe(false);
+    expect(
+      canSnooze(
+        { ...makeShell({}), latestUserMessageAt: null, pendingSubagentRequest: "approval" },
+        { now: NOW },
+      ),
+    ).toBe(false);
   });
 
   it("refuses a queued turn start — same invisible-pending-work rule as settle", () => {
-    // Fresh user message, no turn has adopted it, within the grace window.
     expect(
       canSnooze(
         { ...makeShell({}), latestUserMessageAt: "2026-04-10T11:59:30.000Z" },
         { now: NOW },
       ),
     ).toBe(false);
-    // Outside the grace window the message is stale data, not queued work.
     expect(
       canSnooze(
         { ...makeShell({}), latestUserMessageAt: "2026-04-10T11:00:00.000Z" },
@@ -264,38 +313,41 @@ describe("threadWokeAt", () => {
     expect(threadWokeAt(makeShell({ snoozedUntil: FUTURE_WAKE }), { now: NOW })).toBe(null);
   });
 
-  it("reports the wake time for a timer wake", () => {
+  it("reports the timer wake even after an already-requested run completes", () => {
     expect(threadWokeAt(makeShell({ snoozedUntil: PAST_WAKE }), { now: NOW })).toBe(PAST_WAKE);
+    const shell = makeShell({
+      snoozedUntil: PAST_WAKE,
+      turnCompletedAt: "2026-04-10T09:30:00.000Z",
+    });
+    expect(effectiveSnoozed(shell, { now: NOW })).toBe(false);
+    expect(threadWokeAt(shell, { now: NOW })).toBe(PAST_WAKE);
   });
 
-  it("reports the completion time for an early run-completed wake", () => {
-    expect(
-      threadWokeAt(
-        makeShell({ snoozedUntil: FUTURE_WAKE, turnCompletedAt: "2026-04-10T10:30:00.000Z" }),
-        { now: NOW },
-      ),
-    ).toBe("2026-04-10T10:30:00.000Z");
-  });
-
-  it("falls back to session activity for blocked/failed early wakes", () => {
-    expect(
-      threadWokeAt(makeShell({ snoozedUntil: FUTURE_WAKE, sessionStatus: "error" }), {
-        now: NOW,
-      }),
-    ).toBe("2026-04-10T11:00:00.000Z");
+  it.each([
+    { reason: "failure", sessionStatus: "error" },
+    { reason: "approval", sessionStatus: "ready", pending: "approval" },
+    { reason: "user input", sessionStatus: "ready", pending: "user-input" },
+  ] as const)("reports $reason activity instead of an already-requested completion", (activity) => {
+    const shell = makeShell({
+      ...activity,
+      snoozedUntil: FUTURE_WAKE,
+      turnCompletedAt: "2026-04-10T10:30:00.000Z",
+    });
+    expect(effectiveSnoozed(shell, { now: NOW })).toBe(false);
+    expect(threadWokeAt(shell, { now: NOW })).toBe("2026-04-10T11:00:00.000Z");
   });
 
   it("keeps the early wake authoritative after the scheduled time passes", () => {
-    // Woke early at 10:30 via run-completed; the scheduled wake (PAST_WAKE
-    // 10:00 relative to a later now) has ALSO passed. Reporting the
-    // scheduled time would resurface a Woke pill the user already cleared
-    // by visiting between the early wake and now.
-    expect(
-      threadWokeAt(
-        makeShell({ snoozedUntil: PAST_WAKE, turnCompletedAt: "2026-04-10T09:30:00.000Z" }),
-        { now: NOW },
-      ),
-    ).toBe("2026-04-10T09:30:00.000Z");
+    const shell: ThreadSnoozeShell = {
+      ...makeShell({ snoozedUntil: PAST_WAKE }),
+      runtime: { status: "failed", updatedAt: "2026-04-10T11:00:00.000Z" },
+      latestRun: {
+        status: "failed",
+        requestedAt: "2026-04-10T09:15:00.000Z",
+        completedAt: "2026-04-10T09:30:00.000Z",
+      },
+    };
+    expect(threadWokeAt(shell, { now: NOW })).toBe("2026-04-10T09:30:00.000Z");
   });
 });
 
@@ -355,7 +407,6 @@ describe("resolveSnoozePresets", () => {
   });
 
   it("drops next week on Sundays, when it lands on the same Monday as tomorrow", () => {
-    // Sunday 2026-08-30 07:01: "Tomorrow" and "Next week" are both Monday 9:00.
     const presets = resolveSnoozePresets(localDate(2026, 8, 30, 7, 1));
     expect(presets.map((preset) => preset.id)).toEqual([
       "hour",

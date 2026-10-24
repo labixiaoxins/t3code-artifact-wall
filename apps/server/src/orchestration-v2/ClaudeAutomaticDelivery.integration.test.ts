@@ -26,19 +26,23 @@ import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import * as ScheduledTaskService from "../scheduledTasks/ScheduledTaskService.ts";
 import * as SecretRequests from "../secrets/SecretRequests.ts";
+import * as ManagedProjectFolders from "../project/ManagedProjectFolders.ts";
 import * as Scheduler from "../scheduling/Scheduler.ts";
 import * as SqlitePersistence from "../persistence/Sqlite.ts";
 import * as ClaudeAdapterV2 from "./Adapters/ClaudeAdapterV2.ts";
+import * as CommandReceiptStore from "./CommandReceiptStore.ts";
 import * as EffectWorker from "./EffectWorker.ts";
 import * as EventSink from "./EventSink.ts";
-import * as IdAllocator from "./IdAllocator.ts";
+import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
+import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
 import * as LegacyV1ThreadImporter from "./legacy/LegacyV1ThreadImporter.ts";
 import * as Orchestrator from "./Orchestrator.ts";
 import * as ProviderAdapterRegistry from "./ProviderAdapterRegistry.ts";
 import * as ThreadLaunchService from "./ThreadLaunchService.ts";
 import * as ThreadManagementService from "./ThreadManagementService.ts";
+import * as ServerSettings from "../serverSettings.ts";
 import * as ProviderReplayHarness from "./testkit/ProviderReplayHarness.ts";
-import { checkpointWorkspace } from "./testkit/ReplayFixtureWorkspace.ts";
+import { checkpointWorkspace } from "@t3tools/provider-testing/replayWorkspace";
 
 const sessionId = "automatic-delivery-session";
 const settings = Schema.decodeSync(ClaudeSettings)({});
@@ -51,8 +55,6 @@ const modelSelection = {
   model: "claude-sonnet-4-6",
 };
 
-// Native frames match the captured Bash/status batch and tool_result_meta shape.
-// The external SDK boundary is replayed; the adapter and durable dispatch are real.
 function frame(value: unknown): SDKMessage {
   return value as SDKMessage;
 }
@@ -121,7 +123,14 @@ const result = (uuid: string, aborted: boolean) =>
     modelUsage: {},
   });
 
-it.effect.each(["child completion", "scheduled message", "user steering"] as const)(
+const deliveries = [
+  "child completion",
+  "scheduled message",
+  "user steering",
+  "promoted queued message",
+] as const;
+
+it.effect.each(deliveries)(
   "delivers %s with Claude's native pending-tool cancellation behavior",
   (delivery) =>
     Effect.scoped(
@@ -131,7 +140,7 @@ it.effect.each(["child completion", "scheduled message", "user steering"] as con
         const offers: SDKUserMessage[] = [];
         const nativeQueue: SDKUserMessage[] = [];
         const batchAbort = new AbortController();
-        const adapter = ClaudeAdapterV2.makeClaudeAdapterV2({
+        const adapter = yield* ClaudeAdapterV2.makeClaudeAdapterV2({
           instanceId: modelSelection.instanceId,
           settings,
           environment: {},
@@ -156,7 +165,10 @@ it.effect.each(["child completion", "scheduled message", "user steering"] as con
                     }
                   }),
                 setModel: () => Effect.void,
+                applyFlagSettings: () => Effect.void,
                 setPermissionMode: () => Effect.void,
+                backgroundTasks: () => Effect.succeed(false),
+                stopTask: () => Effect.void,
                 interrupt: Effect.die("automatic delivery must never interrupt"),
                 close: Effect.void,
               }),
@@ -311,6 +323,7 @@ it.effect.each(["child completion", "scheduled message", "user steering"] as con
               Effect.provide(
                 ScheduledTaskService.layer.pipe(
                   Layer.provide(ThreadManagementService.layer),
+                  Layer.provide(ServerSettings.layerTest()),
                   Layer.provide(
                     Layer.mock(LegacyV1ThreadImporter.LegacyV1ThreadImporter)({
                       ensureTranscript: () =>
@@ -318,7 +331,16 @@ it.effect.each(["child completion", "scheduled message", "user steering"] as con
                     }),
                   ),
                   Layer.provide(Layer.mock(ThreadLaunchService.ThreadLaunchService)({})),
+                  Layer.provide(
+                    Layer.mock(ManagedProjectFolders.ManagedProjectFolders)({
+                      namedProjectsRoot: "/projects",
+                      isScratchProject: () => Effect.succeed(false),
+                    }),
+                  ),
                   Layer.provide(Layer.mock(SecretRequests.SecretRequests)({})),
+                  Layer.provide(
+                    CommandReceiptStore.layer.pipe(Layer.provide(SqlitePersistence.layerMemory)),
+                  ),
                   Layer.provide(
                     Layer.mergeAll(
                       NodeCrypto.layer,
@@ -329,7 +351,7 @@ it.effect.each(["child completion", "scheduled message", "user steering"] as con
                 ),
               ),
             );
-          } else {
+          } else if (delivery === "user steering") {
             yield* orchestrator.dispatch({
               type: "message.dispatch",
               commandId: CommandId.make("steer"),
@@ -341,9 +363,43 @@ it.effect.each(["child completion", "scheduled message", "user steering"] as con
               createdBy: "user",
               creationSource: "web",
             });
+          } else {
+            yield* orchestrator.dispatch({
+              type: "message.dispatch",
+              commandId: CommandId.make("queue"),
+              threadId,
+              messageId,
+              text: "Change direction now.",
+              attachments: [],
+              dispatchMode: { type: "queue_after_active" },
+              createdBy: "user",
+              creationSource: "web",
+            });
+            const queuedRun = (yield* orchestrator.getThreadProjection(threadId)).runs[1]!;
+            yield* orchestrator.dispatch({
+              type: "queued-message.promote-to-steer",
+              commandId: CommandId.make("promote"),
+              threadId,
+              queuedRunId: queuedRun.id,
+              targetRunId: parent.id,
+            });
+            // Promotion cancels the queued run and moves its message into the
+            // running run as a steer that remembers where it came from.
+            const promoted = yield* orchestrator.getThreadProjection(threadId);
+            assert.equal(promoted.runs.find((run) => run.id === queuedRun.id)?.status, "cancelled");
+            assert.equal(
+              promoted.messages.find((message) => message.id === messageId)?.runId,
+              parent.id,
+            );
+            const steer = promoted.turnItems.find(
+              (item) => item.type === "user_message" && item.messageId === messageId,
+            );
+            assert.ok(steer?.type === "user_message");
+            assert.equal(steer.inputIntent, "promoted_queued_to_steer");
           }
           yield* worker.drain();
-          const explicitSteer = delivery === "user steering";
+          const explicitSteer =
+            delivery === "user steering" || delivery === "promoted queued message";
           assert.equal(batchAbort.signal.aborted, explicitSteer);
           assert.equal(offers.length, explicitSteer ? 2 : 1);
           const finished = yield* watch(
@@ -352,7 +408,6 @@ it.effect.each(["child completion", "scheduled message", "user steering"] as con
               event.payload.id === parent.id &&
               event.payload.status === "waiting",
           );
-          // Bash finishes before the pending status reads, as in the capture.
           yield* Queue.offer(sdkMessages, toolResult("build", false));
           for (const id of statusIds)
             yield* Queue.offer(sdkMessages, toolResult(id, batchAbort.signal.aborted));
@@ -423,6 +478,10 @@ it.effect.each(["child completion", "scheduled message", "user steering"] as con
             ),
           ),
         );
-      }).pipe(Effect.provide(Layer.merge(IdAllocator.layer, NodeServices.layer))),
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(IdAllocator.layer, McpProviderSessions.layer, NodeServices.layer),
+        ),
+      ),
     ),
 );

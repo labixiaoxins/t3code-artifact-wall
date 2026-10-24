@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { InfoIcon } from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
@@ -5,6 +6,7 @@ import { cn } from "~/lib/utils";
 import { Button } from "../ui/button";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import { ComposerBanner, type ComposerBannerVariant } from "./ComposerBanner";
+import { observeResize } from "~/lib/observeResize";
 
 // Match the duration-220 exit transition before removing a dismissed notice.
 const DISMISS_TRANSITION_MS = 220;
@@ -13,7 +15,6 @@ export interface ComposerBannerStackItem {
   readonly id: string;
   readonly variant: ComposerBannerVariant;
   readonly priority?: "urgent" | "activity" | "notice";
-  readonly compact?: boolean;
   readonly icon: ReactNode;
   readonly title: ReactNode;
   readonly description?: ReactNode;
@@ -31,10 +32,10 @@ export type ComposerBannerStackContent = Pick<
 type ComposerBannerStackEntry = ComposerBannerStackItem | ComposerBannerStackContent;
 
 function bannerPriority(item: ComposerBannerStackEntry) {
-  if (item.priority === "activity") {
+  if (item.priority === "urgent" || item.variant === "error" || item.variant === "warning") {
     return 0;
   }
-  if (item.priority === "urgent" || item.variant === "error" || item.variant === "warning") {
+  if (item.priority === "activity") {
     return 1;
   }
   return 2;
@@ -43,8 +44,6 @@ function bannerPriority(item: ComposerBannerStackEntry) {
 interface ComposerBannerStackProps {
   readonly className?: string;
   readonly items: ReadonlyArray<ComposerBannerStackEntry>;
-  /** Attachments that sit between the stacked notices and the front item, such as the queue.
-      The stacked notices peek above the whole column, never from between two attachments. */
   readonly attachedAbove?: ReactNode;
 }
 
@@ -70,9 +69,10 @@ export function ComposerBannerStack({ className, items, attachedAbove }: Compose
     };
   }, []);
 
-  useEffect(() => {
-    if (items.length < 2) setStackExpanded(false);
-  }, [items.length]);
+  // A stack that shrinks to one banner collapses, so the next stack starts collapsed.
+  if (items.length < 2 && stackExpanded) {
+    setStackExpanded(false);
+  }
 
   useLayoutEffect(() => {
     if (stackExpanded && pendingFocusRef.current === "notice") {
@@ -87,7 +87,6 @@ export function ComposerBannerStack({ className, items, attachedAbove }: Compose
     }
   }, [stackExpanded]);
 
-  // Activity stays attached. Urgency and severity only order the notices behind it.
   const orderedItems = items.toSorted((a, b) => bannerPriority(a) - bannerPriority(b));
   const frontItem = orderedItems[0];
   if (!frontItem) {
@@ -123,6 +122,7 @@ export function ComposerBannerStack({ className, items, attachedAbove }: Compose
       {hasStack ? (
         <div
           ref={noticesRef}
+          data-composer-banner-stack="true"
           data-chat-composer-collapsed-controls="true"
           className={cn("relative z-20 min-h-3", stackExpanded && "z-50")}
           onPointerEnter={(event) => {
@@ -155,7 +155,7 @@ export function ComposerBannerStack({ className, items, attachedAbove }: Compose
             <ComposerBanner.Peek
               ref={peekRef}
               variant={firstStackedItem.variant}
-              aria-label="Show other notices"
+              aria-label={uiText("Show other notices")}
               aria-expanded={stackExpanded}
               aria-controls={expandedItemsId}
               aria-hidden={stackExpanded || undefined}
@@ -172,7 +172,7 @@ export function ComposerBannerStack({ className, items, attachedAbove }: Compose
             id={expandedItemsId}
             ref={expandedItemsRef}
             role="group"
-            aria-label="Other notices"
+            aria-label={uiText("Other notices")}
             tabIndex={-1}
             data-composer-banner-stack-expanded-items="true"
             className={cn(
@@ -180,10 +180,12 @@ export function ComposerBannerStack({ className, items, attachedAbove }: Compose
               stackExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
             )}
           >
-            <div className="min-h-0 overflow-hidden">
+            {/* Clip only the collapsing axis: at fractional widths a horizontal clip
+                shaves the notice's right border. */}
+            <div className="min-h-0 overflow-y-clip">
               <div
                 className={cn(
-                  "transform-gpu space-y-2 pb-2 transition-[opacity,transform] duration-150 ease-out will-change-[opacity,transform]",
+                  "transform-gpu space-y-2 pb-2 transition-[opacity,transform] duration-150 ease-out will-change-transform",
                   stackExpanded
                     ? "pointer-events-auto visible translate-y-0 opacity-100"
                     : "pointer-events-none invisible translate-y-1 opacity-0",
@@ -249,48 +251,47 @@ export function ComposerBannerStack({ className, items, attachedAbove }: Compose
   );
 }
 
-/** Keep full descriptions reachable only when their inline copy is clipped. */
-function NoticeDescription({ children, compact }: { children: ReactNode; compact?: boolean }) {
-  const descriptionRef = useRef<HTMLSpanElement>(null);
+function NoticeText({
+  children,
+  className,
+  detailsLabel,
+}: {
+  readonly children: ReactNode;
+  readonly className: string;
+  readonly detailsLabel: string;
+}) {
+  const textRef = useRef<HTMLSpanElement>(null);
   const detailsRef = useRef<HTMLButtonElement>(null);
   const [showDetails, setShowDetails] = useState(false);
 
   useLayoutEffect(() => {
-    const description = descriptionRef.current;
-    if (!description) return;
+    const text = textRef.current;
+    if (!text) return;
     const measure = () => {
       // Ignore the space taken by the details button itself so it cannot
-      // sustain its own overflow after the description would otherwise fit.
+      // sustain its own overflow after the text would otherwise fit.
       const recoveredWidth = detailsRef.current ? detailsRef.current.offsetWidth + 4 : 0;
-      const hidden = getComputedStyle(description).position === "absolute";
+      const hidden = getComputedStyle(text).position === "absolute";
       setShowDetails(
         hidden ||
-          [description, ...description.querySelectorAll("*")].some(
+          [text, ...text.querySelectorAll("*")].some(
             (element) => element.scrollWidth > element.clientWidth + recoveredWidth,
           ),
       );
     };
     measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(description);
-    // A child can reveal new text without resizing its clipped box.
+    const stopObserving = observeResize(text, measure);
     const mutations = new MutationObserver(measure);
-    mutations.observe(description, { childList: true, subtree: true, characterData: true });
+    mutations.observe(text, { childList: true, subtree: true, characterData: true });
     return () => {
-      observer.disconnect();
+      stopObserving();
       mutations.disconnect();
     };
   }, []);
 
   return (
-    <span className={compact ? "contents" : "flex min-w-8 flex-1 items-center gap-1"}>
-      <span
-        ref={descriptionRef}
-        className={cn(
-          "min-w-0 truncate text-muted-foreground",
-          compact && "shrink-[9999] @max-[400px]:sr-only",
-        )}
-      >
+    <span className="contents">
+      <span ref={textRef} className={className}>
         {children}
       </span>
       {showDetails ? (
@@ -302,7 +303,7 @@ function NoticeDescription({ children, compact }: { children: ReactNode; compact
                 ref={detailsRef}
                 size="icon-xs"
                 variant="ghost-muted"
-                aria-label="Show notice details"
+                aria-label={detailsLabel}
                 className="flex-none"
               />
             }
@@ -310,7 +311,7 @@ function NoticeDescription({ children, compact }: { children: ReactNode; compact
             <InfoIcon />
           </PopoverTrigger>
           <PopoverPopup
-            aria-label="Notice details"
+            aria-label={uiText("Notice details")}
             tooltipStyle
             side="top"
             className="max-w-[min(30rem,calc(100vw-2rem))] whitespace-normal wrap-anywhere [--inline-button-text-align:start] [--inline-button-white-space:normal] [&_[data-slot=inline-button]]:max-w-full"
@@ -354,16 +355,24 @@ function ComposerBannerStackAlert({
       variant={item.variant}
       density="comfortable"
     >
-      <ComposerBanner.Row layout={item.compact ? "wrap-actions-narrow" : "wrap-actions"}>
+      <ComposerBanner.Row layout={item.priority === "activity" ? "inline" : "wrap-actions"}>
         <ComposerBanner.Icon className="h-(--composer-banner-icon-column) self-start">
           {item.icon}
         </ComposerBanner.Icon>
         <ComposerBanner.Content className="whitespace-nowrap">
-          <span className="min-w-0 truncate font-medium leading-7 sm:leading-6">{item.title}</span>
+          <NoticeText
+            detailsLabel="Show title details"
+            className="min-w-0 truncate font-medium leading-7 sm:leading-6"
+          >
+            {item.title}
+          </NoticeText>
           {item.description ? (
-            <NoticeDescription compact={item.compact ?? false}>
+            <NoticeText
+              detailsLabel="Show notice details"
+              className="w-0 min-w-0 grow truncate text-muted-foreground @max-[400px]:sr-only"
+            >
               {item.description}
-            </NoticeDescription>
+            </NoticeText>
           ) : null}
         </ComposerBanner.Content>
         {item.actions || item.onDismiss ? (
@@ -371,7 +380,7 @@ function ComposerBannerStackAlert({
             {item.actions}
             {item.onDismiss ? (
               <ComposerBanner.Dismiss
-                aria-label={item.dismissLabel ?? "Dismiss warning"}
+                aria-label={item.dismissLabel ?? uiText("Dismiss warning")}
                 disabled={exiting}
                 onClick={onDismissRequest}
               />

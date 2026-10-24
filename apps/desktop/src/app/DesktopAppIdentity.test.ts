@@ -44,6 +44,7 @@ const layerElectronApp = (calls: ElectronAppCalls) =>
     name: Effect.succeed("T3 Code"),
     systemLocale: Effect.succeed("en-US"),
     whenReady: Effect.void,
+    requestSingleInstanceLock: Effect.succeed(true),
     quit: Effect.void,
     exit: () => Effect.void,
     relaunch: () => Effect.void,
@@ -217,12 +218,10 @@ describe("DesktopAppIdentity", () => {
         const identity = yield* DesktopAppIdentity.DesktopAppIdentity;
         yield* identity.configure;
 
-        assert.deepEqual(calls.setName, ["T3 Code (Alpha)"]);
-        assert.equal(calls.setAboutPanelOptions[0]?.applicationName, "T3 Code (Alpha)");
+        assert.deepEqual(calls.setName, ["T3 Code Beta"]);
+        assert.equal(calls.setAboutPanelOptions[0]?.applicationName, "T3 Code (Beta)");
         assert.equal(calls.setAboutPanelOptions[0]?.applicationVersion, "1.2.3");
         assert.equal(calls.setAboutPanelOptions[0]?.version, "0123456789ab");
-        // Packaged: the bundle's own icon stands, so a custom one the user
-        // attached survives.
         assert.deepEqual(calls.setDockIcon, []);
       }),
       {
@@ -234,6 +233,38 @@ describe("DesktopAppIdentity", () => {
         },
         pngIconPath: Option.some("/icon.png"),
       },
+    );
+  });
+
+  it.effect.each([
+    { stage: "Beta", environment: {} },
+    {
+      stage: "Nightly",
+      environment: { appVersion: "0.0.43-nightly.20260929.2428" },
+    },
+    {
+      stage: "Dev",
+      environment: { env: { VITE_DEV_SERVER_URL: "http://localhost:5173" } },
+    },
+  ])("uses a valid native User-Agent product name for $stage", ({ stage, environment }) => {
+    const calls: ElectronAppCalls = {
+      setAboutPanelOptions: [],
+      setDockIcon: [],
+      setName: [],
+    };
+
+    return withIdentity(
+      Effect.gen(function* () {
+        const identity = yield* DesktopAppIdentity.DesktopAppIdentity;
+        yield* identity.configure;
+
+        const runtimeName = calls.setName[0];
+        assert.isDefined(runtimeName);
+        assert.equal(runtimeName, `T3 Code ${stage}`);
+        assert.match(runtimeName.replaceAll(" ", ""), /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/);
+        assert.equal(calls.setAboutPanelOptions[0]?.applicationName, `T3 Code (${stage})`);
+      }),
+      { calls, environment },
     );
   });
 
@@ -249,8 +280,6 @@ describe("DesktopAppIdentity", () => {
         const identity = yield* DesktopAppIdentity.DesktopAppIdentity;
         yield* identity.configure;
 
-        // Electron shows a generic icon for an unpackaged run, which is the
-        // reason this call exists at all.
         assert.deepEqual(calls.setDockIcon, ["/icon.png"]);
       }),
       {

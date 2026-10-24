@@ -1,5 +1,6 @@
+import { uiText } from "~/i18n";
 import { useAtomValue } from "@effect/atom-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { useActiveProjectTarget, type ActiveProjectTarget } from "~/hooks/useActiveProjectTarget";
 import { useTheme } from "~/hooks/useTheme";
@@ -53,17 +54,16 @@ function getEmptyStateMessage(query: string, error: string | null, isPending: bo
 function EmptyProjectFilePicker() {
   return (
     <CommandPaletteContent
-      aria-label="File picker"
+      aria-label={uiText("File picker")}
       escapeLabel="Back"
       footerActionLabel="Open file"
-      inputProps={{ disabled: true, placeholder: "Search files…" }}
+      inputProps={{ disabled: true, placeholder: uiText("Search files…") }}
       mode="none"
       testId="project-file-picker"
       value=""
     >
       <div className="py-10 text-center text-sm text-muted-foreground">
-        Open a project to search its files.
-      </div>
+        {uiText("Open a project to search its files.")}</div>
     </CommandPaletteContent>
   );
 }
@@ -80,48 +80,41 @@ function OpenProjectFilePicker(props: ProjectFilePickerProps & { target: ActiveP
   );
   const { resolvedTheme } = useTheme();
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
-  const matches = useMemo(
-    () => getProjectFilePickerMatches(result.entries, result.matchedQuery),
-    [result.entries, result.matchedQuery],
-  );
+  const matches = getProjectFilePickerMatches(result.entries, result.matchedQuery);
   const hasMatchedQuery = /\S/.test(result.matchedQuery);
-  const items = useMemo<CommandPaletteActionItem[]>(
-    () =>
-      matches.map((match) => ({
-        kind: "action",
-        value: `file:${match.path}`,
-        searchTerms: [match.name, match.path],
-        title: (
-          <HighlightedFuzzyText
-            active={hasMatchedQuery}
-            value={match.name}
-            indices={match.nameMatchIndices}
-          />
-        ),
-        description: (
-          <HighlightedFuzzyText
-            active={hasMatchedQuery}
-            value={match.path}
-            indices={match.pathMatchIndices}
-          />
-        ),
-        icon: <PierreEntryIcon pathValue={match.path} kind="file" theme={resolvedTheme} />,
-        run: async () => {
-          useRightPanelStore.getState().openFile(target.threadRef, match.path);
-        },
-      })),
-    [hasMatchedQuery, matches, resolvedTheme, target.threadRef],
-  );
+  const items: CommandPaletteActionItem[] = matches.map((match) => ({
+    kind: "action",
+    value: `file:${match.path}`,
+    searchTerms: [match.name, match.path],
+    title: (
+      <HighlightedFuzzyText
+        active={hasMatchedQuery}
+        value={match.name}
+        indices={match.nameMatchIndices}
+      />
+    ),
+    description: (
+      <HighlightedFuzzyText
+        active={hasMatchedQuery}
+        value={match.path}
+        indices={match.pathMatchIndices}
+      />
+    ),
+    icon: <PierreEntryIcon pathValue={match.path} kind="file" theme={resolvedTheme} />,
+    run: async () => {
+      useRightPanelStore.getState().openFile(target.threadRef, match.path);
+    },
+  }));
 
   const emptyStateMessage = getEmptyStateMessage(query, result.error, result.isPending);
 
   return (
     <CommandPaletteContent
-      aria-label="File picker"
+      aria-label={uiText("File picker")}
       autoHighlight="always"
       escapeLabel="Back"
       footerActionLabel="Open file"
-      inputProps={{ placeholder: "Search files…" }}
+      inputProps={{ placeholder: uiText("Search files…") }}
       mode="none"
       onItemHighlighted={(value) => {
         setHighlightedItemValue(typeof value === "string" ? value : null);

@@ -1,47 +1,54 @@
+import { uiText } from "~/i18n";
+import { isCompositionKey } from "../../lib/keyboardComposition";
 import { Spinner } from "~/components/ui/spinner";
-import type { ProjectContentMatch } from "@t3tools/contracts";
-
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-
+import { AuthFilesystemReadScope, type ProjectContentMatch } from "@t3tools/contracts";
+import { useEffect, useState, type ReactNode } from "react";
 import { useActiveProjectTarget, type ActiveProjectTarget } from "~/hooks/useActiveProjectTarget";
-import { useTheme } from "~/hooks/useTheme";
+import { useRenderedAppearance, useTheme } from "~/hooks/useTheme";
 import { cn } from "~/lib/utils";
 import { useRightPanelStore } from "~/rightPanelStore";
 import { useProjectContentSearch } from "~/state/queries";
-
+import { readEnvironmentScope } from "~/state/session";
 import { PierreEntryIcon } from "../chat/PierreEntryIcon";
 import { CommandPaletteContent } from "../CommandPaletteContent";
 import { ScrollArea } from "../ui/scroll-area";
 import { Toggle } from "../ui/toggle";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { HighlightedSearchLine } from "./HighlightedSearchLine";
-
 interface ProjectContentSearchDialogProps {
   readonly onOpenChange: (open: boolean) => void;
 }
-
 /**
- * Result rows are syntax highlighted, so mounting all 500 possible rows at
- * once stalls the UI. Rows render in windows that grow as the sentinel at the
- * bottom of the list scrolls into view (or keyboard navigation moves past
- * the rendered window).
+ * Result rows are syntax highlighted, so mounting all 500 possible rows at once
+ * stalls the UI.
  */
 const VISIBLE_MATCH_WINDOW = 100;
-
 interface MatchGroup {
   readonly path: string;
-  readonly matches: ReadonlyArray<ProjectContentMatch & { readonly resultIndex: number }>;
+  readonly matches: ReadonlyArray<
+    ProjectContentMatch & {
+      readonly resultIndex: number;
+    }
+  >;
 }
-
-function splitPath(path: string): { readonly name: string; readonly directory: string } {
+function splitPath(path: string): {
+  readonly name: string;
+  readonly directory: string;
+} {
   const separator = path.lastIndexOf("/");
   return separator === -1
     ? { name: path, directory: "" }
     : { name: path.slice(separator + 1), directory: path.slice(0, separator) };
 }
-
 function groupMatches(matches: ReadonlyArray<ProjectContentMatch>): MatchGroup[] {
-  const groups = new Map<string, Array<ProjectContentMatch & { readonly resultIndex: number }>>();
+  const groups = new Map<
+    string,
+    Array<
+      ProjectContentMatch & {
+        readonly resultIndex: number;
+      }
+    >
+  >();
   matches.forEach((match, resultIndex) => {
     const group = groups.get(match.path);
     const indexedMatch = { ...match, resultIndex };
@@ -53,9 +60,9 @@ function groupMatches(matches: ReadonlyArray<ProjectContentMatch>): MatchGroup[]
   });
   return [...groups].map(([path, groupedMatches]) => ({ path, matches: groupedMatches }));
 }
-
 function SearchOptionButton(props: {
   readonly active: boolean;
+  readonly disabled: boolean;
   readonly label: string;
   readonly onClick: () => void;
   readonly children: ReactNode;
@@ -66,53 +73,51 @@ function SearchOptionButton(props: {
         render={
           <Toggle
             aria-label={props.label}
+            disabled={props.disabled}
             pressed={props.active}
-            size="segmented"
-            variant="segmented"
+            size={"segmented"}
+            variant={"segmented"}
             onClick={props.onClick}
           />
         }
       >
-        <span className="font-mono">{props.children}</span>
+        <span className={"font-mono"}>{props.children}</span>
       </TooltipTrigger>
-      <TooltipPopup side="top">{props.label}</TooltipPopup>
+      <TooltipPopup side={"top"}>{props.label}</TooltipPopup>
     </Tooltip>
   );
 }
-
 function EmptyContentSearchDialog() {
   return (
     <CommandPaletteContent
-      aria-label="Search project contents"
-      escapeLabel="Back"
-      footerActionLabel="Open file"
-      inputProps={{ disabled: true, placeholder: "Search project contents…" }}
-      mode="none"
-      panelSize="fill"
-      testId="project-content-search"
-      value=""
+      aria-label={uiText("Search project contents")}
+      escapeLabel={"Back"}
+      footerActionLabel={"Open file"}
+      inputProps={{ disabled: true, placeholder: uiText("Search project contents…") }}
+      mode={"none"}
+      panelSize={"fill"}
+      testId={"project-content-search"}
+      value={""}
     >
-      <p className="m-auto px-6 text-center text-muted-foreground text-sm">
-        Open a project to search its files.
+      <p className={"m-auto px-6 text-center text-muted-foreground text-sm"}>
+        {uiText("Open a project to search its files.")}
       </p>
     </CommandPaletteContent>
   );
 }
-
 function OpenContentSearchDialog(props: {
   readonly onOpenChange: (open: boolean) => void;
   readonly target: ActiveProjectTarget;
 }) {
   const { target } = props;
   const { resolvedTheme } = useTheme();
+  const renderedAppearance = useRenderedAppearance();
   const [query, setQuery] = useState("");
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [wholeWord, setWholeWord] = useState(false);
   const [useRegex, setUseRegex] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
-
   const [visibleCount, setVisibleCount] = useState(VISIBLE_MATCH_WINDOW);
-
   const search = useProjectContentSearch({
     environmentId: target.environmentId,
     cwd: target.cwd,
@@ -121,27 +126,27 @@ function OpenContentSearchDialog(props: {
     wholeWord,
     useRegex,
   });
-  const canOpenMatches = !search.isPending;
+  const canOpenMatches = search.canReadFiles && !search.isPending && search.error === null;
   const matches = search.matches;
-  const visibleMatches = useMemo(() => matches.slice(0, visibleCount), [matches, visibleCount]);
-  const groups = useMemo(() => groupMatches(visibleMatches), [visibleMatches]);
-
-  useEffect(() => {
+  // New results restart the selection and the rendered window.
+  const [resultsFor, setResultsFor] = useState(matches);
+  if (resultsFor !== matches) {
+    setResultsFor(matches);
     setSelectedIndex(0);
     setVisibleCount(VISIBLE_MATCH_WINDOW);
-  }, [matches]);
-
+  }
+  // Keyboard selection past the window grows it before the row has to scroll into view.
+  if (selectedIndex >= visibleCount) {
+    setVisibleCount(selectedIndex + VISIBLE_MATCH_WINDOW);
+  }
+  const visibleMatches = matches.slice(0, visibleCount);
+  const groups = groupMatches(visibleMatches);
   useEffect(() => {
-    if (selectedIndex >= visibleCount) {
-      setVisibleCount(selectedIndex + VISIBLE_MATCH_WINDOW);
-      return;
-    }
     document
       .querySelector<HTMLElement>(`[data-content-search-result="${selectedIndex}"]`)
       ?.scrollIntoView({ block: "nearest" });
-  }, [selectedIndex, visibleCount]);
-
-  const observeLoadMoreSentinel = useCallback((sentinel: HTMLElement | null) => {
+  }, [selectedIndex]);
+  const observeLoadMoreSentinel = (sentinel: HTMLElement | null) => {
     if (!sentinel) return;
     const observer = new IntersectionObserver((entries) => {
       if (entries.some((entry) => entry.isIntersecting)) {
@@ -150,51 +155,61 @@ function OpenContentSearchDialog(props: {
     });
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, []);
-
+  };
   const openMatch = (match: ProjectContentMatch) => {
-    if (!canOpenMatches) return;
+    if (!canOpenMatches || !readEnvironmentScope(target.environmentId, AuthFilesystemReadScope)) {
+      return;
+    }
     props.onOpenChange(false);
     useRightPanelStore.getState().openFile(target.threadRef, match.path, match.lineNumber);
   };
-  const fileCount = useMemo(() => new Set(matches.map((match) => match.path)).size, [matches]);
+  const fileCount = new Set(matches.map((match) => match.path)).size;
   const showSearchStatus =
-    search.hasQuery || search.isPending || search.error !== null || search.invalidRegex;
-
+    search.canReadFiles &&
+    (search.hasQuery || search.isPending || search.error !== null || search.invalidRegex);
   return (
     <CommandPaletteContent
-      aria-label={`Search file contents in ${target.projectName}`}
-      escapeLabel="Back"
-      footerActionLabel="Open file"
+      aria-label={uiText("Search file contents in {0}", {"0": target.projectName})}
+      escapeLabel={"Back"}
+      footerActionLabel={"Open file"}
       inputAccessory={
-        <div className="absolute inset-e-2.5 top-1/2 flex shrink-0 -translate-y-1/2 items-center gap-0.5 rounded-md border bg-muted/30 p-0.5">
+        <div
+          className={
+            "absolute inset-e-2.5 top-1/2 flex shrink-0 -translate-y-1/2 items-center gap-0.5 rounded-lg border bg-muted/30 p-0.5"
+          }
+        >
           <SearchOptionButton
             active={caseSensitive}
-            label="Match case"
+            disabled={!search.canReadFiles}
+            label={uiText("Match case")}
             onClick={() => setCaseSensitive((current) => !current)}
           >
-            Aa
+            {"Aa"}
           </SearchOptionButton>
           <SearchOptionButton
             active={wholeWord}
-            label="Match whole word"
+            disabled={!search.canReadFiles}
+            label={uiText("Match whole word")}
             onClick={() => setWholeWord((current) => !current)}
           >
-            <span className="underline decoration-2 underline-offset-2">ab</span>
+            <span className={"underline decoration-2 underline-offset-2"}>{"ab"}</span>
           </SearchOptionButton>
           <SearchOptionButton
             active={useRegex}
-            label="Use regular expression"
+            disabled={!search.canReadFiles}
+            label={uiText("Use regular expression")}
             onClick={() => setUseRegex((current) => !current)}
           >
-            .*
+            {".*"}
           </SearchOptionButton>
         </div>
       }
       inputProps={{
         className: "pe-30",
-        placeholder: `Search in ${target.projectName}`,
+        disabled: !search.canReadFiles,
+        placeholder: uiText("Search in {0}", {"0": target.projectName}),
         onKeyDown: (event) => {
+          if (isCompositionKey(event)) return;
           if (event.key === "ArrowDown" && matches.length > 0) {
             event.preventDefault();
             setSelectedIndex((current) => (current + 1) % matches.length);
@@ -202,9 +217,6 @@ function OpenContentSearchDialog(props: {
             event.preventDefault();
             setSelectedIndex((current) => (current - 1 + matches.length) % matches.length);
           } else if (event.key === "Enter") {
-            // While a newer query is debouncing or in flight, the visible
-            // matches belong to the previous query; opening one would jump
-            // to a result the user did not ask for.
             if (!canOpenMatches) {
               event.preventDefault();
               return;
@@ -217,61 +229,79 @@ function OpenContentSearchDialog(props: {
           }
         },
       }}
-      mode="none"
+      mode={"none"}
       onValueChange={setQuery}
-      panelSize="fill"
-      testId="project-content-search"
+      panelSize={"fill"}
+      testId={"project-content-search"}
       value={query}
     >
       {showSearchStatus ? (
-        <div className="flex h-9 shrink-0 items-center border-b px-3 text-xs text-muted-foreground">
+        <div
+          className={"flex h-9 shrink-0 items-center border-b px-3 text-xs text-muted-foreground"}
+        >
           {search.isPending ? (
-            <span className="flex items-center gap-2">
-              <Spinner size="sm" /> Searching…
+            <span className={"flex items-center gap-2"}>
+              <Spinner size={"sm"} />
+              {uiText("Searching…")}
             </span>
           ) : search.error ? (
-            <span className="text-destructive">{search.error}</span>
+            <span className={"text-destructive"}>{search.error}</span>
           ) : search.invalidRegex ? (
-            <span className="text-destructive">Invalid regular expression</span>
+            <span className={"text-destructive"}>{uiText("Invalid regular expression")}</span>
           ) : (
-            `${matches.length.toLocaleString()}${search.truncated ? "+" : ""} results in ${fileCount.toLocaleString()} files`
+            uiText("{0}{1} results in {2} files", {"0": matches.length.toLocaleString(), "1": search.truncated ? "+" : "", "2": fileCount.toLocaleString()})
           )}
         </div>
       ) : null}
-
       {matches.length === 0 ? (
-        <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-muted-foreground">
-          {search.hasQuery && !search.isPending && !search.error
-            ? "No results found."
-            : "Type to search across your project."}
+        <div
+          className={
+            "flex flex-1 items-center justify-center px-6 text-center text-sm text-muted-foreground"
+          }
+        >
+          {search.isCheckingAccess
+            ? uiText("Checking file access…")
+            : !search.canReadFiles
+              ? search.error
+              : search.hasQuery && !search.isPending && !search.error
+                ? uiText("No results found.")
+                : uiText("Type to search across your project.")}
         </div>
       ) : (
-        <ScrollArea className="min-h-0 flex-1" scrollFade>
-          <div className="py-2">
+        <ScrollArea className={"min-h-0 flex-1"} scrollFade>
+          <div className={"py-2"}>
             {groups.map((group) => {
               const path = splitPath(group.path);
               return (
-                <section className="pb-2" key={group.path}>
-                  <div className="sticky top-0 z-10 flex h-8 items-center gap-2 bg-popover/95 px-3 text-xs backdrop-blur-sm">
+                <section className={"pb-2"} key={group.path}>
+                  <div
+                    className={
+                      "sticky top-0 z-10 flex h-8 items-center gap-2 bg-popover/95 px-3 text-xs backdrop-blur-sm"
+                    }
+                  >
                     <PierreEntryIcon
                       pathValue={group.path}
-                      kind="file"
+                      kind={"file"}
                       theme={resolvedTheme}
-                      className="size-3.5"
+                      className={"size-3.5"}
                     />
-                    <span className="font-medium text-foreground">{path.name}</span>
+                    <span className={"font-medium text-foreground"}>{path.name}</span>
                     {path.directory ? (
-                      <span className="min-w-0 truncate text-muted-foreground">
+                      <span className={"min-w-0 truncate text-muted-foreground"}>
                         {path.directory}
                       </span>
                     ) : null}
-                    <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 tabular-nums text-3xs text-muted-foreground">
+                    <span
+                      className={
+                        "ml-auto rounded-full bg-muted px-1.5 py-0.5 tabular-nums text-3xs text-muted-foreground"
+                      }
+                    >
                       {group.matches.length}
                     </span>
                   </div>
                   {group.matches.map((match) => (
                     <button
-                      type="button"
+                      type={"button"}
                       key={`${match.path}:${match.lineNumber}:${match.resultIndex}`}
                       data-content-search-result={match.resultIndex}
                       className={cn(
@@ -282,14 +312,16 @@ function OpenContentSearchDialog(props: {
                       onMouseEnter={() => setSelectedIndex(match.resultIndex)}
                       onClick={() => openMatch(match)}
                     >
-                      <span className="w-10 shrink-0 text-right tabular-nums text-muted-foreground/70">
+                      <span
+                        className={"w-10 shrink-0 text-right tabular-nums text-muted-foreground/70"}
+                      >
                         {match.lineNumber}
                       </span>
-                      <span className="min-w-0 flex-1 truncate whitespace-pre">
+                      <span className={"min-w-0 flex-1 truncate whitespace-pre"}>
                         <HighlightedSearchLine
                           match={match}
                           path={group.path}
-                          theme={resolvedTheme}
+                          theme={renderedAppearance}
                         />
                       </span>
                     </button>
@@ -298,7 +330,7 @@ function OpenContentSearchDialog(props: {
               );
             })}
             {matches.length > visibleCount ? (
-              <div ref={observeLoadMoreSentinel} className="h-8" aria-hidden="true" />
+              <div ref={observeLoadMoreSentinel} className={"h-8"} aria-hidden={"true"} />
             ) : null}
           </div>
         </ScrollArea>
@@ -306,13 +338,10 @@ function OpenContentSearchDialog(props: {
     </CommandPaletteContent>
   );
 }
-
 export function ProjectContentSearchDialog(props: ProjectContentSearchDialogProps) {
   const target = useActiveProjectTarget();
-
   return target ? (
     <OpenContentSearchDialog
-      // Reset the query and options whenever the workspace changes.
       key={`${target.environmentId}:${target.cwd}`}
       onOpenChange={props.onOpenChange}
       target={target}

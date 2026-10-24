@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type { TimestampFormat } from "@t3tools/contracts/settings";
 import {
   resolveSnoozePresets as resolveSharedSnoozePresets,
@@ -33,10 +34,6 @@ export function resolveSnoozePresets(
   });
 }
 
-/**
- * Human wake time for menus and toasts: "tomorrow 9:00", "Mon 9:00",
- * "17:30" (today).
- */
 export function snoozeWakeDescription(
   snoozedUntil: string,
   now: Date,
@@ -49,7 +46,7 @@ export function snoozeWakeDescription(
   startOfToday.setHours(0, 0, 0, 0);
   const dayDelta = Math.floor((wake.getTime() - startOfToday.getTime()) / DAY_MS);
   if (dayDelta === 0) return time;
-  if (dayDelta === 1) return `tomorrow ${time}`;
+  if (dayDelta === 1) return uiText("tomorrow {0}", {"0": time});
   const weekday = wake.toLocaleDateString(undefined, { weekday: "short" });
   if (dayDelta < 7) return `${weekday} ${time}`;
   const date = wake.toLocaleDateString(undefined, { month: "short", day: "numeric" });

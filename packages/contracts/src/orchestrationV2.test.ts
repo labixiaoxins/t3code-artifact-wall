@@ -36,6 +36,7 @@ import {
   OrchestrationV2ShellSnapshot,
   OrchestrationV2SubscribeThreadInput,
   OrchestrationV2Subagent,
+  OrchestrationV2SubagentJson,
   OrchestrationV2ThreadHistoryPage,
   OrchestrationV2ThreadProjection,
   OrchestrationV2ThreadStreamItem,
@@ -45,6 +46,48 @@ import {
 } from "./orchestrationV2.ts";
 
 const now = DateTime.makeUnsafe("2026-04-20T00:00:00.000Z");
+function emptyThreadProjection() {
+  return {
+    thread: {
+      createdBy: "user",
+      creationSource: "web",
+      id: "thread-1",
+      projectId: "project-1",
+      title: "Thread",
+      providerInstanceId: "codex",
+      modelSelection: { instanceId: ProviderInstanceId.make("codex"), model: "gpt-5-codex" },
+      runtimeMode: "full-access",
+      interactionMode: "default",
+      branch: null,
+      worktreePath: null,
+      activeProviderThreadId: null,
+      lineage: { parentThreadId: null, relationshipToParent: null, rootThreadId: "thread-1" },
+      forkedFrom: null,
+      createdAt: now,
+      updatedAt: now,
+      archivedAt: null,
+      deletedAt: null,
+    },
+    runs: [],
+    attempts: [],
+    nodes: [],
+    subagents: [],
+    providerSessions: [],
+    providerThreads: [],
+    providerTurns: [],
+    runtimeRequests: [],
+    messages: [],
+    plans: [],
+    turnItems: [],
+    checkpointScopes: [],
+    checkpoints: [],
+    contextHandoffs: [],
+    contextTransfers: [],
+    visibleTurnItems: [],
+    updatedAt: now,
+  };
+}
+
 const LegacyShellStreamItem = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("synchronized") }),
   Schema.Struct({
@@ -70,6 +113,7 @@ const decodeOrchestrationV2Checkpoint = Schema.decodeUnknownSync(OrchestrationV2
 const decodeOrchestrationV2DomainEvent = Schema.decodeUnknownSync(OrchestrationV2DomainEvent);
 const decodeProviderReplayTranscript = Schema.decodeUnknownSync(ProviderReplayTranscript);
 const decodeOrchestrationV2Subagent = Schema.decodeUnknownSync(OrchestrationV2Subagent);
+const encodeOrchestrationV2SubagentJson = Schema.encodeSync(OrchestrationV2SubagentJson);
 const decodeOrchestrationV2ThreadProjection = Schema.decodeUnknownSync(
   OrchestrationV2ThreadProjection,
 );
@@ -154,7 +198,6 @@ describe("orchestration V2 contracts", () => {
         sequence: 2,
         event: {
           id: "event-2",
-          // A type no build of this client knows, standing in for a newer server's event.
           type: "run.from-a-future-server",
           threadId: "thread-1",
           occurredAt: DateTime.formatIso(now),
@@ -170,7 +213,6 @@ describe("orchestration V2 contracts", () => {
       sequence: 2,
       eventType: "run.from-a-future-server",
     });
-    // A known type with a broken payload is a real defect, not a newer event.
     expect(() =>
       decodeWireItems([
         { ...detached("event-4", 4), event: { ...detached("event-4", 4).event, payload: {} } },
@@ -204,7 +246,6 @@ describe("orchestration V2 contracts", () => {
       ...extra,
     });
     const known = item("item-known", "system_notice", { message: "Hello" });
-    // A type no build of this client knows, standing in for a newer server's item.
     const future = item("item-future", "hologram", { beam: "ref-1" });
     const projected = (position: number, turnItem: { readonly id: string }) => ({
       position,
@@ -292,7 +333,6 @@ describe("orchestration V2 contracts", () => {
       }).items.map((row) => row.item.id),
     ).toEqual(["item-known"]);
 
-    // A known turn item type with a broken payload is a real defect, not a newer item.
     const broken = item("item-broken", "system_notice", {});
     expect(() => decodeWireItems([turnItemEvent(4, broken)])).toThrow();
     expect(() =>
@@ -326,9 +366,45 @@ describe("orchestration V2 contracts", () => {
     expect("acceptBoundedSnapshot" in legacyDecoded).toBe(false);
   });
 
+  it("negotiates compact bounded turnItems without disturbing older peers", () => {
+    const legacyDecoded = decodeLegacySubscribeThreadInput({
+      threadId: "thread-1",
+      acceptBoundedSnapshot: true,
+      acceptCompactTurnItems: true,
+    });
+    expect("acceptCompactTurnItems" in legacyDecoded).toBe(false);
+    expect(
+      decodeOrchestrationV2SubscribeThreadInput({
+        threadId: "thread-1",
+        acceptCompactTurnItems: true,
+      }).acceptCompactTurnItems,
+    ).toBe(true);
+
+    const decodeStreamItem = Schema.decodeUnknownSync(OrchestrationV2ThreadStreamItem);
+    const projection = decodeStreamItem({
+      kind: "snapshot",
+      snapshotSequence: 1,
+      projection: emptyThreadProjection(),
+    });
+    expect(projection.kind === "snapshot" && projection.turnItemsOmitLocalVisible).toBe(undefined);
+    const marked = decodeStreamItem({
+      kind: "snapshot",
+      snapshotSequence: 1,
+      projection: emptyThreadProjection(),
+      turnItemsOmitLocalVisible: true,
+    });
+    expect(marked.kind === "snapshot" && marked.turnItemsOmitLocalVisible).toBe(true);
+    expect(() =>
+      decodeStreamItem({
+        kind: "snapshot",
+        snapshotSequence: 1,
+        projection: emptyThreadProjection(),
+        turnItemsOmitLocalVisible: false,
+      }),
+    ).toThrow();
+  });
+
   it("decodes persisted capability snapshots that predate runtimePolicy", () => {
-    // Events written before the field existed must replay; absent decodes to
-    // the weaker client-boundary guarantee so history never overclaims.
     const legacyCapabilities = {
       sessions: {
         supportsMultipleProviderThreadsPerSession: false,
@@ -549,6 +625,20 @@ describe("orchestration V2 contracts", () => {
     expect(event.payload.id).toBe(RunId.make("run-1"));
   });
 
+  it("accepts a thread Stop without a client-resolved run", () => {
+    expect(
+      decodeOrchestrationV2Command({
+        type: "thread.stop",
+        commandId: "stop-thread",
+        threadId: "thread-1",
+      }),
+    ).toEqual({
+      type: "thread.stop",
+      commandId: "stop-thread",
+      threadId: "thread-1",
+    });
+  });
+
   it("decodes app-owned delegated task commands", () => {
     const command = decodeOrchestrationV2Command({
       type: "delegated_task.request",
@@ -594,7 +684,6 @@ describe("orchestration V2 contracts", () => {
     expect(command.taskId).toBe(NodeId.make("node-subagent-1"));
     expect(command.completionWake).toBe("always");
 
-    // The policy carries the whole decision, so it is required and closed.
     expect(() =>
       decodeOrchestrationV2Command({
         type: "delegated_task.wake-policy",
@@ -846,6 +935,68 @@ describe("orchestration V2 contracts", () => {
     expect(turnItem.progress).toBe("Inspecting package metadata");
   });
 
+  it.each(["  indented prompt\n", "\n \t\n"])(
+    "preserves workflow prompt and result %j in stored and wire JSON",
+    (preview) => {
+      const subagent = {
+        ...decodeOrchestrationV2Subagent({
+          id: "workflow-coordinator",
+          threadId: "thread-1",
+          runId: "run-1",
+          parentNodeId: "node-root-1",
+          origin: "provider_native",
+          createdBy: "agent",
+          driver: "claudeAgent",
+          providerInstanceId: "claudeAgent",
+          providerThreadId: null,
+          childThreadId: null,
+          nativeTaskRef: null,
+          prompt: "Run workflow",
+          title: null,
+          model: null,
+          status: "running",
+          result: null,
+          startedAt: now,
+          completedAt: null,
+          updatedAt: now,
+        }),
+        workflow: {
+          phases: [],
+          agents: [
+            {
+              index: 1,
+              label: "Member",
+              state: "completed" as const,
+              prompt: preview,
+              result: preview,
+            },
+          ],
+        },
+      };
+      const { workflow, ...coordinator } = subagent;
+      const incoming = { ...encodeOrchestrationV2SubagentJson(coordinator), workflow };
+      for (const codec of [
+        OrchestrationV2SubagentJson,
+        Schema.toCodecJson(OrchestrationV2Subagent),
+      ]) {
+        const encode = Schema.encodeSync(codec);
+        const decode = Schema.decodeUnknownSync(codec);
+        const json: unknown = JSON.parse(JSON.stringify(encode(subagent)));
+        expect(json).toMatchObject({
+          workflow: { agents: [{ prompt: preview, result: preview }] },
+        });
+        expect(decode(json).workflow?.agents[0]).toMatchObject({
+          prompt: preview,
+          result: preview,
+        });
+        expect(decode(incoming).workflow?.agents[0]).toMatchObject({
+          prompt: preview,
+          result: preview,
+        });
+      }
+    },
+  );
+
   it("decodes app-owned subagent parent-wake policies", () => {
     const appOwnedSubagent = {
       id: "node-subagent-2",
@@ -870,7 +1021,6 @@ describe("orchestration V2 contracts", () => {
     };
     const decode = Schema.decodeUnknownSync(OrchestrationV2Subagent);
 
-    // Legacy records predate the field and must behave as settled_only.
     expect(decode(appOwnedSubagent).completionWake).toBeUndefined();
     expect(decode({ ...appOwnedSubagent, completionWake: "always" }).completionWake).toBe("always");
     expect(decode({ ...appOwnedSubagent, completionWake: "settled_only" }).completionWake).toBe(
@@ -1237,7 +1387,6 @@ it("round-trips typed notifications and keeps work outcome separate from item st
       decodeOrchestrationV2TurnItem({ ...base, source, summary: "", updatedAt: now }),
     ).toThrow();
   }
-  // A known kind with fields that do not decode is a real defect, not a newer kind.
   expect(() =>
     decodeOrchestrationV2TurnItem({ ...base, source: { kind: "delegated_task" }, updatedAt: now }),
   ).toThrow();
@@ -1285,8 +1434,6 @@ describe("background work kinds from older or newer servers", () => {
   });
 
   it("sends and stores sources that clients from before specific kinds still decode", () => {
-    // The notification source schema clients shipped with before #13948. They
-    // reject a kind outside it, which fails the whole thread load.
     const PreSpecificKindsNotification = Schema.Struct({
       type: Schema.Literal("notification"),
       source: Schema.Union([
@@ -1317,7 +1464,6 @@ describe("background work kinds from older or newer servers", () => {
       const item = decodeOrchestrationV2TurnItemJson(storedNotification(source));
       for (const encoded of [encodeOrchestrationV2TurnItemJson(item), sendOverWire(item)]) {
         expect(decodePreSpecificKinds(encoded).source).toEqual(preSpecificKindsSource);
-        // Current clients read the specific kind back.
         expect(decodeOrchestrationV2TurnItemJson(encoded)).toEqual(item);
       }
       expect(item).toMatchObject({ source });
@@ -1354,6 +1500,7 @@ describe("background work kinds from older or newer servers", () => {
         { taskId: "bg-3", description: "Nightly", kind: "workflow", schedule: "0 3 * * *" },
         { taskId: "bg-4", description: "npm test", kind: "command" },
         { taskId: "bg-5", kind: "subagent", childThreadId: "thread-child" },
+        { taskId: "bg-6", kind: "subagent", providerInstanceId: "claudeAgent" },
       ],
     });
     expect(providerThread.pendingBackgroundTasks).toEqual([
@@ -1362,11 +1509,10 @@ describe("background work kinds from older or newer servers", () => {
       { taskId: "bg-3", description: "Nightly", kind: "background_task" },
       { taskId: "bg-4", description: "npm test", kind: "command" },
       { taskId: "bg-5", kind: "subagent", childThreadId: "thread-child" },
+      { taskId: "bg-6", kind: "subagent", providerInstanceId: "claudeAgent" },
     ]);
-    // The fallback is decode-only: what was decoded encodes as its known member.
     const encoded = encodeOrchestrationV2ProviderThreadJson(providerThread).pendingBackgroundTasks;
     expect(encoded).toEqual(providerThread.pendingBackgroundTasks);
-    // Clients from before kinds read a roster entry as this struct and ignore `kind`.
     const decodePreKindsRoster = Schema.decodeUnknownSync(
       Schema.Array(
         Schema.Struct({
@@ -1382,6 +1528,7 @@ describe("background work kinds from older or newer servers", () => {
       "bg-3",
       "bg-4",
       "bg-5",
+      "bg-6",
     ]);
     expect(() =>
       decodeOrchestrationV2ProviderThreadJson({

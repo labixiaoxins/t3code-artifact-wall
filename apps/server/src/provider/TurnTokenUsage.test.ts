@@ -3,10 +3,10 @@ import { normalizeClaudeTurnTokenUsage } from "./ClaudeTurnTokenUsage.ts";
 import {
   accumulateCodexTurnTokenUsage,
   completeCodexTurnTokenUsage,
+  snapshotCodexTurnTokenUsage,
   getCodexTurnAccumulator,
   makeCodexTurnTokenUsageState,
 } from "./CodexTurnTokenUsage.ts";
-
 const breakdown = (input: number, cached: number, output: number) => ({
   totalTokens: input + output,
   inputTokens: input,
@@ -17,10 +17,27 @@ const breakdown = (input: number, cached: number, output: number) => ({
 const update = (total: ReturnType<typeof breakdown>, last = total) => ({
   total,
   last,
-  modelContextWindow: 200_000,
+  modelContextWindow: 200000,
 });
-
 describe("billable native turn usage", () => {
+  it("live snapshots are partial, survive repeated reads and preserve final accounting", () => {
+    const state = makeCodexTurnTokenUsageState();
+    state.activeTurnId = "turn";
+    expect(snapshotCodexTurnTokenUsage(state, "turn").usageStatus).toBe("unavailable");
+    accumulateCodexTurnTokenUsage(state, "turn", update(breakdown(10, 2, 3)));
+    expect(snapshotCodexTurnTokenUsage(state, "turn")).toMatchObject({
+      usageStatus: "partial",
+      outputTokens: 3,
+    });
+    expect(snapshotCodexTurnTokenUsage(state, "turn").outputTokens).toBe(3);
+    expect(state.activeTurnId).toBe("turn");
+    accumulateCodexTurnTokenUsage(state, "turn", update(breakdown(20, 4, 8)));
+    expect(completeCodexTurnTokenUsage(state, "turn", true)).toMatchObject({
+      usageStatus: "complete",
+      outputTokens: 8,
+    });
+    expect(snapshotCodexTurnTokenUsage(state, "turn").usageStatus).toBe("unavailable");
+  });
   it("adds each Codex response once and excludes the prior resumed history", () => {
     const state = makeCodexTurnTokenUsageState();
     state.activeTurnId = "turn";
@@ -42,7 +59,6 @@ describe("billable native turn usage", () => {
       reasoningTokens: 0,
     });
   });
-
   it("keeps previous responses when compaction resets Codex cumulative counters", () => {
     const state = makeCodexTurnTokenUsageState();
     state.activeTurnId = "turn";
@@ -57,7 +73,6 @@ describe("billable native turn usage", () => {
       outputTokens: 23,
     });
   });
-
   it("does not bill late Codex updates against the next active turn", () => {
     const state = makeCodexTurnTokenUsageState();
     state.activeTurnId = "next";
@@ -73,7 +88,6 @@ describe("billable native turn usage", () => {
     });
     expect(completeCodexTurnTokenUsage(state, "missing", false).usageStatus).toBe("unavailable");
   });
-
   it("counts Claude cached input inside total input and bounds thinking output", () => {
     expect(
       normalizeClaudeTurnTokenUsage(
@@ -101,7 +115,6 @@ describe("billable native turn usage", () => {
       reasoningTokens: 20,
     });
   });
-
   it("does not turn a zeroed Claude crash result into a measured zero-cost turn", () => {
     expect(
       normalizeClaudeTurnTokenUsage(

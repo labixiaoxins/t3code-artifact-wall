@@ -57,7 +57,33 @@ describe("timelineContentOverflowsViewport", () => {
         inset,
       ),
     ).toBe(false);
+    expect(
+      timelineContentOverflowsViewport(
+        buildState({ positions: [0, Number.NaN], sizes: [200] }),
+        inset,
+      ),
+    ).toBe(false);
   });
+
+  it.each([
+    { measurement: "missing", sizes: [200] },
+    { measurement: "NaN", sizes: [200, Number.NaN] },
+  ])(
+    "reports overflow with a $measurement tail size without inventing anchor metrics",
+    ({ sizes }) => {
+      const state = buildState({ positions: [0, 900], sizes });
+      expect(timelineContentOverflowsViewport(state, inset)).toBe(true);
+      expect(getRowBottom(state, 1)).toBeNull();
+      expect(
+        getAnchoredTurnMetrics({
+          state,
+          anchorIndex: 0,
+          composerOverlayHeight: 100,
+          anchorOffset: 24,
+        }),
+      ).toBeNull();
+    },
+  );
 });
 
 describe("timeline scroll anchoring", () => {
@@ -271,14 +297,14 @@ describe("remembered timeline positions", () => {
   it("keeps reading positions and end-follow independent across threads and environments", () => {
     const reading = { rowId: "message-4", offsetWithinRow: 32, scrollOffset: 932, atEnd: false };
     const following = { rowId: "message-9", offsetWithinRow: 10, scrollOffset: 2010, atEnd: true };
-    rememberTimelinePosition("scroll-test-a:thread-1", reading);
-    rememberTimelinePosition("scroll-test-a:thread-2", following);
-    rememberTimelinePosition("scroll-test-b:thread-1", following);
+    rememberTimelinePosition("scroll-test-a:thread-1", reading, false);
+    rememberTimelinePosition("scroll-test-a:thread-2", following, true);
+    rememberTimelinePosition("scroll-test-b:thread-1", following, true);
     expect(readTimelinePosition("scroll-test-a:thread-1")).toEqual(reading);
     expect(readTimelinePosition("scroll-test-a:thread-2")).toEqual(following);
     expect(readTimelinePosition("scroll-test-b:thread-1")).toEqual(following);
     expect(readTimelinePosition("scroll-test-a:unvisited")).toBeUndefined();
-    rememberTimelinePosition("scroll-test-a:thread-1", following);
+    rememberTimelinePosition("scroll-test-a:thread-1", following, true);
     expect(readTimelinePosition("scroll-test-a:thread-1")).toEqual(following);
   });
 });

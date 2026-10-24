@@ -1,5 +1,7 @@
+import { uiText } from "~/i18n";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { deriveThreadQueueWorkflowState } from "@t3tools/client-runtime/state/thread-workflows";
+import { assistantCitationsToPlainText } from "@t3tools/shared/assistantCitations";
 import { replaceComposerContextReferences } from "@t3tools/shared/composerContextReferences";
 import type {
   ChatAttachment as ContractChatAttachment,
@@ -15,7 +17,7 @@ import {
   ListOrderedIcon,
   PencilIcon,
 } from "lucide-react";
-import { useId, useImperativeHandle, useMemo, useRef, useState, type Ref } from "react";
+import { useId, useImperativeHandle, useRef, useState, type Ref } from "react";
 
 import { useAssetUrls } from "../../assets/assetUrls";
 import { threadEnvironment } from "../../state/threads";
@@ -47,6 +49,19 @@ export interface QueuedRunsControlHandle {
   editLatest: (repeat: boolean) => boolean;
 }
 
+type ThreadQueueProjection = Parameters<typeof deriveThreadQueueWorkflowState>[0];
+
+function queuedImageResources(projection: ThreadQueueProjection | undefined) {
+  if (!projection) return [];
+  return deriveThreadQueueWorkflowState(projection).queuedRuns.flatMap(({ attachments }) =>
+    attachments.flatMap((attachment) =>
+      attachment.type === "image"
+        ? [{ _tag: "attachment" as const, attachmentId: attachment.id }]
+        : [],
+    ),
+  );
+}
+
 export function QueuedRunsControl({
   ref,
   ...props
@@ -59,7 +74,6 @@ export function QueuedRunsControl({
   readonly optimisticMessages: ReadonlyArray<
     Pick<ChatMessage, "id" | "inputIntent" | "text" | "attachments">
   >;
-  /** The saved queue entry stays visible while its draft is edited in the composer. */
   readonly editingRunId: RunId | null;
   readonly onEditQueuedRun: (request: EditQueuedRunRequest) => void;
   readonly onCancelEdit: () => void;
@@ -73,8 +87,6 @@ export function QueuedRunsControl({
   const [expanded, setExpanded] = useState(true);
   const queueListId = useId();
   const [busyRunId, setBusyRunId] = useState<RunId | null>(null);
-  // Live drag-reorder state: the dragged run and the queue index the row
-  // would be inserted at (0..queued.length) as of the latest dragover.
   const [dragState, setDragState] = useState<{
     readonly runId: RunId;
     readonly insertIndex: number | null;
@@ -82,50 +94,25 @@ export function QueuedRunsControl({
   // Drags must start from the grip, not from an accidental text-drag on the
   // row. The grip arms its run id on pointerdown; dragstart verifies it.
   const dragArmedRunIdRef = useRef<RunId | null>(null);
-  const workflow = useMemo(
-    () => (projection ? deriveThreadQueueWorkflowState(projection) : null),
-    [projection],
-  );
-  const queued = workflow?.queuedRuns ?? [];
-  const activeRun = workflow?.activeRun ?? null;
-  const canReorder = workflow?.canReorder === true;
-  const queuedImageAttachmentIds = useMemo(() => {
-    const ids: string[] = [];
-    for (const { attachments } of workflow?.queuedRuns ?? []) {
-      for (const attachment of attachments) {
-        if (attachment.type === "image") ids.push(attachment.id);
-      }
-    }
-    return ids;
-  }, [workflow]);
-  const queuedImageAttachmentResources = useMemo(
-    () =>
-      queuedImageAttachmentIds.map((attachmentId) => ({
-        _tag: "attachment" as const,
-        attachmentId,
-      })),
-    [queuedImageAttachmentIds],
-  );
+  const steerInFlightRef = useRef(false);
+  // Once the projection holds the message the optimistic copy is stale no
+  // matter what happened to its run — keying on still-queued runs alone would
+  // resurrect a phantom "pending" row after the run is cancelled or started.
+  const acknowledgedMessageIds = new Set((projection?.messages ?? []).map((message) => message.id));
+  const queuedImageAttachmentResources = queuedImageResources(projection);
   const queuedImageAttachmentUrls = useAssetUrls(
     props.environmentId,
     queuedImageAttachmentResources,
   );
-  const queuedImageUrlById = useMemo(
-    () =>
-      new Map(
-        queuedImageAttachmentIds.flatMap((attachmentId, index) => {
-          const url = queuedImageAttachmentUrls[index];
-          return url ? [[attachmentId, url] as const] : [];
-        }),
-      ),
-    [queuedImageAttachmentIds, queuedImageAttachmentUrls],
-  );
-  // Once the projection holds the message the optimistic copy is stale no
-  // matter what happened to its run — keying on still-queued runs alone would
-  // resurrect a phantom "pending" row after the run is cancelled or started.
-  const acknowledgedMessageIds = useMemo(
-    () => new Set((projection?.messages ?? []).map((message) => message.id)),
-    [projection],
+  const workflow = projection ? deriveThreadQueueWorkflowState(projection) : null;
+  const queued = workflow?.queuedRuns ?? [];
+  const activeRun = workflow?.activeRun ?? null;
+  const canReorder = workflow?.canReorder === true;
+  const queuedImageUrlById = new Map(
+    queuedImageAttachmentUrls.flatMap((url, index) => {
+      const resource = queuedImageAttachmentResources[index];
+      return url && resource ? [[resource.attachmentId, url] as const] : [];
+    }),
   );
   const optimisticQueued = props.optimisticMessages.filter(
     (message) => message.inputIntent === "queued_turn" && !acknowledgedMessageIds.has(message.id),
@@ -167,14 +154,11 @@ export function QueuedRunsControl({
 
   const move = async (runId: RunId, beforeRunId: RunId | null) => {
     setBusyRunId(runId);
-    try {
-      await reorder({
-        environmentId: props.environmentId,
-        input: { threadId: props.threadId, runId, beforeRunId },
-      });
-    } finally {
-      setBusyRunId(null);
-    }
+    await reorder({
+      environmentId: props.environmentId,
+      input: { threadId: props.threadId, runId, beforeRunId },
+    });
+    setBusyRunId(null);
   };
 
   const completeDrag = (runId: RunId, insertIndex: number | null) => {
@@ -183,25 +167,20 @@ export function QueuedRunsControl({
     if (insertIndex === null || busyRunId !== null) return;
     const draggedIndex = queued.findIndex(({ run }) => run.id === runId);
     if (draggedIndex === -1) return;
-    // Inserting immediately before or after itself is a no-op.
     if (insertIndex === draggedIndex || insertIndex === draggedIndex + 1) return;
     void move(runId, queued[insertIndex]?.run.id ?? null);
   };
 
-  const steerInFlightRef = useRef(false);
   const steer = async (queuedRunId: RunId) => {
     if (activeRun === null || !workflow?.canPromoteToSteer || steerInFlightRef.current) return;
     steerInFlightRef.current = true;
     setBusyRunId(queuedRunId);
-    try {
-      await promote({
-        environmentId: props.environmentId,
-        input: { threadId: props.threadId, queuedRunId, targetRunId: activeRun.id },
-      });
-    } finally {
-      steerInFlightRef.current = false;
-      setBusyRunId(null);
-    }
+    await promote({
+      environmentId: props.environmentId,
+      input: { threadId: props.threadId, queuedRunId, targetRunId: activeRun.id },
+    });
+    steerInFlightRef.current = false;
+    setBusyRunId(null);
   };
 
   useImperativeHandle(ref, () => ({
@@ -233,28 +212,25 @@ export function QueuedRunsControl({
 
   const remove = async (runId: RunId) => {
     setBusyRunId(runId);
-    try {
-      await cancel({
-        environmentId: props.environmentId,
-        input: { threadId: props.threadId, runId },
-      });
-    } finally {
-      setBusyRunId(null);
-    }
+    await cancel({
+      environmentId: props.environmentId,
+      input: { threadId: props.threadId, runId },
+    });
+    setBusyRunId(null);
   };
 
   return (
     <ComposerBanner.Attachment>
       <ComposerBanner.Root
         role="region"
-        aria-label={`${items.length} queued message${items.length === 1 ? "" : "s"}`}
+        aria-label={uiText("{0} queued message{1}", {"0": items.length, "1": items.length === 1 ? "" : "s"})}
         aria-live="polite"
         data-chat-composer-collapsed-controls="true"
         className="relative z-0"
       >
         <ComposerBanner.Row
           render={<button type="button" />}
-          aria-label={expanded ? "Collapse queued messages" : "Expand queued messages"}
+          aria-label={expanded ? uiText("Collapse queued messages") : uiText("Expand queued messages")}
           aria-expanded={expanded}
           aria-controls={queueListId}
           onPointerDown={(event) => event.preventDefault()}
@@ -263,7 +239,7 @@ export function QueuedRunsControl({
           <ComposerBanner.Icon>
             <ListOrderedIcon />
           </ComposerBanner.Icon>
-          <ComposerBanner.Content className="text-muted-foreground">Queued</ComposerBanner.Content>
+          <ComposerBanner.Content className="text-muted-foreground">{uiText("Queued")}</ComposerBanner.Content>
           <ComposerBanner.Actions>
             <ComposerBanner.Count>{items.length}</ComposerBanner.Count>
             <ComposerBanner.ToggleIcon expanded={expanded} />
@@ -272,8 +248,10 @@ export function QueuedRunsControl({
         <ComposerBanner.Scroll className={cn("max-h-32", !expanded && "hidden")}>
           <ComposerBanner.Children render={<ol />} id={queueListId}>
             {items.map((item) => {
-              const previewText = replaceComposerContextReferences(item.text, (reference) =>
-                reference.kind === "image" && item.thumbnails.length > 0 ? "" : reference.label,
+              const previewText = assistantCitationsToPlainText(
+                replaceComposerContextReferences(item.text, (reference) =>
+                  reference.kind === "image" && item.thumbnails.length > 0 ? "" : reference.label,
+                ),
               ).trim();
               const rowRunId = item.runId;
               const rowServerIndex = item.serverIndex;
@@ -341,7 +319,7 @@ export function QueuedRunsControl({
                       <Button
                         size="icon-xs"
                         variant="ghost-muted"
-                        aria-label="Reorder queued message (drag, or press the arrow keys)"
+                        aria-label={uiText("Reorder queued message (drag, or press the arrow keys)")}
                         className="cursor-grab active:cursor-grabbing disabled:cursor-default"
                         disabled={busyRunId !== null}
                         onPointerDown={() => {
@@ -364,10 +342,10 @@ export function QueuedRunsControl({
                     ) : null}
                   </ComposerBanner.Icon>
                   <ComposerBanner.Content className="text-foreground/80">
-                    {isEditing ? <span className="sr-only">Editing queued message: </span> : null}
+                    {isEditing ? <span className="sr-only">{uiText("Editing queued message:")}</span> : null}
                     {item.pending ? (
                       <Clock3Icon
-                        aria-label="Saving queued message"
+                        aria-label={uiText("Saving queued message")}
                         className="size-3 shrink-0 text-muted-foreground/60"
                       />
                     ) : null}
@@ -408,11 +386,10 @@ export function QueuedRunsControl({
                       <Button
                         size="xs"
                         variant="ghost"
-                        aria-label="Cancel editing queued message"
+                        aria-label={uiText("Cancel editing queued message")}
                         onClick={props.onCancelEdit}
                       >
-                        Cancel
-                      </Button>
+                        {uiText("Cancel")}</Button>
                     ) : (
                       <>
                         <Tooltip>
@@ -421,7 +398,7 @@ export function QueuedRunsControl({
                               <Button
                                 size="icon-xs"
                                 variant="ghost-muted"
-                                aria-label="Edit queued message"
+                                aria-label={uiText("Edit queued message")}
                                 disabled={item.runId === null || busyRunId !== null}
                                 onClick={() => {
                                   if (item.runId !== null && item.messageId !== null) {
@@ -439,7 +416,7 @@ export function QueuedRunsControl({
                             <PencilIcon />
                           </TooltipTrigger>
                           <TooltipPopup>
-                            {`Edit in the composer${item.serverIndex === queued.length - 1 && props.editShortcutLabel ? ` (${props.editShortcutLabel})` : ""}`}
+                            {uiText("Edit in the composer{0}", {"0": item.serverIndex === queued.length - 1 && props.editShortcutLabel ? ` (${props.editShortcutLabel})` : ""})}
                           </TooltipPopup>
                         </Tooltip>
                         <Tooltip>
@@ -459,20 +436,19 @@ export function QueuedRunsControl({
                               }}
                             >
                               <CornerUpRightIcon />
-                              Steer
-                            </Button>
+                              {uiText("Steer") + " "}</Button>
                           </TooltipTrigger>
                           <TooltipPopup>
                             {activeRun === null
-                              ? "There is no active run to steer"
-                              : `Send as a steer instead${item.serverIndex === 0 && props.steerShortcutLabel ? ` (${props.steerShortcutLabel})` : ""}`}
+                              ? uiText("There is no active run to steer")
+                              : uiText("Send as a steer instead{0}", {"0": item.serverIndex === 0 && props.steerShortcutLabel ? ` (${props.steerShortcutLabel})` : ""})}
                           </TooltipPopup>
                         </Tooltip>
                         <Tooltip>
                           <TooltipTrigger
                             render={
                               <ComposerBanner.Dismiss
-                                aria-label="Remove queued message"
+                                aria-label={uiText("Remove queued message")}
                                 disabled={item.runId === null || busyRunId !== null}
                                 onClick={() => {
                                   if (item.runId !== null) void remove(item.runId);
@@ -480,7 +456,7 @@ export function QueuedRunsControl({
                               />
                             }
                           />
-                          <TooltipPopup>Remove from queue</TooltipPopup>
+                          <TooltipPopup>{uiText("Remove from queue")}</TooltipPopup>
                         </Tooltip>
                       </>
                     )}

@@ -13,16 +13,16 @@ import {
   type DesktopEnvironmentBootstrap,
   type PickedThemeFile,
 } from "@t3tools/contracts";
-import { WORKSPACE_IMAGE_PREVIEW_EXTENSIONS } from "@t3tools/shared/filePreview";
+import { PROJECT_FAVICON_EXTENSIONS } from "@t3tools/shared/projectFavicon";
 import { resolveEditorCommand } from "@t3tools/shared/editor";
-import * as HostProcess from "@t3tools/shared/hostProcess";
-import * as NodeOS from "node:os";
+import * as HostProcess from "@t3tools/shared/HostProcess";
+import { isRelayTracingEnabled } from "@t3tools/shared/otelEnvironment";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
-
+import * as Schedule from "effect/Schedule";
 import * as DesktopBackendConfiguration from "../../backend/DesktopBackendConfiguration.ts";
 import * as DesktopBackendPool from "../../backend/DesktopBackendPool.ts";
 import * as DesktopLocalEnvironmentAuth from "../../backend/DesktopLocalEnvironmentAuth.ts";
@@ -46,23 +46,19 @@ import {
   resolveWslPickFolderDefaultPath,
   wslUncPathToLinuxPath,
 } from "../../wsl/wslPathParsing.ts";
-
 const ContextMenuPosition = Schema.Struct({
   x: Schema.Number,
   y: Schema.Number,
 });
-
 const ContextMenuInput = Schema.Struct({
   items: Schema.Array(ContextMenuItemSchema),
   position: Schema.optionalKey(ContextMenuPosition),
 });
-
 function toWebSocketBaseUrl(httpBaseUrl: URL): string {
   const url = new URL(httpBaseUrl.href);
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
   return url.href;
 }
-
 export const getAppBranding = DesktopIpc.makeSyncIpcMethod({
   channel: IpcChannels.GET_APP_BRANDING_CHANNEL,
   result: Schema.NullOr(DesktopAppBrandingSchema),
@@ -71,7 +67,13 @@ export const getAppBranding = DesktopIpc.makeSyncIpcMethod({
     return environment.branding;
   }),
 });
-
+export const getRelayTelemetryEnabled = DesktopIpc.makeSyncIpcMethod({
+  channel: IpcChannels.GET_RELAY_TELEMETRY_ENABLED_CHANNEL,
+  result: Schema.Boolean,
+  handler: Effect.fn("desktop.ipc.window.getRelayTelemetryEnabled")(function* () {
+    return isRelayTracingEnabled(yield* HostProcess.Environment);
+  }),
+});
 export const getSystemLocale = DesktopIpc.makeSyncIpcMethod({
   channel: IpcChannels.GET_SYSTEM_LOCALE_CHANNEL,
   result: Schema.String,
@@ -80,7 +82,6 @@ export const getSystemLocale = DesktopIpc.makeSyncIpcMethod({
     return yield* electronApp.systemLocale;
   }),
 });
-
 export const getWindowFullscreenState = DesktopIpc.makeSyncIpcMethod({
   channel: IpcChannels.GET_WINDOW_FULLSCREEN_STATE_CHANNEL,
   result: Schema.Boolean,
@@ -90,7 +91,6 @@ export const getWindowFullscreenState = DesktopIpc.makeSyncIpcMethod({
     return Option.isSome(window) && window.value.isFullScreen();
   }),
 });
-
 export const getLocalEnvironmentBootstraps = DesktopIpc.makeSyncIpcMethod({
   channel: IpcChannels.GET_LOCAL_ENVIRONMENT_BOOTSTRAPS_CHANNEL,
   result: Schema.Array(DesktopEnvironmentBootstrapSchema),
@@ -103,21 +103,7 @@ export const getLocalEnvironmentBootstraps = DesktopIpc.makeSyncIpcMethod({
       const isPrimary = instance.id === PRIMARY_LOCAL_ENVIRONMENT_ID;
       const config = yield* instance.currentConfig;
       const snapshot = yield* instance.snapshot;
-      // A secondary backend (e.g. a parallel WSL backend) that hasn't produced
-      // a config yet (mid-registration, before its first start cycle) or that
-      // is retrying a *transient* preflight failure (WSL VM still booting, a
-      // not-yet-built linux server entry) is not listening on a port. We
-      // surface it as a *pending* bootstrap (null endpoints, no token) so the
-      // renderer can show a "Connecting…" indicator while it retries — null
-      // endpoints keep the renderer from dialing the dead port, avoiding the
-      // needless /api/auth/bootstrap/bearer error cycles a real endpoint would
-      // trigger.
       if (Option.isNone(config) || Option.isSome(config.value.preflightFailure)) {
-        // Skip the primary (same-origin, no "connecting" affordance) and skip a
-        // secondary whose preflight failed *fatally* (no node, wrong version,
-        // missing build tools): it has stopped retrying, so an indefinite
-        // "Connecting…" would be misleading — its error is surfaced by the
-        // WSL-state UI instead.
         const fatalPreflight =
           Option.isSome(config) &&
           Option.isSome(config.value.preflightFailure) &&
@@ -144,11 +130,9 @@ export const getLocalEnvironmentBootstraps = DesktopIpc.makeSyncIpcMethod({
         runningDistro,
         httpBaseUrl: httpBaseUrl.href,
         wsBaseUrl: toWebSocketBaseUrl(httpBaseUrl),
-        // A backend launched with the desktop secret accepts whichever token
-        // the secret derives for the current window, so hand out that one
-        // rather than the token frozen into its launch config. Every backend
-        // the desktop launches (primary, staged or mounted WSL runtime) is the
-        // server build bundled with this desktop, so it understands the secret.
+        // A backend launched with the desktop secret accepts whichever token the secret derives
+        // for the current window, so hand out that one rather than the token frozen into its
+        // launch config.
         ...(bootstrap.desktopBootstrapSecret
           ? { bootstrapToken: yield* configuration.currentBootstrapToken }
           : bootstrap.desktopBootstrapToken
@@ -159,11 +143,6 @@ export const getLocalEnvironmentBootstraps = DesktopIpc.makeSyncIpcMethod({
     return bootstraps;
   }),
 });
-
-// Pull the distro selection out of a backend instance id like
-// "wsl:ubuntu". Returns null for "wsl:default", which is the sentinel
-// for "track the user's WSL default distro" and maps to the
-// wslEnv-derived default at picker time.
 function extractWslDistroFromEnvironmentId(envId: string): string | null {
   if (!envId.startsWith(DesktopWslBackend.WSL_INSTANCE_ID_PREFIX)) {
     return null;
@@ -171,7 +150,6 @@ function extractWslDistroFromEnvironmentId(envId: string): string | null {
   const suffix = envId.slice(DesktopWslBackend.WSL_INSTANCE_ID_PREFIX.length);
   return suffix === "default" || suffix.length === 0 ? null : suffix;
 }
-
 export const getLocalEnvironmentBearerToken = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.GET_LOCAL_ENVIRONMENT_BEARER_TOKEN_CHANNEL,
   payload: Schema.Void,
@@ -181,7 +159,6 @@ export const getLocalEnvironmentBearerToken = DesktopIpc.makeIpcMethod({
     return yield* localAuth.getBearerToken;
   }),
 });
-
 export const pickFolder = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.PICK_FOLDER_CHANNEL,
   payload: Schema.UndefinedOr(PickFolderOptionsSchema),
@@ -197,15 +174,6 @@ export const pickFolder = DesktopIpc.makeIpcMethod({
     if (!settings.localEnvironmentEnabled) {
       return null;
     }
-    // Three picker modes:
-    //   - targetEnvironmentId omitted: default to the primary picker. Keeps
-    //     the historical behavior unchanged for users who never enabled the
-    //     WSL backend, and is what unfamiliar callers should get out of the
-    //     box.
-    //   - targetEnvironmentId starts with "wsl:": route to the WSL picker
-    //     using the distro encoded in the id (or the user's selected
-    //     wslDistro when the id is the "wsl:default" sentinel).
-    //   - anything else (incl. PRIMARY_LOCAL_ENVIRONMENT_ID): primary picker.
     const targetId = options?.targetEnvironmentId;
     const wslDistroFromTarget =
       targetId !== undefined && targetId.startsWith(DesktopWslBackend.WSL_INSTANCE_ID_PREFIX)
@@ -239,12 +207,10 @@ export const pickFolder = DesktopIpc.makeIpcMethod({
     if (!useWsl) {
       return selectedPath.value;
     }
-
     const linuxUncPath = wslUncPathToLinuxPath(selectedPath.value);
     if (linuxUncPath !== null) {
       return linuxUncPath;
     }
-
     const converted = yield* wslEnvironment.windowsToWslPath(
       extractDistroFromUncPath(selectedPath.value) ?? wslDistro,
       selectedPath.value,
@@ -252,7 +218,6 @@ export const pickFolder = DesktopIpc.makeIpcMethod({
     return Option.getOrElse(converted, () => selectedPath.value);
   }),
 });
-
 export const pickProjectFavicon = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.PICK_PROJECT_FAVICON_CHANNEL,
   payload: Schema.UndefinedOr(Schema.String),
@@ -271,14 +236,13 @@ export const pickProjectFavicon = DesktopIpc.makeIpcMethod({
       filters: [
         {
           name: "Images",
-          extensions: WORKSPACE_IMAGE_PREVIEW_EXTENSIONS.map((extension) => extension.slice(1)),
+          extensions: PROJECT_FAVICON_EXTENSIONS.map((extension) => extension.slice(1)),
         },
       ],
     });
     return paths[0] ?? null;
   }),
 });
-
 export const setTheme = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.SET_THEME_CHANNEL,
   payload: DesktopThemeSchema,
@@ -288,7 +252,6 @@ export const setTheme = DesktopIpc.makeIpcMethod({
     yield* electronTheme.setSource(theme);
   }),
 });
-
 export const showContextMenu = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.CONTEXT_MENU_CHANNEL,
   payload: ContextMenuInput,
@@ -300,7 +263,6 @@ export const showContextMenu = DesktopIpc.makeIpcMethod({
     if (Option.isNone(window)) {
       return null;
     }
-
     const selectedItemId = yield* electronMenu.showContextMenu({
       window: window.value,
       items: input.items,
@@ -309,7 +271,6 @@ export const showContextMenu = DesktopIpc.makeIpcMethod({
     return Option.getOrNull(selectedItemId);
   }),
 });
-
 export const openExternal = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.OPEN_EXTERNAL_CHANNEL,
   payload: Schema.String,
@@ -319,7 +280,6 @@ export const openExternal = DesktopIpc.makeIpcMethod({
     return yield* shell.openExternal(url);
   }),
 });
-
 export const openSystemSettings = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.OPEN_SYSTEM_SETTINGS_CHANNEL,
   payload: SystemSettingsPaneSchema,
@@ -338,14 +298,13 @@ export const openSystemSettings = DesktopIpc.makeIpcMethod({
     return opened;
   }),
 });
-
 export const probeRemoteEditors = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.PROBE_REMOTE_EDITORS_CHANNEL,
   payload: Schema.Undefined,
   result: Schema.Array(EditorId),
   handler: Effect.fn("desktop.ipc.window.probeRemoteEditors")(function* () {
     const available: Array<EditorId> = [];
-    const env = yield* HostProcess.HostProcessEnvironment;
+    const env = yield* HostProcess.Environment;
     for (const editorId of REMOTE_CAPABLE_EDITOR_IDS) {
       const editor = EDITORS.find((editor) => editor.id === editorId);
       if (editor && Option.isSome(yield* resolveEditorCommand(editor, env))) {
@@ -355,7 +314,6 @@ export const probeRemoteEditors = DesktopIpc.makeIpcMethod({
     return available;
   }),
 });
-
 export const pasteAsText = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.PASTE_AS_TEXT_CHANNEL,
   payload: Schema.Undefined,
@@ -381,11 +339,24 @@ export const pasteAsText = DesktopIpc.makeIpcMethod({
     }
   }),
 });
-
-/** Theme files are a few KB; anything larger returns empty text and lets the
- *  renderer reject it by size without the contents ever crossing the bridge. */
+export const revealWindow = DesktopIpc.makeIpcMethod({
+  channel: IpcChannels.REVEAL_WINDOW_CHANNEL,
+  payload: Schema.Undefined,
+  result: Schema.Void,
+  handler: Effect.fn("desktop.ipc.window.revealWindow")(function* (_input, event) {
+    const electronWindow = yield* ElectronWindow.ElectronWindow;
+    const window = yield* electronWindow.main;
+    if (
+      event === undefined ||
+      Option.isNone(window) ||
+      window.value.webContents.id !== event.sender.id
+    ) {
+      return;
+    }
+    yield* electronWindow.reveal(window.value);
+  }),
+});
 const PICKED_THEME_FILE_MAX_BYTES = 256 * 1024;
-
 export const pickThemeFiles = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.PICK_THEME_FILES_CHANNEL,
   payload: Schema.Undefined,
@@ -395,10 +366,7 @@ export const pickThemeFiles = DesktopIpc.makeIpcMethod({
     const electronWindow = yield* ElectronWindow.ElectronWindow;
     const fileSystem = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
-    // The VS Code extensions directory is the same dotfolder on Windows,
-    // macOS, and Linux; when it is missing the picker opens wherever the
-    // platform would by default.
-    const extensionsDir = path.join(NodeOS.homedir(), ".vscode", "extensions");
+    const extensionsDir = path.join(yield* HostProcess.HomeDirectory, ".vscode", "extensions");
     const defaultPath = yield* fileSystem
       .exists(extensionsDir)
       .pipe(Effect.orElseSucceed(() => false));
@@ -421,14 +389,10 @@ export const pickThemeFiles = DesktopIpc.makeIpcMethod({
         }
         const text = yield* fileSystem.readFileString(filePath);
         return { name, size, text } satisfies PickedThemeFile;
-      }).pipe(
-        // An unreadable file degrades to an entry the renderer reports.
-        Effect.orElseSucceed((): PickedThemeFile => ({ name, size: 0, text: "" })),
-      );
+      }).pipe(Effect.orElseSucceed((): PickedThemeFile => ({ name, size: 0, text: "" })));
     });
   }),
 });
-
 export const checkSystemPermission = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.CHECK_SYSTEM_PERMISSION_CHANNEL,
   payload: SystemSettingsPaneSchema,
@@ -439,4 +403,22 @@ export const checkSystemPermission = DesktopIpc.makeIpcMethod({
     const check = yield* safariPermissionCheck;
     return yield* Effect.promise(check);
   }),
+});
+/** Until backend topology has an event stream, poll off the renderer's critical path. */
+const encodeLocalBootstraps = Schema.encodeUnknownEffect(
+  Schema.fromJsonString(Schema.Array(DesktopEnvironmentBootstrapSchema)),
+);
+export const installLocalBootstrapForwarding = Effect.fn(
+  "desktop.ipc.installLocalBootstrapForwarding",
+)(function* () {
+  const window = yield* ElectronWindow.ElectronWindow;
+  let previous: string | undefined;
+  const publish = Effect.gen(function* () {
+    const entries = yield* getLocalEnvironmentBootstraps.handler();
+    const signature = yield* encodeLocalBootstraps(entries);
+    if (signature === previous) return;
+    yield* window.sendAll(IpcChannels.LOCAL_ENVIRONMENT_BOOTSTRAPS_CHANGED_CHANNEL, entries);
+    previous = signature;
+  }).pipe(Effect.ignoreCause);
+  yield* Effect.forkScoped(publish.pipe(Effect.repeat(Schedule.spaced("2 seconds"))));
 });

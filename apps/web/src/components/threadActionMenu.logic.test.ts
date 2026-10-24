@@ -7,6 +7,7 @@ import {
 } from "./threadActionMenu.logic";
 
 const baseState: ThreadActionMenuState = {
+  canOperate: true,
   branch: null,
   projectFilter: null,
   isPinned: false,
@@ -39,6 +40,57 @@ function allIds(state: ThreadActionMenuState): string[] {
 }
 
 describe("buildThreadActionMenuItems", () => {
+  it.each([false, true])(
+    "disables both lifecycle directions without permission (reversed: %s)",
+    (reversed) => {
+      const items = buildThreadActionMenuItems({
+        ...baseState,
+        canOperate: false,
+        isPinned: reversed,
+        isSettled: reversed,
+        isSnoozed: reversed,
+      });
+      const expected = reversed
+        ? [
+            "unpin",
+            "unsettle",
+            "unsnooze",
+            "rename",
+            "regenerate-title",
+            "auto-settle",
+            "archive",
+            "delete",
+          ]
+        : [
+            "pin",
+            "settle",
+            "snooze",
+            "rename",
+            "regenerate-title",
+            "auto-settle",
+            "archive",
+            "delete",
+          ];
+      expect(items.filter((item) => item.disabled).map((item) => item.id)).toEqual(expected);
+      expect(
+        items.find((item) => item.id === "snooze")?.children?.every((child) => child.disabled) ??
+          true,
+      ).toBe(true);
+    },
+  );
+
+  it("preserves local actions and restores mutations after a grant", () => {
+    const denied = buildThreadActionMenuItems({ ...baseState, canOperate: false, branch: "main" });
+    expect(denied.filter((item) => !item.disabled).map((item) => item.id)).toEqual([
+      "new-thread-on-branch",
+      "mark-unread",
+      "copy",
+      "project-settings",
+    ]);
+    const allowed = buildThreadActionMenuItems({ ...baseState, canOperate: true });
+    expect(allowed.every((item) => !item.disabled)).toBe(true);
+  });
+
   it("hides lifecycle items when the environment lacks the capabilities", () => {
     expect(
       ids({
@@ -112,7 +164,6 @@ describe("buildThreadActionMenuItems", () => {
     ]);
     const off = find({ ...baseState, autoSettleEnabled: false });
     expect(off?.children?.map((child) => child.checked)).toEqual([false, true]);
-    // Sits with the per-thread settings after Mark unread, not the lifecycle verbs.
     const items = buildThreadActionMenuItems(baseState);
     expect(items[items.findIndex((item) => item.id === "mark-unread") + 1]?.id).toBe("auto-settle");
     expect(

@@ -1,11 +1,13 @@
 import { useIsFocused } from "@react-navigation/native";
 import { videoMimeType } from "@t3tools/shared/video";
-import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Keyboard, Modal, Pressable, View } from "react-native";
+import { useEffect, useEffectEvent, useState } from "react";
+import { Keyboard, Modal, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { AppActivityIndicator } from "./ui/AppActivityIndicator";
 import { loadLocalAttachmentPreview } from "../lib/localAttachmentPreview";
-import { useMediaActions, type MediaActionsSource } from "../lib/mediaActions";
+import { useMediaActions } from "../state/mediaActions";
+import { type MediaActionsSource } from "../lib/mediaActionsSource";
 import {
   mediaVideoPreviewUri,
   mediaVideoThumbnailKey,
@@ -15,8 +17,8 @@ import {
 } from "../lib/videoPreviewSource";
 import { useAssetUrlState, useRefreshAssetUrl } from "../state/assets";
 import { usePreparedConnection } from "../state/session";
-import { AppText } from "./AppText";
-import { SymbolView } from "./AppSymbol";
+import { AppText } from "./ui/AppText";
+import { SymbolView } from "./ui/AppSymbol";
 import { MediaActionsMenu } from "./MediaActionsMenu";
 import { MediaSourceCaption } from "./MediaSourceCaption";
 import { MediaVideoPlayer } from "./MediaVideoPlayer";
@@ -58,14 +60,15 @@ function useLocalPlayback(source: LocalVideoPreviewSource): PlaybackState {
   const [error, setError] = useState<string | null>(null);
   // Only a different file needs a new lease; a metadata update on the same
   // draft must not dispose the file Android is still playing.
-  const attachmentRef = useRef(attachment);
-  attachmentRef.current = attachment;
+  const loadAttachment = useEffectEvent((signal: AbortSignal) =>
+    loadLocalAttachmentPreview(attachment, signal),
+  );
   const { id: attachmentId, fileUri } = attachment;
   useEffect(() => {
     setUri(null);
     setError(null);
     const controller = new AbortController();
-    const loading = loadLocalAttachmentPreview(attachmentRef.current, controller.signal);
+    const loading = loadAttachment(controller.signal);
     void loading.then(
       (file) => {
         if (file === null) return;
@@ -164,7 +167,7 @@ function OpenVideoPreviewModal(props: {
         <MediaSourceCaption source={mediaActions.title} />
         {playback.uri === null && !playback.unavailable ? (
           <View className="flex-1 items-center justify-center gap-3 px-6">
-            <ActivityIndicator color="#ffffff" />
+            <AppActivityIndicator color="#ffffff" />
             <AppText className="text-sm text-white/80">Loading video...</AppText>
           </View>
         ) : (

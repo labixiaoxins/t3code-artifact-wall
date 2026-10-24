@@ -12,6 +12,23 @@ becomes an attachment when inserting it would exceed the message limit. On a
 hardware keyboard, use `Cmd+Shift+V` on Apple devices or `Ctrl+Shift+V` elsewhere
 to keep a large paste editable in the composer instead.
 
+## Formatting
+
+The composer writes Markdown and shows it styled as you type. Markers such as
+`**` stay in the text and show beside the styled words when your cursor is on
+them. Lines starting with `- `, `1. `, `- [ ] `, `> `, `# ` or `---` become lists,
+task lists, quotes, headings and rules; ` ``` ` followed by Enter opens a code
+block. What you typed is what the agent receives, markers and numbering
+included, and `#1234` without a space still looks up a pull request.
+
+Enter sends. In a list or quote, **Shift+Enter** continues it, and Shift+Enter
+on an empty line leaves it; **Tab** nests a list item. In a code block, Enter
+starts a new line at the current indentation, **Tab** and **Shift+Tab** indent
+the selected lines, and a closing ` ``` ` followed by Enter, or two blank lines
+at the end, leave the block. **Backspace** at the start of a code block turns it
+back into plain lines. Choose the language in a code block's corner to change
+it. Very large code blocks are shown without syntax highlighting.
+
 ## Attach files
 
 Attach up to 100 files per message. Each image can be up to 10 MiB, with at most
@@ -38,12 +55,17 @@ On web and desktop, choose **Settings → General → Follow-up behavior** to qu
 new messages for a later turn or steer the running turn immediately. The setting
 applies to this client; already queued messages keep their place. Queued messages
 are saved on the server and can be edited, reordered, or removed above the composer.
-`Cmd+Enter` on macOS or `Ctrl+Enter` on Windows and Linux uses the opposite action:
-it steers when your default is Queue and queues when your default is Steer.
+When Enter sends, `Cmd+Enter` on macOS or `Ctrl+Enter` on Windows and Linux uses
+the opposite action: it steers when your default is Queue and queues when your
+default is Steer.
+If your **Send shortcut** requires `Cmd+Enter` or `Ctrl+Enter`, that shortcut uses
+your default follow-up behavior; add **Shift** to use the opposite action. This
+applies only to multiline messages when you choose the multiline send option.
 
 Use `Cmd+Shift+Enter` on macOS or `Ctrl+Shift+Enter` on Windows and Linux to send
 the oldest queued message as a steer. This leaves the current draft intact and
-requires an active turn that supports steering. Change
+requires an active turn that supports steering. If that shortcut sends the opposite
+action for your draft, move focus outside the composer to steer the queued message. Change
 `thread.steerQueuedMessage` in **Settings → Keybindings** to use another shortcut.
 
 Press `Option+Up` on macOS or `Alt+Up` on Windows and Linux with the cursor at the
@@ -67,6 +89,21 @@ device until you sign back into the same account.
 On web and desktop, use Settings → Providers → **Models** to add an unlisted model with a custom
 name and options. Only options supported by the provider integration affect turns. Antigravity
 uses its account catalog and does not support custom models.
+
+To rename a built-in model on every client, edit the server's `settings.json` in its `userdata`
+directory. Add a custom model entry with the built-in model ID and a new name under that provider
+instance:
+
+```json
+{
+  "providerInstances": {
+    "codex": {
+      "driver": "codex",
+      "config": { "customModels": [{ "slug": "gpt-5.5", "name": "Team GPT" }] }
+    }
+  }
+}
+```
 
 ## Model defaults
 
@@ -112,7 +149,8 @@ into a normal draft.
 
 On web and desktop, choose **Edit from here** beneath a sent message to rewind
 the conversation to before that message. Choose **Revert and keep changes** to
-leave workspace files as they are, or **Revert files too** to restore them as well.
+leave workspace files as they are, or **Revert files too** to put the workspace back
+to its checkpoint from before that message. That also undoes edits you made yourself.
 File restore is only offered for threads running in a worktree, and it is
 refused when another thread or agent session also uses that directory, a folder
 inside it, or a folder that contains it, since
@@ -147,6 +185,13 @@ minutes long. Canceling, leaving the screen, or an audio interruption discards t
 recording and preserves your existing draft. While recording, the screen stays
 awake; it can sleep normally once recording stops.
 
+Voice input records from the first connected microphone in **Settings → Microphone**.
+The list mixes kinds (built-in, other wired, other Bluetooth, CarPlay) with wired and
+Bluetooth devices you have dictated with, listed by name. Drag to rank them together:
+for example, put **Other Bluetooth** above your AirPods so a new headset is preferred
+while the AirPods microphone stays low. By default, CarPlay comes after the built-in
+microphone.
+
 Transcription runs on your device. T3 Code deletes the temporary audio after
 transcription or cancellation; only the message text is sent when you submit.
 
@@ -162,9 +207,10 @@ Queued messages appear above the composer. Rows show a thumbnail of any attached
 the text. Drag a row by its handle to reorder it, use the handle's arrow keys, promote the message
 to a steer, or remove it.
 
-If the server restarts, saved queued messages keep their order and are held. Press
-**Resume** in an empty composer on web or desktop, or **Resume queue** in the queue
-sheet on mobile, to continue. You can edit, reorder, or remove held messages without starting them.
+If you stop the agent or the server restarts, queued messages keep their order and are held.
+Press **Resume** in an empty composer on web and desktop, or **Resume queue** on mobile, to
+continue. Sending a new message also resumes the queue, unless it steers a turn that is already
+running. You can edit, reorder, or remove held messages without starting them.
 
 The pencil on a queued row opens that message in the composer for editing. The original message
 stays in the queue until you save, and its row is highlighted while you edit. The message's
@@ -193,6 +239,12 @@ Provider commands must start the message to run. T3 Code commands such as
 Send `/compact` in an existing conversation to reduce context usage when the
 provider supports it. Web and desktop also offer compaction from the context meter.
 
+Enable **Compact idle Claude threads (beta)** in **Settings > General** to compact
+an idle Claude thread with at least 200,000 tokens of context shortly before its
+prompt cache expires, so coming back does not reprocess the whole conversation.
+The cache lasts 1 hour on Claude subscriptions and 5 minutes with an API key. The
+compaction appears in the thread as a `/compact` turn sent by T3 Code.
+
 ## Goals
 
 With Codex and Claude, send `/goal` followed by what "done" means, for example
@@ -218,7 +270,8 @@ excerpt, Terminal 1 lines 3-4" and similar to screen readers.
 A pull request appears as its icon and number. Its color reflects whether it was open, draft,
 merged, or closed when it was attached. Select it to inspect the captured title and branches,
 then choose **Open pull request** to visit the pull request. On web and desktop, type `#` to browse the newest
-pull requests in the current project's repository. Continue typing digits to filter the recent list
+pull requests in the current project's repository. Pull requests linked to the thread are included
+from any repository and listed first, after any exact number match. Continue typing digits to filter the recent list
 by any part of its pull request numbers. A complete number is also resolved directly, even when that
 pull request is older than the recent list. Type a single word after `#` to search pull requests in
 the repository by text. Choose a result to insert it as a chip.
@@ -229,6 +282,12 @@ composer; a multi-selection drops together. The chip shows the thread's current 
 opens it when selected. Your prompt only carries a reference: the agent reads the thread's
 history on demand, so attaching a long thread costs nothing until the agent looks. Attaching a
 thread does not change it, and the agent cannot send messages to it unless you ask.
+
+Dropping a thread from another environment attaches a saved transcript file. The source
+environment must be connected and up to date. The transcript includes the visible history and
+saved text context at the time of the drop; later messages and the contents of attached files
+are not copied. The agent can read the saved transcript after the source disconnects. Normal
+file attachment limits apply.
 
 Images keep their thumbnail shelf above the text and also get a chip at your cursor, so you can
 say exactly which image you mean. Deleting an image chip leaves the image on the shelf; removing

@@ -1,5 +1,5 @@
-import type { Session } from "electron";
-import { session } from "electron";
+import type { Session, WebContents } from "electron";
+import { BrowserWindow, session } from "electron";
 import * as Context from "effect/Context";
 import * as Crypto from "effect/Crypto";
 import * as Effect from "effect/Effect";
@@ -8,6 +8,8 @@ import * as Layer from "effect/Layer";
 import * as PlatformError from "effect/PlatformError";
 import * as Schema from "effect/Schema";
 import * as SynchronizedRef from "effect/SynchronizedRef";
+
+import * as ElectronDialog from "../electron/ElectronDialog.ts";
 
 const PREVIEW_PARTITION_PREFIX = "persist:t3code-preview-";
 /**
@@ -21,23 +23,53 @@ const PROFILE_PARTITION_MARKER = "profile-";
 
 export type BrowserSessionPartitionNamespace = "profile";
 
-// Permissions granted to preview web content. `clipboard-sanitized-write` is the
-// Electron permission behind `navigator.clipboard.writeText()` — note it is NOT
-// `clipboard-write`, which is not a valid Electron permission name. Async
-// clipboard writes are gated by the permission *check* handler (not only the
-// request handler), so both handlers must allow it; otherwise built-in "Copy"
-// buttons — e.g. the Next.js / Vercel error overlay — fail with
-// `Failed to execute 'writeText' on 'Clipboard': Write permission denied`.
+// `clipboard-sanitized-write` is the Electron permission behind
+// `navigator.clipboard.writeText()` — note it is NOT `clipboard-write`, which
+// is not a valid Electron permission name. Async clipboard writes are gated by
+// the permission *check* handler (not only the request handler), so both
+// handlers must allow it; otherwise built-in "Copy" buttons — e.g. the Next.js
+// / Vercel error overlay — fail with `Failed to execute 'writeText' on
+// 'Clipboard': Write permission denied`.
 const ALLOWED_PREVIEW_PERMISSIONS: ReadonlySet<string> = new Set([
   "clipboard-read",
   "clipboard-sanitized-write",
-  "notifications",
   "geolocation",
+  // `DesktopWindow` disables HTML fullscreen window resizing for the app window
+  // and every preview guest, so a page that goes fullscreen fills its own
+  // webview instead of taking over the whole T3 window.
+  "fullscreen",
   // Deliberately NOT local-fonts: preview sessions run untrusted web content,
   // and silently granting it would hand every page the user's installed-font
-  // fingerprint (and font file bytes via FontData.blob()). The app's own font
-  // picker runs in the main window session, which is unaffected by this list.
+  // fingerprint (and font file bytes via FontData.blob()).
+  // Deliberately NOT notifications: a page could post OS notifications branded
+  // as T3 Code. T3's own come from the app window on the default session.
 ]);
+
+const NEVER_EXTERNAL_PROTOCOLS: ReadonlySet<string> = new Set([
+  "about:",
+  "blob:",
+  "chrome:",
+  "data:",
+  "devtools:",
+  "file:",
+  "filesystem:",
+  "http:",
+  "https:",
+  "javascript:",
+  "view-source:",
+]);
+
+const externalProtocolPromptUrl = (rawUrl: string | undefined): string | null => {
+  if (!rawUrl) return null;
+  try {
+    const url = new URL(rawUrl);
+    return NEVER_EXTERNAL_PROTOCOLS.has(url.protocol) ? null : url.href;
+  } catch {
+    return null;
+  }
+};
+
+const MAX_PROMPT_URL_LENGTH = 300;
 
 export class BrowserSessionPartitionDerivationError extends Schema.TaggedError<BrowserSessionPartitionDerivationError>()(
   "BrowserSessionPartitionDerivationError",
@@ -126,11 +158,6 @@ export class BrowserSession extends Context.Service<
   }
 >()("@t3tools/desktop/preview/BrowserSession") {}
 
-/**
- * Restricts a clear to the given partitions. Omitting them keeps the historical
- * "every partition" behaviour, which callers now only use for an explicit
- * "all profiles" action — a per-profile clear must never reach across profiles.
- */
 const selectSessions = (
   sessions: ReadonlyMap<string, Session>,
   partitions: ReadonlyArray<string> | undefined,
@@ -140,14 +167,10 @@ const selectSessions = (
   );
 
 /**
- * Scope bytes for the partition digest.
- *
  * `TextEncoder` replaces a lone UTF-16 surrogate with U+FFFD, so `"p\ud800"`
  * and `"p\ufffd"` would hash to the same partition and share cookies. Those
  * are distinct, supported ids, so lone surrogates are escaped to `\uXXXX`
  * first — and a literal backslash is doubled so the escape cannot be forged.
- * Every well-formed scope passes through byte-for-byte unchanged, which keeps
- * existing partitions (and the logins in them) where they are.
  */
 const encodeScopeForDigest = (scope: string): Uint8Array =>
   new TextEncoder().encode(
@@ -159,9 +182,68 @@ const encodeScopeForDigest = (scope: string): Uint8Array =>
       ),
   );
 
+/**
+ * A `<webview>` guest has no window of its own, so look it up through the page
+ * that embeds it.
+ */
+const previewHostWindow = (guest: WebContents | null): BrowserWindow | undefined => {
+  if (guest === null || guest.isDestroyed()) return undefined;
+  const host = guest.hostWebContents ?? guest;
+  if (host.isDestroyed()) return undefined;
+  return BrowserWindow.fromWebContents(host) ?? undefined;
+};
+
 /** @public Service construction is part of the canonical Effect module API. */
 export const make = Effect.gen(function* BrowserSessionMake() {
   const crypto = yield* Crypto.Crypto;
+  const electronDialog = yield* ElectronDialog.ElectronDialog;
+  const runFork = Effect.runForkWith(yield* Effect.context<never>());
+  // One prompt at a time, so a page cannot stack dialogs by looping a deep link.
+  let externalPromptOpen = false;
+  /**
+   * Electron grants an external-protocol navigation through the `openExternal`
+   * permission and then launches the OS handler itself. Ask first: previews run
+   * untrusted pages, and a silent grant would let any of them launch apps.
+   */
+  const confirmOpenExternal = (
+    requester: WebContents | null,
+    rawUrl: string | undefined,
+    callback: (granted: boolean) => void,
+  ): void => {
+    const url = externalProtocolPromptUrl(rawUrl);
+    if (url === null || externalPromptOpen) {
+      callback(false);
+      return;
+    }
+    externalPromptOpen = true;
+    const settle = (granted: boolean) =>
+      Effect.sync(() => {
+        externalPromptOpen = false;
+        callback(granted);
+      });
+    const shownUrl =
+      url.length > MAX_PROMPT_URL_LENGTH ? `${url.slice(0, MAX_PROMPT_URL_LENGTH)}…` : url;
+    runFork(
+      electronDialog
+        .showMessageBox(
+          {
+            type: "question",
+            buttons: ["Open", "Cancel"],
+            defaultId: 0,
+            cancelId: 1,
+            message: `Open this ${new URL(url).protocol.slice(0, -1)} link?`,
+            detail: `A page in the browser wants to open another application:\n\n${shownUrl}`,
+          },
+          previewHostWindow(requester),
+        )
+        .pipe(
+          Effect.map(({ response }) => response === 0),
+          Effect.orElseSucceed(() => false),
+          Effect.flatMap(settle),
+          Effect.onInterrupt(() => settle(false)),
+        ),
+    );
+  };
   const sessionsRef = yield* SynchronizedRef.make<ReadonlyMap<string, Session>>(new Map());
 
   const getPartition = Effect.fn("BrowserSession.getPartition")(function* (
@@ -179,9 +261,6 @@ export const make = Effect.gen(function* BrowserSessionMake() {
       ),
     );
     const prefix = persistent ? PREVIEW_PARTITION_PREFIX : PREVIEW_EPHEMERAL_PARTITION_PREFIX;
-    // Legacy/default partitions are prefix + hex digest. The non-hex profile
-    // marker creates a disjoint namespace while leaving every legacy default
-    // partition byte-for-byte unchanged.
     return `${prefix}${namespace === "profile" ? PROFILE_PARTITION_MARKER : ""}${Hex.encode(digest).slice(0, 20)}`;
   });
 
@@ -201,11 +280,20 @@ export const make = Effect.gen(function* BrowserSessionMake() {
           // form — even variants that keep the Electron token — makes Cloudflare
           // Turnstile fail its integrity check with error 600010 and recreate
           // the challenge every few seconds, so logins behind it never complete
-          // (#5002). Re-setting the unchanged native string is harmless, so it
-          // is the rewritten string itself that trips the check.
-          browserSession.setPermissionRequestHandler((_webContents, permission, callback) => {
-            callback(ALLOWED_PREVIEW_PERMISSIONS.has(permission));
-          });
+          // (#5002).
+          browserSession.setPermissionRequestHandler(
+            (webContents, permission, callback, details) => {
+              if (permission === "openExternal") {
+                confirmOpenExternal(
+                  webContents,
+                  "externalURL" in details ? details.externalURL : undefined,
+                  callback,
+                );
+                return;
+              }
+              callback(ALLOWED_PREVIEW_PERMISSIONS.has(permission));
+            },
+          );
           browserSession.setPermissionCheckHandler((_webContents, permission) =>
             ALLOWED_PREVIEW_PERMISSIONS.has(permission),
           );

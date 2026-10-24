@@ -1,10 +1,10 @@
+import { uiText } from "~/i18n";
 import type { DeviceServiceState, EnvironmentId } from "@t3tools/contracts";
 import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import { deviceEnvironment } from "~/state/device";
 import { useAtomCommand } from "~/state/use-atom-command";
 
-/** Shared by setup, Settings, and the Device panel so automatic updates stay visible. */
 export function DeviceHostUpdates({
   state,
   environmentId,
@@ -32,16 +32,14 @@ export function DeviceHostUpdates({
               <p className="whitespace-pre-wrap break-words text-muted-foreground">
                 {status.detail ??
                   (failed
-                    ? "Device support could not start."
+                    ? uiText("Device support could not start.")
                     : status.status === "installing"
-                      ? "Installing device tools…"
-                      : "Starting device tools…")}
+                      ? uiText("Installing device tools…")
+                      : uiText("Starting device tools…"))}
               </p>
               {failed ? (
                 <p className="mt-1 text-muted-foreground">
-                  Check the host connection and network access, then retry. Your device settings are
-                  saved.
-                </p>
+                  {uiText("Check the host connection and network access, then retry. Your device settings are saved.")}</p>
               ) : null}
             </div>
             {failed && state.supportsHostRetry ? (
@@ -56,7 +54,7 @@ export function DeviceHostUpdates({
                   );
                 }}
               >
-                {pending === host.id ? "Retrying…" : "Retry"}
+                {pending === host.id ? uiText("Retrying…") : uiText("Retry")}
               </Button>
             ) : null}
           </div>

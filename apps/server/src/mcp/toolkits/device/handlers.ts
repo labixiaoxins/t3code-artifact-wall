@@ -9,33 +9,28 @@ import {
 } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Path from "effect/Path";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as ServerConfig from "../../../config.ts";
 import { ensureAgentDeviceShim } from "../../../device/AgentDeviceShim.ts";
 import { nodeRuntimeUnavailableMessage } from "@t3tools/shared/nodeRuntime";
 
 import * as DeviceService from "../../../device/DeviceService.ts";
+import { threadWorkspaceRoot } from "../../../project/threadWorkspaceRoot.ts";
 import * as McpInvocationContext from "../../McpInvocationContext.ts";
 import * as McpToolAccess from "../../McpToolAccess.ts";
 import { DeviceScreenshotToolkit, DeviceStandardToolkit, DeviceToolkit } from "./tools.ts";
 
-/** The flags that pin every agent-device command to one device. */
 export function agentDeviceTargetArgs(device: DeviceSummary): ReadonlyArray<string> {
   return device.platform === "ios"
     ? ["--platform", "ios", "--udid", device.id]
     : ["--platform", "android", "--serial", device.id];
 }
 
-/**
- * Just-in-time guidance returned from `device_open`. This is the one place
- * the agent learns how to drive the device, so it lives with the tool result
- * rather than in the always-on prompt block; threads that never open a device
- * never pay for it.
- */
 export function agentDeviceQuickStart(
   device: DeviceSummary,
   targetArgs = agentDeviceTargetArgs(device),
   command = "agent-device",
+  cloud = false,
 ): string {
   const executable = /^[a-zA-Z0-9_./:-]+$/.test(command)
     ? command
@@ -45,8 +40,9 @@ export function agentDeviceQuickStart(
       /^[a-zA-Z0-9_./:-]+$/.test(arg) ? arg : "'" + arg.replaceAll("'", "'\"'\"'") + "'",
     )
     .join(" ");
-  const platformNotes =
-    device.platform === "ios"
+  const platformNotes = cloud
+    ? "This is an EAS Simulator session in the cloud. It bills the Expo account per minute until it stops, so call device_close with shutdown: true when you are done. It starts with no apps installed: install-from-source <url> installs a build from a URL (iOS needs a .tar.gz containing a .app), and install uploads one from this machine."
+    : device.platform === "ios"
       ? "First use builds an XCTest runner and can take a couple of minutes; later commands are fast."
       : "The Android snapshot helper installs itself on first use.";
   return [
@@ -76,46 +72,45 @@ const requireDeviceAccess = McpInvocationContext.requireThreadMcpCapability("dev
   ),
 );
 
-const pickDevice = (
+const pickDevice = Effect.fn("handlers.pickDevice")(function* (
   devices: ReadonlyArray<DeviceSummary>,
   input: {
     readonly deviceId?: DeviceId | undefined;
     readonly platform?: DevicePlatform | undefined;
     readonly hostId?: DeviceHostId | undefined;
   },
-): Effect.Effect<DeviceSummary, DeviceToolUnavailableError> =>
-  Effect.gen(function* () {
-    const hostId = input.hostId ?? LOCAL_DEVICE_HOST_ID;
-    if (input.deviceId !== undefined) {
-      const match = devices.find(
-        (device) => device.hostId === hostId && device.id === input.deviceId,
-      );
-      if (match) return match;
-      return yield* new DeviceToolUnavailableError({
-        reason: `No device ${input.deviceId} on host ${hostId}. Call device_list for current ids.`,
-      });
-    }
-    const candidates = devices.filter(
-      (device) =>
-        device.hostId === hostId &&
-        (input.platform === undefined || device.platform === input.platform),
+): Effect.fn.Return<DeviceSummary, DeviceToolUnavailableError> {
+  const hostId = input.hostId ?? LOCAL_DEVICE_HOST_ID;
+  if (input.deviceId !== undefined) {
+    const match = devices.find(
+      (device) => device.hostId === hostId && device.id === input.deviceId,
     );
-    if (candidates.length === 0) {
-      return yield* new DeviceToolUnavailableError({
-        reason:
-          input.platform === undefined
-            ? "No simulators or emulators were found. Call device_list to see why."
-            : `No ${input.platform} devices were found on host ${hostId}. Call device_list to see why.`,
-      });
-    }
-    const platforms = new Set(candidates.map((device) => device.platform));
-    if (input.platform === undefined && platforms.size > 1) {
-      return yield* new DeviceToolUnavailableError({
-        reason: "Both iOS and Android devices are available; pass platform or deviceId.",
-      });
-    }
-    return candidates.find((device) => device.booted) ?? candidates[0]!;
-  });
+    if (match) return match;
+    return yield* new DeviceToolUnavailableError({
+      reason: `No device ${input.deviceId} on host ${hostId}. Call device_list for current ids.`,
+    });
+  }
+  const candidates = devices.filter(
+    (device) =>
+      device.hostId === hostId &&
+      (input.platform === undefined || device.platform === input.platform),
+  );
+  if (candidates.length === 0) {
+    return yield* new DeviceToolUnavailableError({
+      reason:
+        input.platform === undefined
+          ? "No simulators or emulators were found. Call device_list to see why."
+          : `No ${input.platform} devices were found on host ${hostId}. Call device_list to see why.`,
+    });
+  }
+  const platforms = new Set(candidates.map((device) => device.platform));
+  if (input.platform === undefined && platforms.size > 1) {
+    return yield* new DeviceToolUnavailableError({
+      reason: "Both iOS and Android devices are available; pass platform or deviceId.",
+    });
+  }
+  return candidates.find((device) => device.booted) ?? candidates[0]!;
+});
 
 const toolError = (error: DeviceError | DeviceToolUnavailableError) => error;
 
@@ -160,26 +155,41 @@ const handlers = {
       }
       const target = yield* pickDevice(state.devices, input);
       // Resolve consent and agent connectivity before booting or registering a session.
-      const agentArgs = yield* devices.agentTarget({
-        threadId: scope.thread.threadId,
-        hostId: target.hostId,
-        deviceId: target.id,
-      });
-      const session = yield* devices.open({
-        threadId: scope.thread.threadId,
-        hostId: target.hostId,
-        deviceId: target.id,
-        platform: target.platform,
-      });
+      if (!(yield* devices.agentReadinessIfSupported(target.hostId))) {
+        return yield* new DeviceToolUnavailableError({
+          reason:
+            "Agent device access requires enabled device support, agent access, and an available simulator platform on this host.",
+        });
+      }
+      const session = yield* devices.open(
+        {
+          threadId: scope.thread.threadId,
+          hostId: target.hostId,
+          deviceId: target.id,
+          platform: target.platform,
+        },
+        { workspaceRoot: yield* threadWorkspaceRoot(scope.thread.threadId) },
+      );
       const after = yield* devices.state;
       const device =
         after.devices.find(
           (candidate) => candidate.hostId === session.hostId && candidate.id === session.deviceId,
         ) ?? target;
-      const targetArgs = [...agentDeviceTargetArgs(device), ...agentArgs];
+      // Target the opened device: an EAS device and its agent-device daemon
+      // exist only once its session runs, and Android ids change on boot.
+      const agent = yield* devices.agentTarget({
+        threadId: scope.thread.threadId,
+        hostId: device.hostId,
+        deviceId: device.id,
+      });
+      const cloud = after.hosts.some((host) => host.id === device.hostId && host.kind === "eas");
+      const targetArgs = [
+        ...agentDeviceTargetArgs({ ...device, id: agent.agentDeviceId }),
+        ...agent.args,
+      ];
       const config = yield* ServerConfig.ServerConfig;
       const path = yield* Path.Path;
-      const platform = yield* HostProcessPlatform;
+      const platform = yield* HostProcess.Platform;
       const shimDir = yield* ensureAgentDeviceShim({
         entryPath: yield* devices.agentCli,
         stateDir: config.stateDir,
@@ -202,7 +212,7 @@ const handlers = {
       return {
         device,
         agentDevice: { command, targetArgs },
-        quickStart: agentDeviceQuickStart(device, targetArgs, command),
+        quickStart: agentDeviceQuickStart(device, targetArgs, command, cloud),
       };
     }).pipe(Effect.mapError(toolError)),
   ),
@@ -211,15 +221,19 @@ const handlers = {
       const scope = yield* requireDeviceAccess;
       const devices = yield* DeviceService.DeviceService;
       const sessions = yield* devices.sessionsForThread(scope.thread.threadId);
-      const target =
-        input.deviceId !== undefined
-          ? { hostId: input.hostId ?? LOCAL_DEVICE_HOST_ID, deviceId: input.deviceId }
-          : sessions
-              .filter((session) => input.hostId === undefined || session.hostId === input.hostId)
-              .at(-1);
+      const hostId =
+        input.deviceId === undefined ? input.hostId : (input.hostId ?? LOCAL_DEVICE_HOST_ID);
+      const target = sessions.findLast(
+        (session) =>
+          (hostId === undefined || session.hostId === hostId) &&
+          (input.deviceId === undefined || session.deviceId === input.deviceId),
+      );
       if (!target) {
         return yield* new DeviceToolUnavailableError({
-          reason: "No device is open in this thread. Call device_open first.",
+          reason:
+            input.deviceId === undefined
+              ? "No device is open in this thread. Call device_open first."
+              : `Device ${input.deviceId} on host ${hostId} is not open in this thread. Call device_open first.`,
         });
       }
       const shot = yield* devices.screenshot(target);
@@ -248,7 +262,6 @@ const handlers = {
   ),
 } satisfies McpToolAccess.Handlers<typeof DeviceToolkit.tools>;
 
-/** Width and height from the IHDR chunk; a PNG that lacks one reports 0×0. */
 export function pngDimensions(png: Uint8Array): { width: number; height: number } {
   if (png.length < 24) return { width: 0, height: 0 };
   const view = new DataView(png.buffer, png.byteOffset, png.byteLength);

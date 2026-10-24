@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import * as Cause from "effect/Cause";
 import { AsyncResult } from "effect/reactivity";
 
@@ -11,11 +12,6 @@ import { showThreadUndoNotice } from "../hooks/showThreadUndoNotice";
 import * as ThreadUndo from "../hooks/threadUndo";
 import { releaseDraftAttachments } from "./attachmentUploadQueue";
 
-/**
- * Discards a draft's unsent content behind the sidebar undo notice. A new-thread
- * draft (DraftId) loses its whole session; a thread draft only loses its
- * composer content. Uploads are released once the undo window closes.
- */
 export function discardComposerDraft(target: ComposerThreadTarget): void {
   const store = useComposerDraftStore.getState();
   const key = resolveComposerDraftKey(store, target);
@@ -37,7 +33,7 @@ export function discardComposerDraft(target: ComposerThreadTarget): void {
   showThreadUndoNotice({
     action: "Discarded",
     claim,
-    failureTitle: "Failed to restore draft",
+    failureTitle: uiText("Failed to restore draft"),
     undo: async () => {
       const current = useComposerDraftStore.getState().draftsByThreadKey[key];
       if (current && composerDraftHasUserContent(current)) {

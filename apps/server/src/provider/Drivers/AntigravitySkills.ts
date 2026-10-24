@@ -1,5 +1,3 @@
-import * as NodeOS from "node:os";
-
 import type { ServerProviderSkill } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -13,28 +11,26 @@ import { parse as parseYamlDocument } from "yaml";
  * The home directory the agent expands `~` against, matching Python's
  * `os.path.expanduser` in the launch environment T3 hands the process:
  * `USERPROFILE`, then `HOMEDRIVE` + `HOMEPATH`, on Windows and `HOME`
- * elsewhere. Values are used verbatim; a path may contain spaces.
+ * elsewhere.
  */
 export function resolveAntigravityUserHome(
   platform: NodeJS.Platform,
   environment: NodeJS.ProcessEnv,
+  home: string,
 ): string {
   if (platform === "win32") {
     if (environment.USERPROFILE) return environment.USERPROFILE;
     if (environment.HOMEDRIVE && environment.HOMEPATH) {
       return `${environment.HOMEDRIVE}${environment.HOMEPATH}`;
     }
-    return NodeOS.homedir();
+    return home;
   }
-  return environment.HOME || NodeOS.homedir();
+  return environment.HOME || home;
 }
 
 /**
- * The agent's two user-global skill directories under a Gemini home, in
- * native precedence order: `config/skills` is shared with the Antigravity IDE
- * and CLI, and `antigravity-cli/skills` is where the `agy` CLI installs
- * skills. The agent resolves both under `GEMINI_HOME`, which T3 points at a
- * private profile, so the profile links these back to the user's `~/.gemini`.
+ * The agent resolves both under `GEMINI_HOME`, which T3 points at a private
+ * profile, so the profile links these back to the user's `~/.gemini`.
  * `~/.agents/skills` is not read: the agent only treats `.agents/skills` as a
  * project directory.
  */
@@ -120,7 +116,6 @@ function skillPathSortKey(entry: string) {
   );
 }
 
-/** Read only regular skill files, with a byte limit that applies during the read. */
 const readSkill = Effect.fn("readAntigravitySkill")(function* (
   skillPath: string,
   budget: ScanBudget,
@@ -153,8 +148,6 @@ const readSkill = Effect.fn("readAntigravitySkill")(function* (
 });
 
 /**
- * Match the official ACP's explicit skill roots. The first valid same-name skill
- * wins. Each root loads its own SKILL.md or those in its immediate subdirectories.
  * Read failures remain typed so workspace snapshots do not cache partial results.
  */
 export const discoverAntigravitySkills = Effect.fn("discoverAntigravitySkills")(function* (input: {

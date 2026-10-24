@@ -107,6 +107,8 @@ export interface NativeReviewDiffStyle {
 }
 
 export interface NativeReviewDiffViewProps extends ViewProps {
+  readonly contentInsetTop?: number;
+  readonly contentInsetBottom?: number;
   readonly rowsJson: string;
   readonly tokensJson?: string;
   readonly tokensPatchJson?: string;
@@ -120,8 +122,11 @@ export interface NativeReviewDiffViewProps extends ViewProps {
   readonly themeJson: string;
   readonly styleJson?: string;
   readonly rowHeight: number;
+  /** Android ignores this and measures the widest row. */
   readonly contentWidth: number;
   readonly initialRowIndex?: number;
+  readonly scrollEnabled?: boolean;
+  readonly bounces?: boolean;
   readonly refreshing?: boolean;
   readonly nativeViewRef?: Ref<NativeReviewDiffViewHandle>;
   readonly onPullToRefresh?: (event: NativeSyntheticEvent<Record<string, never>>) => void;
@@ -165,6 +170,7 @@ type NativeReviewDiffRawViewProps = Omit<
   NativeReviewDiffViewProps,
   "nativeViewRef" | "rowsJson" | "tokensJson" | "tokensPatchJson"
 > & {
+  readonly refreshEnabled: boolean;
   readonly ref?: Ref<NativeReviewDiffViewRef>;
 };
 
@@ -268,7 +274,11 @@ function NativeReviewDiffView(props: NativeReviewDiffViewProps) {
     return null;
   }
 
-  return createElement(RawNativeView, { ...nativeProps, ref: nativeRef });
+  return createElement(RawNativeView, {
+    ...nativeProps,
+    refreshEnabled: props.onPullToRefresh !== undefined,
+    ref: nativeRef,
+  });
 }
 
 export function resolveNativeReviewDiffView(): ComponentType<NativeReviewDiffViewProps> | null {

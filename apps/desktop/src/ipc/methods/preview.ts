@@ -1,4 +1,5 @@
 import {
+  DesktopPreviewAnnotationSendEnabledInputSchema,
   DesktopPreviewAnnotationThemeInputSchema,
   DesktopPreviewArtifactInputSchema,
   DesktopPreviewConfigInputSchema,
@@ -18,6 +19,7 @@ import {
   DesktopPreviewTabInputSchema,
   DesktopPreviewWebviewConfigSchema,
   PreviewAnnotationSubmissionResultSchema,
+  PreviewCaptureFailure,
   DEFAULT_BROWSER_PROFILE_ID,
   INCOGNITO_BROWSER_PROFILE_ID,
   PreviewForwardedShortcut,
@@ -31,6 +33,7 @@ import * as NodeURL from "node:url";
 import * as ElectronWindow from "../../electron/ElectronWindow.ts";
 import * as BrowserImport from "../../preview/BrowserImport/BrowserImport.ts";
 import * as PreviewManager from "../../preview/Manager.ts";
+import { normalizeCaptureFailure } from "../../preview/captureErrors.ts";
 import * as DesktopClientSettings from "../../settings/DesktopClientSettings.ts";
 import { PREVIEW_WEBVIEW_PREFERENCES } from "../../preview/WebviewPreferences.ts";
 import * as IpcChannels from "../channels.ts";
@@ -52,6 +55,9 @@ export const installPreviewEventForwarding = Effect.fn(
   );
   yield* manager.subscribePointerEvents((event) =>
     electronWindow.sendAll(IpcChannels.PREVIEW_POINTER_EVENT_CHANNEL, event),
+  );
+  yield* manager.subscribeOpenLinks((event) =>
+    electronWindow.sendAll(IpcChannels.PREVIEW_OPEN_LINK_CHANNEL, event),
   );
 });
 
@@ -203,7 +209,8 @@ export const cancelPickElement = tabMethod(
 export const startRecording = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.PREVIEW_RECORDING_START_CHANNEL,
   payload: DesktopPreviewTabInputSchema,
-  result: Schema.Void,
+  // Void encodes any value as undefined, so the tagged failure must be tried first.
+  result: Schema.Union([PreviewCaptureFailure, Schema.Void]),
   handler: Effect.fn("desktop.ipc.preview.startRecording")(function* ({ tabId }) {
     const manager = yield* PreviewManager.PreviewManager;
     const store = yield* DesktopClientSettings.DesktopClientSettings;
@@ -212,7 +219,11 @@ export const startRecording = DesktopIpc.makeIpcMethod({
       showKeyPresses: value.browserRecordingShowKeyPresses,
       showMousePresses: value.browserRecordingShowMousePresses,
     }));
-    yield* manager.startRecording(tabId, Option.getOrUndefined(options));
+    return yield* manager
+      .startRecording(tabId, Option.getOrUndefined(options))
+      .pipe(
+        Effect.catch((error) => Effect.succeed(normalizeCaptureFailure(error, "recording-start"))),
+      );
   }),
 });
 export const stopRecording = tabMethod(
@@ -252,11 +263,9 @@ export const clearCache = DesktopIpc.makeIpcMethod({
 });
 
 /**
- * Partition scope for an (environment, profile) pair.
- *
  * The default profile keeps the bare environment id it used before profiles
- * existed, so upgrading does not strand anyone's existing logins in an
- * orphaned partition. Incognito derives a non-persistent partition.
+ * existed, so upgrading does not strand anyone's existing logins in an orphaned
+ * partition.
  */
 export function resolvePartitionScope(
   environmentId: string,
@@ -318,11 +327,6 @@ export const getPreviewConfig = DesktopIpc.makeIpcMethod({
   }),
 });
 
-/**
- * Registered separately from `methods`: these carry `BrowserImport` in their
- * context and their own failure type, so they do not unify with the
- * manager-backed handlers the shared loop iterates.
- */
 export const listBrowserImportSources = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.PREVIEW_IMPORT_SOURCES_CHANNEL,
   payload: Schema.Void,
@@ -377,13 +381,28 @@ export const pickElement = DesktopIpc.makeIpcMethod({
   }),
 });
 
+export const setAnnotationSendEnabled = DesktopIpc.makeIpcMethod({
+  channel: IpcChannels.PREVIEW_SET_ANNOTATION_SEND_ENABLED_CHANNEL,
+  payload: DesktopPreviewAnnotationSendEnabledInputSchema,
+  result: Schema.Void,
+  handler: Effect.fn("desktop.ipc.preview.setAnnotationSendEnabled")(function* ({
+    tabId,
+    enabled,
+  }) {
+    const manager = yield* PreviewManager.PreviewManager;
+    yield* manager.setAnnotationSendEnabled(tabId, enabled);
+  }),
+});
+
 export const captureScreenshot = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.PREVIEW_CAPTURE_SCREENSHOT_CHANNEL,
   payload: DesktopPreviewTabInputSchema,
-  result: DesktopPreviewScreenshotArtifactSchema,
+  result: Schema.Union([DesktopPreviewScreenshotArtifactSchema, PreviewCaptureFailure]),
   handler: Effect.fn("desktop.ipc.preview.captureScreenshot")(function* ({ tabId }) {
     const manager = yield* PreviewManager.PreviewManager;
-    return yield* manager.captureScreenshot(tabId);
+    return yield* manager
+      .captureScreenshot(tabId)
+      .pipe(Effect.catch((error) => Effect.succeed(normalizeCaptureFailure(error, "screenshot"))));
   }),
 });
 
@@ -438,6 +457,7 @@ export const methods = [
   clearCache,
   getPreviewConfig,
   setAnnotationTheme,
+  setAnnotationSendEnabled,
   pickElement,
   cancelPickElement,
   captureScreenshot,

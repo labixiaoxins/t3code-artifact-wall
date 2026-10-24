@@ -1,10 +1,11 @@
+import { uiText } from "~/i18n";
 import { useAtomValue } from "@effect/atom-react";
 import type { ServerUpdateState } from "@t3tools/client-runtime/state/server";
-import { Atom } from "effect/reactivity";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
+import { environmentIdsKey } from "~/state/environmentAtomList";
 import type { EnvironmentPresentation } from "~/state/environments";
-import { serverEnvironment } from "~/state/server";
+import { environmentUpdateStatesAtom } from "~/state/server";
 import {
   buildVersionMismatchDismissalKey,
   dismissServerUpdateFailure,
@@ -26,21 +27,18 @@ import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import type { ComposerBannerStackItem } from "./ComposerBannerStack";
 import { ComposerServerUpdateIcon } from "./ComposerServerUpdateStatus";
 
-/** Keep every machine's update visible while auto balance has no single update target. */
 export function useAutoBalanceUpdateBanner(
   environments: readonly EnvironmentPresentation[],
 ): ComposerBannerStackItem | null {
-  const statesAtom = useMemo(
-    () =>
-      Atom.make((get) =>
-        environments.map((environment) => ({
-          environment,
-          state: get(serverEnvironment.updateStateAtom(environment.environmentId)),
-        })),
-      ),
-    [environments],
+  const updateStates = useAtomValue(
+    environmentUpdateStatesAtom(
+      environmentIdsKey(environments.map(({ environmentId }) => environmentId)),
+    ),
   );
-  const states = useAtomValue(statesAtom);
+  const states = environments.flatMap((environment, index) => {
+    const state = updateStates[index];
+    return state ? [{ environment, state }] : [];
+  });
   const [dismissedNotices, setDismissedNotices] = useState<ReadonlySet<string | ServerUpdateState>>(
     () => new Set(),
   );
@@ -99,7 +97,7 @@ export function useAutoBalanceUpdateBanner(
         <PopoverTrigger
           render={<InlineButton />}
           className="max-w-full"
-          aria-label={`${title}. View machines`}
+          aria-label={uiText("{0}. View machines", {"0": title})}
         >
           <span className="min-w-0 truncate">{title}</span>
         </PopoverTrigger>
@@ -112,14 +110,14 @@ export function useAutoBalanceUpdateBanner(
                   <ServerUpdateProgress state={machine.state} />
                 ) : !machine.remoteUpdate ? (
                   <>
-                    <div className="text-muted-foreground">Manual update required</div>
+                    <div className="text-muted-foreground">{uiText("Manual update required")}</div>
                     <ServerUpdateAction {...machine} />
                   </>
                 ) : (
                   <div className="text-muted-foreground">
                     {machine.connected
-                      ? `Ready to update to ${machine.targetVersion}`
-                      : "Reconnect this machine to update"}
+                      ? uiText("Ready to update to {0}", {"0": machine.targetVersion})
+                      : uiText("Reconnect this machine to update")}
                   </div>
                 )}
               </div>
@@ -137,10 +135,10 @@ export function useAutoBalanceUpdateBanner(
           variant="ghost"
           label={
             failed > 0
-              ? "Retry"
+              ? uiText("Retry")
               : targets.length === machines.length
-                ? "Update all"
-                : `Update ${targets.length} ${targets.length === 1 ? "machine" : "machines"}`
+                ? uiText("Update all")
+                : uiText("Update {0} {1}", {"0": targets.length, "1": targets.length === 1 ? "machine" : "machines"})
           }
         />
       ) : undefined,

@@ -4,7 +4,7 @@ import {
   PROVIDER_SEND_TURN_MAX_FILE_BYTES,
   type ExecutionEnvironmentDescriptor,
 } from "@t3tools/contracts";
-import { HostProcessArchitecture, HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Context from "effect/Context";
 import * as Crypto from "effect/Crypto";
 import * as Effect from "effect/Effect";
@@ -12,7 +12,6 @@ import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
-
 import packageJson from "../../package.json" with { type: "json" };
 import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
 import { resolveServerInstallation } from "../cli/invocation.ts";
@@ -23,7 +22,6 @@ import * as ServerConfig from "../config.ts";
 import * as ProcessRunner from "../processRunner.ts";
 import { resolveServerEnvironmentLabel } from "./ServerEnvironmentLabel.ts";
 import { detectServerEnvironmentMachineKind } from "./ServerEnvironmentMachine.ts";
-
 export class ServerEnvironmentIdPersistenceError extends Schema.TaggedError<ServerEnvironmentIdPersistenceError>()(
   "ServerEnvironmentIdPersistenceError",
   {
@@ -39,7 +37,6 @@ export class ServerEnvironmentIdPersistenceError extends Schema.TaggedError<Serv
     return `Server environment ID ${this.operation} failed at '${this.environmentIdPath}'.`;
   }
 }
-
 export class ServerEnvironment extends Context.Service<
   ServerEnvironment,
   {
@@ -47,14 +44,12 @@ export class ServerEnvironment extends Context.Service<
     readonly getDescriptor: Effect.Effect<ExecutionEnvironmentDescriptor>;
   }
 >()("t3/environment/ServerEnvironment") {}
-
 export class ServerEnvironmentIdentity extends Context.Service<
   ServerEnvironmentIdentity,
   {
     readonly getEnvironmentId: Effect.Effect<EnvironmentId>;
   }
 >()("t3/environment/ServerEnvironment/ServerEnvironmentIdentity") {}
-
 function platformOs(platform: NodeJS.Platform): ExecutionEnvironmentDescriptor["platform"]["os"] {
   switch (platform) {
     case "darwin":
@@ -67,7 +62,6 @@ function platformOs(platform: NodeJS.Platform): ExecutionEnvironmentDescriptor["
       return "unknown";
   }
 }
-
 function platformArch(
   architecture: NodeJS.Architecture,
 ): ExecutionEnvironmentDescriptor["platform"]["arch"] {
@@ -80,12 +74,10 @@ function platformArch(
       return "other";
   }
 }
-
 const makeIdentity = Effect.gen(function* () {
   const fileSystem = yield* FileSystem.FileSystem;
   const serverConfig = yield* ServerConfig.ServerConfig;
   const crypto = yield* Crypto.Crypto;
-
   const readPersistedEnvironmentId = Effect.gen(function* () {
     const exists = yield* fileSystem.exists(serverConfig.environmentIdPath).pipe(
       Effect.mapError(
@@ -100,7 +92,6 @@ const makeIdentity = Effect.gen(function* () {
     if (!exists) {
       return null;
     }
-
     const raw = yield* fileSystem.readFileString(serverConfig.environmentIdPath).pipe(
       Effect.map((value) => value.trim()),
       Effect.mapError(
@@ -112,10 +103,8 @@ const makeIdentity = Effect.gen(function* () {
           }),
       ),
     );
-
     return raw.length > 0 ? raw : null;
   });
-
   const persistEnvironmentId = Effect.fn("ServerEnvironmentIdentity.persistEnvironmentId")(
     function* (value: string, mode: "create" | "recover") {
       const destinationPath =
@@ -151,14 +140,12 @@ const makeIdentity = Effect.gen(function* () {
         }),
     ),
   );
-
   const environmentIdRaw = yield* Effect.gen(function* () {
     const persisted = yield* readPersistedEnvironmentId;
     if (persisted) {
       return persisted;
     }
-
-    const generated = yield* crypto.randomUUIDv4;
+    const generated = yield* crypto.randomUUIDv4();
     yield* persistEnvironmentId(generated, "create");
     let winner = yield* readPersistedEnvironmentId;
     if (winner === null) {
@@ -173,21 +160,19 @@ const makeIdentity = Effect.gen(function* () {
     }
     return winner;
   });
-
   const environmentId = EnvironmentId.make(environmentIdRaw);
   return ServerEnvironmentIdentity.of({
     getEnvironmentId: Effect.succeed(environmentId),
   });
 });
-
-/** @public Service construction is part of the canonical Effect module API. */
+/** @public */
 export const make = Effect.gen(function* () {
   const path = yield* Path.Path;
   const serverConfig = yield* ServerConfig.ServerConfig;
   const secrets = yield* ServerSecretStore.ServerSecretStore;
   const identity = yield* ServerEnvironmentIdentity;
-  const hostPlatform = yield* HostProcessPlatform;
-  const hostArchitecture = yield* HostProcessArchitecture;
+  const hostPlatform = yield* HostProcess.Platform;
+  const hostArchitecture = yield* HostProcess.Architecture;
   const environmentId = yield* identity.getEnvironmentId;
   const cwdBaseName = path.basename(serverConfig.cwd).trim();
   const label = yield* resolveServerEnvironmentLabel({ cwdBaseName });
@@ -199,12 +184,10 @@ export const make = Effect.gen(function* () {
   });
   const serverInstallation = serverSelfUpdate === null ? yield* resolveServerInstallation : null;
   // Static is correct: the control fd is known at bootstrap, and the desktop
-  // app and its bundled server ship in one artifact, so a present fd means
-  // the app speaks the requestDesktopUpdate protocol. WSL backends never get
-  // the fd and correctly do not advertise.
+  // app and its bundled server ship in one artifact, so a present fd means the
+  // app speaks the requestDesktopUpdate protocol.
   const desktopAppUpdate =
     serverSelfUpdate === "desktop-managed" && serverConfig.desktopTelemetryControlFd !== undefined;
-
   const descriptor: ExecutionEnvironmentDescriptor = {
     environmentId,
     label,
@@ -226,12 +209,19 @@ export const make = Effect.gen(function* () {
       inlineMessageContext: true,
       requiredWorktreeBootstrap: true,
       threadSettlement: true,
+      threadArchiveSafety: true,
       threadAutoSettlement: true,
       storageCleanup: true,
+      storageCleanupRun: true,
+      databaseStorage: true,
+      otlpEndpointCheck: true,
       projectWorktreeCleanup: true,
+      settledWorktreeCleanup: true,
       worktreesDirectory: true,
+      threadAutoSettlementScope: true,
       threadRestartContinuation: true,
       projectSettingsOverrides: true,
+      projectProviderInstanceOverrides: true,
       threadSnooze: true,
       environmentThemes: true,
       usageLimitSources: true,
@@ -242,18 +232,19 @@ export const make = Effect.gen(function* () {
       threadActiveReorder: true,
       threadAutoSettleOptOut: true,
       threadTitleRegeneration: true,
+      commandOutputStreaming: true,
       threadVisitedTracking: true,
       threadPullRequests: true,
       threadPullRequestWatch: true,
       pullRequestStackActions: true,
       threadPullRequestLinking: true,
       serverResolvedCommandContext: true,
+      threadStop: true,
       environmentIcon: true,
       projectCloneTracking: true,
+      ignoredFileListing: true,
       ...(serverSelfUpdate === null ? {} : { serverSelfUpdate }),
       ...(serverInstallation === null ? {} : { serverInstallation }),
-      // V2 restart recovery uses the environment-owned opt-in. The old
-      // per-update request flag is not wired into the V2 update RPC path.
       ...(serverSelfUpdate === "boot-service" || desktopAppUpdate
         ? { serverSelfUpdateProgress: true }
         : {}),
@@ -261,7 +252,6 @@ export const make = Effect.gen(function* () {
       serverBrowser: true,
     },
   };
-
   return ServerEnvironment.of({
     getEnvironmentId: Effect.succeed(environmentId),
     // The publish opt-in and relay link change at runtime (`t3 connect
@@ -275,15 +265,7 @@ export const make = Effect.gen(function* () {
     ),
   });
 });
-
 export const layerIdentity = Layer.effect(ServerEnvironmentIdentity, makeIdentity);
-
-/**
- * ServerEnvironment is acquired from persisted filesystem and host-process
- * state. It intentionally has no fallback Layer.succeed value: callers must
- * provide the external platform services, a ServerConfig, and the
- * ServerSecretStore backing the descriptor's publishing capability.
- */
 export const layer = Layer.effect(ServerEnvironment, make).pipe(
   Layer.provideMerge(layerIdentity),
   Layer.provide(ProcessRunner.layer),

@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   useId,
   useRef,
@@ -14,7 +15,6 @@ function clamp(value: number) {
   return Math.min(1, Math.max(0, value));
 }
 
-/** Keep pointer capture and drag completion consistent across color controls. */
 function useColorDrag(
   update: (event: PointerEvent<HTMLDivElement>) => void,
   onInteractionEnd?: () => void,
@@ -29,8 +29,6 @@ function useColorDrag(
     onInteractionEnd?.();
   };
   return {
-    // The thumb stays inside the control at its extremes, and only animates
-    // keyboard adjustments, never continuous pointer movement.
     thumbTransition: isDragging
       ? undefined
       : "left 80ms linear, top 80ms linear, background-color 80ms linear",
@@ -57,7 +55,6 @@ type ColorControlProps<T> = {
   label: string;
   value: T;
   onChange: (value: T) => void;
-  /** Flush pending consumer updates when pointer interaction finishes. */
   onInteractionEnd?: () => void;
   className?: string;
 };
@@ -113,10 +110,10 @@ export function ColorSaturationValuePlane({
 
   return (
     <div
-      aria-label={`${label} saturation and brightness`}
+      aria-label={uiText("{0} saturation and brightness", {"0": label})}
       role="group"
       className={cn(
-        "relative cursor-crosshair touch-none overflow-hidden bg-[linear-gradient(to_top,#000,transparent),linear-gradient(to_right,#fff,transparent)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-popover",
+        "relative cursor-crosshair touch-none overflow-hidden bg-[linear-gradient(to_top,#000,transparent),linear-gradient(to_right,#fff,transparent)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-popover",
         variant === "edge" ? "h-36 rounded-none" : "h-32 rounded-lg",
         className,
       )}
@@ -126,9 +123,7 @@ export function ColorSaturationValuePlane({
       {...handlers}
     >
       <span id={instructionsId} className="sr-only">
-        Use arrow keys to adjust the focused value. Hold Shift for larger steps. Use Home and End
-        for the minimum and maximum. Press Tab to move between saturation and brightness.
-      </span>
+        {uiText("Use arrow keys to adjust the focused value. Hold Shift for larger steps. Use Home and End for the minimum and maximum. Press Tab to move between saturation and brightness.")}</span>
       {(
         [
           ["s", "Saturation"],
@@ -200,7 +195,7 @@ export function ColorHueSlider({
       aria-valuemin={0}
       aria-valuenow={Math.round(value)}
       className={cn(
-        "relative flex h-6 cursor-pointer touch-none items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-popover",
+        "relative flex h-6 cursor-pointer touch-none items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-popover",
         className,
       )}
       role="slider"

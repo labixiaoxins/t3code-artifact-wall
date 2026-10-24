@@ -44,7 +44,10 @@ export function artifactWallOrigin(environmentId: EnvironmentId): string | null 
   const connection = readPreparedConnection(environmentId);
   if (!connection || connection.httpAuthorization?._tag === "Dpop") return null;
   const origin = new URL(connection.httpBaseUrl, window.location.href);
-  return ["localhost", "127.0.0.1", "[::1]"].includes(origin.hostname) ? origin.href : null;
+  return origin.origin === window.location.origin ||
+    ["localhost", "127.0.0.1", "[::1]"].includes(origin.hostname)
+    ? origin.href
+    : null;
 }
 export function artifactFileUrl(environmentId: EnvironmentId, id: string): string | null {
   const origin = artifactWallOrigin(environmentId);

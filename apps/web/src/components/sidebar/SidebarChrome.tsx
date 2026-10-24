@@ -1,9 +1,10 @@
-import { ArrowLeftIcon, ChartNoAxesColumnIcon, SettingsIcon } from "lucide-react";
+import { uiText } from "~/i18n";
+import { ArrowLeftIcon, ChartNoAxesColumnIcon, SettingsIcon, EllipsisIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { memo, useCallback } from "react";
+import { memo, useState } from "react";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 
-import { useEnvironmentIdentificationMode } from "../../hooks/useSettings";
+import { useEnvironmentIdentificationMode, useLegacySidebarEnabled } from "../../hooks/useSettings";
 import { cn } from "../../lib/utils";
 import { usePullRequestsSupported } from "../../state/environments";
 import { T3Wordmark } from "../T3Wordmark";
@@ -23,12 +24,16 @@ import {
   useSidebar,
 } from "../ui/sidebar";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
+import { Button } from "../ui/button";
+import { Popover, PopoverPopup, PopoverTitle, PopoverTrigger } from "../ui/popover";
+import { openRecentWork } from "../../workbenchNavigation";
 import { readPullRequestListPreferences } from "../pullRequest/pullRequestListPreferences";
 import { isSidebarUtilityPage, useNavigateToMainApp } from "./mainAppLocation";
 import { SidebarThreadUndoNotice } from "./SidebarThreadUndoNotice";
 import { SidebarProviderUpdatePill } from "./SidebarProviderUpdatePill";
 import { SidebarUpdateArchitectureWarning, SidebarUpdatePill } from "./SidebarUpdatePill";
 import { PullRequestGlyph } from "~/components/pullRequest/pullRequestIcons";
+import { observeResize } from "~/lib/observeResize";
 
 export const SidebarChromeHeader = memo(function SidebarChromeHeader({
   isElectron,
@@ -47,21 +52,20 @@ export const SidebarChromeHeader = memo(function SidebarChromeHeader({
       : null;
 
   return (
-    // The titlebar row, not a padded SidebarHeader: it aligns to the window controls.
     <div
       className={cn(
-        "relative flex h-[var(--workspace-topbar-height)] shrink-0 flex-row items-center gap-2 px-3 md:pl-0",
+        "relative flex h-[var(--workspace-topbar-height)] shrink-0 flex-row items-center gap-2 pr-3",
         isElectron && "drag-region",
       )}
     >
       {backdropVariant ? <SidebarStageBackdrop variant={backdropVariant} /> : null}
-      <SidebarTrigger
-        // Over the stage artwork: the media viewer's control-on-imagery treatment.
-        variant={backdropVariant ? "media-navigation" : "ghost"}
-        className="relative top-auto z-10 translate-y-0 md:hidden"
-      />
-      {/* One visible line: the pill wraps onto the clipped second line once it no longer fits.
-          The padding keeps the brand's focus ring inside the clip. */}
+      <div className="relative top-[calc(var(--workspace-controls-top)-env(safe-area-inset-top))] z-10 ml-[calc(var(--workspace-controls-left)+1px-env(safe-area-inset-left))] flex shrink-0 items-center md:hidden">
+        <SidebarTrigger
+          variant={backdropVariant ? "media-navigation" : "ghost"}
+          className="relative top-auto translate-y-0"
+          aria-label={uiText("Toggle main sidebar")}
+        />
+      </div>
       <div className="relative z-10 flex h-8 min-w-0 flex-1 flex-wrap content-start items-center gap-x-2 overflow-hidden py-0.5">
         <SidebarBrand onBackdrop={backdropVariant !== null} />
         {pillLabel ? (
@@ -76,23 +80,16 @@ export const SidebarChromeHeader = memo(function SidebarChromeHeader({
   );
 });
 
-// Measures the brand at its titlebar inset, plus the header's right padding and the
-// sidebar border, so the sidebar minimum follows font size, zoom and macOS window controls.
 export function SidebarBrandWidthProbe({
   onWidthChange,
 }: {
   onWidthChange: (width: number) => void;
 }) {
-  const observeWidth = useCallback(
-    (probe: HTMLDivElement) => {
-      const observer = new ResizeObserver(([entry]) => {
-        if (entry) onWidthChange(entry.borderBoxSize[0]?.inlineSize ?? probe.offsetWidth);
-      });
-      observer.observe(probe);
-      return () => observer.disconnect();
-    },
-    [onWidthChange],
-  );
+  const observeWidth = (probe: HTMLDivElement) => {
+    return observeResize(probe, ([entry]) => {
+      if (entry) onWidthChange(entry.borderBoxSize[0]?.inlineSize ?? probe.offsetWidth);
+    });
+  };
 
   return (
     <div
@@ -110,9 +107,9 @@ export function SidebarBrandWidthProbe({
 function SidebarBrand({ onBackdrop }: { onBackdrop: boolean }) {
   return (
     <Link
-      aria-label="Go to threads"
+      aria-label={uiText("Go to threads")}
       className={cn(
-        "relative z-10 ml-[var(--workspace-titlebar-content-left)] hidden h-7 w-fit min-w-0 shrink-0 items-center overflow-hidden rounded-md outline-hidden ring-ring focus-visible:ring-2 md:flex",
+        "relative z-10 ml-[var(--workspace-titlebar-content-left)] hidden h-7 w-fit min-w-0 shrink-0 items-center overflow-hidden rounded-md outline-hidden ring-ring focus-visible:ring-2 focus-visible:ring-inset md:flex",
         onBackdrop ? "text-white" : "text-foreground",
       )}
       to="/"
@@ -124,12 +121,11 @@ function SidebarBrand({ onBackdrop }: { onBackdrop: boolean }) {
 
 function SidebarBrandMark({ onBackdrop }: { onBackdrop: boolean }) {
   return (
-    // Center the visible capitals, without the font's ascender/descender space.
     <span className="inline-flex min-w-0 items-baseline gap-1 text-sm font-medium tracking-tight">
       <T3Wordmark aria-label="T3" className="h-[1cap] w-auto shrink-0" />
       <span
         className={cn(
-          "truncate [text-box:trim-both_cap_alphabetic]",
+          "truncate [text-box:trim-both_cap_alphabetic] supports-[text-box:trim-both_cap_alphabetic]:py-1",
           onBackdrop ? "text-white/70" : "text-muted-foreground",
         )}
       >
@@ -172,34 +168,36 @@ export const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
     select: (location) => isSidebarUtilityPage(location.pathname),
   });
   const pullRequestsSupported = usePullRequestsSupported();
-  const closeMobileSidebar = useCallback(() => {
+  const legacySidebarEnabled = useLegacySidebarEnabled();
+  const [moreOpen, setMoreOpen] = useState(false);
+  const closeMobileSidebar = () => {
     if (isMobile) {
       setOpenMobile(false);
     }
-  }, [isMobile, setOpenMobile]);
-  const handlePullRequestsClick = useCallback(() => {
+  };
+  const handlePullRequestsClick = () => {
     closeMobileSidebar();
     void navigate({
       to: "/pull-requests",
       search: readPullRequestListPreferences(),
     });
-  }, [closeMobileSidebar, navigate]);
-  const handleSettingsClick = useCallback(() => {
+  };
+  const handleSettingsClick = () => {
     closeMobileSidebar();
     void navigate({ to: "/settings" });
-  }, [closeMobileSidebar, navigate]);
+  };
 
-  const handleUsageClick = useCallback(() => {
+  const handleUsageClick = () => {
     if (isMobile) {
       setOpenMobile(false);
     }
     void navigate({ to: "/usage" });
-  }, [isMobile, navigate, setOpenMobile]);
+  };
 
-  const handleBackClick = useCallback(() => {
+  const handleBackClick = () => {
     closeMobileSidebar();
     void navigateToMainApp();
-  }, [closeMobileSidebar, navigateToMainApp]);
+  };
 
   return (
     <SidebarMenu className="flex-row items-center">
@@ -207,30 +205,53 @@ export const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
         <SidebarMenuItem className="min-w-0 flex-1">
           <SidebarMenuButton onClick={handleBackClick}>
             <ArrowLeftIcon />
-            <span>Back</span>
+            <span>{uiText("Back")}</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
       ) : (
         <>
           <SidebarUtilityItem
             icon={<SettingsIcon />}
-            label="Settings"
+            label={uiText("Settings")}
             onClick={handleSettingsClick}
           />
-          {pullRequestsSupported ? (
-            <SidebarUtilityItem
-              icon={<PullRequestGlyph.pullRequest />}
-              label="Pull Requests"
-              onClick={handlePullRequestsClick}
-            />
-          ) : null}
+          {!legacySidebarEnabled && pullRequestsSupported ? <SidebarUtilityItem icon={<PullRequestGlyph.pullRequest />} label={uiText("Pull Requests")} onClick={handlePullRequestsClick} /> : null}
           <SidebarUtilityItem
             icon={<ChartNoAxesColumnIcon />}
-            label="Usage"
+            label={uiText("Usage")}
             onClick={handleUsageClick}
           />
         </>
       )}
+      {legacySidebarEnabled ? (
+      <SidebarMenuItem className="shrink-0">
+        <Popover open={moreOpen} onOpenChange={setMoreOpen}>
+          <PopoverTrigger render={<SidebarMenuButton aria-label="更多功能" size="icon" />}>
+            <EllipsisIcon />
+          </PopoverTrigger>
+          <PopoverPopup side="top" align="start" width="sm" padding="compact">
+            <PopoverTitle>更多功能</PopoverTitle>
+            <div className="mt-2 flex flex-col items-start gap-1">
+              <Button size="sm" variant="ghost" onClick={() => { setMoreOpen(false); openRecentWork(); }}>
+                最近访问与留待继续
+              </Button>
+              {pullRequestsSupported ? (
+                <Button size="sm" variant="ghost" onClick={() => { setMoreOpen(false); handlePullRequestsClick(); }}>
+                  {uiText("Pull Requests")}
+                </Button>
+              ) : null}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => { setMoreOpen(false); void navigate({ to: "/settings/providers" }); }}
+              >
+                模型通道与更新
+              </Button>
+            </div>
+          </PopoverPopup>
+        </Popover>
+      </SidebarMenuItem>
+      ) : null}
       <SidebarUpdatePill />
     </SidebarMenu>
   );

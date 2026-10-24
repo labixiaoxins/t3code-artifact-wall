@@ -13,23 +13,15 @@ export type ThreadHistoryLoadEarlierResult =
   | { readonly _tag: "error"; readonly message: string };
 
 export type ThreadHistoryHandler = {
-  readonly loadEarlier: () => Effect.Effect<ThreadHistoryLoadEarlierResult>;
+  readonly loadEarlier: (throughEntryId?: string) => Effect.Effect<ThreadHistoryLoadEarlierResult>;
 };
 
-/**
- * Opaque registration token returned by `register`. Finalizers must pass the
- * same token so an older fiber cannot delete a newer handler for the key.
- */
 export type ThreadHistoryRegistration = {
   readonly environmentId: EnvironmentId;
   readonly threadId: ThreadId;
   readonly handler: ThreadHistoryHandler;
 };
 
-/**
- * Per-thread registration for progressive history loads. Thread state fibers
- * register while active; mobile UI dispatches through `loadEarlier`.
- */
 export class ThreadHistoryController extends Context.Service<
   ThreadHistoryController,
   {
@@ -42,6 +34,7 @@ export class ThreadHistoryController extends Context.Service<
     readonly loadEarlier: (
       environmentId: EnvironmentId,
       threadId: ThreadId,
+      throughEntryId?: string,
     ) => Effect.Effect<ThreadHistoryLoadEarlierResult>;
   }
 >()("@t3tools/client-runtime/state/threadHistoryController") {}
@@ -78,14 +71,14 @@ export const layer: Layer.Layer<ThreadHistoryController> = Layer.effect(
           next.delete(key);
           return next;
         }),
-      loadEarlier: (environmentId, threadId) =>
+      loadEarlier: (environmentId, threadId, throughEntryId) =>
         Ref.get(handlers).pipe(
           Effect.flatMap((current) => {
             const handler = current.get(threadKey({ environmentId, threadId }));
             if (handler === undefined) {
               return Effect.succeed({ _tag: "noop" } satisfies ThreadHistoryLoadEarlierResult);
             }
-            return handler.loadEarlier();
+            return handler.loadEarlier(throughEntryId);
           }),
         ),
     });

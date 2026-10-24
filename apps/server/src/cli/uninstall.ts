@@ -4,11 +4,7 @@
 // cannot express: it kills the child when the scope closes.
 import * as NodeChildProcess from "node:child_process";
 
-import {
-  HostProcessEnvironment,
-  HostProcessIsExecutable,
-  HostProcessPlatform,
-} from "@t3tools/shared/hostProcess";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Console from "effect/Console";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -18,10 +14,14 @@ import * as Schema from "effect/Schema";
 import { Command, Flag, GlobalFlag, Prompt } from "effect/cli";
 
 import * as BootService from "../cloud/bootService.ts";
-import { pinnedRuntimeVersionsDir } from "../cloud/pinnedRuntime.ts";
+import {
+  launcherOwnsVersionsDir,
+  pinnedRuntimeVersionsDir,
+  windowsShimTarget,
+} from "../cloud/pinnedRuntime.ts";
 import { projectLocationFlags, resolveCliAuthConfig } from "./config.ts";
 import * as CliService from "./service.ts";
-import { findWindowsShim, launcherOwnsVersionsDir, resolveLauncherPath } from "./update.ts";
+import { findWindowsShim, resolveLauncherPath } from "./update.ts";
 
 export class CliUninstallError extends Schema.TaggedError<CliUninstallError>()(
   "CliUninstallError",
@@ -32,24 +32,15 @@ export class CliUninstallError extends Schema.TaggedError<CliUninstallError>()(
   }
 }
 
-/**
- * What `t3 uninstall` would remove for one T3 home. Computed before anything
- * is touched so the user sees the whole plan in one place.
- */
 export interface UninstallPlan {
-  /** The background service serves this home and will be stopped and removed. */
   readonly service: boolean;
-  /** The `t3` launcher (symlink or `.cmd` shim) that points into this home's runtime tree. */
   readonly launcher: string | undefined;
-  /** `<home>/runtime`, holding every downloaded version, when it exists. */
   readonly runtimeDir: string | undefined;
-  /** `<home>/userdata`, which is never removed; shown so the user knows where it is. */
   readonly userdataDir: string;
 }
 
 /**
- * Finds the launcher this install left on PATH. Only a launcher that points
- * into this home's `runtime/versions` is claimed: a plain copy of the
+ * Only a launcher that points into this home's `runtime/versions` is claimed: a plain copy of the
  * executable, or a launcher for another home, is not ours to delete.
  */
 export const findOwnedLauncher = Effect.fn("cli.uninstall.find_launcher")(function* (input: {
@@ -58,13 +49,13 @@ export const findOwnedLauncher = Effect.fn("cli.uninstall.find_launcher")(functi
 }) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
-  const platform = yield* HostProcessPlatform;
+  const platform = yield* HostProcess.Platform;
   if (input.launchedAs === undefined) return undefined;
   if (platform === "win32") {
     const shimPath = yield* findWindowsShim(input.launchedAs);
     if (shimPath === undefined) return undefined;
     const contents = yield* fs.readFileString(shimPath).pipe(Effect.option);
-    const target = Option.isSome(contents) ? /^"([^"]+)"/m.exec(contents.value)?.[1] : undefined;
+    const target = Option.isSome(contents) ? windowsShimTarget(contents.value) : undefined;
     return target !== undefined && launcherOwnsVersionsDir(path, input.versionsDir, target)
       ? shimPath
       : undefined;
@@ -87,7 +78,7 @@ const planUninstall = Effect.fn("cli.uninstall.plan")(function* (input: {
     path.resolve(status.installedBaseDir) === path.resolve(input.baseDir);
   const versionsDir = pinnedRuntimeVersionsDir(path, input.baseDir);
   const runtimeDir = path.dirname(versionsDir);
-  const launchedAs = (yield* HostProcessIsExecutable) ? yield* resolveLauncherPath : undefined;
+  const launchedAs = (yield* HostProcess.IsExecutable) ? yield* resolveLauncherPath : undefined;
   const plan: UninstallPlan = {
     service: status.supported && status.installed && servesThisHome,
     launcher: yield* findOwnedLauncher({ launchedAs, versionsDir }),
@@ -128,14 +119,14 @@ const runUninstall = Effect.fn("cli.uninstall.run")(function* (input: {
   readonly assumeYes: boolean;
 }) {
   const fs = yield* FileSystem.FileSystem;
-  const platform = yield* HostProcessPlatform;
-  const environment = yield* HostProcessEnvironment;
+  const platform = yield* HostProcess.Platform;
+  const environment = yield* HostProcess.Environment;
   const service = yield* BootService.BootService;
   const plan = yield* planUninstall({ baseDir: input.baseDir });
 
   if (!plan.service && plan.launcher === undefined && plan.runtimeDir === undefined) {
     yield* Console.log(`Nothing to remove: t3 is not installed for ${input.baseDir}.`);
-    if (!(yield* HostProcessIsExecutable)) {
+    if (!(yield* HostProcess.IsExecutable)) {
       yield* Console.log(
         "  This t3 runs from a Node script, so it was installed by npm or built from source. Remove it the same way (`npm uninstall -g t3`, or delete the checkout).",
       );

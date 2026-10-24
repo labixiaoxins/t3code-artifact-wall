@@ -1,7 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off - fictional local filesystem fixture.
-import * as fs from "node:fs";
-import * as os from "node:os";
-import * as path from "node:path";
+import * as NodeFS from "node:fs";
+import * as NodeOS from "node:os";
+import * as NodePath from "node:path";
 import { afterAll, describe, expect, it } from "vite-plus/test";
 import {
   collectArtifactCandidates,
@@ -15,10 +15,10 @@ import {
   resolveArtifactReference,
   type ArtifactRecord,
 } from "./collection.ts";
-const dir = fs.mkdtempSync(path.join(os.tmpdir(), "artifact-collection-"));
-afterAll(() => fs.rmSync(dir, { recursive: true, force: true }));
+const dir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "artifact-collection-"));
+afterAll(() => NodeFS.rmSync(dir, { recursive: true, force: true }));
 const htmlId = "fiction-11111111-1111-4111-8111-111111111111-html";
-fs.writeFileSync(path.join(dir, htmlId + ".html"), "<p>fiction</p>");
+NodeFS.writeFileSync(NodePath.join(dir, htmlId + ".html"), "<p>fiction</p>");
 const row = (
   payload: Record<string, unknown>,
   createdAt = "2026-10-06T01:00:00Z",
@@ -157,6 +157,12 @@ describe("artifact collection", () => {
     expect(excludedArtifactPath("/fiction/secret/a.png", ["/fiction/secret"])).toBe(true);
     expect(excludedArtifactPath("/fiction/secret-other/a.png", ["/fiction/secret"])).toBe(false);
   });
+  it("includes document deliverables without collecting source code or executables", () => {
+    expect(
+      referencedPaths("[说明](./交付说明.md) `./合同.docx` ./数据.xlsx ./结果.csv ./备注.txt"),
+    ).toEqual(["./交付说明.md", "./合同.docx", "./数据.xlsx", "./结果.csv", "./备注.txt"]);
+    expect(referencedPaths("`./main.ts` `./settings.json` `./run.exe`")).toEqual([]);
+  });
   it("dedupes canonical paths, retains first occurrence and structured source, sorts newest first", () => {
     const one = {
       threadId: "fiction",
@@ -177,15 +183,15 @@ describe("artifact collection", () => {
 });
 
 describe("thread-local relative artifact resolution", () => {
-  const home = path.join(dir, "fictional-home");
-  const workspace = path.join(home, "Documents/content-library");
-  const project = path.join(home, "Documents/story-project");
-  const output = path.join(project, "02_video");
-  const source = path.join(output, "_source-files/v6");
-  const movie = path.join(output, "角色介绍_居民_v8_定格版.mp4");
-  fs.mkdirSync(source, { recursive: true });
-  fs.mkdirSync(workspace, { recursive: true });
-  fs.writeFileSync(movie, "fictional video");
+  const home = NodePath.join(dir, "fictional-home");
+  const workspace = NodePath.join(home, "Documents/content-library");
+  const project = NodePath.join(home, "Documents/story-project");
+  const output = NodePath.join(project, "02_video");
+  const source = NodePath.join(output, "_source-files/v6");
+  const movie = NodePath.join(output, "角色介绍_居民_v8_定格版.mp4");
+  NodeFS.mkdirSync(source, { recursive: true });
+  NodeFS.mkdirSync(workspace, { recursive: true });
+  NodeFS.writeFileSync(movie, "fictional video");
   const record = (payload: Record<string, unknown>, threadId = "fiction") => ({
     ...row(payload),
     cwd: workspace,
@@ -195,7 +201,7 @@ describe("thread-local relative artifact resolution", () => {
     homeDir: home,
     isFile: async (p: string) => {
       try {
-        return fs.statSync(p).isFile();
+        return NodeFS.statSync(p).isFile();
       } catch {
         return false;
       }
@@ -235,10 +241,10 @@ describe("thread-local relative artifact resolution", () => {
     expect(commandDirectories('echo "cd /private/elsewhere"', workspace, home)).toEqual([]);
   });
   it("uses cwd before cd roots, and the first existing candidate directory before ancestors", async () => {
-    fs.mkdirSync(path.join(workspace, "02_video"), { recursive: true });
-    const local = path.join(workspace, "02_video/local.mp4");
-    fs.writeFileSync(local, "local");
-    fs.writeFileSync(path.join(output, "local.mp4"), "other");
+    NodeFS.mkdirSync(NodePath.join(workspace, "02_video"), { recursive: true });
+    const local = NodePath.join(workspace, "02_video/local.mp4");
+    NodeFS.writeFileSync(local, "local");
+    NodeFS.writeFileSync(NodePath.join(output, "local.mp4"), "other");
     const result = await resolveArtifactCandidates(
       [
         record({
@@ -284,13 +290,41 @@ describe("thread-local relative artifact resolution", () => {
     );
     expect(result.map((a) => a.threadId)).toEqual(["other"]);
   });
+  it("does not guess between same-named files in inferred project roots", async () => {
+    const left = NodePath.join(home, "Documents/left");
+    const right = NodePath.join(home, "Documents/right");
+    for (const root of [left, right]) {
+      NodeFS.mkdirSync(root, { recursive: true });
+      NodeFS.writeFileSync(NodePath.join(root, "ambiguous.pdf"), root);
+    }
+    const context = [
+      record({ type: "command_execution", input: `cd '${left}' && check` }),
+      record({ type: "command_execution", input: `cd '${right}' && check` }),
+    ];
+    expect(
+      await resolveArtifactCandidates(
+        [...context, record({ role: "assistant", text: "`ambiguous.pdf`" })],
+        dir,
+        options,
+      ),
+    ).toEqual([]);
+    const explicit = await resolveArtifactCandidates(
+      [
+        ...context,
+        record({ role: "assistant", text: `\`${NodePath.join(right, "ambiguous.pdf")}\`` }),
+      ],
+      dir,
+      options,
+    );
+    expect(explicit.map((item) => item.path)).toEqual([NodePath.join(right, "ambiguous.pdf")]);
+  });
   it("bounds inferred roots at home child and rejects outside-home hints", () => {
     expect(artifactParentRoots(source, home)).toEqual([
       source,
-      path.dirname(source),
+      NodePath.dirname(source),
       output,
       project,
-      path.join(home, "Documents"),
+      NodePath.join(home, "Documents"),
     ]);
     expect(artifactParentRoots(home, home)).toEqual([]);
     expect(artifactParentRoots(home + "-other/Documents", home)).toEqual([]);

@@ -19,13 +19,14 @@ import { AsyncResult, Atom, type AtomRegistry } from "effect/reactivity";
 
 import type { EnvironmentRegistry } from "../connection/registry.ts";
 import * as Persistence from "../platform/persistence.ts";
-import { runStream } from "../rpc/client.ts";
+import { runStreamGuarded, RpcPermissionGuard } from "../rpc/client.ts";
 import {
   createRuntimeCommand,
   runStreamInEnvironment,
   type AtomCommand,
   type AtomCommandResult,
 } from "./runtime.ts";
+import { createCommandPermissions } from "./commandPermissions.ts";
 import { vcsCommandScheduler } from "./vcsCommandScheduler.ts";
 import { invalidateCachedVcsRefs } from "./vcsRefInvalidation.ts";
 
@@ -78,7 +79,6 @@ export interface RunVcsStackedActionInput {
   readonly commitMessage?: string;
   readonly featureBranch?: boolean;
   readonly filePaths?: ReadonlyArray<string>;
-  /** The thread the action runs beside; the server links a pull request it creates to it. */
   readonly threadId?: ThreadId;
   readonly projectId?: ProjectId;
   readonly onProgress?: (event: GitActionProgressEvent) => void;
@@ -483,7 +483,7 @@ export function createVcsActionManager<R, E>(
         return consumeVcsActionProgress(
           runStreamInEnvironment(
             target.environmentId,
-            runStream(WS_METHODS.gitRunStackedAction, rpcInput),
+            runStreamGuarded(WS_METHODS.gitRunStackedAction, rpcInput),
           ),
           {
             target,
@@ -500,13 +500,15 @@ export function createVcsActionManager<R, E>(
                 if (input.onProgress !== undefined) {
                   try {
                     input.onProgress(event);
-                  } catch {
-                    // Presentation callbacks must not fail the source-control operation.
-                  }
+                  } catch {}
                 }
               }),
           },
         ).pipe(
+          Effect.provideService(RpcPermissionGuard, {
+            authorize: (id, method, payload) =>
+              createCommandPermissions(runtime, method).authorize(registry, id, payload),
+          }),
           Effect.ensuring(invalidateCachedVcsRefs(registry, target)),
           Effect.tap(() => clearOwnedState),
           Effect.tapError((error) =>

@@ -1,7 +1,9 @@
+import { AppState } from "react-native";
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import {
   createAppUpdateDeferral,
+  createAppUpdateForegroundRecheck,
   createAppUpdateLaunchCheck,
   FOREGROUND_APP_UPDATE_RECHECK_AFTER_MS,
   registerHiddenUpdateTap,
@@ -17,6 +19,13 @@ vi.mock("expo-updates", () => ({
   checkForUpdateAsync: vi.fn(),
   fetchUpdateAsync: vi.fn(),
   reloadAsync: vi.fn(),
+}));
+
+vi.mock("react-native", () => ({
+  AppState: {
+    currentState: "active",
+    addEventListener: vi.fn(() => ({ remove: vi.fn() })),
+  },
 }));
 
 function makeUpdateClient(overrides: Partial<AppUpdateClient> = {}): AppUpdateClient {
@@ -166,7 +175,6 @@ describe("runAppUpdateCheck", () => {
 
     await runAppUpdateCheck({ client, deferral, environment });
 
-    // A failed deferred reload resets the deferral before the stay fires.
     deferral.pendingInstall = false;
     foregroundStayCallbacks[0]!();
 
@@ -184,15 +192,12 @@ describe("runAppUpdateCheck", () => {
 
     await runAppUpdateCheck({ client, deferral, environment });
     expect(backgroundCallbacks).toHaveLength(1);
-    // Arming may fire for an already-backgrounded app…
     expect(vi.mocked(environment.onNextBackground).mock.calls[0]![1]).toBe(true);
 
     backgroundCallbacks[0]!();
     await vi.waitFor(() => expect(backgroundCallbacks).toHaveLength(2));
     expect(client.reloadAsync).not.toHaveBeenCalled();
     expect(deferral.pendingInstall).toBe(true);
-    // …but a re-arm must wait for a fresh transition, or an unsafe attempt
-    // would retry in a tight loop within the same background session.
     expect(vi.mocked(environment.onNextBackground).mock.calls[1]![1]).toBe(false);
 
     safe.mockResolvedValue(true);
@@ -269,8 +274,6 @@ describe("runAppUpdateCheck", () => {
     resolveCheck({ isAvailable: true, isRollBackToEmbedded: false });
     await Promise.all([backgroundCheck, manualCheck]);
 
-    // The coalesced background check deferred the download, but the manual
-    // caller explicitly asked to install, so the restart happens anyway.
     expect(client.checkForUpdateAsync).toHaveBeenCalledOnce();
     expect(client.reloadAsync).toHaveBeenCalledOnce();
   });
@@ -290,8 +293,6 @@ describe("runAppUpdateCheck", () => {
     await runAppUpdateCheck({ client, deferral, environment });
     flushPendingWrites.mockReturnValue(blockedFlush);
 
-    // The deferred install starts and blocks on its flush; the foreground
-    // prompt firing in that window must not begin a second restart.
     backgroundCallbacks[0]!();
     await vi.waitFor(() => expect(flushPendingWrites).toHaveBeenCalledOnce());
     foregroundStayCallbacks[0]!();
@@ -359,8 +360,6 @@ describe("runAppUpdateCheck", () => {
 
     await runAppUpdateCheck({ client, deferral, environment });
 
-    // Nobody asked for this restart, so it must not discard the state it
-    // failed to land; the rollback waits armed for the next backgrounding.
     expect(client.reloadAsync).not.toHaveBeenCalled();
     expect(deferral.pendingInstall).toBe(true);
     expect(backgroundCallbacks).toHaveLength(1);
@@ -407,7 +406,6 @@ describe("runAppUpdateCheck", () => {
     await runAppUpdateCheck({ client, deferral: createAppUpdateDeferral(), environment });
 
     expect(client.fetchUpdateAsync).toHaveBeenCalledOnce();
-    // A rollback pulls a broken bundle, so it never waits on the prompt.
     expect(environment.confirmInstallNow).not.toHaveBeenCalled();
     expect(client.reloadAsync).toHaveBeenCalledOnce();
   });
@@ -649,5 +647,33 @@ describe("registerHiddenUpdateTap", () => {
     }
 
     expect(count).toBe(0);
+  });
+});
+
+describe("createAppUpdateForegroundRecheck", () => {
+  it("registers once and checks after returning from a long background stay", () => {
+    vi.stubGlobal("__DEV__", false);
+    const now = vi.spyOn(Date, "now");
+    const listener = vi.mocked(AppState.addEventListener);
+    listener.mockClear();
+    const client = makeUpdateClient();
+    const start = createAppUpdateForegroundRecheck(client, createAppUpdateDeferral());
+
+    try {
+      start();
+      start();
+      expect(listener).toHaveBeenCalledOnce();
+      const onChange = listener.mock.calls[0]![1];
+      now.mockReturnValue(1000);
+      onChange("background");
+      now.mockReturnValue(1000 + FOREGROUND_APP_UPDATE_RECHECK_AFTER_MS);
+      onChange("active");
+      expect(client.checkForUpdateAsync).toHaveBeenCalledOnce();
+      onChange("active");
+      expect(client.checkForUpdateAsync).toHaveBeenCalledOnce();
+    } finally {
+      now.mockRestore();
+      vi.unstubAllGlobals();
+    }
   });
 });

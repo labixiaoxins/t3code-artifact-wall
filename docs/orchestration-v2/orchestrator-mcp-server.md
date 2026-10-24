@@ -145,8 +145,13 @@ provider-specific extensions; those remain in flavors such as Grok.
 
 ### Pi V2
 
-Pi core has no MCP client. When a provider session credential exists, the
-adapter writes a T3-owned extension into the server cache and spawns
+T3 keeps a provider-session HTTP bridge even when Pi supports native MCP.
+`mcp.json` entries override native registrations, and native MCP's default
+60-second request timeout can interrupt long-running T3 tools. The bridge owns
+the injected endpoint and credential and forwards Pi's cancellation signal.
+
+When a provider session credential exists, the adapter writes a T3-owned
+extension into the server cache and spawns
 `pi --mode rpc --extension <cache>/pi-t3-mcp-extension.ts` with:
 
 ```text
@@ -154,9 +159,13 @@ T3_MCP_URL=http://127.0.0.1:<port>/mcp
 T3_MCP_BEARER_TOKEN=<provider-session-token>
 ```
 
-The extension connects to that HTTP endpoint, lists tools, and registers each
-one with `pi.registerTool` under a `mcp__t3-code__` namespace
-(`mcp__t3-code__delegate_task`, `mcp__t3-code__t3_thread_launch`, and the rest).
+The extension preserves public names under `mcp__t3-code__` for saved loadouts
+and tool selectors. Modern Pi also receives hidden `mcp__t3_code__` aliases,
+which reserve the normalized namespace against configured MCP servers without
+adding declarations or search results. On Pi 0.99+,
+`orchestrator_capabilities`, `delegate_task`, and `task_status` remain directly
+available; optional tools are discovered through Pi's builtin `tool_search`.
+On older Pi or without builtin search, all tools remain directly available.
 The bridge calls the original MCP tool name over HTTP. Follow-up requests send
 `mcp-protocol-version: 2025-06-18`; Effect's MCP transport returns 400
 without it. The first turn of a session also receives the shared T3
@@ -228,6 +237,13 @@ that driver; an explicit `providerInstanceId` is honored exactly and fails
 when unavailable. Selecting a different provider without a model uses that
 provider's first advertised model.
 
+A provider runs a runtime mode it does not offer as `approval-required`, so a
+child would ask for approval on every command. `orchestrator_capabilities`
+lists `runtimeModes` only for a provider that offers some of the modes, and
+omits it for a provider that offers all of them. When the target lists
+`runtimeModes`, an explicit `runtimeMode` outside that list is refused, and an
+inherited mode steps down to the broadest mode the target offers.
+
 Each delegated review round uses a new `delegate_task` call with the original brief,
 prior findings, responses, and unresolved objections. Track each round by its own `taskId` and use
 a distinct `clientRequestId` per round, stable across retries of that round.
@@ -243,7 +259,15 @@ provider session. The request becomes the V2 command
 `mode: "async"` returns the current durable state immediately.
 `mode: "wait"` waits for the task result, including nested work and completion follow-ups, or until
 the timeout expires. A wait timeout does not cancel the child; the result sets
-`waitTimedOut: true`, and the caller can continue with `task_status`.
+`waitTimedOut: true`, and the caller can continue with `task_status`. A pending blocking
+question also ends the wait with `hasPendingQuestion: true` and `waitTimedOut: false`.
+If `hasPendingQuestion`, pass `threadId=childThreadId` to `t3_pending_request_list`,
+`t3_pending_request_read` (with `requestId`) and `t3_pending_request_respond`, or ask
+the user; the task's completion still wakes this thread. A pending live approval for the
+task's own unfinished work also ends the wait. Its identity appears in `pendingApproval`;
+it grants no approval authority. Read the fresh full request in the child thread before
+responding, since the durable record can outlive its provider callback. Async questions
+do not end the wait.
 
 ```ts
 type DelegateTaskResult = {
@@ -262,6 +286,12 @@ type DelegateTaskResult = {
   latestTerminalStatus: "completed" | "failed" | "cancelled" | "interrupted" | null;
   latestTerminalSummary: string | null;
   latestTerminalResultContextTransferId: string | null;
+  hasPendingQuestion: boolean;
+  pendingApproval: {
+    requestId: string;
+    kind: "command" | "file-read" | "file-change" | "mcp-elicitation" | "permission";
+    runId: string;
+  } | null;
   waitTimedOut: boolean;
 };
 ```
@@ -352,6 +382,18 @@ and `creationSource: "mcp"`; provider output uses `creationSource: "provider"`.
 Actor and ingress are separate so agent-authored user-role messages remain
 distinguishable from human-authored messages.
 
+Agents mention another thread as `[title](t3-thread://v1/<threadId>)`. The
+link carries only the id. Clients first resolve it in the message's environment,
+then use a unique match in another enabled environment. Ambiguous matches stay
+unresolved. Web and desktop show the resolved thread’s current title. Mobile
+relabels local matches; cross-environment links can retain the written label.
+
+List and read results report `snoozed` and `snoozedUntil`, and
+`t3_thread_list` filters on `snoozed`. The server's `isSnoozed` follows the
+client's `effectiveSnoozed`, so agents and the sidebar agree: a snoozed thread
+wakes early only when it has a pending request or fails after snoozing. Completed
+runs, background wakes, and delegated completions keep it snoozed.
+
 ### `t3_thread_update`
 
 Updates metadata for the calling thread or any other thread in the environment.
@@ -425,6 +467,19 @@ Terminal provider events trigger finalization. The event stream first replays
 persisted events and then follows live events, so finalization also runs after
 a server restart. An existing `subagent_result` transfer makes finalization
 idempotent.
+
+Users rarely watch child threads, so a child question would otherwise go
+unanswered. When a child opens a pending `user_input` request, the parent gets
+a notification message telling it to answer with the pending request tools or
+ask the user. The message says whether the child is blocked or, for a Codex
+async question, still working. If the question is answered or dismissed before
+the notification starts a turn, that queued turn is cancelled. Approvals are not
+routed, because those tools cannot answer them.
+A parent still blocked in a `delegate_task` wait gets the blocking question
+through that wait instead.
+If the provider cuts that wait short, a still-pending live question wakes the
+parent when its launching run completes, fails, or waits for post-turn work.
+Stopping or interrupting the parent prevents this catch-up.
 
 A failed run exposes its provider error before any progress text. Successful
 results use the latest assistant content from the final work turn.

@@ -1,3 +1,4 @@
+import { SheetHeader } from "../../components/ui/SheetHeader";
 import { appAtomRegistry } from "../../state/atom-registry";
 import { useAtomValue } from "@effect/atom-react";
 import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/shell";
@@ -10,8 +11,8 @@ import Reanimated, { ReduceMotion, useAnimatedStyle, withTiming } from "react-na
 import { threadDragGapOffset } from "./threadDragGap";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { AppText as Text } from "../../components/AppText";
-import { SymbolView } from "../../components/AppSymbol";
+import { AppText as Text } from "../../components/ui/AppText";
+import { SymbolView } from "../../components/ui/AppSymbol";
 import { scopedThreadKey } from "../../lib/scopedEntities";
 import { environmentServerConfigsAtom } from "../../state/server";
 import { environmentThreadShells } from "../../state/threads";
@@ -79,7 +80,6 @@ function ArrangementRow(props: {
   );
 }
 
-/** Native pan recognition wins over list scrolling only inside the handle. */
 function DragHandle(props: {
   title: string;
   disabled: boolean;
@@ -198,7 +198,6 @@ export function ThreadArrangementSheet(props: { onClose: () => void }) {
     );
     return {
       pinned,
-      // The Working beta orders the inbox by time; show that order here too.
       active: workingShelfEnabled
         ? sortInboxThreadsByReturn(active, threadListInboxReturns.returnedAt)
         : active,
@@ -212,8 +211,6 @@ export function ThreadArrangementSheet(props: { onClose: () => void }) {
         ordered: sections[section],
         allThreads: threads,
         section,
-        // A time-ordered inbox has no slots, so Active takes no drops while
-        // the Working beta is on. The saved arrangement stays untouched.
         reorderableEnvironmentIds: new Set(
           [...configs].flatMap(([id, config]) =>
             (
@@ -380,16 +377,12 @@ export function ThreadArrangementSheet(props: { onClose: () => void }) {
           className="flex-1 bg-screen"
           style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
         >
-          <View className="flex-row items-center justify-between gap-3 px-5 py-3">
-            <Text className="flex-1 text-xl font-t3-semibold">Arrange threads</Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={props.onClose}
-              className="min-h-11 justify-center px-3"
-            >
-              <Text className="text-base text-primary-text">Done</Text>
-            </Pressable>
-          </View>
+          <SheetHeader
+            presentation="inline"
+            title="Arrange threads"
+            onClose={props.onClose}
+            accessibilityLabel="Close arrange threads"
+          />
           <Text className="px-5 pb-3 text-sm text-foreground-muted">
             Drag to reorder, pin, or settle. Changes save when you drop.
           </Text>
@@ -510,7 +503,6 @@ export function ThreadArrangementSheet(props: { onClose: () => void }) {
                             if (frame.current !== null) cancelAnimationFrame(frame.current);
                             frame.current = null;
                             drag.current = null;
-                            // Retain the gap until the saved order arrives, avoiding a flash back.
                             void moveThread(current.thread, current.destination).finally(stop);
                           }}
                         />

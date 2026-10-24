@@ -1,13 +1,13 @@
+import { uiText } from "~/i18n";
 import { PanelBottomIcon, PanelRightIcon, SquareMenuIcon } from "lucide-react";
 import { Maximize2, Minimize2 } from "lucide";
 import { MorphIcon } from "~/components/MorphIcon";
 import { memo, type ReactElement } from "react";
-
 import type { ThreadPanelPresentation } from "../../rightPanelLayout";
 import { PopoverCreateHandle, PopoverTrigger } from "../ui/popover";
 import { Toggle } from "../ui/toggle";
+import { useIsMobile } from "../../hooks/useMediaQuery";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-
 export interface PanelLayoutControlsProps {
   showThreadPanelControl?: boolean;
   showTerminalControl?: boolean;
@@ -19,7 +19,6 @@ export interface PanelLayoutControlsProps {
   threadPanelPresentation: ThreadPanelPresentation;
   threadPanelPopoverHandle?: ReturnType<typeof PopoverCreateHandle>;
   threadPanelShortcutLabel: string | null;
-  threadPanelHasAttention: boolean;
   rightPanelAvailable: boolean;
   rightPanelOpen: boolean;
   rightPanelShortcutLabel: string | null;
@@ -28,7 +27,6 @@ export interface PanelLayoutControlsProps {
   onToggleThreadPanel: () => void;
   onToggleRightPanel: () => void;
 }
-
 export const PanelLayoutControls = memo(function PanelLayoutControls({
   showThreadPanelControl = true,
   showTerminalControl = true,
@@ -40,7 +38,6 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
   threadPanelPresentation,
   threadPanelPopoverHandle,
   threadPanelShortcutLabel,
-  threadPanelHasAttention,
   rightPanelAvailable,
   rightPanelOpen,
   rightPanelShortcutLabel,
@@ -49,43 +46,40 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
   onToggleThreadPanel,
   onToggleRightPanel,
 }: PanelLayoutControlsProps) {
+  const mobile = useIsMobile();
   const threadPanelToggle = (
     <Toggle
-      className="relative shrink-0 [-webkit-app-region:no-drag]"
+      className={"relative shrink-0 [-webkit-app-region:no-drag]"}
       pressed={threadPanelOpen}
-      aria-label="Toggle thread details panel"
-      variant="ghost"
-      size="sm"
+      onPressedChange={mobile ? onToggleThreadPanel : undefined}
+      aria-label={uiText("Toggle thread details panel")}
+      variant={"ghost"}
+      size={"sm"}
     >
-      <SquareMenuIcon className="size-4" />
-      {threadPanelHasAttention ? (
-        <span
-          className="absolute right-1 top-1 size-1.5 rounded-full bg-warning ring-2 ring-background"
-          aria-hidden="true"
-        />
-      ) : null}
+      <SquareMenuIcon className={"size-4"} />
     </Toggle>
   );
   const threadPanelTooltip = (trigger: ReactElement) => (
     <Tooltip>
       <TooltipTrigger
         render={trigger}
-        {...(threadPanelPresentation === "popover" ? {} : { onClick: onToggleThreadPanel })}
+        {...(mobile || threadPanelPresentation === "popover"
+          ? {}
+          : { onClick: onToggleThreadPanel })}
       />
-      <TooltipPopup side="bottom">
-        Toggle thread details
+      <TooltipPopup side={"bottom"}>
+        {uiText("Toggle thread details")}
         {threadPanelShortcutLabel ? ` (${threadPanelShortcutLabel})` : ""}
       </TooltipPopup>
     </Tooltip>
   );
-
   return (
     <div
-      className="flex h-full shrink-0 items-center gap-1 [-webkit-app-region:no-drag]"
+      className={"flex h-full shrink-0 items-center gap-1 [-webkit-app-region:no-drag]"}
       data-panel-layout-controls
     >
       {showThreadPanelControl
-        ? threadPanelPresentation === "popover"
+        ? !mobile && threadPanelPresentation === "popover"
           ? threadPanelTooltip(
               <PopoverTrigger handle={threadPanelPopoverHandle} render={threadPanelToggle} />,
             )
@@ -93,44 +87,45 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
         : null}
       {showTerminalControl ? (
         <Tooltip>
-          <TooltipTrigger render={<span className="flex shrink-0" />}>
+          <TooltipTrigger render={<span className={"flex shrink-0"} />}>
             <Toggle
-              className="shrink-0 [-webkit-app-region:no-drag]"
+              className={"shrink-0 [-webkit-app-region:no-drag]"}
               pressed={terminalOpen}
               onPressedChange={onToggleTerminal}
-              aria-label="Toggle terminal drawer"
-              variant="ghost"
-              size="sm"
+              aria-label={uiText("Toggle terminal drawer")}
+              variant={"ghost"}
+              size={"sm"}
               disabled={!terminalAvailable}
             >
-              <PanelBottomIcon className="size-4" />
+              <PanelBottomIcon className={"size-4"} />
             </Toggle>
           </TooltipTrigger>
-          <TooltipPopup side="bottom">
+          <TooltipPopup side={"bottom"}>
             {terminalAvailable
-              ? `Toggle terminal drawer${terminalShortcutLabel ? ` (${terminalShortcutLabel})` : ""}`
-              : "Terminal drawer is unavailable"}
+              ? uiText("Toggle terminal drawer{0}", {"0": terminalShortcutLabel ? ` (${terminalShortcutLabel})` : ""})
+              : uiText("Terminal drawer is unavailable")}
           </TooltipPopup>
         </Tooltip>
       ) : null}
       {showRightPanelControl ? (
         <Tooltip>
-          <TooltipTrigger render={<span className="flex shrink-0" />}>
+          <TooltipTrigger render={<span className={"flex shrink-0"} />}>
             <Toggle
-              className="shrink-0 [-webkit-app-region:no-drag]"
+              className={"shrink-0 [-webkit-app-region:no-drag]"}
               pressed={rightPanelOpen}
               onPressedChange={onToggleRightPanel}
-              aria-label="Toggle right panel"
-              variant="ghost"
-              size="sm"
+              aria-label={uiText("Toggle right panel")}
+              data-right-panel-toggle
+              variant={"ghost"}
+              size={"sm"}
               disabled={!rightPanelAvailable}
             >
-              <PanelRightIcon className="size-4" />
+              <PanelRightIcon className={"size-4"} />
             </Toggle>
           </TooltipTrigger>
-          <TooltipPopup side="bottom">
+          <TooltipPopup side={"bottom"}>
             {rightPanelAvailable
-              ? `Toggle right panel${rightPanelShortcutLabel ? ` (${rightPanelShortcutLabel})` : ""}`
+              ? uiText("Toggle right panel{0}", {"0": rightPanelShortcutLabel ? ` (${rightPanelShortcutLabel})` : ""})
               : rightPanelUnavailableLabel}
           </TooltipPopup>
         </Tooltip>
@@ -138,7 +133,6 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
     </div>
   );
 });
-
 export const RightPanelMaximizeControl = memo(function RightPanelMaximizeControl({
   maximized,
   onToggle,
@@ -152,18 +146,18 @@ export const RightPanelMaximizeControl = memo(function RightPanelMaximizeControl
       <TooltipTrigger
         render={
           <Toggle
-            className="shrink-0 [-webkit-app-region:no-drag]"
+            className={"shrink-0 [-webkit-app-region:no-drag]"}
             pressed={maximized}
             onPressedChange={onToggle}
             aria-label={label}
-            variant="ghost"
-            size="sm"
+            variant={"ghost"}
+            size={"sm"}
           >
-            <MorphIcon className="size-4" icon={maximized ? Minimize2 : Maximize2} />
+            <MorphIcon className={"size-4"} icon={maximized ? Minimize2 : Maximize2} />
           </Toggle>
         }
       />
-      <TooltipPopup side="bottom">{label}</TooltipPopup>
+      <TooltipPopup side={"bottom"}>{label}</TooltipPopup>
     </Tooltip>
   );
 });

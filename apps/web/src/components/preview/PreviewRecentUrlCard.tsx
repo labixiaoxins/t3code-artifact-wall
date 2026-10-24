@@ -1,9 +1,9 @@
+import { uiText } from "~/i18n";
 import type { ScopedThreadRef } from "@t3tools/contracts";
 import { X } from "lucide-react";
 
 import { isValidHistoryTimestamp, type BrowserHistoryEntry } from "~/browserHistoryStore";
-import { useNowMinute } from "~/hooks/useNowMinute";
-import { formatRelativeTimeLabel } from "~/timestampFormat";
+import { RelativeTime } from "~/components/RelativeTime";
 
 import { PreviewFaviconIcon } from "./PreviewFaviconIcon";
 
@@ -18,10 +18,9 @@ export function PreviewRecentUrlCard({ threadRef, entry, onOpen, onRemove }: Pro
   const parsed = new URL(entry.url);
   const path = parsed.pathname === "/" ? "" : parsed.pathname;
   const label = `${parsed.host}${path}${parsed.search}${parsed.hash}`;
-  const visitedAt = isValidHistoryTimestamp(entry.lastVisitedAt)
-    ? formatRelativeTimeLabel(new Date(entry.lastVisitedAt).toISOString())
-    : "";
-  useNowMinute();
+  const visitedAt = isValidHistoryTimestamp(entry.lastVisitedAt) ? (
+    <RelativeTime timestamp={new Date(entry.lastVisitedAt).toISOString()} />
+  ) : null;
   return (
     <div className="group relative flex w-full items-center">
       <button
@@ -42,9 +41,9 @@ export function PreviewRecentUrlCard({ threadRef, entry, onOpen, onRemove }: Pro
       </button>
       <button
         type="button"
-        aria-label={`Remove ${label} from history`}
+        aria-label={uiText("Remove {0} from history", {"0": label})}
         onClick={onRemove}
-        className="absolute right-3 rounded p-1 text-muted-foreground opacity-0 hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100"
+        className="absolute right-3 rounded p-1 text-muted-foreground opacity-0 hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring group-hover:opacity-100"
       >
         <X className="size-3.5" />
       </button>

@@ -1,12 +1,16 @@
 import { assert, it } from "@effect/vitest";
 import {
+  CheckpointId,
+  CheckpointScopeId,
   CommandId,
+  NodeId,
   ProviderSessionId,
   ProviderThreadId,
   ProviderTurnId,
   RunAttemptId,
   RunId,
   ThreadId,
+  VcsProcessExitError,
 } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
 import * as DateTime from "effect/DateTime";
@@ -20,6 +24,7 @@ import * as Ref from "effect/Ref";
 import * as TestClock from "effect/testing/TestClock";
 
 import * as CheckpointRollbackService from "./CheckpointRollbackService.ts";
+import * as CheckpointService from "./CheckpointService.ts";
 import * as EffectOutbox from "./EffectOutbox.ts";
 import * as EffectWorker from "./EffectWorker.ts";
 import * as RunFinalizationService from "./RunFinalizationService.ts";
@@ -82,6 +87,7 @@ function layerExecutorFor(input: {
   readonly threads?: Partial<ThreadManagementService.ThreadManagementService["Service"]>;
   readonly continueAfterRestart?: boolean;
   readonly interrupt?: ProviderTurnControlService.ProviderTurnControlServiceV2Shape["interrupt"];
+  readonly rollback?: CheckpointRollbackService.CheckpointRollbackServiceV2Shape["execute"];
 }) {
   const record = (event: string) => Ref.update(input.events, (events) => [...events, event]);
   const layerDependencies = Layer.mergeAll(
@@ -104,6 +110,7 @@ function layerExecutorFor(input: {
         shutdown: Effect.void,
         open: () => Effect.die("unused open"),
         get: () => Effect.succeed(Option.none()),
+        isLive: () => Effect.succeed(false),
         close: () => Effect.void,
         closeInstance: () => Effect.void,
         release: () => record("release"),
@@ -134,7 +141,9 @@ function layerExecutorFor(input: {
     ),
     Layer.succeed(
       CheckpointRollbackService.CheckpointRollbackServiceV2,
-      CheckpointRollbackService.CheckpointRollbackServiceV2.of({ execute: () => Effect.void }),
+      CheckpointRollbackService.CheckpointRollbackServiceV2.of({
+        execute: input.rollback ?? (() => Effect.void),
+      }),
     ),
     Layer.succeed(
       RuntimeRequestService.RuntimeRequestServiceV2,
@@ -173,7 +182,6 @@ it("does not retry pure interrupt races where the turn is already gone", () => {
       "Provider session provider-session:x is not active.",
     ),
   );
-  // Restart is compound (interrupt + detach + start). Do not swallow start failures.
   assert.isFalse(
     EffectWorker.isNonRetryableProviderTurnControlFailure(
       "provider-turn.restart",
@@ -227,6 +235,75 @@ it.effect("settles a stopped run when its adapter has already lost the native tu
       });
     }).pipe(Effect.provide(layer));
     assert.deepEqual(yield* Ref.get(events), ["thread.background-work.settle"]);
+  }),
+);
+
+const lockedIndexMessage =
+  "Git's index is locked. Wait for other Git operations to finish, then try again.";
+const rollbackCheckpointId = CheckpointId.make("checkpoint:effect-worker-rollback");
+const rollbackScopeId = CheckpointScopeId.make("checkpoint-scope:effect-worker-rollback");
+const restoreFailure = (detail: string) =>
+  new CheckpointRollbackService.CheckpointRollbackExecutionError({
+    reason: "unexpected-failure",
+    threadId,
+    providerThreadId,
+    checkpointId: rollbackCheckpointId,
+    cause: new CheckpointService.CheckpointRestoreError({
+      scopeId: rollbackScopeId,
+      checkpointId: rollbackCheckpointId,
+      cause: new VcsProcessExitError({
+        operation: "GitVcsDriverCore.restoreCheckpoint",
+        command: "git",
+        cwd: "/private/repo",
+        exitCode: 128,
+        detail,
+        failureKind: "command-failed",
+      }),
+    }),
+  });
+
+it.effect.each([
+  {
+    name: "a held Git index lock",
+    failure: restoreFailure(lockedIndexMessage),
+    message: lockedIndexMessage,
+  },
+  {
+    name: "raw Git output",
+    failure: restoreFailure("error: could not clean /private/repo/secret.txt"),
+    message: CheckpointRollbackService.ROLLBACK_FAILED_MESSAGE,
+  },
+])("reports a rollback blocked by $name only after the last attempt", ({ failure, message }) =>
+  Effect.gen(function* () {
+    const now = yield* DateTime.now;
+    const failures = yield* Ref.make<ReadonlyArray<string>>([]);
+    const layer = layerExecutorFor({
+      events: yield* Ref.make<ReadonlyArray<string>>([]),
+      rollback: () => Effect.fail(failure),
+      threads: {
+        dispatch: (command) =>
+          Ref.update(failures, (current) =>
+            command.type === "checkpoint.rollback.fail" ? [...current, command.message] : current,
+          ).pipe(Effect.as({ sequence: 1, storedEvents: [] })),
+      },
+    });
+    yield* Effect.gen(function* () {
+      const executor = yield* EffectWorker.OrchestrationEffectExecutorV2;
+      const rollback: EffectOutbox.OrchestrationEffectV2 = {
+        ...restartEffect(now, { type: "detach" }),
+        request: {
+          type: "provider-thread.rollback",
+          providerThreadId,
+          checkpointId: rollbackCheckpointId,
+          scopeId: rollbackScopeId,
+          restoreFiles: true,
+        },
+      };
+      yield* Effect.flip(executor.execute(rollback, { willRetry: true }));
+      assert.deepEqual(yield* Ref.get(failures), []);
+      yield* Effect.flip(executor.execute(rollback, { willRetry: false }));
+    }).pipe(Effect.provide(layer));
+    assert.deepEqual(yield* Ref.get(failures), [message]);
   }),
 );
 
@@ -334,9 +411,6 @@ it.effect("arms cancellation before the durable pre-execution check", () =>
       },
       get: () =>
         Effect.gen(function* () {
-          // Model a cancellation commit immediately after this durable read
-          // took its snapshot. Its process-local signal is only delivered when
-          // the worker registered the waiter before starting the read.
           if (cancellationArmed) {
             yield* Deferred.succeed(signal, undefined);
           }
@@ -836,4 +910,73 @@ it.effect("settles a delegated child once its restart continuation fails for goo
       assert.deepEqual(yield* Ref.get(recovered), [threadId]);
     }).pipe(Effect.provide(layer));
   }),
+);
+
+it.effect.each(["confirmed", "unconfirmed", "failed"] as const)(
+  "a native subagent stop only repairs %s provider evidence",
+  (outcome) =>
+    Effect.gen(function* () {
+      const now = yield* DateTime.now;
+      const events = yield* Ref.make<ReadonlyArray<string>>([]);
+      const layer = layerExecutorFor({
+        events,
+        interrupt: (input) => {
+          assert.equal(input.subagent?.nativeTaskId, "native-task");
+          return Ref.update(events, (current) => [...current, "stop-child"]).pipe(
+            Effect.andThen(
+              outcome === "failed"
+                ? new ProviderTurnControlService.ProviderTurnControlError({
+                    threadId,
+                    providerTurnId,
+                    operation: "interrupt",
+                    cause: "SDK stop failed",
+                  })
+                : Effect.succeed(
+                    outcome === "confirmed"
+                      ? {
+                          status: "cancelled" as const,
+                          completedAt: now,
+                          result: "Stopped by Claude",
+                        }
+                      : undefined,
+                  ),
+            ),
+          );
+        },
+        threads: {
+          dispatch: (command) => {
+            assert.equal(command.type, "thread.background-work.settle");
+            if (command.type === "thread.background-work.settle") {
+              assert.equal(command.subagent?.id, "subagent");
+              assert.deepEqual(command.subagent?.outcome, {
+                status: "cancelled",
+                completedAt: now,
+                result: "Stopped by Claude",
+              });
+            }
+            return Ref.update(events, (current) => [...current, "settle-child"]).pipe(
+              Effect.as({ sequence: 1, storedEvents: [] }),
+            );
+          },
+        },
+      });
+      const execution = yield* Effect.gen(function* () {
+        const executor = yield* EffectWorker.OrchestrationEffectExecutorV2;
+        yield* executor.execute({
+          ...restartEffect(now, { type: "detach" }),
+          request: {
+            type: "provider-turn.interrupt",
+            providerSessionId: oldSessionId,
+            providerThreadId,
+            providerTurnId,
+            subagent: { id: NodeId.make("subagent"), nativeTaskId: "native-task" },
+          },
+        });
+      }).pipe(Effect.provide(layer), Effect.exit);
+      assert.equal(Exit.isFailure(execution), outcome === "failed");
+      assert.deepEqual(
+        yield* Ref.get(events),
+        outcome === "confirmed" ? ["stop-child", "settle-child"] : ["stop-child"],
+      );
+    }),
 );

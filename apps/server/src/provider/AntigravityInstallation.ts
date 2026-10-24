@@ -1,11 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off - Effect has no incremental digest or free-space query.
 import * as EffectNodeStream from "@effect/platform-node/NodeStream";
 import { ProviderDriverKind, type ProviderInstallState } from "@t3tools/contracts";
-import {
-  HostProcessArchitecture,
-  HostProcessEnvironment,
-  HostProcessPlatform,
-} from "@t3tools/shared/hostProcess";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import { resolveNodeExecutable, nodeRuntimeUnavailableMessage } from "@t3tools/shared/nodeRuntime";
 import * as Clock from "effect/Clock";
 import * as Cause from "effect/Cause";
@@ -19,6 +15,7 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
+import * as Schedule from "effect/Schedule";
 import * as Scope from "effect/Scope";
 import * as Semaphore from "effect/Semaphore";
 import * as Stream from "effect/Stream";
@@ -27,6 +24,7 @@ import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 import * as NodeCrypto from "node:crypto";
 import * as NodeFSP from "node:fs/promises";
+import * as EffectAcpErrors from "effect-acp/errors";
 
 import * as ServerConfig from "../config.ts";
 import { openZipArchive } from "../zipArchive.ts";
@@ -72,6 +70,7 @@ export class AntigravityInstallationError extends Schema.TaggedError<Antigravity
   }
 }
 const isInstallationError = Schema.is(AntigravityInstallationError);
+const isAcpProcessExitedError = Schema.is(EffectAcpErrors.AcpProcessExitedError);
 
 export interface AntigravityExecutable {
   readonly executablePath: string;
@@ -156,9 +155,9 @@ export const makeAntigravityInstallation = Effect.fn("AntigravityInstallation.ma
   const http = yield* HttpClient.HttpClient;
   const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
   const serviceScope = yield* Effect.scope;
-  const platform = yield* HostProcessPlatform;
-  const arch = yield* HostProcessArchitecture;
-  const environment = yield* HostProcessEnvironment;
+  const platform = yield* HostProcess.Platform;
+  const arch = yield* HostProcess.Architecture;
+  const environment = yield* HostProcess.Environment;
   const releaseAsset =
     options.releaseAsset === undefined
       ? resolveAntigravityReleaseAsset(platform, arch)
@@ -353,9 +352,23 @@ export const makeAntigravityInstallation = Effect.fn("AntigravityInstallation.ma
     options.validate ??
     Effect.fn("AntigravityInstallation.validate")(
       function* (executable: AntigravityExecutable, expectedVersion: string) {
-        const profileDirectory = yield* fs.makeTempDirectoryScoped({
-          prefix: "t3-antigravity-validate-",
-        });
+        const validationScope = yield* Effect.scope;
+        const profileDirectory = yield* Effect.acquireRelease(
+          fs.makeTempDirectory({ prefix: "t3-antigravity-validate-" }),
+          (directory) =>
+            fs.remove(directory, { recursive: true, force: true }).pipe(
+              // Windows may retain DLL handles briefly after taskkill returns.
+              Effect.retry({
+                times: platform === "win32" ? 10 : 0,
+                schedule: Schedule.spaced("100 millis"),
+                while: (error) =>
+                  error.reason._tag === "PermissionDenied" ||
+                  error.reason._tag === "Busy" ||
+                  error.reason._tag === "Unknown",
+              }),
+              Effect.orDie,
+            ),
+        );
         const profile = yield* prepareAntigravityProfile({
           profileDirectory,
           platform,
@@ -372,7 +385,22 @@ export const makeAntigravityInstallation = Effect.fn("AntigravityInstallation.ma
             baseEnv: environment,
           }),
           cwd: profileDirectory,
-          childProcessSpawner: spawner,
+          childProcessSpawner:
+            platform === "win32"
+              ? ChildProcessSpawner.make(
+                  Effect.fnUntraced(function* (command) {
+                    const child = yield* spawner.spawn(command);
+                    // Stop PyInstaller's tree before ACP closes its pipes. Once
+                    // the launcher exits, taskkill cannot reach its children,
+                    // which keep the executable and unpacked DLLs locked.
+                    yield* Scope.addFinalizer(
+                      validationScope,
+                      child.kill({ forceKillAfter: "1 second" }).pipe(Effect.orDie),
+                    );
+                    return child;
+                  }),
+                )
+              : spawner,
           clientInfo: { name: "t3-code", version: "0.0.0" },
         });
         const initialized = yield* runtime.initialize();
@@ -397,12 +425,15 @@ export const makeAntigravityInstallation = Effect.fn("AntigravityInstallation.ma
       Effect.provideService(Path.Path, path),
       Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, spawner),
       Effect.provideService(Crypto.Crypto, crypto),
-      Effect.mapError(
-        wrapFailure(
-          "verify",
-          "The downloaded Antigravity runtime could not start in this environment.",
-        ),
-      ),
+      Effect.mapError((cause) => {
+        if (isInstallationError(cause)) return cause;
+        const detail =
+          isAcpProcessExitedError(cause) &&
+          /\b(?:AF_INET6|enforce_kernel_ipv6_support)\b/.test(cause.stderr ?? "")
+            ? "Antigravity requires IPv6 socket support. Enable IPv6 in this environment. On WSL, remove ipv6.disable=1 from .wslconfig and run wsl --shutdown."
+            : "The downloaded Antigravity runtime could not start in this environment.";
+        return installationError("verify", detail, cause);
+      }),
     );
 
   const install = Effect.fn("AntigravityInstallation.install")(
@@ -410,7 +441,7 @@ export const makeAntigravityInstallation = Effect.fn("AntigravityInstallation.ma
       yield* resolveNodeExecutable("Antigravity", environment).pipe(
         Effect.provideService(FileSystem.FileSystem, fs),
         Effect.provideService(Path.Path, path),
-        Effect.provideService(HostProcessPlatform, platform),
+        Effect.provideService(HostProcess.Platform, platform),
         Effect.mapError((cause) =>
           installationError("verify", nodeRuntimeUnavailableMessage("Antigravity"), cause),
         ),
@@ -692,7 +723,7 @@ export const makeAntigravityInstallation = Effect.fn("AntigravityInstallation.ma
             `Google does not publish an Antigravity runtime for ${platform}-${arch}. Use a supported remote environment or a custom executable.`,
           );
         }
-        const operationId = yield* crypto.randomUUIDv4;
+        const operationId = yield* crypto.randomUUIDv4();
         const next: ProviderInstallState = {
           driver: DRIVER,
           operationId,

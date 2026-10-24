@@ -2,13 +2,12 @@ import {
   pullRequestHostOf,
   type PullRequestRef,
   type RepositoryIdentity,
-  type SourceControlProviderKind,
+  SourceControlProviderKind,
   type ThreadPullRequestKey,
 } from "@t3tools/contracts";
 import { sourceControlRepositorySelector } from "@t3tools/shared/sourceControl";
 import { normalizeThreadPullRequestKey } from "@t3tools/shared/threadPullRequests";
 
-/** Convert checkout-scoped references to the host-level identity used by linked threads. */
 export function pullRequestSyncKey(
   reference: PullRequestRef,
   identity?: RepositoryIdentity | null,
@@ -18,7 +17,8 @@ export function pullRequestSyncKey(
       reference.repository.toLowerCase() !==
         sourceControlRepositorySelector(identity)?.toLowerCase() ||
       (reference.host !== undefined &&
-        reference.host.toLowerCase() !== pullRequestHostOf(identity, "azure-devops"))
+        reference.host.toLowerCase() !==
+          pullRequestHostOf(identity, SourceControlProviderKind.make("azure-devops")))
     )
       return null;
     const [host, ...repository] = identity.canonicalKey.split("/");

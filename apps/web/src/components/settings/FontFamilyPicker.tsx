@@ -1,6 +1,7 @@
+import { uiText } from "~/i18n";
 import { LegendList, type LegendListRef } from "@legendapp/list/react";
 import { CheckIcon } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { isMonospaceFamily, queryInstalledFontFamilies } from "../../appearanceFonts";
 import {
   Combobox,
@@ -13,40 +14,40 @@ import {
 } from "../ui/combobox";
 import { SelectButton } from "../ui/select";
 import { stackedThreadToast, toastManager } from "../ui/toast";
-
 const DEFAULT_FONT_VALUE = "__default__";
-
 function supportsFontEnumeration(): boolean {
   return (
     typeof window !== "undefined" &&
-    typeof (window as { queryLocalFonts?: unknown }).queryLocalFonts === "function"
+    typeof (
+      window as {
+        queryLocalFonts?: unknown;
+      }
+    ).queryLocalFonts === "function"
   );
 }
-
 type FontEnumerationState =
-  | { readonly status: "unknown" }
-  | { readonly status: "granted"; readonly families: readonly string[] }
-  | { readonly status: "unavailable" };
-
-// Shared across every row: once one picker learns the fonts (or learns the
-// permission is blocked), the others follow without re-querying — and the
-// rows can swap to the plain-input control together.
+  | {
+      readonly status: "unknown";
+    }
+  | {
+      readonly status: "granted";
+      readonly families: readonly string[];
+    }
+  | {
+      readonly status: "unavailable";
+    };
 let enumerationState: FontEnumerationState = supportsFontEnumeration()
   ? { status: "unknown" }
   : { status: "unavailable" };
 const enumerationListeners = new Set<() => void>();
-
 function subscribeToEnumeration(listener: () => void): () => void {
   enumerationListeners.add(listener);
   return () => enumerationListeners.delete(listener);
 }
-
 function readEnumerationState(): FontEnumerationState {
   return enumerationState;
 }
-
 let enumerationLoad: Promise<void> | null = null;
-
 /** Query installed fonts; call from a user gesture (the permission prompt needs one). */
 export function discoverInstalledFonts(): void {
   if (enumerationState.status !== "unknown" || enumerationLoad !== null) return;
@@ -59,16 +60,11 @@ export function discoverInstalledFonts(): void {
     for (const listener of enumerationListeners) listener();
   });
 }
-
 let grantedProbeStarted = false;
-
 /**
- * Discover eagerly when the permission is already granted, so the picker
- * renders without waiting for a focus. Electron's default permission handler
- * approves silently (it has no prompt UI), and a browser that granted once
- * reports "granted" on later visits — in both, no user gesture is needed.
- * "prompt" and "denied" states change nothing: the focus-driven flow stays,
- * because raising the browser prompt still requires a gesture.
+ * Electron's default permission handler approves silently (it has no prompt
+ * UI), and a browser that granted once reports "granted" on later visits — in
+ * both, no user gesture is needed.
  */
 function probeAlreadyGrantedPermission(): void {
   if (grantedProbeStarted || enumerationState.status !== "unknown") return;
@@ -79,30 +75,13 @@ function probeAlreadyGrantedPermission(): void {
     (status) => {
       if (status.state === "granted") discoverInstalledFonts();
     },
-    () => {
-      // The engine does not recognize the permission name; keep the
-      // focus-driven flow.
-    },
+    () => {},
   );
 }
-
-/**
- * Whether the engine can list installed fonts (Local Font Access API —
- * Chromium and Electron). "unknown" until discovery resolves the permission;
- * rows render a plain family-name input until the state is known granted,
- * then upgrade to the picker. Where the permission is already granted,
- * discovery starts at mount and the picker appears without a focus.
- */
 export function useFontEnumeration(): FontEnumerationState {
   useEffect(probeAlreadyGrantedPermission, []);
   return useSyncExternalStore(subscribeToEnumeration, readEnumerationState);
 }
-
-/**
- * A searchable picker over every installed family, the way native editors
- * list system fonts. The trigger always names the font in use: the committed
- * family, or what the default stack resolves to on this machine.
- */
 export function FontFamilyPicker({
   ariaLabel,
   defaultFamily,
@@ -112,12 +91,9 @@ export function FontFamilyPicker({
   onSelect,
 }: {
   ariaLabel: string;
-  /** What an unset preference renders as, e.g. "Menlo". */
   defaultFamily: string;
-  /** Committed family name; empty string means the default is in use. */
   selectedFamily: string;
   requireMonospace?: boolean;
-  /** Open the popup on mount — set when the control upgrades under focus. */
   initialOpen?: boolean;
   onSelect: (family: string) => void;
 }) {
@@ -127,25 +103,19 @@ export function FontFamilyPicker({
   // its open state never receives Base UI's entrance style baseline, so the
   // exit transition on close has no style delta, never fires transitionend,
   // and the popup lingers on screen forever.
+  const [openAfterMount] = useState(initialOpen);
   useEffect(() => {
-    if (initialOpen) setOpen(true);
-    // The prop is only meaningful at mount - the control just swapped in
-    // under an active focus - so later changes are deliberately ignored.
-  }, []);
+    // oxlint-disable-next-line react/set-state-in-effect -- Base UI needs one closed commit first to record the popup's entrance style.
+    if (openAfterMount) setOpen(true);
+  }, [openAfterMount]);
   const listRef = useRef<LegendListRef | null>(null);
   const enumeration = useFontEnumeration();
-
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
     if (nextOpen) setQuery("");
   };
-
-  const families = useMemo(() => {
-    if (enumeration.status !== "granted") return [];
-    return enumeration.families;
-  }, [enumeration]);
-
-  const items = useMemo(() => {
+  const families = enumeration.status === "granted" ? enumeration.families : [];
+  const items = (() => {
     const trimmedQuery = query.trim().toLowerCase();
     const result: string[] = [];
     if (trimmedQuery.length === 0) result.push(DEFAULT_FONT_VALUE);
@@ -155,45 +125,43 @@ export function FontFamilyPicker({
       ),
     );
     return result;
-  }, [query, families]);
-
+  })();
   const selectedValue = selectedFamily.length === 0 ? DEFAULT_FONT_VALUE : selectedFamily;
-
   const handlePick = (value: string) => {
     setOpen(false);
     if (value !== DEFAULT_FONT_VALUE && requireMonospace && !isMonospaceFamily(value)) {
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: `"${value}" isn't monospace`,
-          description: "Code and terminal need a fixed-width font, so the current font was kept.",
+          title: uiText("\"{0}\" isn't monospace", {"0": value}),
+          description: uiText("Code and terminal need a fixed-width font, so the current font was kept."),
         }),
       );
       return;
     }
     onSelect(value === DEFAULT_FONT_VALUE ? "" : value);
   };
-
   const renderItem = (item: string, index: number) => {
     const isDefault = item === DEFAULT_FONT_VALUE;
     const family = isDefault ? defaultFamily : item;
     return (
       <ComboboxItem hideIndicator index={index} key={item} value={item}>
-        <div className="flex w-full min-w-0 items-center justify-between gap-2">
-          <span className="min-w-0 truncate" style={{ fontFamily: family }}>
+        <div className={"flex w-full min-w-0 items-center justify-between gap-2"}>
+          <span className={"min-w-0 truncate"} style={{ fontFamily: family }}>
             {family}
           </span>
-          <span className="flex shrink-0 items-center gap-1.5">
-            {isDefault ? <span className="text-3xs text-muted-foreground/60">default</span> : null}
+          <span className={"flex shrink-0 items-center gap-1.5"}>
+            {isDefault ? (
+              <span className={"text-3xs text-muted-foreground/60"}>{uiText("default")}</span>
+            ) : null}
             {item === selectedValue ? (
-              <CheckIcon className="size-3.5 text-muted-foreground" />
+              <CheckIcon className={"size-3.5 text-muted-foreground"} />
             ) : null}
           </span>
         </div>
       </ComboboxItem>
     );
   };
-
   return (
     <Combobox
       items={items}
@@ -207,28 +175,30 @@ export function FontFamilyPicker({
         if (typeof next === "string") handlePick(next);
       }}
       onItemHighlighted={(_value, eventDetails) => {
-        // Keyboard highlights must pull the virtualized row into view, or
-        // arrow keys walk past the rendered window and navigate blind.
         if (!open || eventDetails.index < 0 || eventDetails.reason !== "keyboard") return;
         void listRef.current?.scrollIndexIntoView?.({ index: eventDetails.index, animated: false });
       }}
     >
-      <ComboboxTrigger aria-label={ariaLabel} render={<SelectButton size="sm" />}>
+      <ComboboxTrigger aria-label={ariaLabel} render={<SelectButton size={"sm"} />}>
         {selectedFamily.length === 0 ? defaultFamily : selectedFamily}
       </ComboboxTrigger>
-      <ComboboxPopup align="end" className="flex w-72 flex-col">
+      <ComboboxPopup align={"end"} className={"flex w-72 flex-col"}>
         <ComboboxSearchInput
-          placeholder="Search fonts…"
+          placeholder={uiText("Search fonts…")}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <ComboboxEmpty>No fonts found.</ComboboxEmpty>
-          <div className="relative min-h-0 max-h-72 w-full flex-1 overflow-hidden">
+        <div className={"flex min-h-0 flex-1 flex-col overflow-hidden"}>
+          <ComboboxEmpty>{uiText("No fonts found.")}</ComboboxEmpty>
+          <div className={"relative min-h-0 max-h-72 w-full flex-1 overflow-hidden"}>
             <ComboboxListVirtualized>
               <LegendList<string>
                 ref={listRef}
                 data={items}
+                // Rows are memoized by item, but Base UI highlights and selects
+                // virtualized rows by index. Re-render them when filtering moves
+                // a surviving item to a new index.
+                extraData={items}
                 keyExtractor={(item) => item}
                 renderItem={({ item, index }) => renderItem(item, index)}
                 estimatedItemSize={30}

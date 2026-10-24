@@ -30,8 +30,6 @@ function contrastRatio(first: string, second: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-// Shaped like a real workbench theme: dotted keys, alpha overlays, and a lot
-// of roles simply left out.
 const VSCODE_DARK = {
   name: "pierre-dark-soft",
   type: "dark",
@@ -72,7 +70,6 @@ describe("VS Code theme import", () => {
 
   it("carries the editor surfaces and accent across", () => {
     const theme = parseVsCodeThemeFile(VSCODE_DARK);
-    // The slug name is read as words; a displayName would win verbatim.
     expect(theme.label).toBe("Pierre Dark Soft");
     expect(theme.appearance).toBe("dark");
     expect(asHex(theme.colors.canvas)).toBe("#171717");
@@ -84,7 +81,6 @@ describe("VS Code theme import", () => {
 
   it("flattens alpha overlays onto the surface they sit on", () => {
     const theme = parseVsCodeThemeFile(VSCODE_DARK);
-    // #1f3e5e59 over the #101010 sidebar, not left semi-transparent.
     expect(theme.colors.sidebarRowHover).toMatch(/^oklch\(/);
     expect(asHex(theme.colors.sidebarRowHover)).not.toBe("#1f3e5e59");
     expect(theme.colors.sidebarRowSelected).not.toBe(theme.colors.sidebar);
@@ -292,6 +288,100 @@ describe("VS Code theme import", () => {
       contrastRatio(lightPlus.colors.placeholder, lightPlus.colors.surfaceRaised),
     ).toBeLessThan(contrastRatio(lightPlus.colors.text, lightPlus.colors.surfaceRaised));
   });
+  it("imports current and other find matches as independent background/text pairs", () => {
+    const { colors } = parseVsCodeThemeFile({
+      type: "dark",
+      colors: {
+        "editor.background": "#202020",
+        "editor.findMatchBackground": "#663399",
+        "editor.findMatchForeground": "#ffffff",
+        "editor.findMatchHighlightBackground": "#bce4ff",
+        "editor.findMatchHighlightForeground": "#17314a",
+      },
+    });
+
+    expect(asHex(colors.searchMatchActiveBackground)).toBe("#663399");
+    expect(asHex(colors.searchMatchActiveForeground)).toBe("#ffffff");
+    expect(asHex(colors.searchMatchBackground)).toBe("#bce4ff");
+    expect(asHex(colors.searchMatchForeground)).toBe("#17314a");
+  });
+
+  it("composites find backgrounds onto the canvas and foregrounds onto their match", () => {
+    const { colors } = parseVsCodeThemeFile({
+      type: "dark",
+      colors: {
+        "editor.background": "#202020",
+        "editor.findMatchBackground": "#33669980",
+        "editor.findMatchForeground": "#ffffffcc",
+        "editor.findMatchHighlightBackground": "#ffcc0040",
+        "editor.findMatchHighlightForeground": "#ffffff",
+      },
+    });
+
+    expect(asHex(colors.searchMatchActiveBackground)).toBe("#2a435d");
+    expect(asHex(colors.searchMatchActiveForeground)).toBe("#d4d9df");
+    expect(asHex(colors.searchMatchBackground)).toBe("#584b18");
+    expect(asHex(colors.searchMatchForeground)).toBe("#ffffff");
+  });
+
+  it("uses editor text when no find foreground is specified", () => {
+    const { colors } = parseVsCodeThemeFile({
+      type: "dark",
+      colors: {
+        "editor.background": "#101010",
+        "editor.foreground": "#eeeeee",
+        "editor.findMatchBackground": "#304050",
+        "editor.findMatchHighlightBackground": "#403020",
+      },
+    });
+
+    expect(asHex(colors.searchMatchActiveForeground)).toBe("#eeeeee");
+    expect(asHex(colors.searchMatchForeground)).toBe("#eeeeee");
+  });
+
+  it.each(["light", "dark"])(
+    "keeps missing or invalid find colours readable in %s themes",
+    (type) => {
+      const base = {
+        "editor.background": type === "dark" ? "#101010" : "#fafafa",
+      };
+      const missing = parseVsCodeThemeFile({ type, colors: base }).colors;
+      const invalid = parseVsCodeThemeFile({
+        type,
+        colors: {
+          ...base,
+          "editor.findMatchBackground": "not-a-colour",
+          "editor.findMatchForeground": 42,
+          "editor.findMatchHighlightBackground": null,
+          "editor.findMatchHighlightForeground": "invalid",
+        },
+      }).colors;
+      const unreadable = parseVsCodeThemeFile({
+        type,
+        colors: {
+          ...base,
+          "editor.findMatchBackground": "#ffffcc",
+          "editor.findMatchForeground": "#ffffff",
+          "editor.findMatchHighlightBackground": "#101020",
+          "editor.findMatchHighlightForeground": "#111111",
+        },
+      }).colors;
+
+      for (const colors of [missing, invalid, unreadable]) {
+        expect(
+          contrastRatio(colors.searchMatchForeground, colors.searchMatchBackground),
+        ).toBeGreaterThanOrEqual(4.5);
+        expect(
+          contrastRatio(colors.searchMatchActiveForeground, colors.searchMatchActiveBackground),
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+      expect(invalid.searchMatchBackground).toBe(missing.searchMatchBackground);
+      expect(invalid.searchMatchActiveBackground).toBe(missing.searchMatchActiveBackground);
+      expect(missing.searchMatchBackground).not.toBe(missing.searchMatchActiveBackground);
+      expect(missing.searchMatchBackground).not.toBe(missing.canvas);
+      expect(missing.searchMatchActiveBackground).not.toBe(missing.canvas);
+    },
+  );
 
   it("fills every role the file omits with a readable derived value", () => {
     const theme = parseVsCodeThemeFile(VSCODE_DARK);
@@ -331,8 +421,6 @@ describe("VS Code theme import", () => {
   });
 
   it("stays readable when the file replaces a surface but not its foreground", () => {
-    // A dark theme with a light sidebar: the derived sidebar foreground was
-    // solved for a dark surface and would vanish on this one.
     const theme = parseVsCodeThemeFile({
       name: "Split",
       type: "dark",
@@ -353,8 +441,6 @@ describe("VS Code theme import", () => {
   });
 
   it("reads wide-gamut color() notation", () => {
-    // Themes authored for P3 displays (the shipped Pierre "vibrant" pair) use
-    // this instead of hex.
     const theme = parseVsCodeThemeFile({
       name: "Vibrant",
       type: "dark",
@@ -367,7 +453,6 @@ describe("VS Code theme import", () => {
     });
     expect(asHex(theme.colors.canvas)).toMatch(/^#0[89ab]/);
     expect(asHex(theme.colors.text)).toMatch(/^#f[a-f0-9]/);
-    // The P3 blue lands in sRGB blue, not black or a clipped grey.
     const accent = asHex(theme.colors.accent);
     const [red, green, blue] = [1, 3, 5].map((index) =>
       Number.parseInt(accent.slice(index, index + 2), 16),
@@ -403,7 +488,6 @@ describe("VS Code theme import", () => {
     expect(getThemeColorsForMode(github, "dark")).not.toBeNull();
     expect(asHex(getThemeColorsForMode(github, "dark")!.canvas)).toBe("#101014");
     expect(asHex(github.colors.canvas)).toBe("#fdfdfd");
-    // The unpaired dimmed variant stays a single dark theme.
     expect(getThemeColorsForMode(themes[2]!, "light")).toBeNull();
   });
 
@@ -419,14 +503,10 @@ describe("VS Code theme import", () => {
       make("solar-dark-soft", "dark"),
       make("solar-light", "light"),
     ]);
-    // "solar-dark-soft" groups under its own key with no light partner, so
-    // it keeps its full name; the remaining pair merges.
     expect(themes.map((theme) => theme.label).sort()).toEqual(["Solar", "Solar Dark Soft"]);
   });
 
   it("keeps derived surfaces neutral instead of washing them with the accent", () => {
-    // A gray theme with a blue focusBorder: roles the file omits (code
-    // surface, plain surfaces) must stay near the canvas, not turn blue.
     const theme = parseVsCodeThemeFile(VSCODE_DARK);
     const spread = (value: string) => {
       const hex = asHex(value);
@@ -436,7 +516,6 @@ describe("VS Code theme import", () => {
     expect(spread(theme.colors.codeBackground)).toBeLessThanOrEqual(8);
     expect(spread(theme.colors.surface)).toBeLessThanOrEqual(8);
     expect(spread(theme.colors.text)).toBeLessThanOrEqual(12);
-    // The accent itself keeps the file's color.
     expect(asHex(theme.colors.accent)).toBe("#69b1ff");
   });
 
@@ -455,7 +534,6 @@ describe("VS Code theme import", () => {
     ]);
     expect(themes.map((theme) => theme.label)).toEqual(["Dracula", "Dracula Soft"]);
     expect(themes.map((theme) => theme.id)).toEqual(["dracula", "dracula-soft"]);
-    // Without file names the second falls back to numbering.
     const numbered = resolveThemeLabelCollisions([
       { theme: dracula("#282a36") },
       { theme: dracula("#22232e") },

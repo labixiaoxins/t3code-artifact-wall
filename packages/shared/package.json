@@ -3,13 +3,21 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./changedFileKind": {
+      "types": "./src/changedFileKind.ts",
+      "import": "./src/changedFileKind.ts"
+    },
+    "./githubMarkdownLinks": {
+      "types": "./src/githubMarkdownLinks.ts",
+      "import": "./src/githubMarkdownLinks.ts"
+    },
+    "./authScopeOptions": {
+      "types": "./src/authScopeOptions.ts",
+      "import": "./src/authScopeOptions.ts"
+    },
     "./orchestrationV2ThreadError": {
       "types": "./src/orchestrationV2ThreadError.ts",
       "import": "./src/orchestrationV2ThreadError.ts"
-    },
-    "./legacyCliLauncher": {
-      "types": "./src/legacyCliLauncher.ts",
-      "import": "./src/legacyCliLauncher.ts"
     },
     "./delimitedPreview": {
       "types": "./src/delimitedPreview.ts",
@@ -111,6 +119,10 @@
       "types": "./src/toolActivity.ts",
       "import": "./src/toolActivity.ts"
     },
+    "./terminalOutput": {
+      "types": "./src/terminalOutput.ts",
+      "import": "./src/terminalOutput.ts"
+    },
     "./toolOutput": {
       "types": "./src/toolOutput.ts",
       "import": "./src/toolOutput.ts"
@@ -175,6 +187,10 @@
       "types": "./src/dpopCommon.ts",
       "import": "./src/dpopCommon.ts"
     },
+    "./telemetryId": {
+      "types": "./src/telemetryId.ts",
+      "import": "./src/telemetryId.ts"
+    },
     "./relayAuth": {
       "types": "./src/relayAuth.ts",
       "import": "./src/relayAuth.ts"
@@ -219,6 +235,10 @@
       "types": "./src/keybindings.ts",
       "import": "./src/keybindings.ts"
     },
+    "./threadTranscript": {
+      "types": "./src/threadTranscript.ts",
+      "import": "./src/threadTranscript.ts"
+    },
     "./threadReference": {
       "types": "./src/threadReference.ts",
       "import": "./src/threadReference.ts"
@@ -242,6 +262,14 @@
     "./assistantCitations": {
       "types": "./src/assistantCitations.ts",
       "import": "./src/assistantCitations.ts"
+    },
+    "./promptLinks": {
+      "types": "./src/promptLinks.ts",
+      "import": "./src/promptLinks.ts"
+    },
+    "./threadLinks": {
+      "types": "./src/threadLinks.ts",
+      "import": "./src/threadLinks.ts"
     },
     "./composerContextReferences": {
       "types": "./src/composerContextReferences.ts",
@@ -303,9 +331,13 @@
       "types": "./src/nodeRuntime.ts",
       "import": "./src/nodeRuntime.ts"
     },
-    "./hostProcess": {
-      "types": "./src/hostProcess.ts",
-      "import": "./src/hostProcess.ts"
+    "./AgentScope": {
+      "types": "./src/AgentScope.ts",
+      "import": "./src/AgentScope.ts"
+    },
+    "./HostProcess": {
+      "types": "./src/HostProcess.ts",
+      "import": "./src/HostProcess.ts"
     },
     "./testing/longTempDir": {
       "types": "./src/testing/longTempDir.ts",
@@ -355,6 +387,10 @@
       "types": "./src/nodeSqliteClient.ts",
       "import": "./src/nodeSqliteClient.ts"
     },
+    "./orchestrationV2BoundedSnapshot": {
+      "types": "./src/orchestrationV2BoundedSnapshot.ts",
+      "import": "./src/orchestrationV2BoundedSnapshot.ts"
+    },
     "./orchestrationV2Timeline": {
       "types": "./src/orchestrationV2Timeline.ts",
       "import": "./src/orchestrationV2Timeline.ts"
@@ -398,10 +434,78 @@
     "./codexAuthHandoff": {
       "types": "./src/codexAuthHandoff.ts",
       "import": "./src/codexAuthHandoff.ts"
+    },
+    "./codexArtifactTemplates": {
+      "types": "./src/codexArtifactTemplates.ts",
+      "import": "./src/codexArtifactTemplates.ts"
+    },
+    "./codexFileCitations": {
+      "types": "./src/codexFileCitations.ts",
+      "import": "./src/codexFileCitations.ts"
+    },
+    "./codexMarkdownDirectives": {
+      "types": "./src/codexMarkdownDirectives.ts",
+      "import": "./src/codexMarkdownDirectives.ts"
+    },
+    "./markdownGithubAlerts": {
+      "types": "./src/markdownGithubAlerts.ts",
+      "import": "./src/markdownGithubAlerts.ts"
+    },
+    "./markdownListIndentation": {
+      "types": "./src/markdownListIndentation.ts",
+      "import": "./src/markdownListIndentation.ts"
+    },
+    "./proposedPlanText": {
+      "types": "./src/proposedPlanText.ts",
+      "import": "./src/proposedPlanText.ts"
+    },
+    "./markdownPipeline": {
+      "types": "./src/markdownPipeline.ts",
+      "import": "./src/markdownPipeline.ts"
+    },
+    "./threadFindText": {
+      "types": "./src/threadFindText.ts",
+      "import": "./src/threadFindText.ts"
+    },
+    "./threadSearch": {
+      "types": "./src/threadSearch.ts",
+      "import": "./src/threadSearch.ts"
+    },
+    "./markdownLinks": {
+      "types": "./src/markdownLinks.ts",
+      "import": "./src/markdownLinks.ts"
+    },
+    "./fileLinks": {
+      "types": "./src/fileLinks.ts",
+      "import": "./src/fileLinks.ts"
+    },
+    "./inlineSkills": {
+      "types": "./src/inlineSkills.ts",
+      "import": "./src/inlineSkills.ts"
+    },
+    "./mcpApp": {
+      "types": "./src/mcpApp.ts",
+      "import": "./src/mcpApp.ts"
+    },
+    "./atomicWrite": {
+      "types": "./src/atomicWrite.ts",
+      "import": "./src/atomicWrite.ts"
+    },
+    "./mcpResponsePayloads": {
+      "types": "./src/mcpResponsePayloads.ts",
+      "import": "./src/mcpResponsePayloads.ts"
+    },
+    "./PtyAdapter": {
+      "types": "./src/PtyAdapter.ts",
+      "import": "./src/PtyAdapter.ts"
+    },
+    "./markdownMath": {
+      "types": "./src/markdownMath.ts",
+      "import": "./src/markdownMath.ts"
     }
   },
   "scripts": {
-    "typecheck": "node ../../scripts/typecheck.ts",
+    "typecheck": "tsc-rs --noEmit",
     "test": "vp test run --config ../../vite.config.ts --dir ."
   },
   "dependencies": {
@@ -410,12 +514,26 @@
     "@t3tools/contracts": "workspace:*",
     "effect": "catalog:",
     "jose": "catalog:",
+    "mdast-util-directive": "catalog:",
+    "mdast-util-to-hast": "^13.2.1",
+    "micromark-extension-directive": "catalog:",
+    "micromark-util-character": "catalog:",
+    "rehype-raw": "catalog:",
+    "rehype-sanitize": "catalog:",
+    "remark-breaks": "catalog:",
+    "remark-gfm": "catalog:",
+    "remark-math": "6.0.0",
+    "remark-parse": "catalog:",
+    "remark-rehype": "catalog:",
+    "unified": "catalog:",
     "yaml": "catalog:"
   },
   "devDependencies": {
     "@effect/platform-node": "catalog:",
     "@effect/vitest": "catalog:",
+    "@types/mdast": "^4.0.4",
     "@types/node": "catalog:",
+    "micromark-util-types": "catalog:",
     "vite-plus": "catalog:"
   }
 }

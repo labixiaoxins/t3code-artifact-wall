@@ -2,12 +2,11 @@ import { ClientSettingsSchema } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
-
 import * as DesktopClientSettings from "../../settings/DesktopClientSettings.ts";
 import * as DesktopSnapShot from "../../snapShot/DesktopSnapShot.ts";
+import * as DesktopApplicationMenu from "../../window/DesktopApplicationMenu.ts";
 import * as IpcChannels from "../channels.ts";
 import * as DesktopIpc from "../DesktopIpc.ts";
-
 export const getClientSettings = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.GET_CLIENT_SETTINGS_CHANNEL,
   payload: Schema.Void,
@@ -17,7 +16,6 @@ export const getClientSettings = DesktopIpc.makeIpcMethod({
     return Option.getOrNull(yield* clientSettings.get);
   }),
 });
-
 export const setClientSettings = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.SET_CLIENT_SETTINGS_CHANNEL,
   payload: ClientSettingsSchema,
@@ -25,7 +23,12 @@ export const setClientSettings = DesktopIpc.makeIpcMethod({
   handler: Effect.fn("desktop.ipc.clientSettings.set")(function* (settings) {
     const clientSettings = yield* DesktopClientSettings.DesktopClientSettings;
     const snapShot = yield* DesktopSnapShot.DesktopSnapShot;
+    const previous = yield* clientSettings.get.pipe(Effect.orElseSucceed(() => Option.none()));
     yield* clientSettings.set(settings);
     yield* snapShot.configure(settings);
+    if (Option.getOrNull(previous)?.appLocale !== settings.appLocale) {
+      const menu = yield* Effect.serviceOption(DesktopApplicationMenu.DesktopApplicationMenu);
+      if (Option.isSome(menu)) yield* menu.value.configure;
+    }
   }),
 });

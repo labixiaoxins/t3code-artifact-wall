@@ -1,6 +1,6 @@
 import * as NodeOS from "node:os";
 import type { HostResourcesSnapshot } from "@t3tools/contracts";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Cache from "effect/Cache";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
@@ -40,12 +40,11 @@ function darwinAvailableMemory(output: string): number | null {
 
 const make = Effect.fn("makeHostResources")(function* () {
   const fs = yield* FileSystem.FileSystem;
-  const platform = yield* HostProcessPlatform;
+  const platform = yield* HostProcess.Platform;
   const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
 
   const sample = Effect.fn("HostResources.sample")(function* () {
     const previousCpu = readCpu();
-    // CPU counters need two readings; idle servers do no polling or process scans.
     yield* Effect.sleep("200 millis");
     const cpu = readCpu();
     const totalDelta = cpu.total - previousCpu.total;
@@ -81,7 +80,6 @@ const make = Effect.fn("makeHostResources")(function* () {
     };
   });
 
-  // One server-lifetime cache deduplicates simultaneous requests from all sockets.
   const cache = yield* Cache.make({
     capacity: 1,
     lookup: (_key: "host") => sample(),

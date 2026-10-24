@@ -45,6 +45,51 @@ function row(index: number): OrchestrationV2ProjectedTurnItem {
 }
 
 describe("threadHistoryMerge", () => {
+  it("fills activity around partial messages in canonical order and preserves live edits", () => {
+    const initial = { ...v2Projection, turnItems: [row(4).item], visibleTurnItems: [row(4)] };
+    const preview = [row(1), row(3)];
+    const partial = mergeOlderHistoryIntoProjection(initial, preview);
+    const updated = { ...row(1), item: { ...row(1).item, title: "newer live title" } };
+    const live = {
+      ...partial,
+      visibleTurnItems: partial.visibleTurnItems.map((entry) =>
+        entry.sourceItemId === updated.sourceItemId ? updated : entry,
+      ),
+      turnItems: partial.turnItems.map((item) =>
+        item.id === updated.item.id ? updated.item : item,
+      ),
+    };
+    const complete = mergeOlderHistoryIntoProjection(live, [row(0), row(1), row(2), row(3)]);
+    expect(complete.visibleTurnItems.map((entry) => entry.sourceItemId)).toEqual([
+      "item-0",
+      "item-1",
+      "item-2",
+      "item-3",
+      "item-4",
+    ]);
+    expect(complete.visibleTurnItems[1]?.item).toBe(updated.item);
+    expect(complete.visibleTurnItems.map((entry) => entry.position)).toEqual([0, 1, 2, 3, 4]);
+    expect(new Set(complete.turnItems.map((item) => item.id)).size).toBe(5);
+    const hidden = {
+      ...partial,
+      visibleTurnItems: partial.visibleTurnItems.filter(
+        (entry) => entry.sourceItemId !== preview[0]!.sourceItemId,
+      ),
+    };
+    const hiddenComplete = mergeOlderHistoryIntoProjection(hidden, [
+      row(0),
+      row(1),
+      row(2),
+      row(3),
+    ]);
+    expect(hiddenComplete.visibleTurnItems.map((entry) => entry.sourceItemId)).toEqual([
+      "item-0",
+      "item-2",
+      "item-3",
+      "item-4",
+    ]);
+  });
+
   it("prepends older rows and dedupes by source identity", () => {
     const recent = [row(2), row(3)];
     const projection = {
@@ -67,6 +112,32 @@ describe("threadHistoryMerge", () => {
       "item-0",
       "item-1",
     ]);
+  });
+
+  it("fills inherited activity without confusing identical item IDs from different source threads", () => {
+    const inherited = (index: number) => ({
+      ...row(index),
+      visibility: "inherited" as const,
+      sourceThreadId: "fork-source" as never,
+    });
+    const local = row(1);
+    const preview = { ...inherited(1), item: { ...row(1).item, title: "newer inherited title" } };
+    const projection = {
+      ...v2Projection,
+      turnItems: [local.item],
+      visibleTurnItems: [preview, local],
+    };
+    const merged = mergeOlderHistoryIntoProjection(projection, [inherited(0), inherited(1)]);
+    expect(
+      merged.visibleTurnItems.map((entry) => [entry.sourceThreadId, entry.sourceItemId]),
+    ).toEqual([
+      ["fork-source", "item-0"],
+      ["fork-source", "item-1"],
+      [v2ThreadId, "item-1"],
+    ]);
+    expect(merged.visibleTurnItems[1]?.item).toBe(preview.item);
+    expect(merged.turnItems).toEqual([local.item]);
+    expect(mergeOlderHistoryIntoProjection(merged, [inherited(0), inherited(1)])).toBe(merged);
   });
 
   it("retains live rows that arrived after the older page was fetched", () => {
@@ -147,11 +218,9 @@ describe("threadHistoryMerge", () => {
       ...loading,
       loading: false,
     });
-    // Stale cursor must not mutate replacement progressive meta.
     expect(
       clearActiveHistoryLoading("cursor-a", { ...loading, historyCursor: "cursor-b" }),
     ).toEqual({ ...loading, historyCursor: "cursor-b" });
-    // Already idle: identity-preserving no-op shape.
     const idle = { ...loading, loading: false };
     expect(clearActiveHistoryLoading("cursor-a", idle)).toBe(idle);
   });
@@ -218,8 +287,6 @@ describe("threadHistoryMerge", () => {
   });
 
   it("keeps a history-page interrupt result visible when its request was retained at cold open", () => {
-    // Cold bounded window: only a recent filler. Request was retained in
-    // turnItems (not visible). Result arrives later via load-earlier merge.
     const runId = "run-interrupt-cold" as never;
     const nodeId = "node-interrupt-cold" as never;
     const recent = row(5);
@@ -302,7 +369,6 @@ describe("threadHistoryMerge", () => {
           completedAt: null,
         },
       ],
-      // Request retained from full projection; no result yet in the window.
       turnItems: [requestItem, recent.item],
       visibleTurnItems: [{ ...recent, position: 0 }],
     };
@@ -382,7 +448,6 @@ describe("threadHistoryMerge", () => {
       "item-5",
     ]);
 
-    // Without the cold-open retained request, the same update would hide the result.
     const withoutRequest = {
       ...merged,
       turnItems: merged.turnItems.filter((item) => item.type !== "run_interrupt_request"),

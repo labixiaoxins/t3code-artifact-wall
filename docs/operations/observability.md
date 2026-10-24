@@ -56,6 +56,13 @@ records instead carry OTLP resource, scope, and optional status fields.
 The `TraceRecord`, `EffectTraceRecord`, and `OtlpTraceRecord` schemas live in
 `packages/shared/src/observability.ts`.
 
+SQL statement spans (named `sqlite`) and `sql.transaction` spans carry `db.connection` and
+`db.lock_wait_ms`. `db.connection` is `writer` for the main connection, which runs on the event loop,
+or `reader` for the read-only connection in a worker thread. `db.lock_wait_ms` is the part of the
+span spent waiting for that connection, behind other SQL. That wait does not block the event loop,
+so subtract it before you blame a slow span on the query. Statements inside a transaction use its
+connection and do not carry these attributes.
+
 DPoP proof failures include the safe `environment.dpop.failure_code` span
 attribute. A `time_window` failure means that a signed proof was too old or too
 far in the future for the environment server's allowed window. It can point to
@@ -94,6 +101,11 @@ the loop stalled for more than 2 s since the previous sample, it records a root
 `server.eventLoop.stall` span with a warning. The span has trace level `Warn`, so it stays when
 `T3CODE_TRACE_MIN_LEVEL` is `Warn`. The warning shows in Settings > Diagnostics unless OTLP logs are
 on. The span time is when the sample ran, not when the stall happened.
+
+The trace file rotates in well under an hour on a busy server, so each stall is also appended as one
+NDJSON line to `event-loop-stalls.ndjson`, next to the trace file. A line has `time` and the span
+attributes. The file keeps the last 1000 or more stalls, with one rotated backup
+(`event-loop-stalls.ndjson.1`). Use it to see how often a server stalls over days.
 
 Some delay is not recorded:
 
@@ -171,6 +183,10 @@ Default Grafana login:
 - password: `admin`
 
 #### 2. Export OTLP env vars
+
+For endpoint settings and startup precedence, see the
+[user telemetry guide](../user/telemetry.md#export-diagnostics-to-your-own-receiver).
+In a worktree, use `vp run dev` instead of `npx t3` to keep state isolated.
 
 ```bash
 export T3CODE_OTLP_TRACES_URL=http://localhost:4318/v1/traces
@@ -635,14 +651,15 @@ wins for its signal. `otlp` is the default, and any other exporter name, such as
 
 Current high-value span and metric boundaries include:
 
-- Effect RPC websocket request spans from `effect/rpc`
-- RPC request metrics in `apps/server/src/observability/RpcInstrumentation.ts`
+- WebSocket RPC request spans (`ws.rpc.<method>`) and metrics in
+  `apps/server/src/observability/RpcInstrumentation.ts`
 - startup phases
 - orchestration command processing
 - provider session and turn operations
 - git command execution and git hook events
 - terminal session lifecycle
-- sqlite query execution
+- sqlite query execution, except the statements inside `orchestrationV2.EventSink.write`, which
+  its `sql.transaction` span times as one
 - event loop stalls (`server.eventLoop.stall`)
 
 ### Current Constraints

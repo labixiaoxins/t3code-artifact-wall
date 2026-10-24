@@ -1,7 +1,8 @@
-import { iconNames, type IconName } from "lucide-react/dynamic";
+import { uiText } from "~/i18n";
+import { lucideIconNames } from "./lib/lucideIconByName";
 export { PROJECT_ICON_COLORS, projectIconColorClassName } from "./projectIconColors";
 
-const POPULAR_PROJECT_ICONS = [
+const POPULAR_PROJECT_ICONS: ReadonlyArray<string> = [
   "folder-code",
   "code-2",
   "terminal",
@@ -26,45 +27,45 @@ const POPULAR_PROJECT_ICONS = [
   "workflow",
   "wrench",
   "layers-3",
-] as const satisfies ReadonlyArray<IconName>;
-
-export const PROJECT_EMOJIS: ReadonlyArray<{ readonly emoji: string; readonly label: string }> = [
-  { emoji: "💻", label: "Computer" },
-  { emoji: "🛠️", label: "Tools" },
-  { emoji: "🚀", label: "Rocket" },
-  { emoji: "🤖", label: "Robot" },
-  { emoji: "✨", label: "Sparkles" },
-  { emoji: "⚡", label: "Lightning" },
-  { emoji: "🌐", label: "Web" },
-  { emoji: "📱", label: "Mobile" },
-  { emoji: "🖥️", label: "Desktop" },
-  { emoji: "⌨️", label: "Keyboard" },
-  { emoji: "⚙️", label: "Gear" },
-  { emoji: "🗄️", label: "Database" },
-  { emoji: "☁️", label: "Cloud" },
-  { emoji: "📦", label: "Package" },
-  { emoji: "📚", label: "Books" },
-  { emoji: "🧪", label: "Test tube" },
-  { emoji: "🔒", label: "Lock" },
-  { emoji: "🎮", label: "Game" },
-  { emoji: "🎵", label: "Music" },
-  { emoji: "🎬", label: "Movie" },
-  { emoji: "🖼️", label: "Picture" },
-  { emoji: "🛍️", label: "Shopping" },
-  { emoji: "🔥", label: "Fire" },
-  { emoji: "💡", label: "Idea" },
-  { emoji: "🧩", label: "Puzzle" },
-  { emoji: "📊", label: "Chart" },
-  { emoji: "🧠", label: "Brain" },
-  { emoji: "🦄", label: "Unicorn" },
-  { emoji: "🐙", label: "Octopus" },
-  { emoji: "🌱", label: "Seedling" },
 ];
 
-export function filterProjectIconNames(query: string): ReadonlyArray<IconName> {
+export const PROJECT_EMOJIS: ReadonlyArray<{ readonly emoji: string; readonly label: string }> = [
+  { emoji: "💻", label: uiText("Computer") },
+  { emoji: "🛠️", label: uiText("Tools") },
+  { emoji: "🚀", label: uiText("Rocket") },
+  { emoji: "🤖", label: uiText("Robot") },
+  { emoji: "✨", label: uiText("Sparkles") },
+  { emoji: "⚡", label: uiText("Lightning") },
+  { emoji: "🌐", label: uiText("Web") },
+  { emoji: "📱", label: uiText("Mobile") },
+  { emoji: "🖥️", label: uiText("Desktop") },
+  { emoji: "⌨️", label: uiText("Keyboard") },
+  { emoji: "⚙️", label: uiText("Gear") },
+  { emoji: "🗄️", label: uiText("Database") },
+  { emoji: "☁️", label: uiText("Cloud") },
+  { emoji: "📦", label: uiText("Package") },
+  { emoji: "📚", label: uiText("Books") },
+  { emoji: "🧪", label: uiText("Test tube") },
+  { emoji: "🔒", label: uiText("Lock") },
+  { emoji: "🎮", label: uiText("Game") },
+  { emoji: "🎵", label: uiText("Music") },
+  { emoji: "🎬", label: uiText("Movie") },
+  { emoji: "🖼️", label: uiText("Picture") },
+  { emoji: "🛍️", label: uiText("Shopping") },
+  { emoji: "🔥", label: uiText("Fire") },
+  { emoji: "💡", label: uiText("Idea") },
+  { emoji: "🧩", label: uiText("Puzzle") },
+  { emoji: "📊", label: uiText("Chart") },
+  { emoji: "🧠", label: uiText("Brain") },
+  { emoji: "🦄", label: uiText("Unicorn") },
+  { emoji: "🐙", label: uiText("Octopus") },
+  { emoji: "🌱", label: uiText("Seedling") },
+];
+
+export function filterProjectIconNames(query: string): ReadonlyArray<string> {
   const normalized = query.trim().toLowerCase().replaceAll(/\s+/g, "-");
   if (!normalized) return POPULAR_PROJECT_ICONS;
-  return iconNames.filter((name) => name.includes(normalized)).slice(0, 60);
+  return lucideIconNames.filter((name) => name.includes(normalized)).slice(0, 60);
 }
 
 export function firstEmoji(value: string): string | null {

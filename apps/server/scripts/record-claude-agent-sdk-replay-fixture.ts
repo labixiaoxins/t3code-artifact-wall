@@ -10,12 +10,9 @@ import {
   CLAUDE_AGENT_SDK_REPLAY_PROTOCOL,
 } from "../src/orchestration-v2/Adapters/ClaudeAdapterV2.testkit.ts";
 import { claudeRuntimeQueryPolicyForRuntimePolicy } from "../src/orchestration-v2/Adapters/ClaudeAdapterV2.ts";
-import {
-  ProviderAdapterV2RuntimePolicy,
-  type ProviderAdapterV2RuntimePolicy as ProviderAdapterV2RuntimePolicyType,
-} from "../src/orchestration-v2/ProviderAdapter.ts";
+import * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
 import type { RuntimePolicyV2Override } from "../src/orchestration-v2/RuntimePolicy.ts";
-import { makeCheckpointWorkspace } from "../src/orchestration-v2/testkit/ReplayFixtureWorkspace.ts";
+import { makeCheckpointWorkspace } from "@t3tools/provider-testing/replayWorkspace";
 import { CLAUDE_MODEL_SELECTION } from "../src/orchestration-v2/testkit/fixtures/shared.ts";
 import {
   MESSAGE_STEERING_INITIAL_PROMPT,
@@ -55,6 +52,7 @@ import {
   TOOL_CALL_READ_ONLY_WORKSPACE_ROOT,
   TOOL_CALL_WRITE_PROMPT,
   TURN_INTERRUPT_MID_TOOL_PROMPT,
+  COMMAND_OUTPUT_STREAMING_PROMPT,
   TURN_INTERRUPT_PROMPT,
   TURN_INTERRUPT_RECOVERY_PROMPT,
   WORKSPACE_NEVER_POLICY,
@@ -116,6 +114,12 @@ const CLAUDE_RECORDINGS = {
     prompts: [MESSAGE_STEERING_INITIAL_PROMPT, MESSAGE_STEERING_STEER_PROMPT],
     defaultTranscriptFile: "fixtures/message_steering/claude_transcript.ndjson",
     queryMode: "active_steering",
+    enableTools: true,
+  },
+  command_output_streaming: {
+    prompts: [COMMAND_OUTPUT_STREAMING_PROMPT],
+    defaultTranscriptFile: "fixtures/command_output_streaming/claude_transcript.ndjson",
+    queryMode: "streaming",
     enableTools: true,
   },
   turn_interrupt_mid_tool: {
@@ -215,9 +219,6 @@ const CLAUDE_RECORDINGS = {
     enableTools: true,
     backgroundWakeCounts: [1, 0, 1, 0],
   },
-  // Each prompt is offered as soon as its turn and the wakes counted here
-  // settle, so a wake queued during a turn (Agent B's "stopped" notice) is
-  // still pending in the CLI when the next prompt arrives, and runs first.
   claude_background_wake_before_queued_prompt: {
     prompts: [
       CLAUDE_BACKGROUND_WAKE_BEFORE_QUEUED_PROMPT_LAUNCH_PROMPT,
@@ -440,8 +441,8 @@ validateClaudeReplayRecordingSelection({
 function runtimePolicyForRecording(input: {
   readonly cwd: string;
   readonly override?: RuntimePolicyV2Override;
-}): ProviderAdapterV2RuntimePolicyType {
-  return ProviderAdapterV2RuntimePolicy.make({
+}): ProviderAdapter.ProviderAdapterV2RuntimePolicy {
+  return ProviderAdapter.ProviderAdapterV2RuntimePolicy.make({
     runtimeMode: "full-access",
     interactionMode: "default",
     cwd: input.override?.cwd ?? input.cwd,
@@ -478,10 +479,6 @@ const shouldRemoveCwd = process.env.T3_CLAUDE_REPLAY_CWD === undefined;
 const expectedAbsentWorkspacePaths =
   "expectedAbsentWorkspacePaths" in recording ? recording.expectedAbsentWorkspacePaths : [];
 
-// Scenarios that deny a tool call prove the denial by checking the real
-// recording workspace, not just the transcript: the target must be absent
-// before and after the turn, and the verified paths are preserved in the
-// transcript metadata before the temporary workspace is removed.
 async function assertWorkspacePathsAbsent(phase: "before" | "after"): Promise<void> {
   const presentPaths = await runFileSystem(
     Effect.gen(function* () {

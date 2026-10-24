@@ -4,10 +4,12 @@ import {
   ORCHESTRATION_PROTOCOL_HEADER,
   ORCHESTRATION_PROTOCOL_VERSION_TEXT,
   ProjectId,
+  ThreadId,
   type AuthSessionState,
   type OrchestrationV2ShellSnapshot,
   OrchestrationV2ThreadDetailSnapshot,
   OrchestrationV2ThreadBoundedSnapshot,
+  OrchestrationV2ThreadTranscript,
   type OrchestrationV2ThreadHistoryPage,
 } from "@t3tools/contracts";
 import { RelayClientTracer } from "@t3tools/shared/relayTracing";
@@ -36,6 +38,7 @@ import { withOrchestrationProtocolHeader } from "./environmentHttpAuth.ts";
 import { fetchEnvironmentSessionState } from "./session.ts";
 import { fetchEnvironmentShellSnapshot } from "./shellSnapshotHttp.ts";
 import * as ThreadSnapshotLoader from "./threadSnapshotHttp.ts";
+import { fetchEnvironmentThreadTranscript } from "./threadTranscriptHttp.ts";
 import { fetchEnvironmentBoundedThreadSnapshot } from "./boundedThreadSnapshotHttp.ts";
 import * as BoundedThreadSnapshotHttp from "./boundedThreadSnapshotHttp.ts";
 import { fetchEnvironmentThreadHistoryPage } from "./threadHistoryHttp.ts";
@@ -43,6 +46,7 @@ import { v2Projection } from "./orchestrationV2TestFixtures.ts";
 
 const encodeThreadSnapshot = Schema.encodeSync(OrchestrationV2ThreadDetailSnapshot);
 const encodeBoundedSnapshot = Schema.encodeSync(OrchestrationV2ThreadBoundedSnapshot);
+const encodeThreadTranscript = Schema.encodeSync(OrchestrationV2ThreadTranscript);
 
 const TARGET = new RelayConnectionTarget({
   environmentId: EnvironmentId.make("environment-1"),
@@ -88,6 +92,12 @@ const THREAD = {
   snapshotSequence: 2,
   projection: v2Projection,
 } satisfies OrchestrationV2ThreadDetailSnapshot;
+const TRANSCRIPT = {
+  threadId: v2Projection.thread.id,
+  title: v2Projection.thread.title,
+  updatedAt: v2Projection.updatedAt,
+  items: v2Projection.visibleTurnItems,
+} satisfies OrchestrationV2ThreadTranscript;
 const BOUNDED_THREAD = {
   ...THREAD,
   historyCursor: "older-page",
@@ -204,7 +214,10 @@ const LOADERS: ReadonlyArray<{
     path: "/api/orchestration/shell",
     response: SHELL,
     expected: SHELL,
-    load: fetchEnvironmentShellSnapshot,
+    load: (input: HttpInput) =>
+      fetchEnvironmentShellSnapshot(input).pipe(
+        Effect.map(({ loadPullRequests: _links, ...snapshot }) => snapshot),
+      ),
   },
   {
     name: "thread snapshot",
@@ -217,6 +230,15 @@ const LOADERS: ReadonlyArray<{
         ...input,
         threadId: THREAD.projection.thread.id,
       }),
+  },
+  {
+    name: "thread transcript",
+    method: "GET",
+    path: `/api/orchestration/threads/${TRANSCRIPT.threadId}/transcript`,
+    response: encodeThreadTranscript(TRANSCRIPT),
+    expected: TRANSCRIPT,
+    load: (input: HttpInput) =>
+      fetchEnvironmentThreadTranscript({ ...input, threadId: TRANSCRIPT.threadId }),
   },
   {
     name: "bounded thread snapshot",
@@ -254,6 +276,20 @@ describe("authenticated environment HTTP requests", () => {
     }),
   );
 
+  it.effect("keeps the status of a shell snapshot error that is not a declared error", () =>
+    Effect.gen(function* () {
+      const harness = makeHarness(() => Response.json({ error: "bad_gateway" }, { status: 502 }));
+      const error = yield* fetchEnvironmentShellSnapshot(harness.input).pipe(
+        Effect.provide(harness.httpLayer),
+        Effect.flip,
+      );
+      expect(error).toMatchObject({
+        _tag: "RemoteEnvironmentAuthUndeclaredStatusError",
+        status: 502,
+      });
+    }),
+  );
+
   it.effect.each(LOADERS)("uses current relay authorization and endpoint for $name", (loader) =>
     Effect.gen(function* () {
       const harness = makeHarness(() => Response.json(loader.response));
@@ -275,18 +311,64 @@ describe("authenticated environment HTTP requests", () => {
         );
       }
       expect(harness.authorizations).toEqual([{ expectedEnvironmentId: TARGET.environmentId }]);
+      // The proof signs exactly the URL sent; signers drop the query for `htu`.
       expect(harness.proofs).toEqual([
-        {
-          method: loader.method,
-          url: `${CURRENT_ORIGIN}${loader.path}`,
-          accessToken: "current-token",
-        },
+        { method: loader.method, url: call.url, accessToken: "current-token" },
       ]);
       if (loader.name === "older thread history") {
         expect(url.searchParams.get("cursor")).toBe("older-page");
       }
       expect(PREPARED.httpAuthorization).toMatchObject({ accessToken: "expired-token" });
     }),
+  );
+
+  // MCP-created thread ids contain ":", which the request path percent-encodes.
+  // The DPoP proof must sign the URL that is actually sent, or the environment
+  // rejects it as a URL mismatch.
+  const MCP_THREAD_ID = ThreadId.make("mcp:3534bc83-1c17-4a1e-9118-601c2766d355");
+  const MCP_THREAD_LOADERS: ReadonlyArray<
+    Pick<(typeof LOADERS)[number], "name" | "response" | "load">
+  > = [
+    {
+      name: "thread transcript",
+      response: encodeThreadTranscript(TRANSCRIPT),
+      load: (input: HttpInput) =>
+        fetchEnvironmentThreadTranscript({ ...input, threadId: MCP_THREAD_ID }),
+    },
+    {
+      name: "thread snapshot",
+      response: encodeThreadSnapshot(THREAD),
+      load: (input: HttpInput) =>
+        ThreadSnapshotLoader.fetchEnvironmentThreadSnapshot({ ...input, threadId: MCP_THREAD_ID }),
+    },
+    {
+      name: "bounded thread snapshot",
+      response: encodeBoundedSnapshot(BOUNDED_THREAD),
+      load: (input: HttpInput) =>
+        fetchEnvironmentBoundedThreadSnapshot({ ...input, threadId: MCP_THREAD_ID }),
+    },
+    {
+      name: "older thread history",
+      response: THREAD_HISTORY,
+      load: (input: HttpInput) =>
+        fetchEnvironmentThreadHistoryPage({
+          ...input,
+          threadId: MCP_THREAD_ID,
+          cursor: "older-page",
+        }),
+    },
+  ];
+  it.effect.each(MCP_THREAD_LOADERS)(
+    "signs the sent URL for a $name of a thread id that needs encoding",
+    (loader) =>
+      Effect.gen(function* () {
+        const harness = makeHarness(() => Response.json(loader.response));
+        yield* loader.load(harness.input).pipe(Effect.provide(harness.httpLayer));
+
+        const sent = harness.calls[0]!.url;
+        expect(new URL(sent).pathname).toContain("/mcp%3A3534bc83-");
+        expect(harness.proofs.map((proof) => proof.url)).toEqual([sent]);
+      }),
   );
 
   it.effect("retries a rejected diff once with a new token, endpoint, and proof", () =>
@@ -345,7 +427,7 @@ describe("authenticated environment HTTP requests", () => {
         );
         expect(harness.proofs[1]).toEqual({
           method: "GET",
-          url: `${RENEWED_ORIGIN}${loader.path}`,
+          url: retried.url,
           accessToken: "renewed-token",
         });
         if (loader.name === "older thread history") {

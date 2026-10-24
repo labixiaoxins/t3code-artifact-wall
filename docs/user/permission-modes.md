@@ -25,12 +25,18 @@ Providers enforce permissions differently. Some read-only actions can proceed in
 including OpenCode and Antigravity, fall back to asking. On Grok, commands its review blocks come
 to you for approval.
 
+Muse Code offers only **Supervised** and **Full access**. A Muse thread already set to another mode
+runs in **Supervised**.
+
 Grok offers no **Auto-accept edits**. A Grok thread already set to it runs in **Supervised**. Grok
 file-change approvals offer **Allow all edits this session**. Its command approvals have no
 session-wide choice, because Grok would remember that command for the whole project.
 
 ACP Registry agents run their own tools in their own mode; T3 Code answers their approval requests
 by the permission mode. See [ACP Registry permissions](./providers-acp.md#permissions-and-terminals).
+
+Claude can still ask in **Full access** when its settings disable bypass permissions or require
+approval for an action.
 
 Antigravity can still send native approval requests in **Full access**. It only offers remembered
 approvals for actions that support them.

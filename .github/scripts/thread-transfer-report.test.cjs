@@ -216,6 +216,89 @@ test("does not guess when a fallback commit belongs to multiple PRs", async () =
   assert.equal(fetchedPull, false);
 });
 
+test("skips a missing PR commit but preserves other lookup failures", async () => {
+  for (const [status, message, shouldSkip] of [
+    [422, "No commit found for SHA: old-head", true],
+    [422, "Validation Failed", false],
+    [403, "API rate limit exceeded", false],
+  ]) {
+    const outputs = {};
+    const error = Object.assign(new Error(message), {
+      status,
+      response: { data: { message } },
+    });
+    const run = resolve({
+      github: {
+        paginate: async () => {
+          throw error;
+        },
+        rest: { repos: { listPullRequestsAssociatedWithCommit: () => {} } },
+      },
+      context: {
+        repo: { owner: "pingdotgg", repo: "t3code" },
+        payload: {
+          workflow_run: { event: "pull_request", head_sha: "old-head", pull_requests: [] },
+        },
+      },
+      core: {
+        info: () => {},
+        setOutput: (key, value) => {
+          outputs[key] = value;
+        },
+      },
+    });
+    if (shouldSkip) {
+      await run;
+      assert.equal(outputs.publish, "false");
+    } else {
+      await assert.rejects(run, (caught) => caught === error);
+      assert.deepEqual(outputs, {});
+    }
+  }
+});
+
+test("does not report a passing run that skipped the server tests", async () => {
+  const outputs = {};
+  const listWorkflowRunArtifacts = () => {};
+  await resolve({
+    github: {
+      paginate: async (method) => {
+        assert.equal(method, listWorkflowRunArtifacts);
+        return [];
+      },
+      rest: {
+        actions: { listWorkflowRunArtifacts },
+        pulls: {
+          get: async () => ({
+            data: { head: { sha: "head-sha" }, base: { sha: "base-sha", ref: "main" } },
+          }),
+        },
+      },
+    },
+    context: {
+      repo: { owner: "pingdotgg", repo: "t3code" },
+      payload: {
+        workflow_run: {
+          id: 2,
+          event: "pull_request",
+          workflow_id: 3,
+          head_sha: "head-sha",
+          conclusion: "success",
+          pull_requests: [{ number: 5350 }],
+        },
+      },
+    },
+    core: {
+      info: () => {},
+      setOutput: (key, value) => {
+        outputs[key] = value;
+      },
+    },
+  });
+
+  assert.equal(outputs.publish, "false");
+});
+
 test("does not publish a stale result after the PR head advances", async () => {
   let listedComments = false;
   const info = [];

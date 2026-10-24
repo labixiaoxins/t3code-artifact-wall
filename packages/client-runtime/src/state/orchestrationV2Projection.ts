@@ -1,5 +1,7 @@
+import { applyThreadPullRequestLinkUpdate } from "@t3tools/shared/threadPullRequests";
 import type {
   OrchestrationV2DomainEvent,
+  OrchestrationV2Run,
   OrchestrationV2ThreadProjection,
   OrchestrationV2TurnItem,
 } from "@t3tools/contracts";
@@ -86,6 +88,14 @@ function oldestLocalTurnOrdinal(
   return oldest;
 }
 
+const UNFINISHED_RUN_STATUSES: ReadonlySet<OrchestrationV2Run["status"]> = new Set([
+  "preparing",
+  "queued",
+  "starting",
+  "running",
+  "waiting",
+]);
+
 function shouldDropMissingPartialTurnItem(
   projection: OrchestrationV2ThreadProjection,
   item: OrchestrationV2TurnItem,
@@ -94,6 +104,36 @@ function shouldDropMissingPartialTurnItem(
   if (projection.visibleTurnItems.some((row) => row.sourceItemId === item.id)) {
     return false;
   }
+  if (item.runId === null) {
+    return isBelowPartialWindow(projection, item, latestLocalTurnOrdinal);
+  }
+  // A queued run keeps the ordinal it got when queued, so a steer sent later
+  // can raise the watermark past it. Items of a run that has not finished are
+  // new, not unloaded history: the first lands while the run is still queued,
+  // and a bounded window can start after the ones before it.
+  if (
+    projection.runs.some((run) => run.id === item.runId && UNFINISHED_RUN_STATUSES.has(run.status))
+  ) {
+    return false;
+  }
+  if (
+    projection.visibleTurnItems.some(
+      (row) =>
+        row.visibility === "local" &&
+        row.item.runId === item.runId &&
+        row.item.ordinal <= item.ordinal,
+    )
+  ) {
+    return false;
+  }
+  return isBelowPartialWindow(projection, item, latestLocalTurnOrdinal);
+}
+
+function isBelowPartialWindow(
+  projection: OrchestrationV2ThreadProjection,
+  item: OrchestrationV2TurnItem,
+  latestLocalTurnOrdinal: number | null | undefined,
+): boolean {
   if (
     latestLocalTurnOrdinal !== null &&
     latestLocalTurnOrdinal !== undefined &&
@@ -112,7 +152,10 @@ function upsertVisibleTurnItem(
   latestLocalTurnOrdinal: number | null | undefined,
 ): OrchestrationV2ThreadProjection["visibleTurnItems"] {
   const rows = projection.visibleTurnItems;
-  const index = rows.findIndex((row) => row.sourceItemId === item.id);
+  // Streamed updates land on the newest rows. Item ids are unique, so the
+  // search can start there.
+  let index = rows.length - 1;
+  while (index >= 0 && rows[index]!.sourceItemId !== item.id) index -= 1;
   const next = {
     position: 0,
     visibility: "local" as const,
@@ -137,19 +180,36 @@ function upsertVisibleTurnItem(
   ) {
     return rows;
   }
-  const updated = index === -1 ? [...rows] : [...rows.slice(0, index), ...rows.slice(index + 1)];
-  const insertionIndex = updated.findIndex(
-    (row) =>
+  // The item goes before the first later local row, as if its old row were
+  // removed first. One pass builds and renumbers the result: this runs for
+  // every streamed chunk of a thread that can hold thousands of rows.
+  let insertion = rows.length;
+  for (let candidate = 0; candidate < rows.length; candidate += 1) {
+    const row = rows[candidate]!;
+    if (
+      candidate !== index &&
       row.visibility === "local" &&
       (row.item.ordinal > item.ordinal ||
         (row.item.ordinal === item.ordinal &&
-          String(row.item.id).localeCompare(String(item.id)) > 0)),
-  );
-  updated.splice(insertionIndex === -1 ? updated.length : insertionIndex, 0, next);
-  return renumberVisibleItems(updated);
+          String(row.item.id).localeCompare(String(item.id)) > 0))
+    ) {
+      insertion = candidate;
+      break;
+    }
+  }
+  const updated: Array<(typeof rows)[number]> = [];
+  for (let source = 0; source < rows.length; source += 1) {
+    if (source === insertion) updated.push(next);
+    if (source !== index) updated.push(rows[source]!);
+  }
+  if (insertion === rows.length) updated.push(next);
+  for (let position = 0; position < updated.length; position += 1) {
+    const row = updated[position]!;
+    if (row.position !== position) updated[position] = { ...row, position };
+  }
+  return updated;
 }
 
-/** Applies one committed event to a matching thread projection. */
 export function applyOrchestrationV2ProjectionEvent(
   projection: OrchestrationV2ThreadProjection | null,
   event: OrchestrationV2DomainEvent,
@@ -161,6 +221,11 @@ export function applyOrchestrationV2ProjectionEvent(
   const latestLocalTurnOrdinal = options?.latestLocalTurnOrdinal;
   const base = { ...projection, updatedAt: event.occurredAt };
   switch (event.type) {
+    case "thread.pull-request-link-updated":
+      return {
+        ...base,
+        thread: applyThreadPullRequestLinkUpdate(projection.thread, event.payload),
+      };
     case "thread.created":
     case "thread.archived":
     case "thread.unarchived":
@@ -249,17 +314,25 @@ export function applyOrchestrationV2ProjectionEvent(
     case "plan.updated":
       return { ...base, plans: upsertEntity(base.plans, event.payload) };
     case "turn-item.updated": {
+      // Streamed updates land on the newest items, so search from the end.
+      let itemIndex = projection.turnItems.length - 1;
+      while (itemIndex >= 0 && projection.turnItems[itemIndex]!.id !== event.payload.id) {
+        itemIndex -= 1;
+      }
       if (
         partialTimeline &&
-        !projection.turnItems.some((candidate) => candidate.id === event.payload.id) &&
+        itemIndex === -1 &&
         shouldDropMissingPartialTurnItem(projection, event.payload, latestLocalTurnOrdinal)
       ) {
         return projection;
       }
-      const next = { ...base, turnItems: upsertEntity(base.turnItems, event.payload) };
+      const turnItems = [...projection.turnItems];
+      if (itemIndex === -1) turnItems.push(event.payload);
+      else turnItems[itemIndex] = event.payload;
+      const next = { ...base, turnItems };
       // Only interrupt requests can change another item's visibility. Streaming
       // text/tool updates must not recheck every row against every run.
-      const previous = projection.turnItems.find((item) => item.id === event.payload.id);
+      const previous = itemIndex === -1 ? undefined : projection.turnItems[itemIndex];
       const visible =
         event.payload.type === "run_interrupt_request" || previous?.type === "run_interrupt_request"
           ? { ...next, visibleTurnItems: activeVisibleTurnItems(next) }

@@ -19,7 +19,8 @@ vi.mock("@effect/atom-react", () => ({
           : {},
 }));
 vi.mock("./use-composer-drafts", () => ({
-  composerDraftsAtom: "drafts",
+  composerDraftsAtom: "all-drafts",
+  questionAttachmentDraftsAtom: () => "drafts",
   clearComposerDraft: vi.fn(),
 }));
 vi.mock("./composer-attachment-uploads", async () => ({
@@ -47,6 +48,7 @@ vi.mock("./entities", () => ({
       ],
     ]),
 }));
+vi.mock("./session", () => ({ readEnvironmentScope: () => true }));
 vi.mock("./threads", () => ({ threadEnvironment: {} }));
 vi.mock("./use-atom-command", () => ({ useAtomCommand: () => vi.fn() }));
 vi.mock("./use-thread-selection", () => ({

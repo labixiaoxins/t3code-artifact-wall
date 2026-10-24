@@ -43,8 +43,8 @@ Choose **Sign-in method** in the Antigravity provider settings:
 | Gemini API key             | API key; choose Connect without a browser                                                    |
 | Agent Platform / Vertex AI | API key, or GCP project and location with Application Default Credentials on the environment |
 
-The Antigravity API key field is stored in plain text in settings on the
-environment. The agent uses the method and credentials selected for this instance;
+The environment stores the Antigravity API key outside its settings file, and
+clients only see whether one is saved. The agent uses the method and credentials selected for this instance;
 ambient `GEMINI_API_KEY` and Google credential variables do not override them.
 Changing the method stops the instance's sessions. Sign out before replacing an
 account.
@@ -124,6 +124,10 @@ installation. Clear any explicit binary path pointing into that runtime. Removal
 is refused while the runtime is in use.
 
 ## Check access and troubleshoot
+
+Open **Usage > Limits** to see the remaining Gemini and shared Claude/GPT allowances
+for Google sign-ins. Each group has separate five-hour and weekly limits and reset
+times. Limits refresh with provider status and include usage outside T3 Code.
 
 A server restart keeps your Google sign-in. The provider shows the saved account
 until a session, a refresh, or a sign-out reports something new.

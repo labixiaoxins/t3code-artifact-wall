@@ -54,6 +54,7 @@ import {
   OrchestrationV2ThreadBoundedSnapshot,
   OrchestrationV2ThreadDetailSnapshot,
   OrchestrationV2ThreadHistoryPage,
+  OrchestrationV2ThreadTranscript,
 } from "./orchestrationV2.ts";
 import { Project, ProjectMutation, ProjectSnapshot } from "./project.ts";
 import {
@@ -92,6 +93,7 @@ export const EnvironmentRequestInvalidReason = Schema.Literals([
   "scope_not_granted",
   "invalid_command",
   "invalid_history_cursor",
+  "thread_transcript_too_large",
 ]);
 export type EnvironmentRequestInvalidReason = typeof EnvironmentRequestInvalidReason.Type;
 
@@ -150,7 +152,6 @@ export class EnvironmentAuthInvalidError extends Schema.TaggedError<EnvironmentA
   {
     code: Schema.Literal("auth_invalid"),
     reason: EnvironmentAuthInvalidReason,
-    // Older servers do not send a DPoP failure category.
     dpopFailureReason: Schema.optionalKey(DpopFailureReason),
     traceId: TrimmedNonEmptyString,
   },
@@ -170,6 +171,7 @@ export class EnvironmentScopeRequiredError extends Schema.TaggedError<Environmen
   {
     code: Schema.Literal("insufficient_scope"),
     requiredScope: AuthEnvironmentScope,
+    requiredPermission: Schema.optionalKey(Schema.String),
     traceId: TrimmedNonEmptyString,
   },
   { httpApiStatus: 403 },
@@ -179,7 +181,7 @@ export class EnvironmentScopeRequiredError extends Schema.TaggedError<Environmen
   }
 
   override get message(): string {
-    return `This request needs the ${this.requiredScope} scope, which this client does not have.`;
+    return `This request needs the ${this.requiredPermission ?? this.requiredScope} scope, which this client does not have.`;
   }
 }
 
@@ -406,26 +408,105 @@ export const EnvironmentCloudRelayConfigResult = Schema.Struct({
 });
 export type EnvironmentCloudRelayConfigResult = typeof EnvironmentCloudRelayConfigResult.Type;
 
+export const EnvironmentConnectReachabilityCause = Schema.Literals([
+  "not_linked",
+  "connector_not_running",
+  "connector_not_ready",
+  "edge_unreachable",
+  "no_connector",
+  "origin_unreachable",
+  "dns_failed",
+  "timeout",
+  "unexpected_response",
+]);
+export type EnvironmentConnectReachabilityCause = typeof EnvironmentConnectReachabilityCause.Type;
+
+/** Whether other devices can reach this environment through its T3 Connect tunnel. */
+export const EnvironmentConnectReachability = Schema.Union([
+  Schema.Struct({
+    status: Schema.Literal("reachable"),
+    checkedAt: Schema.String,
+    /** Null when cloudflared did not report a count. */
+    readyConnections: Schema.NullOr(Schema.Int),
+    protocol: Schema.NullOr(Schema.String),
+  }),
+  Schema.Struct({
+    status: Schema.Literal("unreachable"),
+    checkedAt: Schema.String,
+    cause: EnvironmentConnectReachabilityCause,
+    reason: Schema.String,
+    hint: Schema.NullOr(Schema.String),
+    fix: Schema.String,
+  }),
+]);
+export type EnvironmentConnectReachability = typeof EnvironmentConnectReachability.Type;
+
+/** "Tunnel connected · 4 connections · QUIC" for a healthy check. */
+export function formatConnectReachable(
+  result: Extract<EnvironmentConnectReachability, { status: "reachable" }>,
+): string {
+  const count = result.readyConnections;
+  return [
+    "Tunnel connected",
+    ...(count === null ? [] : [`${count} connection${count === 1 ? "" : "s"}`]),
+    ...(result.protocol ? [result.protocol.toUpperCase()] : []),
+  ].join(" · ");
+}
+
+/**
+ * Sections of docs/user/t3-connect-troubleshooting.md. Each is the GitHub anchor of a
+ * heading there; the test fails when a heading is renamed without updating this list.
+ */
+export const T3_CONNECT_TROUBLESHOOTING_SECTIONS = [
+  "the-hosts-tunnel-is-offline",
+  "port-7844-is-blocked-on-the-host",
+  "the-tunnel-works-but-t3-code-does-not-answer",
+  "the-t3-connect-address-does-not-resolve-or-answer",
+  "this-device-cant-reach-t3-connect",
+  "sign-in-account-or-link-problems",
+  "the-clock-is-off",
+  "the-host-runs-an-older-t3-code",
+  "t3-connect-returned-an-error",
+] as const;
+export type T3ConnectTroubleshootingSection = (typeof T3_CONNECT_TROUBLESHOOTING_SECTIONS)[number];
+
+/** Clients, the CLI, and server logs link here as "More info". */
+export function t3ConnectTroubleshootingUrl(section: T3ConnectTroubleshootingSection): string {
+  return `https://github.com/pingdotgg/t3code/blob/main/docs/user/t3-connect-troubleshooting.md#${section}`;
+}
+
+const REACHABILITY_SECTION = {
+  not_linked: "sign-in-account-or-link-problems",
+  connector_not_running: "the-hosts-tunnel-is-offline",
+  connector_not_ready: "the-hosts-tunnel-is-offline",
+  no_connector: "the-hosts-tunnel-is-offline",
+  edge_unreachable: "port-7844-is-blocked-on-the-host",
+  origin_unreachable: "the-tunnel-works-but-t3-code-does-not-answer",
+  unexpected_response: "the-tunnel-works-but-t3-code-does-not-answer",
+  dns_failed: "the-t3-connect-address-does-not-resolve-or-answer",
+  timeout: "the-t3-connect-address-does-not-resolve-or-answer",
+} satisfies Record<EnvironmentConnectReachabilityCause, T3ConnectTroubleshootingSection>;
+
+export function connectReachabilityHelpUrl(cause: EnvironmentConnectReachabilityCause): string {
+  return t3ConnectTroubleshootingUrl(REACHABILITY_SECTION[cause]);
+}
+
 export const EnvironmentCloudLinkStateResult = Schema.Struct({
   linked: Schema.Boolean,
   cloudUserId: Schema.NullOr(Schema.String),
   relayUrl: Schema.NullOr(Schema.String),
   relayIssuer: Schema.NullOr(Schema.String),
-  // A managed Cloudflare tunnel is provisioned for this link. False for a
-  // publish-only link (activity publishing without a relay-managed tunnel), so
-  // clients can present the two capabilities as independent settings.
-  // Optional so newer clients tolerate older environment servers.
   managedTunnelActive: Schema.optional(Schema.Boolean),
   publishAgentActivity: Schema.Boolean,
-  // Opt-in: T3 Connect holds webhook requests while this environment is
-  // offline. Optional so newer clients tolerate older environment servers.
   holdWebhooksWhileOffline: Schema.optional(Schema.Boolean),
+  linkRevoked: Schema.optional(Schema.Boolean),
+  /** The latest check the server ran on its own, absent until one finishes. */
+  reachability: Schema.optional(EnvironmentConnectReachability),
 });
 export type EnvironmentCloudLinkStateResult = typeof EnvironmentCloudLinkStateResult.Type;
 
 export const EnvironmentCloudPreferencesRequest = Schema.Struct({
   publishAgentActivity: Schema.Boolean,
-  // Omit to leave the current value unchanged.
   holdWebhooksWhileOffline: Schema.optional(Schema.Boolean),
 });
 export type EnvironmentCloudPreferencesRequest = typeof EnvironmentCloudPreferencesRequest.Type;
@@ -527,12 +608,6 @@ class EnvironmentAuthHttpApi extends HttpApiGroup.make("auth")
     }).middleware(EnvironmentAuthenticatedAuth),
   ) {}
 
-/**
- * The OAuth authorization server outside agents use to sign in to `/mcp`.
- * `authorize` is where the agent sends the browser: it answers a redirect to
- * the web app's approval page, or a plain error page for a request that names
- * an unverified client or redirect, so the response is not a schema.
- */
 class EnvironmentMcpOAuthHttpApi extends HttpApiGroup.make("mcpOAuth")
   .add(
     HttpApiEndpoint.get("protectedResource", "/.well-known/oauth-protected-resource", {
@@ -583,8 +658,14 @@ const EnvironmentOrchestrationThreadSnapshotParams = Schema.Struct({
   threadId: ThreadId,
 });
 
+const EnvironmentOrchestrationThreadBoundedSnapshotQuery = Schema.Struct({
+  compactTurnItems: Schema.optionalKey(Schema.String),
+});
+
 const EnvironmentOrchestrationThreadHistoryQuery = Schema.Struct({
   cursor: TrimmedNonEmptyString,
+  throughEntryId: Schema.optional(TrimmedNonEmptyString),
+  view: Schema.optional(Schema.Literals(["conversation", "activity"])),
 });
 
 const EnvironmentOrchestrationThreadHistoryErrors = [
@@ -611,9 +692,18 @@ class EnvironmentOrchestrationHttpApi extends HttpApiGroup.make("orchestration")
     }).middleware(EnvironmentAuthenticatedAuth),
   )
   .add(
+    HttpApiEndpoint.get("threadTranscript", "/api/orchestration/threads/:threadId/transcript", {
+      headers: OrchestrationProtocolHeaders,
+      params: EnvironmentOrchestrationThreadSnapshotParams,
+      success: OrchestrationV2ThreadTranscript,
+      error: [EnvironmentRequestInvalidError, ...EnvironmentOrchestrationThreadSnapshotErrors],
+    }).middleware(EnvironmentAuthenticatedAuth),
+  )
+  .add(
     HttpApiEndpoint.get("threadBoundedSnapshot", "/api/orchestration/threads/:threadId/bounded", {
       headers: OrchestrationProtocolHeaders,
       params: EnvironmentOrchestrationThreadSnapshotParams,
+      query: EnvironmentOrchestrationThreadBoundedSnapshotQuery,
       success: OrchestrationV2ThreadBoundedSnapshot,
       error: EnvironmentOrchestrationThreadSnapshotErrors,
     }).middleware(EnvironmentAuthenticatedAuth),
@@ -645,7 +735,6 @@ class EnvironmentProjectsHttpApi extends HttpApiGroup.make("projects")
     }).middleware(EnvironmentAuthenticatedAuth),
   ) {}
 
-/** Large, compressible pull-request payloads travel over HTTP rather than the RPC socket. */
 class EnvironmentPullRequestsHttpApi extends HttpApiGroup.make("pullRequests").add(
   HttpApiEndpoint.post("diff", "/api/pull-requests/diff", {
     headers: OptionalBearerHeaders,
@@ -682,6 +771,13 @@ class EnvironmentConnectHttpApi extends HttpApiGroup.make("connect")
     HttpApiEndpoint.get("linkState", "/api/connect/link-state", {
       headers: OptionalBearerHeaders,
       success: EnvironmentCloudLinkStateResult,
+      error: EnvironmentHttpCloudErrors,
+    }).middleware(EnvironmentAuthenticatedAuth),
+  )
+  .add(
+    HttpApiEndpoint.post("checkReachability", "/api/connect/reachability", {
+      headers: OptionalBearerHeaders,
+      success: EnvironmentConnectReachability,
       error: EnvironmentHttpCloudErrors,
     }).middleware(EnvironmentAuthenticatedAuth),
   )

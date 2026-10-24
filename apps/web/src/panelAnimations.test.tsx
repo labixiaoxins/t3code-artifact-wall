@@ -1,64 +1,41 @@
-import { act, useLayoutEffect } from "react";
+import { act } from "react";
 import { create, type ReactTestRenderer } from "react-test-renderer";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { expect, it, vi } from "vite-plus/test";
+import { usePanelPresence } from "./panelAnimations";
 
-import { usePanelNavigationSuppression } from "./panelAnimations";
-
-let renderer: ReactTestRenderer | null = null;
-let pendingFrames: FrameRequestCallback[] = [];
-let observed: boolean[] = [];
-
-function SuppressionProbe({ navigationKey }: { navigationKey: string }) {
-  const suppressed = usePanelNavigationSuppression(navigationKey);
-  useLayoutEffect(() => {
-    observed.push(suppressed);
-  }, [suppressed]);
-  return null;
-}
-
-beforeEach(() => {
-  pendingFrames = [];
-  observed = [];
+it("retains the last committed open panel without render loops for fresh values", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-  vi.stubGlobal("window", {
-    requestAnimationFrame: vi.fn((callback: FrameRequestCallback) => {
-      pendingFrames.push(callback);
-      return pendingFrames.length;
-    }),
-    cancelAnimationFrame: vi.fn(),
-  });
-});
-
-afterEach(async () => {
-  await act(() => renderer?.unmount());
-  vi.unstubAllGlobals();
-});
-
-async function paintPendingFrame() {
-  const callback = pendingFrames.shift();
-  await act(() => callback?.(0));
-}
-
-describe("usePanelNavigationSuppression", () => {
-  it("suppresses initial and navigated panel state until each route has painted", async () => {
-    await act(() => {
-      renderer = create(<SuppressionProbe navigationKey="/thread/one" />);
-    });
-    expect(observed.at(-1)).toBe(true);
-
-    await paintPendingFrame();
-    expect(observed.at(-1)).toBe(true);
-    await paintPendingFrame();
-    expect(observed.at(-1)).toBe(false);
-
-    await act(() => {
-      renderer?.update(<SuppressionProbe navigationKey="/thread/two" />);
-    });
-    expect(observed.at(-1)).toBe(true);
-
-    await paintPendingFrame();
-    expect(observed.at(-1)).toBe(true);
-    await paintPendingFrame();
-    expect(observed.at(-1)).toBe(false);
-  });
+  vi.useFakeTimers();
+  vi.stubGlobal("window", { setTimeout, clearTimeout });
+  const renders = vi.fn();
+  function Probe({ open, scope, label, animated = true }: {
+    open: boolean; scope: string; label: string; animated?: boolean;
+  }) {
+    const result = usePanelPresence(open, { label }, animated, scope, 200);
+    renders(result.present, result.value?.label ?? null);
+    return null;
+  }
+  let root: ReactTestRenderer | undefined;
+  try {
+    await act(() => { root = create(<Probe open scope="a" label="first" />); });
+    expect(renders.mock.calls).toEqual([[true, "first"]]);
+    await act(() => { root!.update(<Probe open scope="a" label="updated" />); });
+    expect(renders.mock.lastCall).toEqual([true, "updated"]);
+    expect(renders).toHaveBeenCalledTimes(2);
+    await act(() => { root!.update(<Probe open={false} scope="a" label="uncommitted-close" />); });
+    expect(renders.mock.lastCall).toEqual([true, "updated"]);
+    await act(() => { vi.advanceTimersByTime(200); });
+    expect(renders.mock.lastCall).toEqual([false, null]);
+    await act(() => { root!.update(<Probe open scope="b" label="second" />); });
+    expect(renders.mock.lastCall).toEqual([true, "second"]);
+    await act(() => { root!.update(<Probe open={false} scope="a" label="other-scope" />); });
+    expect(renders.mock.lastCall).toEqual([false, null]);
+    await act(() => { root!.update(<Probe open scope="a" label="reopened" />); });
+    await act(() => { root!.update(<Probe open={false} scope="a" label="closed" animated={false} />); });
+    expect(renders.mock.lastCall).toEqual([false, null]);
+  } finally {
+    if (root) await act(() => root!.unmount());
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  }
 });

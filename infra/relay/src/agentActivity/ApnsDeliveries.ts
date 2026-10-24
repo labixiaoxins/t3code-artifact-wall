@@ -24,6 +24,7 @@ import {
   sanitizeAgentActivityAggregateState,
   sanitizeApnsNotificationPayload,
 } from "./agentActivityPayloads.ts";
+import { makeAggregateState } from "./agentActivityAggregate.ts";
 import * as Apns from "./ApnsClient.ts";
 import {
   ApnsDeliveryJobLiveActivityAggregateMissing,
@@ -57,9 +58,6 @@ export {
 } from "./agentActivityAlerts.ts";
 
 const MIN_LIVE_ACTIVITY_UPDATE_INTERVAL_MS = 15_000;
-// How long a just-armed card may sit with an empty aggregate before an end is
-// warranted; covers the gap between arming on send and the environment's
-// first publish reaching the relay.
 const FRESHLY_ARMED_GRACE_MS = 2 * 60 * 1_000;
 const PERMANENT_APNS_TOKEN_REASONS = new Set([
   "BadDeviceToken",
@@ -241,18 +239,9 @@ function chooseLiveActivityDelivery(input: {
         }
       : null;
   }
-  // Activities are started by the app in the foreground, never remotely.
-  // Without a registered token there is nothing addressable; attention
-  // transitions fall back to the push notification channel until the user
-  // next arms the card from the app.
   if (!input.target.activity_push_token) {
     return null;
   }
-  // An armed card always shows content: live agents, or recently finished
-  // ones (the publisher keeps Done/Failed rows in the aggregate for a
-  // while). A null aggregate means there is truly nothing left to show, so
-  // the card ends — arming is cheap now that the app re-arms on any open
-  // with content.
   if (input.aggregate === null) {
     // Except right after arming: the app arms the card the moment the user
     // starts work, and the token registration's replay can land before the
@@ -576,6 +565,26 @@ export const make = Effect.gen(function* () {
     );
   });
 
+  const userHasContentToShow = Effect.fnUntraced(function* (userId: string) {
+    const now = yield* DateTime.now;
+    return yield* activityRows.listForUser({ userId }).pipe(
+      Effect.map(
+        (activeStates) =>
+          makeAggregateState({
+            activeStates,
+            terminalState: null,
+            nowMs: now.epochMilliseconds,
+          }) !== null,
+      ),
+      // Keep the card on persistence failures; a later sweep can retry.
+      Effect.catch((error) =>
+        Effect.logWarning("Content recheck failed; keeping the card", { error }).pipe(
+          Effect.as(true),
+        ),
+      ),
+    );
+  });
+
   const stateIdentityIsCurrent = Effect.fnUntraced(function* (input: {
     readonly userId: string;
     readonly environmentId: string;
@@ -596,9 +605,6 @@ export const make = Effect.gen(function* () {
             current.phase === input.phase &&
             current.updatedAt === input.updatedAt,
         ),
-        // A transient persistence failure must not permanently discard a
-        // legitimate alert. Fail open and let the signed job's retry/dedupe
-        // protections handle transport failures as usual.
         Effect.catchCause((cause) =>
           Effect.logWarning("agent-activity state recheck failed; allowing queued delivery", {
             cause,
@@ -643,8 +649,6 @@ export const make = Effect.gen(function* () {
     readonly userId: string;
     readonly notification: ApnsNotificationPayload;
   }) {
-    // Jobs from older relay versions do not carry a state identity. Preserve
-    // backwards compatibility and only revalidate newly queued jobs.
     if (input.notification.phase === undefined || input.notification.updatedAt === undefined) {
       return true;
     }
@@ -764,6 +768,20 @@ export const make = Effect.gen(function* () {
         yield* attempts.completeSourceJob({
           sourceJobId: input.sourceJobId,
           apnsReason: "Stale agent activity state skipped.",
+        });
+        return staleJobResult({ deviceId: input.target.device_id, kind: input.kind });
+      }
+      // A contentless end must not retire a card that newer work now owns. An
+      // end for a device that turned Live Activities off still goes out.
+      if (
+        input.kind === "live_activity_end" &&
+        aggregate === null &&
+        parsePreferences(currentTarget.preferences_json)?.liveActivitiesEnabled !== false &&
+        (yield* userHasContentToShow(input.target.user_id))
+      ) {
+        yield* attempts.completeSourceJob({
+          sourceJobId: input.sourceJobId,
+          apnsReason: "Stale APNs end job skipped.",
         });
         return staleJobResult({ deviceId: input.target.device_id, kind: input.kind });
       }

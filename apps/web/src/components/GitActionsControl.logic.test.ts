@@ -1,3 +1,4 @@
+import { SourceControlProviderKind } from "@t3tools/contracts";
 import type { VcsStatusResult } from "@t3tools/contracts";
 import { assert, describe, it } from "vite-plus/test";
 import {
@@ -7,6 +8,7 @@ import {
   requiresDefaultBranchConfirmation,
   resolveAutoFeatureBranchName,
   resolveDefaultBranchActionDialogCopy,
+  resolveFeatureBranchUnavailableReason,
   resolveGitActionProgressPresentation,
   resolveGitActionResultToastTiming,
   resolveLiveThreadBranchUpdate,
@@ -343,7 +345,7 @@ describe("when: source control provider uses merge requests", () => {
     const gitlabStatus = status({
       aheadCount: 2,
       sourceControlProvider: {
-        kind: "gitlab",
+        kind: SourceControlProviderKind.make("gitlab"),
         name: "GitLab",
         baseUrl: "https://gitlab.com",
       },
@@ -365,7 +367,7 @@ describe("when: source control provider uses merge requests", () => {
 });
 
 describe("when: ref is clean, up to date, and has no open PR", () => {
-  it("enables create PR when synced with upstream but ahead of default", () => {
+  it("enables create PR when synced with upstream but ahead of default, even with local changes", () => {
     const syncedFeature = status({
       aheadCount: 0,
       behindCount: 0,
@@ -383,6 +385,12 @@ describe("when: ref is clean, up to date, and has no open PR", () => {
 
     const items = buildMenuItems(syncedFeature, false);
     assert.equal(items.find((item) => item.id === "pr")?.disabled, false);
+
+    const dirtyFeature = { ...syncedFeature, hasWorkingTreeChanges: true };
+    assert.equal(
+      buildMenuItems(dirtyFeature, false).find((item) => item.id === "pr")?.disabled,
+      false,
+    );
   });
 
   it("resolveQuickAction returns disabled no-action state", () => {
@@ -550,7 +558,7 @@ describe("when: working tree has local changes", () => {
     ]);
   });
 
-  it("buildMenuItems enables push for ahead commits while local changes remain uncommitted", () => {
+  it("buildMenuItems enables push and create PR for ahead commits while local changes remain uncommitted", () => {
     const items = buildMenuItems(
       status({
         refName: "feature/test",
@@ -584,7 +592,7 @@ describe("when: working tree has local changes", () => {
       {
         id: "pr",
         label: "Create PR",
-        disabled: true,
+        disabled: false,
         icon: "pr",
         kind: "open_dialog",
         dialogAction: "create_pr",
@@ -1015,6 +1023,21 @@ describe("resolveDefaultBranchActionDialogCopy", () => {
         'This action will commit, push, and create a pull request on "main". You can continue on this ref or create a feature ref and run the same action there.',
       continueLabel: "Commit, push & create PR",
     });
+  });
+});
+
+describe("resolveFeatureBranchUnavailableReason", () => {
+  it("blocks the feature branch when there is nothing to commit", () => {
+    assert.equal(
+      resolveFeatureBranchUnavailableReason({ branchName: "main", hasWorkingTreeChanges: false }),
+      "There are no changes to commit, so a feature branch can't be named. Create a branch yourself or continue on main.",
+    );
+  });
+
+  it("allows the feature branch when there are changes to commit", () => {
+    assert.isNull(
+      resolveFeatureBranchUnavailableReason({ branchName: "main", hasWorkingTreeChanges: true }),
+    );
   });
 });
 

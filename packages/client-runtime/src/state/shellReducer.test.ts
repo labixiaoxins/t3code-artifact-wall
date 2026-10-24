@@ -1,8 +1,12 @@
-import { ProjectId, ThreadId } from "@t3tools/contracts";
+import { ProjectId, ThreadId, type ThreadPullRequestLink } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import { v2Project, v2ShellSnapshot, v2ThreadShell } from "./orchestrationV2TestFixtures.ts";
-import { applyShellStreamEvent, mergeShellSnapshotProjects } from "./shellReducer.ts";
+import {
+  applyShellStreamEvent,
+  mergeShellSnapshotProjects,
+  reuseUnchangedThreadShells,
+} from "./shellReducer.ts";
 
 const repositoryIdentity = {
   canonicalKey: "github.com/example/repo",
@@ -178,7 +182,6 @@ describe("applyShellStreamEvent", () => {
       threads: [{ ...v2ThreadShell, title: "Server thread" }],
     };
 
-    // Lower-sequence marked enrichment is identity-only and must not replace structure.
     const afterEnrichment = mergeShellSnapshotProjects(previous, serverSnapshot, {
       resolvedRepositoryIdentityRoots: [v2Project.workspaceRoot],
     });
@@ -187,7 +190,6 @@ describe("applyShellStreamEvent", () => {
     expect(afterEnrichment.projects[0]?.repositoryIdentity).toBeNull();
     expect(afterEnrichment.threads[0]?.title).toBe("Local-only thread");
 
-    // Unmarked authoritative at the same lower sequence still performs the reset.
     const afterAuthoritative = mergeShellSnapshotProjects(afterEnrichment, serverSnapshot);
     expect(afterAuthoritative.snapshotSequence).toBe(3);
     expect(afterAuthoritative.projects[0]?.title).toBe("Server reset");
@@ -222,6 +224,22 @@ describe("applyShellStreamEvent", () => {
     expect(afterEnrichment.projects[0]?.title).toBe("Server reset");
     expect(afterEnrichment.projects[0]?.repositoryIdentity).toBeNull();
     expect(afterEnrichment.threads[0]?.title).toBe("Server thread");
+  });
+
+  it("keeps the project object when an enrichment re-resolves an unchanged identity", () => {
+    const project = { ...v2Project, repositoryIdentity };
+    const previous = { ...v2ShellSnapshot, snapshotSequence: 5, projects: [project] };
+    const next = mergeShellSnapshotProjects(
+      previous,
+      {
+        ...v2ShellSnapshot,
+        snapshotSequence: 5,
+        projects: [{ ...v2Project, repositoryIdentity: { ...repositoryIdentity } }],
+      },
+      { resolvedRepositoryIdentityRoots: [v2Project.workspaceRoot] },
+    );
+
+    expect(next.projects[0]).toBe(project);
   });
 
   it("takes identity from a lower-sequence enrichment without reverting live thread state", () => {
@@ -461,5 +479,86 @@ describe("applyShellStreamEvent", () => {
     } as never);
 
     expect(next).toBe(v2ShellSnapshot);
+  });
+});
+
+describe("reuseUnchangedThreadShells", () => {
+  const link: ThreadPullRequestLink = {
+    host: "github.com",
+    repository: "pingdotgg/t3code",
+    number: 3,
+    url: "https://github.com/pingdotgg/t3code/pull/3",
+    source: "agent",
+    linkedAt: "2026-06-20T00:00:00.000Z",
+    snapshot: null,
+    stack: null,
+  };
+  const linked = { ...v2ThreadShell, pullRequests: [link] };
+  const other = { ...v2ThreadShell, id: ThreadId.make("thread-other"), title: "Other" };
+
+  it("keeps the previous object for an unchanged row, even without its deferred links", () => {
+    const previous = { ...v2ShellSnapshot, threads: [linked, other] };
+    const { pullRequests: _links, ...withoutLinks } = linked;
+    const next = reuseUnchangedThreadShells(previous, {
+      ...v2ShellSnapshot,
+      snapshotSequence: 5,
+      threads: [withoutLinks, { ...other, title: "Renamed" }],
+    });
+    expect(next.snapshotSequence).toBe(5);
+    expect(next.threads[0]).toBe(linked);
+    expect(next.threads[1]).not.toBe(other);
+    expect(next.threads[1]?.title).toBe("Renamed");
+  });
+
+  it("returns the incoming snapshot when no row is unchanged", () => {
+    const incoming = { ...v2ShellSnapshot, threads: [{ ...other, title: "Renamed" }] };
+    expect(reuseUnchangedThreadShells({ ...v2ShellSnapshot, threads: [other] }, incoming)).toBe(
+      incoming,
+    );
+  });
+
+  it("retains deferred links when the only row changes status", () => {
+    const { pullRequests: _links, ...withoutLinks } = linked;
+    const next = reuseUnchangedThreadShells(
+      { ...v2ShellSnapshot, threads: [linked] },
+      {
+        ...v2ShellSnapshot,
+        snapshotSequence: 5,
+        threads: [{ ...withoutLinks, status: "running" }],
+      },
+    );
+    expect(next.snapshotSequence).toBe(5);
+    expect(next.threads[0]?.status).toBe("running");
+    expect(next.threads[0]?.pullRequests).toBe(linked.pullRequests);
+  });
+
+  it("retains deferred links on a renamed row alongside an unchanged sibling", () => {
+    const { pullRequests: _links, ...withoutLinks } = linked;
+    const next = reuseUnchangedThreadShells(
+      { ...v2ShellSnapshot, threads: [linked, other] },
+      { ...v2ShellSnapshot, threads: [{ ...withoutLinks, title: "Renamed" }, { ...other }] },
+    );
+    expect(next.threads[0]?.title).toBe("Renamed");
+    expect(next.threads[0]?.pullRequests).toBe(linked.pullRequests);
+    expect(next.threads[1]).toBe(other);
+  });
+
+  it("keeps an explicit link removal when metadata also changes", () => {
+    const updated = { ...linked, title: "Renamed", pullRequests: [] };
+    const incoming = { ...v2ShellSnapshot, threads: [updated] };
+    const next = reuseUnchangedThreadShells({ ...v2ShellSnapshot, threads: [linked] }, incoming);
+    expect(next).toBe(incoming);
+    expect(next.threads[0]?.pullRequests).toEqual([]);
+  });
+
+  it("keeps explicitly refreshed links instead of the previous links", () => {
+    const updated = {
+      ...linked,
+      pullRequests: [{ ...link, number: 4, url: "https://github.com/pingdotgg/t3code/pull/4" }],
+    };
+    const incoming = { ...v2ShellSnapshot, threads: [updated] };
+    const next = reuseUnchangedThreadShells({ ...v2ShellSnapshot, threads: [linked] }, incoming);
+    expect(next).toBe(incoming);
+    expect(next.threads[0]?.pullRequests).toBe(updated.pullRequests);
   });
 });

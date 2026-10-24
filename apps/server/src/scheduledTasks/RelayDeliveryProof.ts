@@ -1,6 +1,4 @@
 /**
- * Whether a webhook request really came through this environment's relay.
- *
  * The relay's delivery id, receive time and trace context arrive as plain
  * headers, and the webhook URL can also be called directly, so they are only
  * trusted alongside a proof the relay signed with its mint key. A request
@@ -34,7 +32,6 @@ const text = (bytes: Option.Option<Uint8Array>) =>
 export class RelayDeliveryProof extends Context.Service<
   RelayDeliveryProof,
   {
-    /** The relay's own delivery id and receive time, when the request proves it came from the relay. */
     readonly verify: (input: {
       readonly headers: Readonly<Record<string, string>>;
       readonly hookId: string;
@@ -47,8 +44,8 @@ export class RelayDeliveryProof extends Context.Service<
 const make = Effect.gen(function* () {
   const secrets = yield* ServerSecretStore.ServerSecretStore;
   const environment = yield* ServerEnvironment.ServerEnvironment;
-  const verify: RelayDeliveryProof["Service"]["verify"] = (input) =>
-    Effect.gen(function* () {
+  const verify: RelayDeliveryProof["Service"]["verify"] = Effect.fn("webhook.verifyRelayDelivery")(
+    function* (input) {
       const proof = input.headers[RELAY_HOOK_DELIVERY_HEADER];
       const deliveryId = input.headers["x-t3-relay-delivery-id"];
       const receivedAt = input.headers["x-t3-relay-received-at"];
@@ -61,7 +58,6 @@ const make = Effect.gen(function* () {
       );
       const relayUrl = text(yield* secrets.get(RELAY_URL_SECRET));
       const relayIssuer = Option.isSome(issuer) ? issuer : relayUrl;
-      // Not linked to T3 Connect: no relay can be delivering to us.
       if (Option.isNone(publicKey) || Option.isNone(relayIssuer)) return Option.none();
       const environmentId = yield* environment.getEnvironmentId;
       const payload = yield* verifyRelayJwt({
@@ -84,7 +80,9 @@ const make = Effect.gen(function* () {
         return Option.none();
       }
       return Option.some({ deliveryId, receivedAt });
-    }).pipe(Effect.orElseSucceed(Option.none), Effect.withSpan("webhook.verifyRelayDelivery"));
+    },
+    Effect.orElseSucceed(Option.none),
+  );
   return RelayDeliveryProof.of({ verify });
 });
 

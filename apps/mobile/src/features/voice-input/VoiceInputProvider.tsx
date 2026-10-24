@@ -1,3 +1,4 @@
+import { RegistryContext, useAtomMount } from "@effect/atom-react";
 import {
   AudioModule,
   RecordingPresets,
@@ -20,9 +21,16 @@ import {
   type ReactNode,
 } from "react";
 import { AppState, Platform } from "react-native";
+import { AsyncResult } from "effect/reactivity";
 import { useSharedValue } from "react-native-reanimated";
 
+import {
+  microphoneOrder,
+  preferredMicrophoneInput,
+  rememberMicrophones,
+} from "../../lib/microphonePriority";
 import { getLocalVoiceTranscriber } from "../../native/voiceTranscription";
+import { mobilePreferencesAtom, updateMobilePreferencesAtom } from "../../state/preferences";
 import { getNativeShowcaseScene } from "../showcase/nativeShowcaseScene";
 import {
   VOICE_RECORDING_LIMIT_SECONDS,
@@ -70,9 +78,7 @@ async function configureVoiceRecordingAudio(): Promise<void> {
   } catch (error) {
     try {
       await releaseVoiceRecordingAudio();
-    } catch {
-      // Keep the setup error. The controller has not started a recorder yet.
-    }
+    } catch {}
     throw error;
   }
 }
@@ -91,6 +97,9 @@ export function useGlobalVoiceInput() {
 }
 
 function useVoiceInputRuntime() {
+  const registry = use(RegistryContext);
+  useAtomMount(mobilePreferencesAtom);
+  useAtomMount(updateMobilePreferencesAtom);
   const [{ state, ownerKey, label }, setState] = useState({
     state: INITIAL_STATE,
     ownerKey: null as string | null,
@@ -115,7 +124,6 @@ function useVoiceInputRuntime() {
   const recorderRef = useRef<LazyVoiceRecorder<RecorderState> | null>(null);
 
   if (!sessionRef.current || !recorderRef.current) {
-    // The native recorder is created when dictation starts, not on app launch.
     const recorder = createLazyVoiceRecorder({
       create: () => new AudioModule.AudioRecorder(VOICE_RECORDING_OPTIONS),
       onStatus: (status: RecordingStatus) => {
@@ -125,6 +133,21 @@ function useVoiceInputRuntime() {
           error: status.error,
           url: status.url,
         });
+      },
+      // Read when recording starts so preference changes do not re-render every composer.
+      selectInput: (inputs) => {
+        const preferences = registry.get(mobilePreferencesAtom);
+        if (!AsyncResult.isSuccess(preferences)) return null;
+        const known = microphoneOrder(preferences.value.microphones);
+        const order = rememberMicrophones(known, inputs);
+        if (order !== known) {
+          registry.set(updateMobilePreferencesAtom, {
+            transform: (current) => ({
+              microphones: rememberMicrophones(microphoneOrder(current.microphones), inputs),
+            }),
+          });
+        }
+        return preferredMicrophoneInput(inputs, order);
       },
     });
     recorderRef.current = recorder;
@@ -163,7 +186,6 @@ function useVoiceInputRuntime() {
 
   useEffect(
     () => () => {
-      // Dispose first so an active recording is stopped before the recorder is released.
       controller.dispose();
       recorder.release();
     },
@@ -227,8 +249,6 @@ function useVoiceInputRuntime() {
   const cancel = useCallback(() => controller.cancel(), [controller]);
 
   return {
-    // Store screenshots show the dictation button even on simulators, whose
-    // on-device transcription is unavailable.
     isAvailable: getLocalVoiceTranscriber() !== null || getNativeShowcaseScene() !== null,
     state,
     audioLevels,

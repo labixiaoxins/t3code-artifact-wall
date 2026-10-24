@@ -1,139 +1,35 @@
-> [!NOTE]
-> This is an unofficial community fork with an artifact wall, a "needs me" inbox, subtask folding and one-click new threads. See [docs/community](docs/community/README.md). Not affiliated with T3 Tools.
+# T3 Code · 小新定制版
 
-![Needs-me inbox, folded subtasks and the artifact wall, shown with fictional data](docs/community/images/artifact-filtered-light-1280.png)
+基于 [T3 Code](https://github.com/pingdotgg/t3code) **官方 v0.1.1** 的个人定制分支。当前推荐 **C11 · 2026-10-24**，包含中文界面、成果面板、跨模型运行概览、续聊历史回看及额度常显。
 
-# T3 Code
+**[下载当前推荐版本](https://github.com/labixiaoxins/t3code-artifact-wall/releases/latest)** · [安装与使用](docs/community/README.md) · [本版改动](docs/community/CHANGELOG.md)
 
-T3 Code is an "agent harness control surface". It enables control of the agents on your machine with a best-in-class mobile app ([iOS](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824), [Android](https://play.google.com/store/apps/details?id=com.t3tools.t3code)), [web app](https://app.t3.codes) and [Electron-based desktop app](https://t3.codes).
+这是独立社区分支，不代表 T3 Tools。下载包是工作台软件，**不含账号、订阅、API 密钥、聊天、项目、私人模型通道或配对凭据**。使用者需登录自己的模型账号，遵守对应平台规则。
 
-Works with your subscriptions on Claude Code, Codex, Cursor, Grok Build, OpenCode, and Google Antigravity. If they're set up on your computer, T3 Code can control them.
+## 当前功能
 
-## "Wait, what are you selling me?"
+- **任务概览**：侧栏顶部“正在进行”汇总跨模型任务及子任务；最近访问、历史与归档、项目工具收进明确入口。
+- **成果与历史**：成果面板、成果检查信息、续聊历史只读回看、草稿持久化与恢复提示。
+- **额度常显**：聊天顶部显示主要账号的剩余额度，可选账号、窗口与顺序，默认 3 项、最多 4 项。只显示提供方实际支持的数据，无接口或失败时不伪造余额。
+- **保留修复**：设置页大段留白修复、时间线及右面板切换 React #301 修复、中英文界面与导航优化。
 
-Nothing. We built T3 Code because we wanted the best possible development experience with agents. We were inspired by existing solutions like the Codex desktop app, Conductor, Claude Desktop and Cursor Glass, but none met our bar.
+## 直接使用
 
-We wanted something performant, remote-ready, and truly open. If we ever go the wrong direction, we want you to have everything you need to fork and build the editor that you want.
+1. 在 [Releases](https://github.com/labixiaoxins/t3code-artifact-wall/releases/latest) 下载 `T3-Code-Xiaoxin-C11-macOS-arm64.zip`。当前仅提供 **Apple 芯片 Mac** 安装包，应用声明最低系统 macOS 13；没有 Windows、Intel Mac 或 Linux 安装包。
+2. 解压后将 `T3 Code (Alpha).app` 放入“应用程序”。已有 T3 请先按[升级说明](docs/community/README.md#已有-t3-如何升级)备份并完全退出旧版，只运行一份应用。
+3. 打开应用，在“设置 → 模型通道”连接自己的账号，再添加自己的项目。额度获取到可用数据后才会显示，可从聊天顶部额度入口打开“常显设置”。
 
-## Installation
+本包使用社区临时签名，**没有 Apple 开发者公证**。首次打开可能需要在“系统设置 → 隐私与安全性”确认“仍要打开”。签名完整性校验通过不代表 Apple 公证，不需要关闭系统整体安全检查。
 
-> [!WARNING]
-> T3 Code currently supports Codex, Claude, Cursor, Grok Build, OpenCode, and Antigravity. Install and authenticate at least one provider before use:
->
-> - Codex: install [Codex CLI](https://developers.openai.com/codex/cli) and run `codex login`
-> - Claude: install [Claude Code](https://claude.com/product/claude-code) and run `claude auth login`
-> - Cursor: install [Cursor CLI](https://cursor.com/cli) and run `agent login`
-> - Grok Build: install [Grok Build CLI](https://x.ai/cli) and run `grok login`
-> - OpenCode: install [OpenCode](https://opencode.ai) and run `opencode auth login`
-> - Antigravity: enable it in Settings, then use **Install Antigravity** and **Sign in with Google**. No CLI is required.
+## 范围与限制
 
-### Command line
+- 这是本机已验收的 **C11 定制版**，不追踪最新 nightly。官方更新可能覆盖定制；本包不带官方自动更新配置，请从本仓库更新。
+- Codex、Claude、Grok、Antigravity 等额度取决于账号和提供方接口。Antigravity 可能是 Claude/GPT 共享周窗口，不是 Gemini 独享余额。APIyi、WorkBuddy、豆包没有通用余额覆盖。
+- “常驻项目”按项目工作区提供；未包含此前未安装的 C6 单项常驻试验。T3 Notch/刘海、Nowdex、私人 Grok 网关、本机设备服务不在本包内。
+- 接收者电脑上的首次登录、所有模型真实调用、跨系统构建及远程/设备控制仍需接收者验收。[查看验证范围](docs/community/README.md#验证范围)。
 
-```bash
-curl -fsSL https://t3.codes/install.sh | sh
-```
+## 开发与许可
 
-On Windows, in PowerShell:
+源码已同步为 v0.1.1 + C11 定制状态；分享包 ASAR 与正式 C11 相同，只移除了包外构建标记中的本机路径并重新临时签名。构建方式见[社区说明](docs/community/README.md#从源码运行)。
 
-```powershell
-irm https://t3.codes/install.ps1 | iex
-```
-
-Then run `t3` to start the server and open the local web app. `t3 service install` keeps it running in the background, `t3 update` moves to a newer release, and `t3 --help` has the full reference.
-
-To try it once without installing, run `npx t3@latest` instead.
-
-### Desktop app
-
-Install the latest version of the desktop app from [GitHub Releases](https://github.com/pingdotgg/t3code/releases), or from your favorite package registry:
-
-#### Windows (`winget`)
-
-```bash
-winget install T3Tools.T3Code
-```
-
-#### macOS (Homebrew)
-
-```bash
-brew install --cask t3-code
-```
-
-#### Debian, Ubuntu (`.deb`)
-
-Download the `.deb` from [GitHub Releases](https://github.com/pingdotgg/t3code/releases), then:
-
-```bash
-sudo apt install ./T3-Code-*.deb
-```
-
-#### Arch Linux (AUR)
-
-Stable:
-
-```bash
-yay -S t3code-bin
-```
-
-Nightly:
-
-```bash
-yay -S t3code-nightly-bin
-```
-
-The AUR packaging is maintained in this repository under [`packaging/aur`](./packaging/aur).
-
-## Some notes
-
-We are very very early in this project. Expect bugs.
-
-We are (mostly) not accepting contributions yet. Small fixes may be considered. Big features will not be.
-
-## Documentation
-
-Full docs live in [docs/](./docs). There's no docs site yet.
-
-- [Install and first run](./docs/user/install.md)
-- [Permission modes](./docs/user/permission-modes.md)
-- [Keyboard shortcuts](./docs/user/keybindings.md)
-- [Project settings](./docs/user/project-settings.md)
-- [Appearance preferences](./docs/user/appearance.md)
-- [Remote access from a phone or another machine](./docs/user/remote-access.md)
-- [Keeping app and server in sync](./docs/user/updating.md)
-- [Source control integrations](./docs/user/source-control.md)
-- Multiple accounts: [Codex](./docs/user/providers-codex.md) · [Claude](./docs/user/providers-claude.md)
-- [Run T3 Code as a background service](./docs/user/background-service.md)
-
-Building from source? Start at [docs/internals/overview.md](./docs/internals/overview.md).
-
-## If you REALLY want to contribute still.... read this first
-
-### Install `vp`
-
-T3 Code uses Vite+ so you'll need to install the global `vp` command-line tool.
-
-#### macOS / Linux
-
-```bash
-curl -fsSL https://vite.plus | bash
-```
-
-#### Windows
-
-```bash
-irm https://vite.plus/ps1 | iex
-```
-
-Checkout their getting started guide for more information: https://viteplus.dev/guide/
-
-### Install dependencies
-
-```bash
-vp i
-```
-
-Read [CONTRIBUTING.md](./CONTRIBUTING.md) before reporting a bug or opening a PR.
-
-Have a feature request? Start an [Ideas discussion](https://github.com/pingdotgg/t3code/discussions/categories/ideas).
-
-Need support? Join the [Discord](https://discord.gg/jn4EGJjrvv).
+保留上游 [MIT License](LICENSE) 及第三方许可。[官方原始 README](README.upstream.md) 供参考，其中官方安装命令下载的是官方版本。

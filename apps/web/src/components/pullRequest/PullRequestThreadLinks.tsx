@@ -1,5 +1,7 @@
+import { uiText } from "~/i18n";
 import { Tooltip, TooltipTrigger, TooltipPopup } from "../ui/tooltip";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
+import { settlePromise, squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import type { EnvironmentId, PullRequestRef, ScopedThreadRef, ThreadId } from "@t3tools/contracts";
 import { CheckIcon, MessageSquareIcon } from "lucide-react";
 import { useState } from "react";
@@ -29,7 +31,6 @@ interface PullRequestThreadLinksProps {
   onPickerOpenChange?: (open: boolean) => void;
 }
 
-/** Thread relations belong to the detail environment, including when another environment is active. */
 export function PullRequestThreadLinks(props: PullRequestThreadLinksProps) {
   const configs = useServerConfigs();
   if (
@@ -76,17 +77,18 @@ function EnabledPullRequestThreadLinks({
   const changeLink = async (threadId: ThreadId, remove: boolean) => {
     if (parsed === null || pending) return;
     setPending(true);
-    try {
-      await linking.changeLink(scopeThreadRef(environmentId, threadId), url, !remove);
-    } catch (error) {
+    const result = await settlePromise(() =>
+      linking.changeLink(scopeThreadRef(environmentId, threadId), url, !remove),
+    );
+    setPending(false);
+    if (result._tag === "Failure") {
+      const error = squashAtomCommandFailure(result);
       toastManager.add({
         type: "error",
         title: remove ? "Could not unlink the pull request" : "Could not link the pull request",
         description: error instanceof Error ? error.message : String(error),
       });
       return;
-    } finally {
-      setPending(false);
     }
     if (linking.mode === "multiple") {
       appAtomRegistry.refresh(
@@ -150,16 +152,16 @@ function EnabledPullRequestThreadLinks({
             <PullRequestGlyph.link aria-hidden className="size-3.5" />
           )}
           {linkedHere
-            ? "Unlink from this thread"
+            ? uiText("Unlink from this thread")
             : currentThreadRef
-              ? "Link to this thread"
-              : "Link to thread"}
+              ? uiText("Link to this thread")
+              : uiText("Link to thread")}
         </MenuItem>
       ) : null}
       {display === "picker" ? (
         <Dialog open onOpenChange={onPickerOpenChange}>
           <DialogPopup className="max-w-md" showCloseButton={false}>
-            <DialogTitle className="sr-only">Link pull request to a thread</DialogTitle>
+            <DialogTitle className="sr-only">{uiText("Link pull request to a thread")}</DialogTitle>
             <ThreadPicker
               environmentId={environmentId}
               url={url}
@@ -205,13 +207,12 @@ function ThreadPicker({
     )
     .toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   return (
-    <Command mode="none" value={query} onValueChange={setQuery} aria-label="Choose a thread">
-      <CommandInput placeholder="Search threads or projects..." disabled={pending} />
+    <Command mode="none" value={query} onValueChange={setQuery} aria-label={uiText("Choose a thread")}>
+      <CommandInput placeholder={uiText("Search threads or projects...")} disabled={pending} />
       <CommandList className="max-h-80 overflow-y-auto">
         {candidates.length === 0 ? (
           <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-            No active threads found.
-          </div>
+            {uiText("No active threads found.")}</div>
         ) : (
           candidates.map((thread) => {
             const linked = linking.isLinked(thread, url);
@@ -224,7 +225,7 @@ function ThreadPicker({
               >
                 <MessageSquareIcon aria-hidden className="size-4 shrink-0" />
                 <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate">{thread.title || "Untitled thread"}</span>
+                  <span className="truncate">{thread.title || uiText("Untitled thread")}</span>
                   <span className="truncate text-xs text-muted-foreground">
                     {projectNames.get(thread.projectId)}
                   </span>
@@ -232,7 +233,7 @@ function ThreadPicker({
                 {linked ? (
                   <>
                     <CheckIcon aria-hidden className="size-3.5" />
-                    <span className="text-xs text-muted-foreground">Linked</span>
+                    <span className="text-xs text-muted-foreground">{uiText("Linked")}</span>
                   </>
                 ) : null}
               </CommandItem>

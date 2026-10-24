@@ -1,15 +1,15 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { HostProcessEnvironment, HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as Queue from "effect/Queue";
+import * as TestClock from "effect/testing/TestClock";
 import { vi } from "vite-plus/test";
-
 import type * as Electron from "electron";
-
 const { focusedWebContents, ownerWindow } = vi.hoisted(() => ({
   focusedWebContents: vi.fn(),
   ownerWindow: vi.fn(),
@@ -18,7 +18,6 @@ vi.mock("electron", () => ({
   webContents: { getFocusedWebContents: focusedWebContents },
   BrowserWindow: { fromWebContents: ownerWindow },
 }));
-
 import * as DesktopBackendConfiguration from "../../backend/DesktopBackendConfiguration.ts";
 import * as DesktopBackendManager from "../../backend/DesktopBackendManager.ts";
 import * as DesktopBackendPool from "../../backend/DesktopBackendPool.ts";
@@ -27,12 +26,14 @@ import * as ElectronWindow from "../../electron/ElectronWindow.ts";
 import * as DesktopAppSettings from "../../settings/DesktopAppSettings.ts";
 import {
   getLocalEnvironmentBootstraps,
+  installLocalBootstrapForwarding,
+  getRelayTelemetryEnabled,
   getWindowFullscreenState,
   pasteAsText,
   pickProjectFavicon,
   probeRemoteEditors,
+  revealWindow,
 } from "./window.ts";
-
 const readyWslConfig: DesktopBackendManager.DesktopBackendStartConfig = {
   executablePath: "wsl.exe",
   args: ["-d", "Ubuntu", "--", "node", "/app/bin.mjs"],
@@ -55,7 +56,6 @@ const readyWslConfig: DesktopBackendManager.DesktopBackendStartConfig = {
   preflightFailure: Option.none(),
   runningDistro: "Ubuntu",
 };
-
 const defaultWslInstance: DesktopBackendManager.DesktopBackendInstance = {
   id: DesktopBackendManager.BackendInstanceId("wsl:default"),
   label: Effect.succeed("WSL (default distro)"),
@@ -71,7 +71,6 @@ const defaultWslInstance: DesktopBackendManager.DesktopBackendInstance = {
   }),
   waitForReady: () => Effect.succeed(true),
 };
-
 const backendConfigurationLayer = Layer.succeed(
   DesktopBackendConfiguration.DesktopBackendConfiguration,
   {
@@ -81,15 +80,12 @@ const backendConfigurationLayer = Layer.succeed(
     currentBootstrapToken: Effect.succeed("current-window-token"),
   } satisfies DesktopBackendConfiguration.DesktopBackendConfiguration["Service"],
 );
-
 const bootstrapsLayer = (instances: ReadonlyArray<DesktopBackendManager.DesktopBackendInstance>) =>
   Layer.merge(DesktopBackendPool.layerTest([...instances]), backendConfigurationLayer);
-
 describe("getLocalEnvironmentBootstraps", () => {
   it.effect("publishes the concrete running distro without replacing the stable instance id", () =>
     Effect.gen(function* () {
       const result = yield* getLocalEnvironmentBootstraps.handler();
-
       assert.deepEqual(result, [
         {
           id: "wsl:default",
@@ -102,11 +98,9 @@ describe("getLocalEnvironmentBootstraps", () => {
       ]);
     }).pipe(Effect.provide(bootstrapsLayer([defaultWslInstance]))),
   );
-
   it.effect("hands out the current window's token to a backend launched with the secret", () =>
     Effect.gen(function* () {
       const result = yield* getLocalEnvironmentBootstraps.handler();
-
       assert.deepEqual(result, [
         {
           id: "wsl:default",
@@ -134,7 +128,6 @@ describe("getLocalEnvironmentBootstraps", () => {
       ),
     ),
   );
-
   it.effect("publishes a pending bootstrap only while a transient retry is scheduled", () => {
     const retryingConfig: DesktopBackendManager.DesktopBackendStartConfig = {
       ...readyWslConfig,
@@ -155,7 +148,6 @@ describe("getLocalEnvironmentBootstraps", () => {
         restartScheduled: true,
       }),
     };
-
     return Effect.gen(function* () {
       const result = yield* getLocalEnvironmentBootstraps.handler();
       assert.deepEqual(result, [
@@ -169,7 +161,6 @@ describe("getLocalEnvironmentBootstraps", () => {
       ]);
     }).pipe(Effect.provide(bootstrapsLayer([retryingInstance])));
   });
-
   it.effect("omits a bounded transient bootstrap after retries stop", () => {
     const stoppedInstance: DesktopBackendManager.DesktopBackendInstance = {
       ...defaultWslInstance,
@@ -189,18 +180,72 @@ describe("getLocalEnvironmentBootstraps", () => {
         restartScheduled: false,
       }),
     };
-
     return Effect.gen(function* () {
       const result = yield* getLocalEnvironmentBootstraps.handler();
       assert.deepEqual(result, []);
     }).pipe(Effect.provide(bootstrapsLayer([stoppedInstance])));
   });
 });
-
+it.effect(
+  "pushes topology changes from the main process, without repeating unchanged snapshots",
+  () => {
+    let runningDistro = "Ubuntu";
+    let pushes = 0;
+    return Effect.gen(function* () {
+      const delivered = yield* Queue.make<readonly unknown[]>();
+      yield* installLocalBootstrapForwarding().pipe(
+        Effect.provide(
+          Layer.merge(
+            bootstrapsLayer([
+              {
+                ...defaultWslInstance,
+                currentConfig: Effect.sync(() => Option.some({ ...readyWslConfig, runningDistro })),
+              },
+            ]),
+            Layer.mock(ElectronWindow.ElectronWindow)({
+              sendAll: (_channel, ...args) =>
+                Effect.gen(function* () {
+                  pushes += 1;
+                  yield* Queue.offer(delivered, args);
+                }),
+            }),
+          ),
+        ),
+      );
+      yield* Queue.take(delivered);
+      assert.equal(pushes, 1);
+      yield* TestClock.adjust("2 seconds");
+      yield* Effect.yieldNow;
+      assert.equal(pushes, 1);
+      runningDistro = "Debian";
+      yield* TestClock.adjust("2 seconds");
+      const changed = yield* Queue.take(delivered);
+      assert.include(JSON.stringify(changed), "WSL (Debian)");
+      assert.equal(pushes, 2);
+    }).pipe(Effect.scoped);
+  },
+);
+describe("getRelayTelemetryEnabled", () => {
+  it.effect("reads the desktop host opt-out before returning the renderer policy", () =>
+    Effect.gen(function* () {
+      assert.isFalse(
+        yield* getRelayTelemetryEnabled.handler().pipe(
+          Effect.provideService(HostProcess.Environment, {
+            T3CODE_TELEMETRY_ENABLED: "false",
+          }),
+        ),
+      );
+      assert.isTrue(
+        yield* getRelayTelemetryEnabled
+          .handler()
+          .pipe(Effect.provideService(HostProcess.Environment, {})),
+      );
+    }),
+  );
+});
 describe("getWindowFullscreenState", () => {
   it.effect("reads the current native window state", () => {
     const window = { isFullScreen: () => true } as Electron.BrowserWindow;
-
     return Effect.gen(function* () {
       assert.isTrue(yield* getWindowFullscreenState.handler());
     }).pipe(
@@ -212,7 +257,6 @@ describe("getWindowFullscreenState", () => {
     );
   });
 });
-
 describe("pasteAsText", () => {
   it.effect(
     "pastes into the focused guest only after the main renderer acknowledges the menu action",
@@ -225,12 +269,10 @@ describe("pasteAsText", () => {
       } as unknown as Electron.BrowserWindow;
       focusedWebContents.mockReturnValue({ paste, isDestroyed: () => false });
       ownerWindow.mockReturnValue(window);
-
       return Effect.gen(function* () {
         yield* pasteAsText.handler(undefined, { sender: { id: 42 } });
         assert.equal(paste.mock.calls.length, 1);
         assert.equal(mainPaste.mock.calls.length, 0);
-
         yield* pasteAsText.handler(undefined, { sender: { id: 99 } });
         assert.equal(paste.mock.calls.length, 1);
         ownerWindow.mockReturnValue({}); // A focused PiP/other BrowserWindow.
@@ -256,7 +298,25 @@ describe("pasteAsText", () => {
     },
   );
 });
-
+describe("revealWindow", () => {
+  it.effect("reveals the main window only when it asks", () => {
+    const window = { webContents: { id: 42 } } as unknown as Electron.BrowserWindow;
+    const reveal = vi.fn(() => Effect.void);
+    return Effect.gen(function* () {
+      yield* revealWindow.handler(undefined, { sender: { id: 99 } });
+      assert.equal(reveal.mock.calls.length, 0);
+      yield* revealWindow.handler(undefined, { sender: { id: 42 } });
+      assert.deepEqual(reveal.mock.calls, [[window]]);
+    }).pipe(
+      Effect.provide(
+        Layer.mock(ElectronWindow.ElectronWindow)({
+          main: Effect.succeedSome(window),
+          reveal,
+        }),
+      ),
+    );
+  });
+});
 describe("pickProjectFavicon", () => {
   const pickerLayer = (
     pickFiles: () => Effect.Effect<Array<string>>,
@@ -269,14 +329,12 @@ describe("pickProjectFavicon", () => {
       }),
       DesktopAppSettings.layerTest(settings),
     );
-
   it.effect("opens a single-image picker from the project directory", () =>
     Effect.gen(function* () {
       const pickFiles = vi.fn(() => Effect.succeed(["/pictures/icon.png"]));
       const result = yield* pickProjectFavicon
         .handler("/project")
         .pipe(Effect.provide(pickerLayer(pickFiles)));
-
       assert.strictEqual(result, "/pictures/icon.png");
       assert.deepEqual(pickFiles.mock.calls, [
         [
@@ -287,7 +345,7 @@ describe("pickProjectFavicon", () => {
             filters: [
               {
                 name: "Images",
-                extensions: ["avif", "gif", "ico", "jpeg", "jpg", "png", "svg", "webp"],
+                extensions: ["avif", "gif", "ico", "jpeg", "jpg", "png", "svg", "webp", "icns"],
               },
             ],
           },
@@ -295,7 +353,6 @@ describe("pickProjectFavicon", () => {
       ]);
     }),
   );
-
   it.effect("does not open a picker while the local environment is off", () =>
     Effect.gen(function* () {
       const pickFiles = vi.fn(() => Effect.succeed(["/pictures/icon.png"]));
@@ -307,14 +364,12 @@ describe("pickProjectFavicon", () => {
           }),
         ),
       );
-
       assert.strictEqual(result, null);
       assert.strictEqual(pickFiles.mock.calls.length, 0);
     }),
   );
 });
-
-it.effect.skipIf(HostProcessPlatform.defaultValue() === "win32")(
+it.effect.skipIf(HostProcess.Platform.defaultValue() === "win32")(
   "finds remote editors installed without PATH launchers",
   () =>
     Effect.gen(function* () {
@@ -333,14 +388,14 @@ it.effect.skipIf(HostProcessPlatform.defaultValue() === "win32")(
         yield* fs.chmod(executable, 0o755);
       }
       const editors = yield* probeRemoteEditors.handler(undefined).pipe(
-        Effect.provideService(HostProcessEnvironment, {
+        Effect.provideService(HostProcess.Environment, {
           HOME: home,
           PATH: path.join(home, "empty"),
         }),
-        Effect.provideService(HostProcessPlatform, "darwin"),
+        Effect.provideService(HostProcess.Platform, "darwin"),
       );
       assert.include(editors, "cursor");
       assert.include(editors, "vscode");
-      assert.notInclude(editors, "webstorm");
+      assert.include(editors, "webstorm");
     }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
 );

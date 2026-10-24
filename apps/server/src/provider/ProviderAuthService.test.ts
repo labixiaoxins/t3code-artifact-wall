@@ -22,8 +22,8 @@ import * as SubscriptionRef from "effect/SubscriptionRef";
 
 import * as ProjectionStore from "../orchestration-v2/ProjectionStore.ts";
 import * as ProviderSessionManager from "../orchestration-v2/ProviderSessionManager.ts";
-import { AcpProviderCapabilitiesV2 } from "../orchestration-v2/Adapters/AcpAdapterV2.ts";
-import type { ProviderInstance } from "./ProviderDriver.ts";
+import { AcpProviderCapabilitiesV2 } from "@t3tools/provider-acp/server/adapter";
+import type { ProviderInstance } from "@t3tools/provider-core/server/driver";
 import * as ProviderAuthService from "./ProviderAuthService.ts";
 import * as ProviderInstanceRegistry from "./ProviderInstanceRegistry.ts";
 
@@ -76,11 +76,6 @@ function makeInstance(input: {
 
 const nowUtc = DateTime.makeUnsafe(now);
 
-/**
- * A thread bound to a provider instance with (or without) a live native
- * thread. The auth service reads only the routing fields, so the rest of the
- * shell row is left out.
- */
 function makeThread(
   thread: string,
   input: { readonly providerInstanceId?: ProviderInstanceId; readonly active?: boolean } = {},

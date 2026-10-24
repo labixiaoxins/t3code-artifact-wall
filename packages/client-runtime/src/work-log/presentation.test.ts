@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vite-plus/test";
-
 import { ThreadId, TurnItemId, type OrchestrationV2TurnItem } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
 import { T3_MCP_TOOL_NAMES } from "@t3tools/shared/t3McpToolPresentation";
-
 import {
+  contextCompactionLabel,
   commandDetailRepeatsCommand,
   extractCommandOutputText,
+  liveThoughtLine,
   resolveViewedImageAsset,
   resolveWorkEntryToolPresentation,
   summarizeToolGroup,
@@ -20,9 +20,28 @@ import {
   workEntryDisplayIndicatesToolFailure,
   workEntryIndicatesToolSuccess,
 } from "./presentation.js";
-
+describe("contextCompactionLabel", () => {
+  it("keeps success separate from failed, stopped, active, and unconfirmed results", () => {
+    expect(contextCompactionLabel({ status: "completed", completionConfirmed: false })).toBe(
+      "Context compaction result unconfirmed",
+    );
+    expect(contextCompactionLabel({ status: "failed" })).toBe("Context compaction failed");
+    expect(contextCompactionLabel({ status: "interrupted" })).toBe("Context compaction stopped");
+    expect(contextCompactionLabel({ status: "running" })).toBe("Compacting context");
+    expect(
+      contextCompactionLabel({ status: "completed", beforeTokenCount: 1000, afterTokenCount: 500 }),
+    ).toBe("Context compacted 1K → 500 tokens");
+  });
+});
 function commandItem(
-  fields: Partial<Extract<OrchestrationV2TurnItem, { type: "command_execution" }>> = {},
+  fields: Partial<
+    Extract<
+      OrchestrationV2TurnItem,
+      {
+        type: "command_execution";
+      }
+    >
+  > = {},
 ): OrchestrationV2TurnItem {
   return {
     id: TurnItemId.make("command"),
@@ -45,20 +64,18 @@ function commandItem(
     ...fields,
   };
 }
-
 describe("workEntryIndicatesToolFailure", () => {
   const base = {
     id: "w1",
     createdAt: "2026-01-01T00:00:00.000Z",
     label: "Read",
   };
-
   it.each([
     [{ outputIndicatesFailure: true }, true],
     [{ exitCode: 2 }, true],
     [{ output: "sh: missing-command: command not found" }, true],
     [{ output: "Found 3 matches" }, false],
-    [{ output: `${"x".repeat(32_768)} command not found` }, false],
+    [{ output: `${"x".repeat(32768)} command not found` }, false],
     [{}, false],
   ] as const)(
     "preserves command failure state after removing displayed output: %j",
@@ -76,7 +93,18 @@ describe("workEntryIndicatesToolFailure", () => {
       expect(JSON.stringify(toolItemForDisplay(structuredPayload))).not.toContain('"output":');
     },
   );
-
+  it("ignores failure phrases in reasoning text", () => {
+    const entry: WorkLogPresentationEntry = {
+      ...base,
+      label: "Thinking",
+      tone: "thinking",
+      itemType: "reasoning",
+      toolLifecycleStatus: "completed",
+      detail: "That exit code 2 is just from listing the deleted directory, which is expected.",
+    };
+    expect(workEntryIndicatesToolFailure(entry)).toBe(false);
+    expect(workEntryDisplayIndicatesToolFailure(entry)).toBe(false);
+  });
   it("is true for error tone", () => {
     expect(
       workEntryIndicatesToolFailure({
@@ -86,7 +114,6 @@ describe("workEntryIndicatesToolFailure", () => {
       }),
     ).toBe(true);
   });
-
   it("is true when lifecycle says failed even if detail is empty", () => {
     expect(
       workEntryIndicatesToolFailure({
@@ -96,7 +123,6 @@ describe("workEntryIndicatesToolFailure", () => {
       }),
     ).toBe(true);
   });
-
   it("detects file-not-found style tool output with completed lifecycle", () => {
     expect(
       workEntryIndicatesToolFailure({
@@ -107,7 +133,6 @@ describe("workEntryIndicatesToolFailure", () => {
       }),
     ).toBe(true);
   });
-
   it("detects glob no files and PowerShell command errors", () => {
     expect(
       workEntryIndicatesToolFailure({
@@ -127,7 +152,6 @@ describe("workEntryIndicatesToolFailure", () => {
       }),
     ).toBe(true);
   });
-
   it("is false for successful completed tools", () => {
     expect(
       workEntryIndicatesToolFailure({
@@ -138,7 +162,6 @@ describe("workEntryIndicatesToolFailure", () => {
       }),
     ).toBe(false);
   });
-
   it("does not treat error text in a command as rendered failure", () => {
     const entry = {
       ...base,
@@ -148,13 +171,10 @@ describe("workEntryIndicatesToolFailure", () => {
       command: 'rg "file not found"',
       detail: "Found 3 matches",
     } satisfies WorkLogPresentationEntry;
-
     expect(workEntryDisplayIndicatesToolFailure(entry)).toBe(false);
-    // Older activities can store output in this field, so that path stays separate.
     expect(workEntryIndicatesToolFailure(entry)).toBe(true);
     expect(workEntryDisplayIndicatesToolFailure({ ...entry, detail: "File not found" })).toBe(true);
   });
-
   it("treats successful tool rows as success candidates", () => {
     expect(
       workEntryIndicatesToolSuccess({
@@ -180,7 +200,6 @@ describe("workEntryIndicatesToolFailure", () => {
       workEntryIndicatesToolSuccess({ ...base, tone: "tool", toolLifecycleStatus: "idle" }),
     ).toBe(false);
   });
-
   it("does not run heuristics on non-tool info rows", () => {
     expect(
       workEntryIndicatesToolFailure({
@@ -192,7 +211,6 @@ describe("workEntryIndicatesToolFailure", () => {
     ).toBe(false);
   });
 });
-
 describe("summarizeToolGroup", () => {
   const entry = (
     id: string,
@@ -204,7 +222,6 @@ describe("summarizeToolGroup", () => {
     tone: "tool",
     ...overrides,
   });
-
   it("excludes reasoning from mixed tool counts and icons", () => {
     const thought = entry("thought", {
       itemType: "reasoning",
@@ -223,20 +240,17 @@ describe("summarizeToolGroup", () => {
     );
     expect(toolGroupSummaryKind([thought])).toBe("reasoning");
   });
-
   it("counts created threads alongside adjacent commands", () => {
     expect(
       summarizeToolGroup([
         entry("command", { itemType: "command_execution", command: "vp test run" }),
         entry("created", {
           itemType: "thread_created",
-
           label: "Created thread",
         }),
       ]).summary,
     ).toBe("Ran 1 command and created 1 thread");
   });
-
   it("deduplicates named sources ahead of ordinary actions", () => {
     const source = { key: "browser-use:chrome", name: "Chrome", kind: "integration" as const };
     expect(
@@ -251,7 +265,27 @@ describe("summarizeToolGroup", () => {
       ]).summary,
     ).toBe("Used Chrome integration and ran 1 command");
   });
-
+  it.each([
+    [["Foo", "Foo"], "Used Foo integration and ran 1 command"],
+    [["Foo", "Bar", "Foo"], "Used Foo and Bar integrations and ran 1 command"],
+  ] as const)(
+    "uses the displayed source names for integration plurality: %j",
+    (names, expected) => {
+      expect(
+        summarizeToolGroup([
+          ...names.map((name, index) =>
+            entry(`integration-${index}`, {
+              toolSource: { key: `integration-${index}`, name, kind: "integration" },
+            }),
+          ),
+          entry("command", {
+            itemType: "command_execution",
+            command: "git status",
+          }),
+        ]).summary,
+      ).toBe(expected);
+    },
+  );
   it("omits the integration suffix for special browser and computer sources", () => {
     expect(
       summarizeToolGroup([
@@ -266,8 +300,25 @@ describe("summarizeToolGroup", () => {
       ]).summary,
     ).toBe("Used Browser and Computer Use");
   });
+  it("names Computer Use once when native-app and fallback sources share its label", () => {
+    expect(
+      summarizeToolGroup([
+        entry("inspect-app", {
+          label: "Inspect app",
+          toolSource: {
+            key: "native-app:com.t3tools.t3code",
+            name: "Computer Use",
+            kind: "computer",
+          },
+        }),
+        entry("failed-sky", {
+          label: "Restrict the breakpoint to Git actions",
+          toolSource: { key: "computer-use", name: "Computer Use", kind: "computer" },
+        }),
+      ]).summary,
+    ).toBe("Used Computer Use");
+  });
 });
-
 describe("resolveWorkEntryToolPresentation", () => {
   it("presents and summarizes every T3 tool using the same structured identity", () => {
     for (const tool of T3_MCP_TOOL_NAMES) {
@@ -295,7 +346,6 @@ describe("resolveWorkEntryToolPresentation", () => {
       );
     }
   });
-
   it.each([
     ["t3_project_list", "Listing projects", "Listed projects"],
     ["t3_project_clone", "Cloning a repository", "Cloned a repository"],
@@ -307,6 +357,7 @@ describe("resolveWorkEntryToolPresentation", () => {
     ["t3_thread_fork", "Forking this thread", "Requested a fork of this thread"],
     ["t3_thread_send_attachments", "Sending attachments", "Sent attachments"],
     ["run_scheduled_task_now", "Running a scheduled task", "Requested a run of a scheduled task"],
+    ["t3_workflow_stop", "Stopping a workflow", "Requested a stop for a workflow"],
   ])("labels %s through its lifecycle", (tool, running, completed) => {
     expect(resolveWorkEntryToolPresentation({ label: `T3-code.${tool}` })?.displayName).toBe(
       running,
@@ -318,7 +369,86 @@ describe("resolveWorkEntryToolPresentation", () => {
       })?.displayName,
     ).toBe(completed);
   });
-
+  it("distinguishes an interrupted unwatch from a completed unwatch", () => {
+    const entry = { label: "T3-code.unwatch_pull_request" };
+    expect(
+      (["inProgress", "stopped", "completed"] as const).map(
+        (toolLifecycleStatus) =>
+          resolveWorkEntryToolPresentation({ ...entry, toolLifecycleStatus })?.displayName,
+      ),
+    ).toEqual([
+      "Unwatching a pull request",
+      "Stopped unwatching a pull request",
+      "Stopped watching a pull request",
+    ]);
+  });
+  it("describes starting review-guide writing in rows and groups without outcomes", () => {
+    const entry = {
+      id: "guides",
+      createdAt: "2026-10-07T00:00:00.000Z",
+      tone: "tool",
+      label: "T3-code.write_pull_request_guides",
+      toolLifecycleStatus: "completed",
+    } satisfies WorkLogPresentationEntry;
+    expect({
+      row: resolveWorkEntryToolPresentation(entry)?.displayName,
+      single: summarizeToolGroup([entry]).summary,
+      repeated: summarizeToolGroup([entry, { ...entry, id: "guides-2" }]).summary,
+    }).toEqual({
+      row: "Started writing review guides",
+      single: "Started writing review guides",
+      repeated: "Started writing review guides 2 times",
+    });
+  });
+  it("describes delegated-task cancellation as an ongoing action then a request", () => {
+    const entry = { label: "T3-code.task_cancel" };
+    expect(
+      (["inProgress", "completed"] as const).map(
+        (toolLifecycleStatus) =>
+          resolveWorkEntryToolPresentation({ ...entry, toolLifecycleStatus })?.displayName,
+      ),
+    ).toEqual(["Canceling a delegated task", "Requested cancellation of a delegated task"]);
+  });
+  it("summarizes workflow stop targets separately from their parent thread", () => {
+    const entry = {
+      id: "workflow-stop",
+      createdAt: "2026-10-07T00:00:00.000Z",
+      tone: "tool",
+      label: "Custom title",
+      itemType: "dynamic_tool",
+      toolLifecycleStatus: "completed",
+      toolData: {
+        server: "t3-code",
+        tool: "t3_workflow_stop",
+        arguments: { threadId: "parent", subagentId: "workflow-1" },
+        result: {},
+      },
+    } satisfies WorkLogPresentationEntry;
+    expect(
+      summarizeToolGroup([
+        entry,
+        entry,
+        {
+          ...entry,
+          toolData: {
+            ...entry.toolData,
+            arguments: { threadId: "parent", subagentId: "workflow-2" },
+          },
+        },
+        {
+          ...entry,
+          toolData: {
+            ...entry.toolData,
+            tool: "t3_thread_interrupt",
+            arguments: { threadId: "parent" },
+          },
+        },
+      ]),
+    ).toEqual({
+      summary: "Requested stops for 2 workflows and requested interrupts for 1 thread",
+      hasFailure: false,
+    });
+  });
   it("summarizes project tools from MCP arguments and results without claiming failed effects", () => {
     const entry: WorkLogPresentationEntry = {
       id: "clone",
@@ -348,7 +478,6 @@ describe("resolveWorkEntryToolPresentation", () => {
       hasFailure: true,
     });
   });
-
   it("does not summarize a foreign structured identity as T3 work", () => {
     const entry: WorkLogPresentationEntry = {
       id: "foreign",
@@ -360,7 +489,6 @@ describe("resolveWorkEntryToolPresentation", () => {
     };
     expect(summarizeToolGroup([entry]).summary).toBe("Used 1 tool");
   });
-
   it("shows returned MCP errors as failures even in the live activity row", () => {
     const entry: WorkLogPresentationEntry = {
       id: "clone",
@@ -399,7 +527,6 @@ describe("resolveWorkEntryToolPresentation", () => {
       icon: "browser",
     });
   });
-
   it("labels device tools with the device icon", () => {
     expect(
       resolveWorkEntryToolPresentation({
@@ -412,7 +539,6 @@ describe("resolveWorkEntryToolPresentation", () => {
       icon: "device",
     });
   });
-
   it("uses structured MCP identity when the provider supplies a custom title", () => {
     expect(
       resolveWorkEntryToolPresentation({
@@ -422,7 +548,6 @@ describe("resolveWorkEntryToolPresentation", () => {
       }),
     ).toEqual({ displayName: "Taking a snapshot of the preview page", icon: "browser" });
   });
-
   it.each([
     ["inProgress", "Clicking in the preview browser"],
     ["completed", "Clicked in the preview browser"],
@@ -438,7 +563,6 @@ describe("resolveWorkEntryToolPresentation", () => {
       }),
     ).toEqual({ displayName, icon: "browser" });
   });
-
   it("uses the summary's state only when the provider omitted a lifecycle status", () => {
     const entry = { label: "T3-code.preview_click" };
     expect(resolveWorkEntryToolPresentation(entry, "inProgress")?.displayName).toBe(
@@ -456,7 +580,6 @@ describe("resolveWorkEntryToolPresentation", () => {
         ?.displayName,
     ).toBe("Failed to click in the preview browser");
   });
-
   it.each([
     ["preview_type", "Typing in the preview browser", "Typed in the preview browser"],
     [
@@ -491,7 +614,6 @@ describe("resolveWorkEntryToolPresentation", () => {
       resolveWorkEntryToolPresentation({ ...entry, toolLifecycleStatus: "completed" })?.displayName,
     ).toBe(completed);
   });
-
   it("keeps T3 branding for non-browser tools and falls back to the original tool label", () => {
     expect(
       resolveWorkEntryToolPresentation({
@@ -500,7 +622,6 @@ describe("resolveWorkEntryToolPresentation", () => {
       }),
     ).toEqual({ displayName: "Getting delegated task status", icon: "t3-code" });
   });
-
   it("does not brand unknown tools or another server's matching tool name", () => {
     for (const label of [
       "mcp__github__preview_click",
@@ -518,7 +639,6 @@ describe("resolveWorkEntryToolPresentation", () => {
     ).toBeNull();
   });
 });
-
 describe("browser group summaries", () => {
   const summarizeGroupLabel = (entries: ReadonlyArray<WorkLogPresentationEntry>) =>
     summarizeToolGroup(entries).summary;
@@ -540,7 +660,6 @@ describe("browser group summaries", () => {
     toolLifecycleStatus: "completed",
     tone: "tool",
   };
-
   it.each([1, 18])("counts %s browser calls separately from generic tools", (count) => {
     const entries = Array.from({ length: count }, (_, index) => ({
       ...browserEntry,
@@ -551,7 +670,6 @@ describe("browser group summaries", () => {
     );
     expect(toolGroupSummaryKind(entries)).toBe("browser");
   });
-
   it("combines command and browser counts in a single sentence", () => {
     const entries = [
       ...Array.from({ length: 4 }, () => commandEntry),
@@ -560,7 +678,6 @@ describe("browser group summaries", () => {
     expect(summarizeGroupLabel(entries)).toBe("Ran 4 commands and used browser 15 times");
     expect(toolGroupSummaryKind(entries)).toBe("mixed");
   });
-
   it("preserves first-seen action ordering alongside non-browser tools", () => {
     expect(
       summarizeGroupLabel([
@@ -573,7 +690,6 @@ describe("browser group summaries", () => {
       ]),
     ).toBe("Used browser 1 time, ran 1 command, and performed 1 other action");
   });
-
   it("recognizes Claude browser identity without treating script metadata as a shell command", () => {
     expect(
       summarizeGroupLabel([
@@ -585,7 +701,6 @@ describe("browser group summaries", () => {
       ]),
     ).toBe("Used browser 1 time");
   });
-
   it("keeps foreign tools and web searches out of the browser count", () => {
     expect(
       summarizeGroupLabel([
@@ -605,14 +720,12 @@ describe("browser group summaries", () => {
       ]),
     ).toBe("Used browser 1 time, searched the web 1 time, and performed 1 other action");
   });
-
   it("keeps browser screenshots in the browser count while preserving their image path", () => {
     const entry = { ...browserEntry, viewedImagePath: "/workspace/page.png" };
     expect(summarizeGroupLabel([entry])).toBe("Used browser 1 time");
     expect(workEntryViewedImagePath(entry)).toBe("/workspace/page.png");
   });
 });
-
 describe("command work-log details", () => {
   it("extracts Claude result blocks and projected output", () => {
     expect(
@@ -629,7 +742,6 @@ describe("command work-log details", () => {
       "projected summary",
     );
   });
-
   it("only removes a detail with the matching tool-name prefix", () => {
     expect(
       commandDetailRepeatsCommand({
@@ -650,7 +762,6 @@ describe("command work-log details", () => {
       }),
     ).toBe(false);
   });
-
   it("treats an ingestion-truncated echo of a long command as a repeat", () => {
     const command = `git add -A && git commit -m "${"x".repeat(200)}"`;
     const truncated = `Bash: ${command}`.slice(0, 177) + "...";
@@ -673,7 +784,6 @@ describe("command work-log details", () => {
       }),
     ).toBe(false);
   });
-
   it("treats ACP command echoes as synthetic even without a tool kind", () => {
     expect(
       commandDetailRepeatsCommand({
@@ -695,7 +805,6 @@ describe("command work-log details", () => {
     ).toBe(false);
   });
 });
-
 describe("workEntryViewedImagePath", () => {
   const entry = {
     id: "entry-1",
@@ -703,7 +812,6 @@ describe("workEntryViewedImagePath", () => {
     label: "Read",
     tone: "tool",
   } as const;
-
   it("returns a single image path from supported read entries", () => {
     expect(
       workEntryViewedImagePath({ ...entry, requestKind: "file-read", detail: " assets/a.png " }),
@@ -725,7 +833,6 @@ describe("workEntryViewedImagePath", () => {
       }),
     ).toBe("/workspace/reference image.webp");
   });
-
   it("rejects non-image, multi-line, and non-read details", () => {
     expect(
       workEntryViewedImagePath({ ...entry, requestKind: "file-read", detail: "a.txt" }),
@@ -736,7 +843,6 @@ describe("workEntryViewedImagePath", () => {
     expect(workEntryViewedImagePath({ ...entry, detail: "a.png" })).toBeNull();
   });
 });
-
 describe("toolGroupAction", () => {
   it("groups legacy Claude image reads with other reads", () => {
     expect(
@@ -750,7 +856,6 @@ describe("toolGroupAction", () => {
       }),
     ).toBe("read");
   });
-
   it("groups Claude Read and Grep from toolName, not file contents", () => {
     expect(
       toolGroupAction({
@@ -786,10 +891,8 @@ describe("toolGroupAction", () => {
     ).toBe("code-search");
   });
 });
-
 describe("resolveViewedImageAsset", () => {
   const threadId = ThreadId.make("thread-1");
-
   it("serves t3 attachment paths in place like any other host path", () => {
     const path = "/Users/demo/.t3/dev/attachments/11111111-1111-4111-8111-111111111111.png";
     expect(resolveViewedImageAsset(path, { threadId, workspaceRoot: "/workspace" })).toEqual({
@@ -798,7 +901,6 @@ describe("resolveViewedImageAsset", () => {
       srcFragment: "",
     });
   });
-
   it("normalizes workspace image sources", () => {
     expect(
       resolveViewedImageAsset("screens/logo.svg?v=2#mark", {
@@ -817,7 +919,6 @@ describe("resolveViewedImageAsset", () => {
     expect(resolveViewedImageAsset("https://example.com/logo.png", { threadId })).toBeNull();
   });
 });
-
 describe("pull request tool presentation", () => {
   it.each([
     "mcp__t3-code__link_pull_request",
@@ -839,7 +940,6 @@ describe("pull request tool presentation", () => {
     });
     expect(toolGroupAction(entry)).toBe("link-pr");
   });
-
   it.each([
     ["inProgress", "Linking PR #42"],
     ["completed", "Linked PR #42"],
@@ -860,7 +960,6 @@ describe("pull request tool presentation", () => {
       })?.displayName,
     ).toBe(displayName);
   });
-
   it("recognizes unlink targets supplied as repository and number", () => {
     expect(
       resolveWorkEntryToolPresentation({
@@ -873,7 +972,6 @@ describe("pull request tool presentation", () => {
       }),
     ).toMatchObject({ displayName: "Unlinked PR #42", icon: "pull-request", action: "unlink-pr" });
   });
-
   it("summarizes native PR work separately from ordinary tools and integration metadata", () => {
     const link: WorkLogPresentationEntry = {
       id: "link",
@@ -901,7 +999,6 @@ describe("pull request tool presentation", () => {
     ).toBeNull();
   });
 });
-
 describe("device group summaries", () => {
   const deviceEntry = (tool: string): WorkLogPresentationEntry => ({
     id: tool,
@@ -912,7 +1009,6 @@ describe("device group summaries", () => {
     toolLifecycleStatus: "completed",
     tone: "tool",
   });
-
   it.each(["device_list", "device_open", "device_screenshot", "device_close"])(
     "recognizes %s as device controls",
     (tool) => {
@@ -921,7 +1017,6 @@ describe("device group summaries", () => {
       expect(toolGroupSummaryKind([entry])).toBe("device");
     },
   );
-
   it("summarizes device calls alongside shell commands", () => {
     expect(
       summarizeToolGroup([
@@ -938,7 +1033,6 @@ describe("device group summaries", () => {
       ]).summary,
     ).toBe("Ran 1 command and used device controls 2 times");
   });
-
   it("recognizes Claude tool names and preserves screenshot previews", () => {
     const entry = {
       ...deviceEntry("device_screenshot"),
@@ -948,7 +1042,6 @@ describe("device group summaries", () => {
     expect(summarizeToolGroup([entry]).summary).toBe("Used device controls 1 time");
     expect(workEntryViewedImagePath(entry)).toBe("/workspace/device.png");
   });
-
   it("does not classify another server's tools as T3 device controls", () => {
     expect(
       summarizeToolGroup([
@@ -958,5 +1051,38 @@ describe("device group summaries", () => {
         },
       ]).summary,
     ).toBe("Used 1 tool");
+  });
+});
+describe("liveThoughtLine", () => {
+  it("keeps the first sentence, including a closing quote", () => {
+    expect(
+      liveThoughtLine(
+        'Found the cause: the repo has no commits, so `git worktree add` fails with "invalid reference: main." Now checking the UI.',
+      ),
+    ).toBe(
+      'Found the cause: the repo has no commits, so git worktree add fails with "invalid reference: main."',
+    );
+  });
+  it("does not cut at dots inside file names or long dashes", () => {
+    expect(
+      liveThoughtLine("I read ThreadLaunchService.ts \u2014 it skips the fetch. Next step."),
+    ).toBe("I read ThreadLaunchService.ts \u2014 it skips the fetch.");
+  });
+  it("uses a bold-only opening line as the whole line", () => {
+    expect(
+      liveThoughtLine("**Narrowing dispatch files**\n\nI should check the adapter. Then more."),
+    ).toBe("Narrowing dispatch files");
+    expect(liveThoughtLine("**Narrowing dispatch files**\r\n\r\nI should check the adapter.")).toBe(
+      "Narrowing dispatch files",
+    );
+  });
+  it("returns unpunctuated text whole and flattens markdown", () => {
+    expect(liveThoughtLine("- Checking [the docs](https://x.dev) for **limits**")).toBe(
+      "Checking the docs for limits",
+    );
+    expect(liveThoughtLine("This is *really* ~~not~~ _fine_ in snake_case_names.")).toBe(
+      "This is really not fine in snake_case_names.",
+    );
+    expect(liveThoughtLine("   ")).toBe("");
   });
 });

@@ -19,19 +19,17 @@ export interface ChatCanvasPreview {
 }
 
 const GAP = 12;
-// Minimum space between chat and the workspace card. Chat stays centered while
-// the card fits beside it with this much room.
 export const DETAILS_CARD_CLEARANCE = 32;
 
-/** Pure geometry shared by the conversation, composer, workspace card, and floating preview. */
 export function resolveChatCanvasLayout({
   container,
   preview,
-  padding = 20,
+  padding = 48,
   maxChatWidth = 768,
   minChatWidth = 640,
   composerHeight = 0,
   detailsCard = null,
+  findBar = null,
 }: {
   container: PreviewMiniPlayerSize;
   preview: ChatCanvasPreview | null;
@@ -40,11 +38,9 @@ export function resolveChatCanvasLayout({
   minChatWidth?: number;
   composerHeight?: number;
   detailsCard?: PreviewMiniPlayerObstacles["detailsCard"];
+  findBar?: PreviewMiniPlayerObstacles["detailsCard"];
 }) {
   const centeredWidth = Math.max(0, Math.min(maxChatWidth, container.width - padding * 2));
-  // A workspace card that does not fit beside the centered chat first moves
-  // chat left, only as far as it needs. Chat narrows only after it reaches the
-  // left padding.
   const laneRight = detailsCard
     ? detailsCard.left - DETAILS_CARD_CLEARANCE
     : container.width - padding;
@@ -63,15 +59,15 @@ export function resolveChatCanvasLayout({
   let overlapsChat = false;
   if (preview && container.width > 0 && container.height > 0) {
     frame = resolvePreviewMiniPlayerFrame({ ...preview, container });
-    // Dragging stops at a readable chat lane on the left. Resizing can still
-    // consume that space when the container requires message overlap.
+    // Reserve a readable chat lane only while it leaves room to drag. Otherwise
+    // the container's right edge would pin the preview at every pointer position.
     const minimumPreviewX =
-      preview.lastInteraction === "resize" ? GAP : padding + minChatWidth + GAP;
-    // New players start beside the composer, with the workspace card above them.
+      preview.lastInteraction === "resize" ||
+      container.width <= padding + minChatWidth + frame.width + GAP * 2
+        ? GAP
+        : padding + minChatWidth + GAP;
     if (preview.position === null) frame = { ...frame, y: container.height - frame.height - GAP };
     if (preview.lastInteraction === "resize" && composerHeight > 0) {
-      // Lift the preview while chat uses its remaining shrink room, reaching
-      // the composer's top before the preview enters the readable chat lane.
       const laneWidth = Math.min(normalWidth, minChatWidth);
       const transitionWidth = Math.max(GAP, normalWidth - laneWidth);
       const lift = Math.min(
@@ -90,13 +86,20 @@ export function resolveChatCanvasLayout({
         });
       }
     }
+    const findBarObstacles = findBar ? { detailsCard: findBar, composer: null } : undefined;
     const preferredFrame = {
       ...frame,
-      ...clampPreviewMiniPlayerPosition(frame, container, frame, undefined, minimumPreviewX),
+      ...clampPreviewMiniPlayerPosition(frame, container, frame, findBarObstacles, minimumPreviewX),
     };
-    // A resize keeps its anchored edge and consumes card height first. A drag
-    // clears the full card whenever it can, so moving alone never folds it.
-    const cardObstacle = preview.lastInteraction === "resize" ? null : detailsCard;
+    const dragObstacle =
+      detailsCard && findBar
+        ? {
+            left: Math.min(detailsCard.left, findBar.left),
+            right: Math.max(detailsCard.right, findBar.right),
+            bottom: Math.max(detailsCard.bottom, findBar.bottom),
+          }
+        : (detailsCard ?? findBar);
+    const cardObstacle = preview.lastInteraction === "resize" ? findBar : dragObstacle;
     frame = {
       ...frame,
       ...clampPreviewMiniPlayerPosition(
@@ -121,8 +124,6 @@ export function resolveChatCanvasLayout({
       };
     };
     let nextChat = chatBeside(frame);
-    // Clearing the full card must also leave a readable chat. If only the
-    // preferred position does, keep the resized player and let the card fold.
     if (!nextChat && detailsCard) {
       nextChat = chatBeside(preferredFrame);
       if (nextChat) frame = preferredFrame;
@@ -153,8 +154,6 @@ export function resolveChatCanvasLayout({
           minimumPreviewX,
         ),
       };
-      // If the full card and composer leave no slot, keep typing usable while
-      // the card folds to the remaining height above this fallback frame.
       if (
         frame.x < obstacles.composer.right &&
         frame.x + frame.width > obstacles.composer.left &&
@@ -166,7 +165,7 @@ export function resolveChatCanvasLayout({
             frame,
             container,
             frame,
-            { composer: obstacles.composer, detailsCard: null },
+            { composer: obstacles.composer, detailsCard: findBar },
             minimumPreviewX,
           ),
         };

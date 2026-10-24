@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   DndContext,
   type DragEndEvent,
@@ -26,7 +27,6 @@ import {
 } from "@t3tools/client-runtime/connection";
 import { GripVerticalIcon, PlusIcon, XIcon } from "lucide-react";
 import { useState } from "react";
-
 import { requestConfirmDialog } from "~/confirmDialog";
 import { environmentCatalog } from "~/connection/catalog";
 import { cn } from "~/lib/utils";
@@ -35,12 +35,6 @@ import { usePreparedConnection } from "~/state/session";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-
-/**
- * The ways this client reaches one saved machine, preferred first. Drag to
- * reorder; the first route that answers is used and the connection moves back
- * up when a better one is reachable again. Shown under the machine's row.
- */
 export function EnvironmentRoutesList({
   environment,
   onAddRoute,
@@ -50,8 +44,6 @@ export function EnvironmentRoutesList({
 }) {
   const saved = connectionRoutes(environment.entry);
   const savedIds = saved.map((route) => connectionRouteId(route.target));
-  // A dropped order shows until the catalog matches it, so the row does not
-  // jump back while the reorder is being saved.
   const [pending, setPending] = useState<ReadonlyArray<string> | null>(null);
   const order: Array<string> =
     pending !== null &&
@@ -61,7 +53,6 @@ export function EnvironmentRoutesList({
       : savedIds;
   const byId = new Map(saved.map((route) => [connectionRouteId(route.target), route]));
   const routes = order.flatMap((id) => byId.get(id) ?? []);
-
   const prepared = usePreparedConnection(environment.environmentId);
   const activeRouteId =
     prepared._tag === "Some" && environment.connection.phase === "connected"
@@ -73,9 +64,6 @@ export function EnvironmentRoutesList({
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
-
-  // Removing a paired route forgets its credential, so it asks first, like
-  // on mobile. No mounted confirm host means no removal.
   const confirmRemove = async (route: ConnectionRoute) => {
     const address = connectionRouteAddress(route);
     const confirmed = await requestConfirmDialog(
@@ -88,7 +76,6 @@ export function EnvironmentRoutesList({
       routeId: connectionRouteId(route.target),
     });
   };
-
   const handleDragEnd = (event: DragEndEvent) => {
     if (event.over === null || event.active.id === event.over.id) return;
     const next = arrayMove(
@@ -101,9 +88,8 @@ export function EnvironmentRoutesList({
       if (result._tag === "Failure") setPending(null);
     });
   };
-
   return (
-    <div className="mt-2 rounded-md border border-border/70">
+    <div className={"mt-2 border-t border-border/50 py-2"}>
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -111,16 +97,13 @@ export function EnvironmentRoutesList({
         onDragEnd={handleDragEnd}
       >
         <SortableContext items={order} strategy={verticalListSortingStrategy}>
-          <ol aria-label={`Routes to ${environment.label}, preferred first`}>
+          <ol aria-label={uiText("Routes to {0}, preferred first", {"0": environment.label})}>
             {routes.map((route, index) => (
               <SortableRouteRow
                 key={connectionRouteId(route.target)}
                 route={route}
                 position={index + 1}
                 inUse={connectionRouteId(route.target) === activeRouteId}
-                // The last route goes with the machine; that is "Remove from
-                // this device", not a route action. A learned route would be
-                // learned again, so it is only reordered.
                 removable={routes.length > 1 && !isLearned(route)}
                 onRemove={() => void confirmRemove(route)}
               />
@@ -128,16 +111,15 @@ export function EnvironmentRoutesList({
           </ol>
         </SortableContext>
       </DndContext>
-      <div className="border-t border-border/70 px-1 py-1">
-        <Button size="xs" variant="ghost-muted" onClick={onAddRoute}>
-          <PlusIcon className="size-3" />
-          Add route
+      <div className={"-ml-1.5 pt-1"}>
+        <Button size={"xs"} variant={"ghost-muted"} onClick={onAddRoute}>
+          <PlusIcon className={"size-3"} />
+          {uiText("Add route")}
         </Button>
       </div>
     </div>
   );
 }
-
 function SortableRouteRow({
   route,
   position,
@@ -163,58 +145,63 @@ function SortableRouteRow({
     transition,
     isDragging,
   } = useSortable({ id });
-
   return (
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
       className={cn(
-        "flex items-center gap-2 border-b border-border/70 px-1 py-1.5 last:border-b-0",
+        "flex items-center gap-2 py-2",
         isDragging && "relative z-10 rounded-md bg-background shadow-md",
       )}
     >
-      <button
-        type="button"
-        ref={setActivatorNodeRef}
-        {...attributes}
-        {...listeners}
-        aria-label={`Reorder ${label}, position ${position}`}
-        className="flex size-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-muted-foreground/70 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
-      >
-        <GripVerticalIcon className="size-3.5" />
-      </button>
-      <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+      <div className={"min-w-0 flex-1"}>
+        <p className={"flex items-center gap-1.5 text-xs font-medium text-foreground"}>
           {label}
           {inUse ? (
-            <span className="rounded-sm bg-success/12 px-1 text-2xs font-normal text-success-foreground">
-              In use
+            <span
+              className={
+                "rounded-sm bg-success/12 px-1 text-2xs font-normal text-success-foreground"
+              }
+            >
+              {uiText("In use")}
             </span>
           ) : null}
         </p>
         {address !== null ? (
-          <p className="truncate text-2xs text-muted-foreground">
+          <p className={"truncate text-2xs text-muted-foreground"}>
             {address}
-            {isLearned(route) ? " · found automatically" : ""}
+            {isLearned(route) ? uiText("· found automatically") : ""}
           </p>
         ) : null}
       </div>
+      <button
+        type={"button"}
+        ref={setActivatorNodeRef}
+        {...attributes}
+        {...listeners}
+        aria-label={uiText("Reorder {0}, position {1}", {"0": label, "1": position})}
+        className={
+          "flex size-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-muted-foreground/70 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:cursor-grabbing"
+        }
+      >
+        <GripVerticalIcon className={"size-3.5"} />
+      </button>
       {removable ? (
         <Tooltip>
           <TooltipTrigger
             render={
               <Button
-                type="button"
-                variant="ghost-muted"
-                size="icon-xs"
-                aria-label={`Remove ${label} route`}
+                type={"button"}
+                variant={"ghost-muted"}
+                size={"icon-xs"}
+                aria-label={uiText("Remove {0} route", {"0": label})}
                 onClick={onRemove}
               />
             }
           >
-            <XIcon className="size-3" />
+            <XIcon className={"size-3"} />
           </TooltipTrigger>
-          <TooltipPopup side="top">Remove route</TooltipPopup>
+          <TooltipPopup side={"top"}>{uiText("Remove route")}</TooltipPopup>
         </Tooltip>
       ) : null}
     </li>

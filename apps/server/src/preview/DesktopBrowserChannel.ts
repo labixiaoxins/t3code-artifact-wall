@@ -1,11 +1,9 @@
 // @effect-diagnostics nodeBuiltinImport:off - Bridges Playwright's WebSocket transport to the desktop's fds.
 /**
- * The server end of the desktop browser channel (see `DesktopBrowserEvent`).
- *
  * Playwright connects over CDP only through a WebSocket URL, so each attached
  * desktop tab gets a loopback endpoint with an unguessable path. Its frames
  * cross the bootstrap file descriptors to the desktop's relay, which owns the
- * tab's `webContents.debugger`. The endpoint only bridges to that one tab.
+ * tab's `webContents.debugger`.
  */
 import * as NodeStream from "@effect/platform-node/NodeStream";
 import * as NodeSocketServer from "@effect/platform-node/NodeSocketServer";
@@ -27,7 +25,7 @@ import * as Semaphore from "effect/Semaphore";
 import * as Stream from "effect/Stream";
 import * as Ndjson from "effect/encoding/Ndjson";
 import * as NodeCrypto from "node:crypto";
-import * as NodeFS from "node:fs";
+import * as NodeNet from "node:net";
 
 import * as ServerConfig from "../config.ts";
 import { writeAllToFileDescriptor } from "../resourceTelemetry/DesktopTelemetryReceiver.ts";
@@ -45,22 +43,16 @@ const keyOf = ({ threadId, tabId }: DesktopTabKey) => `${threadId}\u0000${tabId}
 export class DesktopBrowserChannel extends Context.Service<
   DesktopBrowserChannel,
   {
-    /** False when this server was not started by a desktop app. */
     readonly available: boolean;
     /**
-     * Waits for a tab to be attached. Subscribes before it checks, so an
-     * attach landing in between is never missed. False after `timeout`.
+     * Subscribes before it checks, so an attach landing in between is never
+     * missed.
      */
     readonly awaitAttached: (key: DesktopTabKey, timeout: Duration.Input) => Effect.Effect<boolean>;
-    /** Desktop tabs as they detach. */
     readonly detached: Stream.Stream<DesktopTabKey>;
+    readonly attached: Stream.Stream<DesktopTabKey>;
     readonly isAttached: (key: DesktopTabKey) => Effect.Effect<boolean>;
-    /**
-     * A one-connection CDP endpoint for an attached tab. Closing the scope
-     * releases the tab on the desktop and stops the endpoint.
-     */
     readonly endpoint: (key: DesktopTabKey) => Effect.Effect<string, never, Scope.Scope>;
-    /** Draws the agent's cursor over a tab the desktop renders. */
     readonly pointer: (
       key: DesktopTabKey,
       pointer: { readonly phase: "move" | "click"; readonly x: number; readonly y: number },
@@ -74,7 +66,6 @@ const make = Effect.gen(function* () {
   const controlFd = config.desktopBrowserControlFd;
   const changes = yield* PubSub.unbounded<{ key: DesktopTabKey; attached: boolean }>();
   const attachedTabs = new Set<string>();
-  /** CDP frames from the desktop, per tab, for the endpoint connected to it. */
   const inbound = new Map<string, Queue.Queue<string>>();
   const writeLock = yield* Semaphore.make(1);
 
@@ -83,6 +74,7 @@ const make = Effect.gen(function* () {
       available: false,
       awaitAttached: () => Effect.succeed(false),
       detached: Stream.empty,
+      attached: Stream.empty,
       isAttached: () => Effect.succeed(false),
       endpoint: () => Effect.die("No desktop app is attached to this server."),
       pointer: () => Effect.void,
@@ -99,8 +91,10 @@ const make = Effect.gen(function* () {
       ),
     );
 
+  // Socket reads can be cancelled while the desktop keeps its write end open.
+  // Filesystem reads on this pipe keep Node alive after scope shutdown.
   const readable = yield* Effect.acquireRelease(
-    Effect.sync(() => NodeFS.createReadStream("", { fd: inputFd, autoClose: true })),
+    Effect.sync(() => new NodeNet.Socket({ fd: inputFd, readable: true, writable: false })),
     (stream) => Effect.sync(() => stream.destroy()),
   );
   yield* NodeStream.fromReadable<Uint8Array, Error>({
@@ -136,65 +130,64 @@ const make = Effect.gen(function* () {
     Effect.forkScoped,
   );
 
-  const endpoint = (key: DesktopTabKey) =>
-    Effect.gen(function* () {
-      const id = keyOf(key);
-      const secret = NodeCrypto.randomBytes(24).toString("base64url");
-      const server = yield* NodeSocketServer.makeWebSocket({
-        host: "127.0.0.1",
-        port: 0,
-        path: `/${secret}`,
-      }).pipe(Effect.orDie);
-      const queue = yield* Queue.unbounded<string>();
-      inbound.set(id, queue);
-      // A detach before this registration shut down no queue, so check again.
-      if (!attachedTabs.has(id)) {
-        inbound.delete(id);
-        return yield* Effect.die("The desktop tab detached before the server connected.");
-      }
-      yield* Effect.addFinalizer(() =>
+  const endpoint = Effect.fn("DesktopBrowserChannel.endpoint")(function* (key: DesktopTabKey) {
+    const id = keyOf(key);
+    const secret = NodeCrypto.randomBytes(24).toString("base64url");
+    const server = yield* NodeSocketServer.makeWebSocket({
+      host: "127.0.0.1",
+      port: 0,
+      path: `/${secret}`,
+    }).pipe(Effect.orDie);
+    const queue = yield* Queue.unbounded<string>();
+    inbound.set(id, queue);
+    // A detach before this registration shut down no queue, so check again.
+    if (!attachedTabs.has(id)) {
+      inbound.delete(id);
+      return yield* Effect.die("The desktop tab detached before the server connected.");
+    }
+    yield* Effect.addFinalizer(() =>
+      Effect.gen(function* () {
+        if (inbound.get(id) === queue) inbound.delete(id);
+        yield* Queue.shutdown(queue);
+        yield* command({ type: "release", ...key });
+      }),
+    );
+    // The relay serves one Playwright connection; a second would see the first's sessions.
+    let connected = false;
+    yield* server
+      .run((socket) =>
         Effect.gen(function* () {
-          if (inbound.get(id) === queue) inbound.delete(id);
-          yield* Queue.shutdown(queue);
-          yield* command({ type: "release", ...key });
-        }),
-      );
-      // The relay serves one Playwright connection; a second would see the first's sessions.
-      let connected = false;
-      yield* server
-        .run((socket) =>
-          Effect.gen(function* () {
-            if (connected) return;
-            connected = true;
-            const writer = yield* socket.writer;
-            const reader = yield* socket.reader;
-            yield* Stream.fromQueue(queue).pipe(
-              Stream.runForEach((message) => writer.write(message)),
-              Effect.forkScoped,
-            );
-            const decoder = new TextDecoder();
-            return yield* reader.pull.pipe(
-              Effect.flatMap((frames) =>
-                Effect.forEach(
-                  frames,
-                  (frame) =>
-                    command({
-                      type: "cdp",
-                      ...key,
-                      message: typeof frame === "string" ? frame : decoder.decode(frame),
-                    }),
-                  { discard: true },
-                ),
+          if (connected) return;
+          connected = true;
+          const writer = yield* socket.writer;
+          const reader = yield* socket.reader;
+          yield* Stream.fromQueue(queue).pipe(
+            Stream.runForEach((message) => writer.write(message)),
+            Effect.forkScoped,
+          );
+          const decoder = new TextDecoder();
+          return yield* reader.pull.pipe(
+            Effect.flatMap((frames) =>
+              Effect.forEach(
+                frames,
+                (frame) =>
+                  command({
+                    type: "cdp",
+                    ...key,
+                    message: typeof frame === "string" ? frame : decoder.decode(frame),
+                  }),
+                { discard: true },
               ),
-              Effect.forever,
-            );
-          }).pipe(Effect.scoped, Effect.ignore),
-        )
-        .pipe(Effect.forkScoped);
-      const address = server.address;
-      if (address._tag !== "InetAddressV4") return yield* Effect.die("Unexpected relay address.");
-      return `ws://127.0.0.1:${address.port}/${secret}`;
-    });
+            ),
+            Effect.forever,
+          );
+        }).pipe(Effect.scoped, Effect.ignore),
+      )
+      .pipe(Effect.forkScoped);
+    const address = server.address;
+    if (address._tag !== "InetAddressV4") return yield* Effect.die("Unexpected relay address.");
+    return `ws://127.0.0.1:${address.port}/${secret}`;
+  });
 
   return DesktopBrowserChannel.of({
     available: true,
@@ -214,6 +207,10 @@ const make = Effect.gen(function* () {
       ),
     detached: Stream.fromPubSub(changes).pipe(
       Stream.filter((change) => !change.attached),
+      Stream.map((change) => change.key),
+    ),
+    attached: Stream.fromPubSub(changes).pipe(
+      Stream.filter((change) => change.attached),
       Stream.map((change) => change.key),
     ),
     isAttached: (key) => Effect.sync(() => attachedTabs.has(keyOf(key))),

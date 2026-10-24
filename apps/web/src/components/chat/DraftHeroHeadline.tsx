@@ -1,16 +1,17 @@
+import { uiText } from "~/i18n";
 import type { DraftId } from "~/composerDraftStore";
-import { useComposerDraftStore } from "~/composerDraftStore";
+import { composerDraftHasUserContent, useComposerDraftStore } from "~/composerDraftStore";
 import { resolveEnvironmentMachineKind, type ScopedProjectRef } from "@t3tools/contracts";
 import { scopedProjectKey, scopeProjectRef } from "@t3tools/client-runtime/environment";
 import { isScratchProject } from "@t3tools/client-runtime/state/projects";
-import { FolderPlusIcon, MessageSquareDashedIcon } from "lucide-react";
+import { FolderPlusIcon } from "lucide-react";
 import { useAtomValue } from "@effect/atom-react";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { openCommandPalette } from "~/commandPaletteBus";
 import { shortcutLabelForCommand } from "~/keybindings";
-import { projectIconColorClassName } from "~/projectIconColors";
 import { primaryServerKeybindingsAtom } from "~/state/server";
+import { useNewThreadHandler } from "~/hooks/useHandleNewThread";
 import { useScratchProject } from "~/hooks/useScratchProject";
 import { useClientSettings } from "~/hooks/useSettings";
 import { hasExplicitComposerModelSelection } from "~/lib/chatThreadActions";
@@ -29,20 +30,27 @@ import { ProjectEnvironmentBadge } from "../ProjectEnvironmentBadge";
 import { ProjectFavicon } from "../ProjectFavicon";
 import { sortLogicalProjectsForSidebar } from "../Sidebar.logic";
 import {
-  Menu,
-  MenuItem,
-  MenuPopup,
-  MenuRadioGroup,
-  MenuRadioItem,
-  MenuSeparator,
-  MenuTrigger,
-} from "../ui/menu";
+  Combobox,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxPopup,
+  ComboboxSearchInput,
+  ComboboxTrigger,
+  useComboboxFilter,
+} from "../ui/combobox";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { InlineButton } from "../ui/button";
+import { DraftProjectName } from "./DraftProjectName";
+import { DraftHeroProjectHeading } from "./DraftHeroProjectHeading";
 import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
 
-// Menu value for "No project"; real entries are keyed by logical project key.
-const NO_PROJECT_VALUE = "no-project";
+const ADD_PROJECT_VALUE = "add-project";
+
+interface PickerItem {
+  readonly value: string;
+  readonly label: string;
+}
 
 interface DraftHeroHeadlineProps {
   readonly draftId: DraftId | null;
@@ -67,70 +75,43 @@ export function DraftHeroHeadline({
   const getComposerDraft = useComposerDraftStore((store) => store.getComposerDraft);
   const applyStickyState = useComposerDraftStore((store) => store.applyStickyState);
   const setModelSelection = useComposerDraftStore((store) => store.setModelSelection);
-  const openAddProject = useCallback(() => openCommandPalette({ open: "add-project" }), []);
+  const openAddProject = () => openCommandPalette({ open: "add-project" });
   const { scratchEnvironmentId, scratchWorkspaceRootFor, openScratchProject } = useScratchProject();
+  const openProjectDraft = useNewThreadHandler();
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerQuery, setPickerQuery] = useState("");
+  const pickerFilter = useComboboxFilter();
 
-  const environmentLabelById = useMemo(
-    () =>
-      new Map(
-        environments.map((environment) => [environment.environmentId, environment.label] as const),
-      ),
-    [environments],
+  const environmentLabelById = new Map(
+    environments.map((environment) => [environment.environmentId, environment.label] as const),
   );
-  const projectGroups = useMemo(
-    () =>
-      sortLogicalProjectsForSidebar(
-        buildSidebarProjectSnapshots({
-          projects,
-          settings: projectGroupingSettings,
-          primaryEnvironmentId,
-          resolveEnvironmentLabel: (environmentId) =>
-            environmentLabelById.get(environmentId) ?? null,
-        }),
-        threads,
-        projectSortOrder,
-      ),
-    [
-      environmentLabelById,
-      primaryEnvironmentId,
-      projectGroupingSettings,
-      projectSortOrder,
+  const projectGroups = sortLogicalProjectsForSidebar(
+    buildSidebarProjectSnapshots({
       projects,
-      threads,
-    ],
+      settings: projectGroupingSettings,
+      primaryEnvironmentId,
+      resolveEnvironmentLabel: (environmentId) => environmentLabelById.get(environmentId) ?? null,
+    }),
+    threads,
+    projectSortOrder,
   );
-  // Same-named projects on two machines are only told apart by where they
-  // live, so rows on another machine carry its icon once the catalog spans
-  // more than one environment; a single-machine catalog stays as it was.
-  const showProjectEnvironments = useMemo(
-    () => projectGroupsSpanEnvironments(projectGroups),
-    [projectGroups],
+  const showProjectEnvironments = projectGroupsSpanEnvironments(projectGroups);
+  const environmentMachineById = new Map(
+    environments.map(
+      (environment) =>
+        [
+          environment.environmentId,
+          resolveEnvironmentMachineKind(environment.serverConfig),
+        ] as const,
+    ),
   );
-  const environmentMachineById = useMemo(
-    () =>
-      new Map(
-        environments.map(
-          (environment) =>
-            [
-              environment.environmentId,
-              resolveEnvironmentMachineKind(environment.serverConfig),
-            ] as const,
-        ),
-      ),
-    [environments],
-  );
-  const projectPickerEntries = useMemo(
-    () =>
-      buildSidebarProjectPickerEntries({
-        groups: projectGroups,
-        preferredProjectRef: activeProjectRef,
-      }),
-    [activeProjectRef, projectGroups],
-  );
-  const projectEntryByKey = useMemo(
-    () => new Map(projectPickerEntries.map((entry) => [entry.group.projectKey, entry] as const)),
-    [projectPickerEntries],
+  const projectPickerEntries = buildSidebarProjectPickerEntries({
+    groups: projectGroups,
+    preferredProjectRef: activeProjectRef,
+  });
+  const projectEntryByKey = new Map(
+    projectPickerEntries.map((entry) => [entry.group.projectKey, entry] as const),
   );
   const activeProjectGroup =
     activeProjectRef === null
@@ -145,8 +126,6 @@ export function DraftHeroHeadline({
   const hasResolvedProject = activeProjectTitle !== null;
   const canChooseProject = projectPickerEntries.length > 0;
   const shouldShowProjectMenu = canChooseProject;
-  // The project that hosts threads without a project appears once, as the
-  // "No project" item, not as a project row.
   const menuEntries = projectPickerEntries.filter(
     ({ targetProject }) =>
       !isScratchProject(targetProject, scratchWorkspaceRootFor(targetProject.environmentId)),
@@ -166,15 +145,30 @@ export function DraftHeroHeadline({
   const isScratchDraft =
     activeProject !== null && isScratchProject(activeProject, scratchWorkspaceRoot);
 
+  const pickerItems: readonly PickerItem[] = [
+    ...menuEntries.map(({ group }) => ({ value: group.projectKey, label: group.displayName })),
+    { value: ADD_PROJECT_VALUE, label: uiText("Add project") },
+  ];
+  const pickerSearch = pickerQuery.trim();
+  const filteredPickerItems =
+    pickerSearch.length === 0
+      ? pickerItems
+      : pickerItems.filter(
+          (item) =>
+            item.value !== ADD_PROJECT_VALUE &&
+            pickerFilter.contains(item, pickerSearch, (candidate) => candidate.label),
+        );
+  const selectedPickerItem = pickerItems.find((item) => item.value === activeProjectKey) ?? null;
+
   // The picker can change the draft's target while the no-project home is
   // still being opened; a stale continuation must not retarget it again.
   const latestTargetRef = useRef({ draftId, activeProjectKey, scratchTargetEnvironmentId });
   useEffect(() => {
     latestTargetRef.current = { draftId, activeProjectKey, scratchTargetEnvironmentId };
   }, [activeProjectKey, scratchTargetEnvironmentId, draftId]);
-  // Project selection changes the target of the open draft in place. The
-  // prompt stays in the same composer session, so the sidebar only gets a
-  // draft row if the user later navigates away.
+  // An empty draft instead opens the chosen project's own draft, like starting a new thread there:
+  // moving it would replace that draft and strand whatever it holds, such as the browser tabs of
+  // the no-project draft.
   const selectProject = (project: (typeof projects)[number], logicalProjectKey: string) => {
     if (!draftId) {
       return;
@@ -185,6 +179,10 @@ export function DraftHeroHeadline({
       scratchTargetEnvironmentId: project.environmentId,
     };
     const currentDraft = getComposerDraft(draftId);
+    if (!composerDraftHasUserContent(currentDraft)) {
+      void openProjectDraft(scopeProjectRef(project.environmentId, project.id));
+      return;
+    }
     setLogicalProjectDraftThreadId(
       logicalProjectKey,
       scopeProjectRef(project.environmentId, project.id),
@@ -226,112 +224,98 @@ export function DraftHeroHeadline({
   };
 
   const projectSelector = shouldShowProjectMenu ? (
-    <Menu>
+    <Combobox
+      items={pickerItems}
+      filteredItems={filteredPickerItems}
+      autoHighlight
+      itemToStringLabel={(item) => item.label}
+      isItemEqualToValue={(a, b) => a.value === b.value}
+      open={pickerOpen}
+      onOpenChange={(open) => {
+        setPickerOpen(open);
+        setPickerQuery("");
+      }}
+      value={selectedPickerItem}
+      onValueChange={(item) => {
+        if (!item) return;
+        setPickerOpen(false);
+        if (item.value === ADD_PROJECT_VALUE) {
+          openAddProject();
+          return;
+        }
+        const entry = projectEntryByKey.get(item.value);
+        if (!entry || item.value === activeProjectKey) {
+          return;
+        }
+        selectProject(entry.targetProject, entry.group.projectKey);
+      }}
+    >
       <Tooltip>
         <TooltipTrigger
           render={
-            // The trigger's accessible name comes from its visible text (the
-            // project title) so the hero sentence reads naturally: an
-            // aria-label here would replace the title with an action phrase
-            // mid-sentence and baffle screen-reader users.
-            <MenuTrigger
+            <ComboboxTrigger
               render={<InlineButton tone="picker" />}
               data-draft-project-trigger=""
-              className="pointer-events-auto max-w-64 align-baseline"
+              className="pointer-events-auto min-w-0 max-w-full align-baseline"
             />
           }
         >
-          <span className="min-w-0 truncate">
-            {isScratchDraft ? "No project" : (activeProjectDisplayName ?? "Choose a project")}
-          </span>
+          <DraftProjectName
+            value={isScratchDraft ? "No project" : (activeProjectDisplayName ?? "Choose a project")}
+            singleLine
+          />
         </TooltipTrigger>
         {activeProjectDisplayName && !isScratchDraft ? (
           <TooltipPopup side="top">{activeProjectDisplayName}</TooltipPopup>
         ) : null}
       </Tooltip>
-      <MenuPopup align="center" className="max-h-80 overflow-y-auto">
-        <MenuRadioGroup
-          value={isScratchDraft ? NO_PROJECT_VALUE : activeProjectKey}
-          onValueChange={(value) => {
-            if (value === NO_PROJECT_VALUE) {
-              void startScratch();
-              return;
-            }
-            const entry = projectEntryByKey.get(value as string);
-            if (!entry || value === activeProjectKey) {
-              return;
-            }
-            selectProject(entry.targetProject, entry.group.projectKey);
-          }}
-        >
-          {scratchWorkspaceRoot === null ? null : (
-            <MenuRadioItem value={NO_PROJECT_VALUE} closeOnClick>
-              <span className="flex min-w-0 items-center gap-2">
-                {/* Boxed like ProjectFavicon so the label lines up with project rows. */}
-                <span
-                  aria-hidden="true"
-                  className={`inline-flex size-4 shrink-0 ${projectIconColorClassName("gray")}`}
-                >
-                  <MessageSquareDashedIcon className="size-full" />
-                </span>
-                No project
-              </span>
-            </MenuRadioItem>
-          )}
-          {menuEntries.map(({ group }) => {
+      <ComboboxPopup align="center" className="w-72 overflow-hidden">
+        <ComboboxSearchInput
+          aria-label={uiText("Search projects")}
+          placeholder={uiText("Search projects...")}
+          value={pickerQuery}
+          onChange={(event) => setPickerQuery(event.target.value)}
+        />
+        <ComboboxEmpty>{uiText("No matching projects.")}</ComboboxEmpty>
+        <ComboboxList>
+          {(item: PickerItem) => {
+            const entry = projectEntryByKey.get(item.value);
             return (
-              <MenuRadioItem key={group.projectKey} value={group.projectKey} closeOnClick>
-                <span className="flex min-w-0 items-center gap-2">
-                  <ProjectFavicon project={group} className="size-4 shrink-0" />
-                  <Tooltip>
-                    <TooltipTrigger render={<span className="block min-w-0 truncate" />}>
-                      {group.displayName}
-                    </TooltipTrigger>
-                    <TooltipPopup side="top">{group.displayName}</TooltipPopup>
-                  </Tooltip>
-                  {showProjectEnvironments ? (
-                    <ProjectEnvironmentBadge
-                      group={group}
-                      primaryEnvironmentId={primaryEnvironmentId}
-                      machineByEnvironmentId={environmentMachineById}
-                    />
-                  ) : null}
-                </span>
-              </MenuRadioItem>
+              <ComboboxItem key={item.value} hideIndicator value={item}>
+                {item.value === ADD_PROJECT_VALUE ? (
+                  <FolderPlusIcon className="size-4 shrink-0" />
+                ) : entry ? (
+                  <ProjectFavicon project={entry.group} className="size-4 shrink-0" />
+                ) : null}
+                <Tooltip>
+                  <TooltipTrigger render={<span className="min-w-0 flex-1 text-sm" />}>
+                    <DraftProjectName value={item.label} />
+                  </TooltipTrigger>
+                  <TooltipPopup side="top">{item.label}</TooltipPopup>
+                </Tooltip>
+                {entry && showProjectEnvironments ? (
+                  <ProjectEnvironmentBadge
+                    group={entry.group}
+                    primaryEnvironmentId={primaryEnvironmentId}
+                    machineByEnvironmentId={environmentMachineById}
+                  />
+                ) : null}
+              </ComboboxItem>
             );
-          })}
-        </MenuRadioGroup>
-        {projectPickerEntries.length > 0 ? <MenuSeparator /> : null}
-        <MenuItem onClick={openAddProject}>
-          <FolderPlusIcon />
-          Add project
-        </MenuItem>
-      </MenuPopup>
-    </Menu>
+          }}
+        </ComboboxList>
+      </ComboboxPopup>
+    </Combobox>
   ) : (
     <button
       type="button"
       onClick={openAddProject}
-      className="pointer-events-auto inline cursor-pointer border-muted-foreground/35 border-b border-dotted text-muted-foreground/60 transition-colors hover:border-muted-foreground/60 hover:text-muted-foreground/80 focus-visible:rounded-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+      className="pointer-events-auto inline min-w-0 max-w-full cursor-pointer border-muted-foreground/35 border-b border-dotted text-muted-foreground/60 transition-colors hover:border-muted-foreground/60 hover:text-muted-foreground/80 focus-visible:rounded-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
     >
-      {activeProjectTitle ?? "Add a project"}
+      <DraftProjectName value={activeProjectTitle ?? "Add a project"} singleLine />
     </button>
   );
 
-  // The composer hero is a sentence, so the heading's accessible name must be
-  // a complete sentence too. The project picker is a control rendered inline
-  // in the h1; without an explicit label its widget state bleeds into the
-  // announced phrase.
-  const headingLabel = isScratchDraft
-    ? "What should we work on?"
-    : hasResolvedProject
-      ? `What should we build in ${activeProjectDisplayName}?`
-      : canChooseProject
-        ? `${activeProjectDisplayName ?? "Choose a project"} to start`
-        : "Add a project to start";
-
-  // One click out of the project, phrased as the alternative to the question
-  // above it. Focus moves to the project picker once this line has gone.
   const noProjectShortcut = shortcutLabelForCommand(keybindings, "chat.newWithoutProject");
   const orStartWithoutProject =
     scratchWorkspaceRoot !== null && !isScratchDraft && (hasResolvedProject || canChooseProject) ? (
@@ -351,32 +335,30 @@ export function DraftHeroHeadline({
             />
           }
         >
-          or start without a project
-        </TooltipTrigger>
+          {uiText("or start without a project")}</TooltipTrigger>
         {noProjectShortcut ? <TooltipPopup side="bottom">{noProjectShortcut}</TooltipPopup> : null}
       </Tooltip>
     ) : null;
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col items-center">
-      <h1
-        aria-label={headingLabel}
-        className="w-full text-center font-normal text-2xl text-foreground tracking-tight sm:text-3xl"
-      >
-        {isScratchDraft ? (
-          <>What should we work on?</>
-        ) : hasResolvedProject ? (
-          <>What should we build in {projectSelector}?</>
-        ) : canChooseProject ? (
-          <>{projectSelector} to start</>
-        ) : (
-          <>Add a project to start</>
-        )}
-      </h1>
-      {/* Reserved whenever threads can skip a project, so the heading does not
-          move. Without a project, the picker moves here to choose one. */}
+      {hasResolvedProject && !isScratchDraft ? (
+        <DraftHeroProjectHeading projectName={activeProjectDisplayName ?? "Choose a project"}>
+          {projectSelector}
+        </DraftHeroProjectHeading>
+      ) : (
+        <h1 className="w-full text-center font-normal text-2xl text-foreground tracking-tight sm:text-3xl">
+          {isScratchDraft ? (
+            <>{uiText("What should we work on?")}</>
+          ) : canChooseProject ? (
+            <>{projectSelector} {uiText("to start")}</>
+          ) : (
+            <>{uiText("Add a project to start")}</>
+          )}
+        </h1>
+      )}
       {scratchWorkspaceRoot === null ? null : (
-        <p className="mt-2 flex h-6 items-center text-sm">
+        <p className="mt-2 flex h-6 w-full items-center justify-center text-sm">
           {isScratchDraft ? projectSelector : orStartWithoutProject}
         </p>
       )}

@@ -1,11 +1,50 @@
-import type { AdvertisedEndpoint, DesktopWslState } from "@t3tools/contracts";
+import type { AdvertisedEndpoint, DesktopUpdateState, DesktopWslState } from "@t3tools/contracts";
 import { describe, expect, it, vi } from "vite-plus/test";
 import {
   applyWslEnableSelection,
+  canRevokeOtherClients,
   isQrShareableEndpoint,
   isWslSettingsRowVisible,
+  missingTailscaleEndpointDescription,
+  resolveLocalVersionStatusLabel,
   selectQrEndpointOption,
+  togglePairingScopeSelection,
 } from "./ConnectionsSettings.logic";
+
+describe("togglePairingScopeSelection", () => {
+  it.each([
+    {
+      label: "adds terminal:read when terminal:operate is selected",
+      current: ["orchestration:read"],
+      scope: "terminal:operate",
+      checked: true,
+      expected: ["orchestration:read", "terminal:operate", "terminal:read"],
+    },
+    {
+      label: "drops terminal:operate when terminal:read is cleared",
+      current: ["terminal:read", "terminal:operate", "relay:read"],
+      scope: "terminal:read",
+      checked: false,
+      expected: ["relay:read"],
+    },
+    {
+      label: "keeps terminal:read when terminal:operate is cleared",
+      current: ["terminal:read", "terminal:operate"],
+      scope: "terminal:operate",
+      checked: false,
+      expected: ["terminal:read"],
+    },
+    {
+      label: "toggles unrelated scopes on their own",
+      current: ["terminal:read"],
+      scope: "filesystem:read",
+      checked: true,
+      expected: ["terminal:read", "filesystem:read"],
+    },
+  ] as const)("$label", ({ current, scope, checked, expected }) => {
+    expect(togglePairingScopeSelection(current, scope, checked)).toEqual(expected);
+  });
+});
 
 const baseWslState: DesktopWslState = {
   enabled: false,
@@ -15,6 +54,63 @@ const baseWslState: DesktopWslState = {
   distros: [],
   preflightError: null,
 };
+
+describe("resolveLocalVersionStatusLabel", () => {
+  const baseState: DesktopUpdateState = {
+    enabled: true,
+    status: "idle",
+    channel: "latest",
+    currentVersion: "1.0.0",
+    hostArch: "x64",
+    appArch: "x64",
+    runningUnderArm64Translation: false,
+    availableVersion: null,
+    downloadedVersion: null,
+    releaseNotes: [],
+    omittedReleaseCount: 0,
+    downloadPercent: null,
+    checkedAt: null,
+    message: null,
+    errorContext: null,
+    canRetry: false,
+  };
+
+  it("stays up to date on the web and when the desktop updater has nothing pending", () => {
+    expect(resolveLocalVersionStatusLabel(null)).toBe("Up to date");
+    expect(resolveLocalVersionStatusLabel(baseState)).toBe("Up to date");
+  });
+
+  it.each<[string, Partial<DesktopUpdateState>, string]>([
+    ["available", { status: "available", availableVersion: "1.2.0" }, "Update 1.2.0 available"],
+    [
+      "downloading",
+      { status: "downloading", availableVersion: "1.2.0" },
+      "Downloading update 1.2.0",
+    ],
+    [
+      "downloaded",
+      { status: "downloaded", availableVersion: "1.2.0", downloadedVersion: "1.1.0" },
+      "Update 1.1.0 downloaded",
+    ],
+    [
+      "a failed download that can be retried",
+      { status: "error", errorContext: "download", availableVersion: "1.2.0", canRetry: true },
+      "Update 1.2.0 available",
+    ],
+    [
+      "a failed install",
+      { status: "error", errorContext: "install", downloadedVersion: "1.1.0" },
+      "Update 1.1.0 downloaded",
+    ],
+    [
+      "a recheck that keeps a downloaded update",
+      { status: "checking", downloadedVersion: "1.1.0" },
+      "Update 1.1.0 downloaded",
+    ],
+  ])("names the pending update for %s", (_, state, label) => {
+    expect(resolveLocalVersionStatusLabel({ ...baseState, ...state })).toBe(label);
+  });
+});
 
 describe("isWslSettingsRowVisible", () => {
   it("shows the retry row when the WSL state failed to load", () => {
@@ -181,5 +277,34 @@ describe("selectQrEndpointOption", () => {
     const loopbackOnly = options.slice(0, 1);
     expect(selectQrEndpointOption(loopbackOnly, null, null)?.id).toBe("desktop-loopback:4780");
     expect(selectQrEndpointOption([], "anything", "anything")).toBeNull();
+  });
+});
+
+describe("canRevokeOtherClients", () => {
+  it("permits revocation when a write-only grant cannot list clients", () => {
+    expect(canRevokeOtherClients(null)).toBe(true);
+  });
+
+  it("disables revocation only when a loaded list has no other clients", () => {
+    expect(canRevokeOtherClients([])).toBe(false);
+    expect(canRevokeOtherClients([{ current: true }])).toBe(false);
+    expect(canRevokeOtherClients([{ current: true }, { current: false }])).toBe(true);
+  });
+});
+
+describe("missingTailscaleEndpointDescription", () => {
+  it("explains that detection waits for Network access when the probe was skipped", () => {
+    expect(
+      missingTailscaleEndpointDescription({ mode: "local-only", tailscaleServeEnabled: false }),
+    ).toBe("Turn on Network access to detect Tailscale.");
+  });
+
+  it.each([
+    { mode: "network-accessible", tailscaleServeEnabled: false },
+    { mode: "local-only", tailscaleServeEnabled: true },
+  ] as const)("asks to start Tailscale when it was probed and not found (%o)", (state) => {
+    expect(missingTailscaleEndpointDescription(state)).toBe(
+      "Start Tailscale to set up HTTPS access through MagicDNS.",
+    );
   });
 });

@@ -7,7 +7,7 @@ import * as SqlClient from "effect/sql/SqlClient";
 
 import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
 import { runSqliteState } from "./t3-sqlite-state.ts";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import { symlinksSupported } from "@t3tools/shared/testing/symlinks";
 
 const createFixtureDatabase = Effect.fn("createSqliteStateFixtureDatabase")(function* (
@@ -75,6 +75,25 @@ it.layer(NodeServices.layer)("t3-sqlite-state", (it) => {
     }),
   );
 
+  it.effect("enables checkpoint_fullfsync on its direct connection", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-sqlite-state-fsync-" });
+      yield* createFixtureDatabase(baseDir);
+
+      const result = yield* runSqliteState({
+        operation: "query",
+        baseDir,
+        sql: "PRAGMA checkpoint_fullfsync",
+      });
+
+      assert.equal(result.operation, "query");
+      if (result.operation === "query") {
+        assert.deepStrictEqual(result.rows, [{ checkpoint_fullfsync: 1 }]);
+      }
+    }),
+  );
+
   it.effect.skipIf(!symlinksSupported)(
     "backs up isolated state before writes and refuses the shared home",
     () =>
@@ -90,8 +109,7 @@ it.layer(NodeServices.layer)("t3-sqlite-state", (it) => {
           sql: "INSERT INTO fixtures (id, label) VALUES (2, 'seeded')",
         });
         assert.equal(mutation.operation, "exec");
-        if (mutation.operation === "exec" && (yield* HostProcessPlatform) !== "win32") {
-          // NTFS has no POSIX mode bits to report.
+        if (mutation.operation === "exec" && (yield* HostProcess.Platform) !== "win32") {
           assert.equal((yield* fs.stat(mutation.backup)).mode & 0o777, 0o600);
         }
 

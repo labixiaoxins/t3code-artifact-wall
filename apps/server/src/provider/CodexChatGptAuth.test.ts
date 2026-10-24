@@ -220,6 +220,7 @@ const makeHarnessFor = Effect.fnUntraced(function* (
             analyticsEvents.push({ event, properties });
           }),
     flush: Effect.void,
+    recordOwners: () => Effect.void,
   });
   const auth = yield* makeCodexChatGptAuth({
     instanceId,
@@ -1994,7 +1995,6 @@ it.effect("an unreadable unrelated profile omits counts without failing sign-in"
       const unrelated = yield* ProviderCredentialStore.make("codex-chatgpt", "codex").pipe(
         Effect.provideService(ServerSecretStore.ServerSecretStore, h.secrets),
       );
-      // The harness owns its store; seed the corresponding binding in that store.
       h.bytes.set(unrelated.binding.key, new TextEncoder().encode("invalid"));
       yield* h.signIn;
       yield* h.phase("succeeded");

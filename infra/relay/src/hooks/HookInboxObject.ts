@@ -10,7 +10,6 @@ import * as FetchHttpClient from "effect/http/FetchHttpClient";
 import * as HookInboxStore from "./HookInboxStore.ts";
 import { sendUpstream, TUNNEL_OFFLINE_STATUS } from "./upstream.ts";
 
-/** Statuses that mean the environment is not there; the whole inbox waits and backs off. */
 const UNREACHABLE_STATUSES = new Set([502, 503, 504, TUNNEL_OFFLINE_STATUS]);
 /**
  * Statuses that mean the environment is there but did not take this request
@@ -18,32 +17,20 @@ const UNREACHABLE_STATUSES = new Set([502, 503, 504, TUNNEL_OFFLINE_STATUS]);
  * The environment drops a delivery id it has already run, so retrying is safe.
  */
 const BUSY_STATUSES = new Set([429, 500]);
-/** When a run itself fails, the next one is tried after this long. */
 const RUN_FAILURE_RETRY_MS = 60_000;
 
 type Call<A> = Effect.Effect<A, never, Alchemy.RuntimeContext>;
 
-/**
- * One per managed endpoint, addressed by endpoint key. Holds webhook requests
- * the environment could not take, in SQLite, and pushes them back through
- * its tunnel from the alarm, oldest first, backing off while it stays away.
- */
 export class HookInboxObject extends Cloudflare.DurableObject<
   HookInboxObject,
   {
     /** Holds a request for `baseUrl`; false when the inbox is full and nothing was stored. */
     readonly hold: (hook: HookInboxStore.HeldHook, baseUrl: string) => Call<boolean>;
-    /** The environment is back at `baseUrl`: deliver what is waiting now. */
     readonly wake: (baseUrl: string) => Call<boolean>;
     readonly clear: () => Call<void>;
   }
 >()("HookInboxObject") {}
 
-/**
- * Each call into an inbox is its own trace: the alarm has no parent, and a
- * hold arrives over Durable Object RPC without the forwarding span. The
- * object's name is the endpoint key, which the forward spans carry too.
- */
 const withInboxSpan =
   (name: string, inboxId: string) =>
   <A, E, R>(effect: Effect.Effect<A, E, R>) =>
@@ -97,41 +84,44 @@ export const layer = HookInboxObject.make(
     // @effect-diagnostics-next-line returnEffectInGen:off
     return Effect.gen(function* () {
       const layerSql = SqliteClient.layer({ storage: state.raw.storage });
-      // Inboxes are opened by endpoint key, so spans line up with the
-      // forward spans that held their requests.
       const inboxId = state.raw.id.name ?? state.raw.id.toString();
       const run = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
         effect.pipe(Effect.provide(layerSql), Effect.orDie);
       yield* run(HookInboxStore.migrate);
 
-      /** Moves the alarm to `at`, unless one is already due sooner. */
-      const scheduleBy = (at: number) =>
-        Effect.gen(function* () {
-          const current = yield* state.storage.getAlarm();
-          if (current === null || current > at) yield* state.storage.setAlarm(at);
-        });
+      const scheduleBy = Effect.fn("HookInboxObject.scheduleBy")(function* (at: number) {
+        const current = yield* state.storage.getAlarm();
+        if (current === null || current > at) yield* state.storage.setAlarm(at);
+      });
 
+      // withInboxSpan supplies each method's root span; avoid a second wrapper span.
       return {
-        hold: (hook: HookInboxStore.HeldHook, baseUrl: string) =>
-          Effect.gen(function* () {
+        hold: Effect.fnUntraced(
+          function* (hook: HookInboxStore.HeldHook, baseUrl: string) {
             const dueAt = yield* run(HookInboxStore.hold(hook, baseUrl));
             yield* Effect.annotateCurrentSpan({ "relay.inbox.stored": dueAt !== null });
             if (dueAt === null) return false;
             yield* scheduleBy(dueAt);
             return true;
-          }).pipe(withInboxSpan("relay.inbox.hold", inboxId)),
-        wake: (baseUrl: string) =>
-          Effect.gen(function* () {
+          },
+          withInboxSpan("relay.inbox.hold", inboxId),
+        ),
+        wake: Effect.fnUntraced(
+          function* (baseUrl: string) {
             const pending = yield* run(HookInboxStore.wake(baseUrl));
             yield* Effect.annotateCurrentSpan({ "relay.inbox.pending": pending });
             if (pending) yield* state.storage.setAlarm(yield* Clock.currentTimeMillis);
             return pending;
-          }).pipe(withInboxSpan("relay.inbox.wake", inboxId)),
-        clear: () =>
-          Effect.gen(function* () {
+          },
+          withInboxSpan("relay.inbox.wake", inboxId),
+        ),
+        clear: Effect.fnUntraced(
+          function* () {
             yield* run(HookInboxStore.clear);
             yield* state.storage.deleteAlarm();
-          }).pipe(withInboxSpan("relay.inbox.clear", inboxId)),
+          },
+          withInboxSpan("relay.inbox.clear", inboxId),
+        ),
         alarm: () =>
           run(HookInboxStore.deliverDue(deliver)).pipe(
             // A wake during this run may already have asked for an earlier

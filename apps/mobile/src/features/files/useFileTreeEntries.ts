@@ -1,7 +1,7 @@
 import { executeAtomQuery } from "@t3tools/client-runtime/state/runtime";
 import type { EnvironmentId, ProjectEntry } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
-import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 
 import { appAtomRegistry } from "../../state/atom-registry";
 import { projectEnvironment } from "../../state/projects";
@@ -30,18 +30,19 @@ export function useFileTreeEntries(input: {
         })
       : null,
   );
-  const [revision, render] = useReducer((value: number) => value + 1, 0);
+  const [, render] = useReducer((value: number) => value + 1, 0);
+  const [entriesRevision, entriesChanged] = useReducer((value: number) => value + 1, 0);
   const refreshVersion = useRef(0);
-  const directories = useMemo(
-    () => ({
-      cwd,
-      environmentId,
-      entries: new Map<string, ReadonlyArray<ProjectEntry>>(),
-      requested: new Set<string>(),
-      pending: new Map<string, AbortController>(),
-      errors: new Map<string, string>(),
-    }),
-    [cwd, environmentId],
+  const directories = {
+    cwd,
+    environmentId,
+    entries: new Map<string, ReadonlyArray<ProjectEntry>>(),
+    requested: new Set<string>(),
+    pending: new Map<string, AbortController>(),
+    errors: new Map<string, string>(),
+  };
+  const [refreshingDirectories, setRefreshingDirectories] = useState<typeof directories | null>(
+    null,
   );
   useEffect(
     () => () => {
@@ -51,53 +52,51 @@ export function useFileTreeEntries(input: {
     },
     [directories],
   );
-  const loadDirectory = useCallback(
-    (directoryPath: string, refresh = false) => {
-      if (
-        cwd === null ||
-        environmentId === null ||
-        (!refresh && directories.entries.has(directoryPath)) ||
-        directories.pending.has(directoryPath)
-      ) {
-        return;
+  const loadDirectory = (directoryPath: string, refresh = false) => {
+    if (
+      cwd === null ||
+      environmentId === null ||
+      (!refresh && directories.entries.has(directoryPath)) ||
+      directories.pending.has(directoryPath)
+    ) {
+      return;
+    }
+    const controller = new AbortController();
+    directories.requested.add(directoryPath);
+    directories.pending.set(directoryPath, controller);
+    directories.errors.delete(directoryPath);
+    render();
+    const atom = projectEnvironment.listEntries({ environmentId, input: { cwd, directoryPath } });
+    appAtomRegistry.refresh(atom);
+    return executeAtomQuery(appAtomRegistry, atom, {
+      signal: controller.signal,
+      reportFailure: false,
+      reportDefect: false,
+    }).then((result) => {
+      if (controller.signal.aborted) return;
+      directories.pending.delete(directoryPath);
+      if (result._tag === "Success") {
+        directories.entries.set(
+          directoryPath,
+          result.value.entries.filter(
+            (entry) =>
+              entry.path.slice(0, Math.max(0, entry.path.lastIndexOf("/"))) === directoryPath,
+          ),
+        );
+        entriesChanged();
+      } else {
+        const error = Cause.squash(result.cause);
+        directories.errors.set(
+          directoryPath,
+          error instanceof Error ? error.message : "Files unavailable",
+        );
       }
-      const controller = new AbortController();
-      directories.requested.add(directoryPath);
-      directories.pending.set(directoryPath, controller);
-      directories.errors.delete(directoryPath);
       render();
-      const atom = projectEnvironment.listEntries({ environmentId, input: { cwd, directoryPath } });
-      appAtomRegistry.refresh(atom);
-      return executeAtomQuery(appAtomRegistry, atom, {
-        signal: controller.signal,
-        reportFailure: false,
-        reportDefect: false,
-      }).then((result) => {
-        if (controller.signal.aborted) return;
-        directories.pending.delete(directoryPath);
-        if (result._tag === "Success") {
-          directories.entries.set(
-            directoryPath,
-            result.value.entries.filter(
-              (entry) =>
-                entry.path.slice(0, Math.max(0, entry.path.lastIndexOf("/"))) === directoryPath,
-            ),
-          );
-        } else {
-          const error = Cause.squash(result.cause);
-          directories.errors.set(
-            directoryPath,
-            error instanceof Error ? error.message : "Files unavailable",
-          );
-        }
-        render();
-      });
-    },
-    [cwd, directories, environmentId],
-  );
+    });
+  };
   const { refresh: refreshRoot, data: rootData } = root;
   const { refresh: refreshSearch, data: searchData } = search;
-  const snapshot = useMemo(() => {
+  const snapshot = (() => {
     const merged = new Map<string, ProjectEntry>();
     if (searching) {
       for (const entry of searchData?.entries ?? []) merged.set(entry.path, entry);
@@ -113,10 +112,17 @@ export function useFileTreeEntries(input: {
       }
     };
     visit((rootData?.entries ?? []).filter((entry) => !entry.path.includes("/")));
-    return { revision, entries: [...merged.values()], reachableDirectories };
-  }, [directories, revision, rootData, searchData, searching]);
+    return {
+      revision: entriesRevision,
+      entries: [...merged.values()],
+      reachableDirectories,
+      searchResultPaths: searching
+        ? new Set((searchData?.entries ?? []).map((entry) => entry.path))
+        : null,
+    };
+  })();
 
-  const refresh = useCallback(() => {
+  const refresh = () => {
     refreshRoot();
     if (searching) refreshSearch();
     const paths = new Set(
@@ -126,6 +132,7 @@ export function useFileTreeEntries(input: {
     directories.pending.clear();
     directories.errors.clear();
     const version = ++refreshVersion.current;
+    setRefreshingDirectories(directories);
     const remaining = paths.values();
     const worker = async () => {
       while (version === refreshVersion.current) {
@@ -134,19 +141,36 @@ export function useFileTreeEntries(input: {
         await loadDirectory(next.value, true);
       }
     };
-    for (let index = 0; index < Math.min(4, paths.size); index++) void worker();
+    const queries =
+      cwd !== null && environmentId !== null
+        ? [
+            projectEnvironment.listEntries({ environmentId, input: { cwd, directoryPath: "" } }),
+            ...(searching
+              ? [
+                  projectEnvironment.searchEntries({
+                    environmentId,
+                    input: { cwd, query: debouncedQuery, limit: 200 },
+                  }),
+                ]
+              : []),
+          ]
+        : [];
+    const work = [
+      ...queries.map((atom) =>
+        executeAtomQuery(appAtomRegistry, atom, { reportFailure: false, reportDefect: false }),
+      ),
+      ...Array.from({ length: Math.min(4, paths.size) }, () => worker()),
+    ];
     render();
-  }, [
-    directories,
-    loadDirectory,
-    refreshRoot,
-    refreshSearch,
-    searching,
-    snapshot.reachableDirectories,
-  ]);
+    return Promise.all(work).finally(() => {
+      if (version === refreshVersion.current) setRefreshingDirectories(null);
+    });
+  };
 
   return {
     entries: snapshot.entries,
+    searchResultPaths: snapshot.searchResultPaths,
+    isRefreshing: refreshingDirectories === directories,
     error:
       root.error ??
       (searching ? search.error : null) ??
@@ -158,6 +182,7 @@ export function useFileTreeEntries(input: {
       (searching && (query !== debouncedQuery || search.isPending)),
     searchTruncated: searching && (search.data?.truncated ?? false),
     loadedDirectories: new Set(directories.entries.keys()),
+    loadingDirectories: new Set(directories.pending.keys()),
     loadDirectory,
     refresh,
   };

@@ -4,6 +4,7 @@ import {
   MessageId,
   EventId,
   NodeId,
+  type OrchestrationV2DomainEvent,
   PlanId,
   ProjectId,
   ProviderDriverKind,
@@ -20,15 +21,20 @@ import {
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Result from "effect/Result";
+import * as Stream from "effect/Stream";
+import * as TestClock from "effect/testing/TestClock";
 import * as SqlClient from "effect/sql/SqlClient";
 import * as SqlitePersistence from "../persistence/Sqlite.ts";
 import { CodexProviderCapabilitiesV2 } from "./Adapters/CodexAdapterV2.ts";
+import * as DelegatedTaskQuestionReactor from "./DelegatedTaskQuestionReactor.ts";
+import * as EffectOutbox from "./EffectOutbox.ts";
+import * as EventSink from "./EventSink.ts";
 import * as Orchestrator from "./Orchestrator.ts";
 import * as ProjectionStore from "./ProjectionStore.ts";
-import type { ProviderAdapterV2Shape } from "./ProviderAdapter.ts";
 import * as ProviderAdapterRegistry from "./ProviderAdapterRegistry.ts";
 import * as ProviderReplayHarness from "./testkit/ProviderReplayHarness.ts";
-
+import type * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
 const instanceId = ProviderInstanceId.make("codex");
 const modelSelection = { instanceId, model: "gpt-5.1-codex" };
 const adapter = {
@@ -37,18 +43,78 @@ const adapter = {
   getCapabilities: () => Effect.succeed(CodexProviderCapabilitiesV2),
   planSelectionTransition: () => Effect.succeed({ type: "apply_on_next_turn" as const }),
   openSession: () => Effect.die("No provider process needed for metadata controls"),
-} as ProviderAdapterV2Shape;
+} as ProviderAdapter.ProviderAdapterV2["Service"];
 const layerDatabase = SqlitePersistence.layerMemory;
 const layerTest = Layer.mergeAll(
   layerDatabase,
   ProjectionStore.layer.pipe(Layer.provide(layerDatabase)),
+  EffectOutbox.layer.pipe(Layer.provide(layerDatabase)),
   ProviderReplayHarness.layerWithRegistry(
     { name: "control-reads" },
     ProviderAdapterRegistry.layerFromAdapters([adapter]),
     { databaseLayer: layerDatabase, runEffectWorker: false },
   ),
 );
-
+it.effect("marks a never-visited thread's first completion unread", () =>
+  Effect.gen(function* () {
+    const orchestrator = yield* Orchestrator.OrchestratorV2;
+    const projections = yield* ProjectionStore.ProjectionStoreV2;
+    const threadId = ThreadId.make("thread:completion-watermark");
+    yield* orchestrator.dispatch({
+      type: "thread.create",
+      commandId: CommandId.make("create-completion-watermark"),
+      threadId,
+      projectId: ProjectId.make("project:completion-watermark"),
+      title: "Background task",
+      modelSelection,
+      runtimeMode: "full-access",
+      interactionMode: "default",
+      branch: null,
+      worktreePath: null,
+      createdBy: "user",
+      creationSource: "web",
+    });
+    assert.isNull((yield* projections.getThreadShell(threadId))?.lastVisitedAt);
+    const dispatch = (id: string) =>
+      orchestrator.dispatch({
+        type: "message.dispatch",
+        commandId: CommandId.make(id),
+        threadId,
+        messageId: MessageId.make(id),
+        text: "Run in the background",
+        attachments: [],
+        dispatchMode: { type: "defer_start" },
+        createdBy: "agent",
+        creationSource: "mcp",
+      });
+    yield* TestClock.adjust("1 second");
+    const dispatchedAt = yield* DateTime.now;
+    yield* dispatch("first-completion-watermark");
+    yield* orchestrator.dispatch({
+      type: "run.interrupt",
+      commandId: CommandId.make("interrupt-completion-watermark"),
+      threadId,
+      runId: (yield* projections.getThreadProjection(threadId)).runs[0]!.id,
+    });
+    // The run ends in the dispatch's millisecond and must still be unread.
+    const ended = yield* projections.getThreadShell(threadId);
+    assert.ok(ended?.lastVisitedAt && ended.latestRunCompletedAt);
+    assert.equal(
+      DateTime.toEpochMillis(ended.lastVisitedAt),
+      DateTime.toEpochMillis(dispatchedAt) - 1,
+    );
+    assert.isAbove(
+      DateTime.toEpochMillis(ended.latestRunCompletedAt),
+      DateTime.toEpochMillis(ended.lastVisitedAt),
+    );
+    yield* TestClock.adjust("1 second");
+    yield* dispatch("second-completion-watermark");
+    assert.deepEqual(
+      (yield* projections.getThreadShell(threadId))?.lastVisitedAt,
+      ended.lastVisitedAt,
+    );
+  }).pipe(Effect.provide(layerTest)),
+);
 it.effect(
   "dispatches metadata, queue resume and request controls without hydrating unrelated history",
   () =>
@@ -56,6 +122,7 @@ it.effect(
       const orchestrator = yield* Orchestrator.OrchestratorV2;
       const projections = yield* ProjectionStore.ProjectionStoreV2;
       const sql = yield* SqlClient.SqlClient;
+      const outbox = yield* EffectOutbox.EffectOutboxV2;
       const threadId = ThreadId.make("thread:control-dispatch");
       const now = yield* DateTime.now;
       yield* orchestrator.dispatch({
@@ -202,6 +269,37 @@ it.effect(
             questions: [],
           },
         });
+        const answers = { text: "Blue", list: ["Red"], codex: { answers: ["Green"] } };
+        const normalizedAnswers = { ...answers, codex: ["Green"] };
+        if (mode === "live") {
+          const pending = yield* projections.getRuntimeResponseContext(threadId, requestId);
+          const sequence = yield* orchestrator.getThreadEventSequence(threadId);
+          for (const [index, value] of [
+            null,
+            42,
+            { choice: "Blue" },
+            ["Blue", 42],
+            { answers: [42] },
+          ].entries()) {
+            const commandId = CommandId.make(`invalid-answer:${index}`);
+            const result = yield* orchestrator
+              .dispatch({
+                type: "runtime-request.respond",
+                commandId,
+                threadId,
+                requestId,
+                answers: { ...answers, invalid: value },
+              })
+              .pipe(Effect.result);
+            assert.isTrue(Result.isFailure(result));
+            assert.deepEqual(
+              yield* projections.getRuntimeResponseContext(threadId, requestId),
+              pending,
+            );
+            assert.equal(yield* orchestrator.getThreadEventSequence(threadId), sequence);
+            assert.deepEqual(yield* outbox.listByCommandId(commandId), []);
+          }
+        }
         yield* orchestrator.dispatch(
           mode === "live"
             ? {
@@ -209,7 +307,7 @@ it.effect(
                 commandId: CommandId.make(`respond:${mode}`),
                 threadId,
                 requestId,
-                decision: "accept",
+                answers,
               }
             : {
                 type: "thread.user-input.dismiss",
@@ -225,6 +323,25 @@ it.effect(
         const response = yield* projections.getRuntimeResponseContext(threadId, requestId);
         assert.equal(response.node?.status, mode === "live" ? "completed" : "cancelled");
         assert.equal(response.item?.status, mode === "live" ? "completed" : "cancelled");
+        if (mode === "live") {
+          assert.deepEqual(response.request?.answers, normalizedAnswers);
+          assert.equal(response.item?.type, "user_input_request");
+          if (response.item?.type === "user_input_request") {
+            assert.deepEqual(response.item.questionAnswer?.answers, normalizedAnswers);
+          }
+          const effects = yield* outbox.listByCommandId(CommandId.make(`respond:${mode}`));
+          assert.deepEqual(
+            effects.map((effect) => effect.request),
+            [
+              {
+                type: "runtime-request.respond",
+                providerSessionId: sessionId,
+                requestId,
+                answers: normalizedAnswers,
+              },
+            ],
+          );
+        }
       }
       yield* orchestrator.dispatch({
         type: "thread.metadata.update",
@@ -279,7 +396,6 @@ it.effect(
       assert.isNotNull((yield* projections.getThread(threadId)).deletedAt);
     }).pipe(Effect.provide(layerTest)),
 );
-
 it.effect("implements a proposed plan that the command projection leaves out", () =>
   Effect.gen(function* () {
     const orchestrator = yield* Orchestrator.OrchestratorV2;
@@ -316,7 +432,6 @@ it.effect("implements a proposed plan that the command projection leaves out", (
         markdown: "# Plan\n\n1. Do the thing.",
       },
     });
-
     yield* orchestrator.dispatch({
       type: "message.dispatch",
       commandId: CommandId.make("implement-plan"),
@@ -329,14 +444,9 @@ it.effect("implements a proposed plan that the command projection leaves out", (
       createdBy: "user",
       creationSource: "web",
     });
-
     assert.equal((yield* projections.getPlan(threadId, planId))?.status, "completed");
   }).pipe(Effect.provide(layerTest)),
 );
-
-// Stop's settle follow-up runs after the provider interrupt returns, possibly
-// long after the Stop (retries) or again (an effect replayed after a crash).
-// A later run's background work is not that Stop's to end.
 it.effect("settles only the stopped run's background work, once", () =>
   Effect.gen(function* () {
     const orchestrator = yield* Orchestrator.OrchestratorV2;
@@ -477,8 +587,6 @@ it.effect("settles only the stopped run's background work, once", () =>
         .flatMap((item) => (item.type === "command_execution" ? [`${item.id}:${item.status}`] : []))
         .toSorted(),
     );
-    // The settle that followed a Stop of run 1's turn, dispatched only after
-    // run 2 had settled with work of its own.
     const settle = {
       type: "thread.background-work.settle",
       commandId: CommandId.make("stop-run-1:background-work-settled"),
@@ -491,9 +599,6 @@ it.effect("settles only the stopped run's background work, once", () =>
       `${commandItem(1)}:interrupted`,
       `${commandItem(2)}:running`,
     ]);
-
-    // A settle that found nothing to end replays as a no-op, even after work
-    // it would match appears: its receipt is recorded with no events.
     const emptySettle = {
       ...settle,
       commandId: CommandId.make("stop-run-1-again:background-work-settled"),
@@ -534,7 +639,6 @@ it.effect("settles only the stopped run's background work, once", () =>
     ]);
   }).pipe(Effect.provide(layerTest)),
 );
-
 it.effect("keeps delegated child pull-request links independent of the parent", () =>
   Effect.gen(function* () {
     const orchestrator = yield* Orchestrator.OrchestratorV2;
@@ -601,7 +705,6 @@ it.effect("keeps delegated child pull-request links independent of the parent", 
     assert.equal(child.thread.branch, parent.thread.branch);
     assert.equal(child.thread.worktreePath, parent.thread.worktreePath);
     assert.equal(child.thread.lineage.parentThreadId, parentThreadId);
-
     const childPullRequest = {
       ...parentPullRequest,
       number: 456,
@@ -622,5 +725,647 @@ it.effect("keeps delegated child pull-request links independent of the parent", 
     const parentAfterChildLink = yield* projections.getThreadProjection(parentThreadId);
     assert.deepEqual(parentAfterChildLink.thread.linkedPullRequest, parentPullRequest);
     assert.deepEqual(parentAfterChildLink.thread.pullRequests, parent.thread.pullRequests);
+  }).pipe(Effect.provide(layerTest)),
+);
+it.effect("creates a fresh continuation with persisted lineage and settles without archiving", () =>
+  Effect.gen(function* () {
+    const orchestrator = yield* Orchestrator.OrchestratorV2;
+    const projections = yield* ProjectionStore.ProjectionStoreV2;
+    const source = ThreadId.make("handoff-source");
+    const target = ThreadId.make("handoff-target");
+    const projectId = ProjectId.make("handoff-project");
+    const base = {
+      type: "thread.create" as const,
+      projectId,
+      title: "Demo",
+      modelSelection,
+      runtimeMode: "approval-required" as const,
+      interactionMode: "plan" as const,
+      branch: "local/demo",
+      worktreePath: "/tmp/demo-worktree",
+      createdBy: "user" as const,
+      creationSource: "web" as const,
+    };
+    yield* orchestrator.dispatch({
+      ...base,
+      threadId: source,
+      commandId: CommandId.make("handoff-source-create"),
+    });
+    yield* orchestrator.dispatch({
+      ...base,
+      title: "Demo（续）",
+      threadId: target,
+      continuationOfThreadId: source,
+      commandId: CommandId.make("handoff-target-create"),
+    });
+    const fresh = yield* projections.getThreadProjection(target);
+    // The link lives outside lineage so strict official decoders keep working.
+    assert.deepEqual(fresh.thread.lineage, {
+      parentThreadId: null,
+      rootThreadId: target,
+      relationshipToParent: null,
+    });
+    assert.equal(fresh.thread.continuedFromThreadId, source);
+    assert.isNull(fresh.thread.activeProviderThreadId);
+    assert.isEmpty(fresh.messages);
+    assert.isEmpty(fresh.providerThreads);
+    const shell = yield* projections.getThreadShell(target);
+    assert.isNull(shell?.lineage.parentThreadId);
+    assert.equal(shell?.continuedFromThreadId, source);
+    assert.equal(shell?.worktreePath, base.worktreePath);
+    yield* orchestrator.dispatch({
+      type: "thread.settle",
+      threadId: source,
+      commandId: CommandId.make("handoff-settle"),
+    });
+    const old = yield* projections.getThread(source);
+    assert.equal(old.settledOverride, "settled");
+    assert.isNull(old.archivedAt);
+    assert.isNull(old.deletedAt);
+    const invalid = yield* Effect.exit(
+      orchestrator.dispatch({
+        ...base,
+        projectId: ProjectId.make("other-project"),
+        threadId: ThreadId.make("invalid-continuation"),
+        continuationOfThreadId: source,
+        commandId: CommandId.make("invalid-continuation"),
+      }),
+    );
+    assert.equal(invalid._tag, "Failure");
+  }).pipe(Effect.provide(layerTest)),
+);
+it.effect("queues handoff behind active work and preserves the chosen continuation title", () =>
+  Effect.gen(function* () {
+    const orchestrator = yield* Orchestrator.OrchestratorV2;
+    const projections = yield* ProjectionStore.ProjectionStoreV2;
+    const threadId = ThreadId.make("handoff-queue");
+    const now = yield* DateTime.now;
+    yield* orchestrator.dispatch({
+      type: "thread.create",
+      commandId: CommandId.make("handoff-queue-create"),
+      threadId,
+      projectId: ProjectId.make("handoff-queue-project"),
+      title: "Demo（续）",
+      modelSelection,
+      runtimeMode: "approval-required",
+      interactionMode: "plan",
+      branch: null,
+      worktreePath: null,
+      createdBy: "user",
+      creationSource: "web",
+    });
+    const providerThreadId = ProviderThreadId.make("handoff-queue-provider");
+    yield* projections.apply({
+      id: EventId.make("handoff-queue-provider"),
+      type: "provider-thread.updated",
+      threadId,
+      occurredAt: now,
+      payload: {
+        id: providerThreadId,
+        driver: adapter.driver,
+        providerInstanceId: instanceId,
+        providerSessionId: null,
+        appThreadId: threadId,
+        ownerNodeId: null,
+        nativeThreadRef: null,
+        nativeConversationHeadRef: null,
+        status: "active",
+        firstRunOrdinal: 1,
+        lastRunOrdinal: 1,
+        handoffIds: [],
+        forkedFrom: null,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+    const runId = RunId.make("handoff-active-run");
+    yield* projections.apply({
+      id: EventId.make("handoff-active-run-created"),
+      type: "run.created",
+      threadId,
+      occurredAt: now,
+      payload: {
+        id: runId,
+        threadId,
+        ordinal: 1,
+        providerInstanceId: instanceId,
+        modelSelection,
+        providerThreadId,
+        userMessageId: MessageId.make("handoff-active-user"),
+        rootNodeId: null,
+        activeAttemptId: null,
+        status: "running",
+        requestedAt: now,
+        startedAt: now,
+        completedAt: null,
+        checkpointId: null,
+        contextHandoffId: null,
+      },
+    });
+    yield* orchestrator.dispatch({
+      type: "message.dispatch",
+      commandId: CommandId.make("handoff-queue-send"),
+      threadId,
+      messageId: MessageId.make("handoff-queue-message"),
+      text: "请写 HANDOFF 文件，之后停止。",
+      attachments: [],
+      modelSelection,
+      dispatchMode: { type: "queue_after_active" },
+      createdBy: "user",
+      creationSource: "web",
+    });
+    const projection = yield* projections.getThreadProjection(threadId);
+    assert.equal(
+      projection.runs.find((run) => run.userMessageId === "handoff-queue-message")?.status,
+      "queued",
+    );
+    assert.equal(projection.thread.title, "Demo（续）");
+    assert.isUndefined(projection.thread.titleRegeneration);
+    assert.equal(projection.messages.at(-1)?.text, "请写 HANDOFF 文件，之后停止。");
+  }).pipe(Effect.provide(layerTest)),
+);
+it.effect("wakes the parent once when its delegated task asks a question", () =>
+  Effect.gen(function* () {
+    const orchestrator = yield* Orchestrator.OrchestratorV2;
+    const projections = yield* ProjectionStore.ProjectionStoreV2;
+    const reactor = yield* DelegatedTaskQuestionReactor.DelegatedTaskQuestionReactor;
+    const parentThreadId = ThreadId.make("thread:question-parent");
+    yield* orchestrator.dispatch({
+      type: "thread.create",
+      commandId: CommandId.make("create-question-parent"),
+      threadId: parentThreadId,
+      projectId: ProjectId.make("project:question"),
+      title: "Parent",
+      modelSelection,
+      runtimeMode: "full-access",
+      interactionMode: "default",
+      branch: null,
+      worktreePath: null,
+      createdBy: "user",
+      creationSource: "web",
+    });
+    yield* orchestrator.dispatch({
+      type: "message.dispatch",
+      commandId: CommandId.make("start-question-parent"),
+      threadId: parentThreadId,
+      messageId: MessageId.make("message:question-parent"),
+      text: "Delegate the research",
+      attachments: [],
+      dispatchMode: { type: "start_immediately" },
+      createdBy: "user",
+      creationSource: "web",
+    });
+    const parentRun = (yield* projections.getThreadProjection(parentThreadId)).runs[0]!;
+    yield* orchestrator.dispatch({
+      type: "delegated_task.request",
+      commandId: CommandId.make("delegate-question-task"),
+      parentThreadId,
+      parentRunId: parentRun.id,
+      parentNodeId: parentRun.rootNodeId!,
+      task: "Research the sources",
+      completionWake: "settled_only",
+      modelSelection,
+      runtimeMode: "full-access",
+      interactionMode: "default",
+      createdBy: "agent",
+      creationSource: "mcp",
+    });
+    const task = (yield* projections.getThreadProjection(parentThreadId)).subagents[0]!;
+    const childRun = (yield* projections.getThreadRecords(task.childThreadId!, ["runs"])).runs[0]!;
+    const now = yield* DateTime.now;
+    const requestEvent = (
+      eventId: string,
+      requestId: string,
+      responseCapability: "live" | "message" = "message",
+      kind: "user_input" | "command" = "user_input",
+      run = childRun,
+    ) =>
+      ({
+        id: EventId.make(eventId),
+        type: "runtime-request.updated",
+        threadId: task.childThreadId!,
+        runId: run.id,
+        occurredAt: now,
+        payload: {
+          id: RuntimeRequestId.make(requestId),
+          nodeId: run.rootNodeId!,
+          providerTurnId: null,
+          nativeRequestRef: null,
+          kind,
+          status: "pending",
+          responseCapability:
+            responseCapability === "live"
+              ? { type: "live", providerSessionId: ProviderSessionId.make("session:question") }
+              : { type: "message" },
+          createdAt: now,
+          resolvedAt: null,
+        },
+      }) satisfies OrchestrationV2DomainEvent;
+    const question = requestEvent("event:question", "request:question", "live");
+    const asyncQuestion = requestEvent("event:async-question", "request:async-question");
+    const answered = requestEvent("event:answered", "request:answered", "live");
+    const approval = requestEvent("event:approval", "request:approval", "message", "command");
+    const eventSink = yield* EventSink.EventSinkV2;
+    yield* eventSink.write({
+      events: [question, asyncQuestion, answered, approval],
+    });
+    yield* reactor.handle(question);
+    assert.isFalse(
+      (yield* projections.getThreadProjection(parentThreadId)).messages.some(
+        (message) => message.notification !== undefined,
+      ),
+    );
+    yield* reactor.handle(asyncQuestion);
+    assert.equal(
+      (yield* projections.getThreadProjection(parentThreadId)).messages.filter(
+        (message) => message.notification !== undefined,
+      ).length,
+      1,
+    );
+    yield* reactor.handle(asyncQuestion);
+    yield* reactor.handle(answered);
+    yield* eventSink.write({
+      events: [
+        {
+          ...answered,
+          id: EventId.make("event:answered-resolved"),
+          payload: { ...answered.payload, status: "resolved", resolvedAt: now },
+        },
+      ],
+    });
+    yield* reactor.handle(answered);
+    yield* reactor.handle(approval);
+    const wakes = (yield* projections.getThreadProjection(parentThreadId)).messages.filter(
+      (message) => message.notification !== undefined,
+    );
+    assert.include(wakes[0]?.text, "asked a question and is still working");
+    assert.deepEqual(
+      wakes.map((message) => message.notification),
+      [
+        {
+          source: {
+            kind: "delegated_task",
+            taskIds: [task.id],
+            childThreadId: task.childThreadId!,
+          },
+          outcome: "updated",
+          summary: 'Delegated task "Research the sources" has a question',
+        },
+      ],
+    );
+    const wakeRun = (yield* projections.getThreadRecords(parentThreadId, ["runs"])).runs.find(
+      (run) => run.userMessageId === wakes[0]!.id,
+    )!;
+    assert.equal(wakeRun.status, "queued");
+    const resolved = {
+      ...asyncQuestion,
+      id: EventId.make("event:question-resolved"),
+      payload: { ...asyncQuestion.payload, status: "resolved" as const, resolvedAt: now },
+    };
+    yield* eventSink.write({ events: [resolved] });
+    yield* reactor.handle(resolved);
+    assert.equal(
+      (yield* projections.getThreadRecords(parentThreadId, ["runs"])).runs.find(
+        (run) => run.id === wakeRun.id,
+      )?.status,
+      "cancelled",
+    );
+    const parentCompleted = {
+      id: EventId.make("event:question-parent-completed"),
+      type: "run.updated",
+      threadId: parentThreadId,
+      runId: parentRun.id,
+      occurredAt: now,
+      payload: { ...parentRun, status: "completed", completedAt: now },
+    } satisfies OrchestrationV2DomainEvent;
+    for (const status of [
+      "preparing",
+      "starting",
+      "running",
+      "queued",
+      "cancelled",
+      "rolled_back",
+      "interrupted",
+    ] as const) {
+      yield* reactor.handle({ ...parentCompleted, payload: { ...parentRun, status } });
+    }
+    assert.equal(
+      (yield* projections.getThreadRecords(parentThreadId, ["messages"])).messages.length,
+      2,
+    );
+    yield* eventSink.write({ events: [parentCompleted] });
+    for (const state of ["disposed", "pending"] as const) {
+      yield* eventSink.write({
+        events: [
+          {
+            id: EventId.make(`event:question-task-${state}`),
+            type: "subagent.updated",
+            threadId: parentThreadId,
+            occurredAt: now,
+            payload: { ...task, completionDelivery: { state, observedByRunId: null } },
+          },
+        ],
+      });
+      yield* reactor.handle(parentCompleted);
+      if (state === "disposed") {
+        assert.equal(
+          (yield* projections.getThreadRecords(parentThreadId, ["messages"])).messages.length,
+          2,
+        );
+      }
+    }
+    yield* reactor.handle(parentCompleted);
+    const caughtUp = (yield* projections.getThreadProjection(parentThreadId)).messages.filter(
+      (message) => message.notification !== undefined,
+    );
+    assert.equal(caughtUp.length, 2);
+    assert.equal(
+      caughtUp.filter((message) => message.text.includes(`requestId ${question.payload.id}.`))
+        .length,
+      1,
+    );
+    assert.include(caughtUp[1]?.text, "is blocked on a question");
+    assert.isFalse(
+      caughtUp.some((message) => message.text.includes(`requestId ${answered.payload.id}.`)),
+    );
+    yield* reactor.handle(question);
+    assert.equal(
+      (yield* projections.getThreadProjection(parentThreadId)).messages.filter(
+        (message) => message.notification !== undefined,
+      ).length,
+      2,
+    );
+    const terminalQuestion = requestEvent(
+      "event:terminal-question",
+      "request:terminal-question",
+      "live",
+    );
+    yield* eventSink.write({ events: [terminalQuestion] });
+    yield* reactor.handle(terminalQuestion);
+    assert.equal(
+      (yield* projections.getThreadProjection(parentThreadId)).messages.filter(
+        (message) => message.notification !== undefined,
+      ).length,
+      3,
+    );
+    yield* eventSink.write({
+      events: [
+        {
+          id: EventId.make("event:question-parent-running-again"),
+          type: "run.updated",
+          threadId: parentThreadId,
+          runId: parentRun.id,
+          occurredAt: now,
+          payload: { ...parentRun, status: "running", completedAt: null },
+        },
+      ],
+    });
+    yield* orchestrator.dispatch({
+      type: "delegated_task.wake-policy",
+      commandId: CommandId.make("terminal-question-wait-ended"),
+      parentThreadId,
+      taskId: task.id,
+      completionWake: "always",
+    });
+    const upgradedQuestion = requestEvent(
+      "event:upgraded-question",
+      "request:upgraded-question",
+      "live",
+    );
+    yield* eventSink.write({ events: [upgradedQuestion] });
+    yield* reactor.handle(upgradedQuestion);
+    assert.equal(
+      (yield* projections.getThreadProjection(parentThreadId)).messages.filter(
+        (message) => message.notification !== undefined,
+      ).length,
+      4,
+    );
+    const waitDelivered = requestEvent("event:wait-delivered", "request:wait-delivered", "live");
+    const waitDeliveredParentCompleted = {
+      ...parentCompleted,
+      id: EventId.make("event:wait-delivered-parent-completed"),
+    };
+    yield* eventSink.write({ events: [waitDelivered, waitDeliveredParentCompleted] });
+    yield* reactor.handle(waitDeliveredParentCompleted);
+    assert.isFalse(
+      (yield* projections.getThreadProjection(parentThreadId)).messages.some((message) =>
+        message.text.includes(`requestId ${waitDelivered.payload.id}.`),
+      ),
+    );
+    yield* eventSink.write({
+      commandId: CommandId.make("command:runtime-reconcile:question-followup"),
+      events: [
+        {
+          id: EventId.make("event:question-child-completed"),
+          type: "run.updated",
+          threadId: task.childThreadId!,
+          occurredAt: now,
+          payload: { ...childRun, status: "completed", completedAt: now },
+        },
+        {
+          id: EventId.make("event:question-task-completed"),
+          type: "subagent.updated",
+          threadId: parentThreadId,
+          occurredAt: now,
+          payload: {
+            ...task,
+            status: "completed",
+            result: "Sources researched.",
+            completedAt: now,
+          },
+        },
+      ],
+    });
+    yield* orchestrator.dispatch({
+      type: "message.dispatch",
+      commandId: CommandId.make("question-followup"),
+      threadId: task.childThreadId!,
+      messageId: MessageId.make("message:question-followup"),
+      text: "Check the sources again",
+      attachments: [],
+      dispatchMode: { type: "start_immediately" },
+      createdBy: "user",
+      creationSource: "web",
+    });
+    const followup = (yield* projections.getThreadRecords(task.childThreadId!, ["runs"])).runs.find(
+      (run) => run.userMessageId === "message:question-followup",
+    )!;
+    assert.isDefined(followup.delegatedTaskId);
+    assert.notEqual(followup.delegatedTaskId, task.id);
+    const followupQuestion = requestEvent(
+      "event:followup-question",
+      "request:followup-question",
+      "live",
+      "user_input",
+      followup,
+    );
+    yield* eventSink.write({ events: [followupQuestion] });
+    yield* reactor.handle(followupQuestion);
+    const followupWake = (yield* projections.getThreadRecords(parentThreadId, [
+      "messages",
+    ])).messages.find((message) =>
+      message.text.includes(`requestId ${followupQuestion.payload.id}`),
+    )!;
+    assert.deepEqual(followupWake.notification?.source, {
+      kind: "delegated_task",
+      taskIds: [followup.delegatedTaskId],
+      childThreadId: task.childThreadId!,
+    });
+  }).pipe(Effect.provide(DelegatedTaskQuestionReactor.layer.pipe(Layer.provideMerge(layerTest)))),
+);
+it.effect.each([false, true])("rejects thread.create for an existing id (deleted: %s)", (deleted) =>
+  Effect.gen(function* () {
+    const orchestrator = yield* Orchestrator.OrchestratorV2;
+    const projections = yield* ProjectionStore.ProjectionStoreV2;
+    const threadId = ThreadId.make(`thread:duplicate-create:${deleted}`);
+    const create = {
+      type: "thread.create",
+      commandId: CommandId.make(`create:${threadId}`),
+      threadId,
+      projectId: ProjectId.make("project:duplicate-create"),
+      title: "Original",
+      modelSelection,
+      runtimeMode: "full-access",
+      interactionMode: "default",
+      branch: null,
+      worktreePath: null,
+      createdBy: "user",
+      creationSource: "web",
+      importedNativeThread: {
+        ref: { driver: adapter.driver, nativeId: "native-original", strength: "strong" },
+      },
+    } as const;
+    yield* orchestrator.dispatch(create);
+    if (deleted) {
+      yield* orchestrator.dispatch({
+        type: "thread.delete",
+        commandId: CommandId.make(`delete:${threadId}`),
+        threadId,
+      });
+    }
+    const before = yield* projections.getThread(threadId);
+    assert.isNotNull(before.activeProviderThreadId);
+    assert.equal(before.deletedAt !== null, deleted);
+    const sequence = yield* orchestrator.getThreadEventSequence(threadId);
+    yield* TestClock.adjust("1 second");
+    const duplicate = {
+      ...create,
+      commandId: CommandId.make(`duplicate:${threadId}`),
+      title: "Replacement",
+      importedNativeThread: undefined,
+    };
+    const outcome = yield* orchestrator.dispatch(duplicate).pipe(Effect.result);
+    assert.ok(Result.isFailure(outcome), "duplicate create must be rejected");
+    const refused = outcome.failure;
+    assert.equal(refused._tag, "OrchestratorThreadAlreadyExistsError");
+    assert.equal(refused.message, `Thread ${threadId} already exists. Use a new thread id.`);
+    assert.deepEqual(yield* projections.getThread(threadId), before);
+    assert.equal(yield* orchestrator.getThreadEventSequence(threadId), sequence);
+    const retried = yield* orchestrator.dispatch(duplicate).pipe(Effect.flip);
+    assert.equal(retried._tag, "OrchestratorCommandPreviouslyRejectedError");
+    assert.include(retried.message, refused.message);
+  }).pipe(Effect.provide(layerTest)),
+);
+it.effect("replays a thread.create receipt without changing the thread", () =>
+  Effect.gen(function* () {
+    const orchestrator = yield* Orchestrator.OrchestratorV2;
+    const projections = yield* ProjectionStore.ProjectionStoreV2;
+    const threadId = ThreadId.make("thread:create-receipt-replay");
+    const create = {
+      type: "thread.create",
+      commandId: CommandId.make("create:receipt-replay"),
+      threadId,
+      projectId: ProjectId.make("project:duplicate-create"),
+      title: "Original",
+      modelSelection,
+      runtimeMode: "full-access",
+      interactionMode: "default",
+      branch: null,
+      worktreePath: null,
+      createdBy: "user",
+      creationSource: "web",
+    } as const;
+    const original = yield* orchestrator.dispatch(create);
+    const before = yield* projections.getThread(threadId);
+    const replayed = yield* orchestrator.dispatch(create);
+    assert.equal(replayed.sequence, original.sequence);
+    assert.deepEqual(replayed, original);
+    assert.deepEqual(yield* projections.getThread(threadId), before);
+    assert.equal(yield* orchestrator.getThreadEventSequence(threadId), original.sequence);
+  }).pipe(Effect.provide(layerTest)),
+);
+it.effect("explicit settle clears snooze atomically and stays idempotent after re-snoozing", () =>
+  Effect.gen(function* () {
+    const orchestrator = yield* Orchestrator.OrchestratorV2;
+    const projections = yield* ProjectionStore.ProjectionStoreV2;
+    const events = yield* EventSink.EventSinkV2;
+    const threadId = ThreadId.make("thread:settle-snoozed");
+    yield* orchestrator.dispatch({
+      type: "thread.create",
+      commandId: CommandId.make("create-settle-snoozed"),
+      threadId,
+      projectId: ProjectId.make("project:settle-snoozed"),
+      title: "Snoozed thread",
+      modelSelection,
+      runtimeMode: "full-access",
+      interactionMode: "default",
+      branch: null,
+      worktreePath: null,
+      createdBy: "user",
+      creationSource: "web",
+    });
+    const now = yield* DateTime.now;
+    const settledAt = DateTime.add(now, { seconds: 1 });
+    const snoozedUntil = DateTime.add(now, { hours: 1 });
+    for (const round of [1, 2]) {
+      yield* orchestrator.dispatch({
+        type: "thread.snooze",
+        commandId: CommandId.make(`snooze-before-settle-${round}`),
+        threadId,
+        snoozedUntil: DateTime.formatIso(snoozedUntil),
+      });
+      assert.deepInclude(yield* projections.getThread(threadId), {
+        snoozedUntil,
+        snoozedAt: yield* DateTime.now,
+      });
+      yield* TestClock.adjust("1 second");
+      const commandId = CommandId.make(`settle-snoozed-${round}`);
+      yield* orchestrator.dispatch({ type: "thread.settle", commandId, threadId });
+      const expected = {
+        settledOverride: "settled",
+        settledAt,
+        snoozedUntil: null,
+        snoozedAt: null,
+        updatedAt: yield* DateTime.now,
+      } as const;
+      const committed = yield* events.readByCommandId({ commandId }).pipe(Stream.runCollect);
+      assert.lengthOf(committed, 1);
+      assert.equal(committed[0]?.event.type, "thread.settled");
+      assert.deepInclude(committed[0]?.event.payload, expected);
+      const settled = yield* projections.getThreadShell(threadId);
+      assert.deepInclude(settled, expected);
+      assert.deepInclude((yield* projections.getThreadProjection(threadId)).thread, expected);
+      yield* TestClock.adjust("1 second");
+      yield* orchestrator.dispatch({
+        type: "thread.settle",
+        commandId: CommandId.make(`settle-again-${round}`),
+        threadId,
+      });
+      assert.deepEqual(yield* projections.getThreadShell(threadId), settled);
+    }
+    yield* orchestrator.dispatch({
+      type: "thread.unsettle",
+      commandId: CommandId.make("unsettle-after-snooze"),
+      threadId,
+      reason: "user",
+    });
+    const active = {
+      settledOverride: "active",
+      settledAt: null,
+      snoozedUntil: null,
+      snoozedAt: null,
+    } as const;
+    assert.deepInclude(yield* projections.getThreadShell(threadId), active);
+    assert.deepInclude((yield* projections.getThreadProjection(threadId)).thread, active);
   }).pipe(Effect.provide(layerTest)),
 );

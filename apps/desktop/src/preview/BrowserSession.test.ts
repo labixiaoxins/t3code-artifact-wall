@@ -21,15 +21,35 @@ const { fromPartition, sessions } = vi.hoisted(() => ({
   >(),
 }));
 
+const { fromWebContents } = vi.hoisted(() => ({
+  fromWebContents: vi.fn<(webContents: unknown) => unknown>(() => null),
+}));
+
 vi.mock("electron", () => ({
+  BrowserWindow: { fromWebContents },
   session: {
     fromPartition,
   },
 }));
 
+import * as ElectronDialog from "../electron/ElectronDialog.ts";
 import * as BrowserSession from "./BrowserSession.ts";
 
-const layer = BrowserSession.layer.pipe(Layer.provide(NodeServices.layer));
+const { showMessageBox } = vi.hoisted(() => ({
+  showMessageBox: vi.fn<
+    (options: Electron.MessageBoxOptions, owner?: Electron.BrowserWindow) => number
+  >(() => 1),
+}));
+const layerDialog = Layer.succeed(ElectronDialog.ElectronDialog, {
+  pickFolder: () => Effect.die("unused"),
+  pickFiles: () => Effect.die("unused"),
+  showMessageBox: (options, owner) =>
+    Effect.sync(() => ({ response: showMessageBox(options, owner), checkboxChecked: false })),
+  showErrorBox: () => Effect.void,
+});
+const layer = BrowserSession.layer.pipe(
+  Layer.provide(Layer.merge(NodeServices.layer, layerDialog)),
+);
 
 describe("BrowserSession", () => {
   beforeEach(() => {
@@ -73,11 +93,9 @@ describe("BrowserSession", () => {
       const replacementChar = yield* browserSessions.getPartition("p\ufffd");
       assert.notStrictEqual(loneSurrogate, replacementChar);
 
-      // The escape can't be forged with a literal backslash either.
       const literal = yield* browserSessions.getPartition("p\\ud800");
       assert.notStrictEqual(literal, loneSurrogate);
 
-      // And a well-formed scope still lands on its historical partition.
       assert.strictEqual(
         yield* browserSessions.getPartition("scope-a"),
         "persist:t3code-preview-f051bb2c68cb7b2fe969",
@@ -89,8 +107,6 @@ describe("BrowserSession", () => {
     Effect.gen(function* () {
       const browserSessions = yield* BrowserSession.BrowserSession;
 
-      // These share the same scope string: default environment `a::b`, and
-      // environment `a` with nondefault profile `b`.
       const legacyDefault = yield* browserSessions.getPartition("a::b");
       const nondefaultProfile = yield* browserSessions.getPartition("a::b", true, "profile");
 
@@ -103,10 +119,8 @@ describe("BrowserSession", () => {
   );
 
   // A rewritten session UA — any variant, even ones that keep the Electron
-  // token — makes Cloudflare Turnstile loop with error 600010 (#5002), so
-  // the guest must end up with Electron's native User-Agent. The mock applies
-  // setUserAgent calls, so this fails on any reintroduced rewrite while still
-  // permitting a harmless re-set of the unchanged native string.
+  // token — makes Cloudflare Turnstile loop with error 600010 (#5002), so the
+  // guest must end up with Electron's native User-Agent.
   it.effect("keeps the guest's effective User-Agent equal to Electron's native one", () =>
     Effect.gen(function* () {
       // Electron's real UA shape: app token, then Chrome, then Electron, then
@@ -166,8 +180,8 @@ describe("BrowserSession", () => {
       for (const permission of [
         "clipboard-read",
         "clipboard-sanitized-write",
-        "notifications",
         "geolocation",
+        "fullscreen",
       ]) {
         assert.isTrue(requestAllows(permission), `request handler should allow ${permission}`);
         assert.isTrue(
@@ -179,13 +193,78 @@ describe("BrowserSession", () => {
       // `clipboard-write` is not a real Electron permission — the async write API
       // uses `clipboard-sanitized-write` — so the stale name must not be granted,
       // and unrelated permissions stay denied.
-      for (const permission of ["clipboard-write", "midi"]) {
+      for (const permission of ["clipboard-write", "notifications", "midi"]) {
         assert.isFalse(requestAllows(permission), `request handler should deny ${permission}`);
         assert.isFalse(
           checkHandler(null, permission) as boolean,
           `check handler should deny ${permission}`,
         );
       }
+    }).pipe(Effect.provide(layer)),
+  );
+
+  it.effect("opens custom-scheme links externally only after the user confirms", () =>
+    Effect.gen(function* () {
+      const browserSessions = yield* BrowserSession.BrowserSession;
+      const partition = yield* browserSessions.getPartition("scope-a");
+      yield* browserSessions.getSession("scope-a");
+      const requestHandler =
+        sessions.get(partition)?.setPermissionRequestHandler.mock.calls[0]?.[0];
+      assert.isFunction(requestHandler);
+
+      const request = (externalURL: string) =>
+        Effect.callback<boolean>((resume) => {
+          requestHandler(
+            null,
+            "openExternal",
+            (granted: boolean) => resume(Effect.succeed(granted)),
+            { externalURL },
+          );
+        });
+
+      showMessageBox.mockReset();
+      showMessageBox.mockReturnValueOnce(0).mockReturnValueOnce(1);
+      assert.isTrue(yield* request("slack://open?team=T1"));
+      assert.isFalse(yield* request("zoommtg://zoom.us/join"));
+      assert.strictEqual(showMessageBox.mock.calls.length, 2);
+
+      for (const url of ["file:///etc/passwd", "javascript:alert(1)", "data:text/html,x"]) {
+        assert.isFalse(yield* request(url), `${url} must never open externally`);
+      }
+      assert.strictEqual(showMessageBox.mock.calls.length, 2);
+    }).pipe(Effect.provide(layer)),
+  );
+
+  it.effect("attaches the open-externally prompt to the window hosting the preview", () =>
+    Effect.gen(function* () {
+      const browserSessions = yield* BrowserSession.BrowserSession;
+      const partition = yield* browserSessions.getPartition("scope-a");
+      yield* browserSessions.getSession("scope-a");
+      const requestHandler =
+        sessions.get(partition)?.setPermissionRequestHandler.mock.calls[0]?.[0];
+      assert.isFunction(requestHandler);
+
+      const hostWindow = { id: 7 } as unknown as Electron.BrowserWindow;
+      const host = { isDestroyed: () => false };
+      const guest = { isDestroyed: () => false, hostWebContents: host };
+      fromWebContents.mockImplementation((webContents) =>
+        webContents === host ? hostWindow : null,
+      );
+      showMessageBox.mockReset();
+      showMessageBox.mockReturnValueOnce(1);
+
+      yield* Effect.callback<boolean>((resume) => {
+        requestHandler(
+          guest,
+          "openExternal",
+          (granted: boolean) => resume(Effect.succeed(granted)),
+          {
+            externalURL: "slack://open?team=T1",
+          },
+        );
+      });
+
+      assert.strictEqual(showMessageBox.mock.calls[0]?.[1], hostWindow);
     }).pipe(Effect.provide(layer)),
   );
 
@@ -218,7 +297,11 @@ describe("BrowserSession", () => {
         "Failed to derive a desktop preview browser partition for scope environment-a.",
       );
       assert.notInclude(error.message, nativeCause.message);
-    }).pipe(Effect.provide(BrowserSession.layer.pipe(Layer.provide(layerFailingCrypto))));
+    }).pipe(
+      Effect.provide(
+        BrowserSession.layer.pipe(Layer.provide(Layer.merge(layerFailingCrypto, layerDialog))),
+      ),
+    );
   });
 
   it.effect("preserves session scope, partition, and the Electron failure", () =>
@@ -270,10 +353,6 @@ describe("BrowserSession", () => {
       const browserSessions = yield* BrowserSession.BrowserSession;
       const partition = yield* browserSessions.getPartition("scope-untouched");
 
-      // Deriving the partition string does not create the session, and the
-      // clear only walks sessions it already holds. Without loading it first
-      // this reports success and deletes nothing — which is what a user
-      // clearing a profile after a restart would get.
       assert.isUndefined(sessions.get(partition));
       yield* browserSessions.clearCookies([partition]);
       assert.isUndefined(sessions.get(partition));

@@ -1,15 +1,10 @@
-/**
- * The review half of the floating composer: the summary and the verdict that sends it, together
- * with whatever line comments the review is holding. The count of those lives on the composer's
- * trigger and mode toggle, and each pending card can be dropped from the diff, so neither is
- * repeated here. The popover around it belongs to PullRequestComposer.
- */
+import { uiText } from "~/i18n";
+import { useAtomCommand } from "~/state/use-atom-command";
 import type { EnvironmentId, PullRequestRef, PullRequestReviewVerdict } from "@t3tools/contracts";
 import { CheckIcon, MessageSquareIcon, XCircleIcon } from "lucide-react";
 import { useState, type ReactNode, type RefObject } from "react";
 
 import { pullRequestEnvironment } from "~/state/pullRequests";
-import { useAtomCommand } from "~/state/use-atom-command";
 
 import { Button } from "../ui/button";
 import { Select, SelectItem, SelectPopup, SelectTrigger } from "../ui/select";
@@ -29,19 +24,19 @@ const VERDICTS: ReadonlyArray<{
 }> = [
   {
     value: "comment",
-    label: "Comment",
+    label: uiText("Comment"),
     sent: "Review submitted",
     icon: <MessageSquareIcon className="size-3" />,
   },
   {
     value: "approve",
-    label: "Approve",
+    label: uiText("Approve"),
     sent: "Pull request approved",
     icon: <CheckIcon className="size-3" />,
   },
   {
     value: "request-changes",
-    label: "Request changes",
+    label: uiText("Request changes"),
     sent: "Changes requested",
     icon: <XCircleIcon className="size-3" />,
   },
@@ -100,8 +95,7 @@ export function PullRequestReviewForm({
     });
     onPendingChange(false);
     if (result._tag === "Failure") {
-      // The draft is kept: whatever went wrong, retyping the review is not the answer.
-      toastManager.add({ type: "error", title: "The review could not be submitted" });
+      toastManager.add({ type: "error", title: uiText("The review could not be submitted") });
       return;
     }
     // More remarks may have been added while the host was accepting this snapshot. Leave those,
@@ -116,10 +110,16 @@ export function PullRequestReviewForm({
   };
 
   // Forgejo requires a summary when requesting changes, even with inline comments.
-  const canSubmit = (verdict: PullRequestReviewVerdict) =>
+  const canSubmit = (verdict: PullRequestReviewVerdict, summary: string) =>
     verdict === "request-changes" && requestChangesSummaryRequired
-      ? body.trim().length > 0
-      : verdict === "approve" || body.trim().length > 0 || comments.length > 0;
+      ? summary.trim().length > 0
+      : verdict === "approve" || summary.trim().length > 0 || comments.length > 0;
+  const placeholder =
+    selectedVerdict === undefined || canSubmit(selectedVerdict.value, "")
+      ? "Summarize your review (optional)"
+      : selectedVerdict.value === "request-changes" && requestChangesSummaryRequired
+        ? "Summarize your review (required to request changes)"
+        : "Summarize your review or add line comments";
 
   return (
     <>
@@ -127,47 +127,47 @@ export function PullRequestReviewForm({
         ref={textareaRef}
         rows={3}
         value={body}
-        placeholder={
-          requestChangesSummaryRequired && verdicts.includes("request-changes")
-            ? "Summarize your review (required to request changes)"
-            : "Summarize your review (optional)"
-        }
-        aria-label="Review summary"
+        placeholder={placeholder}
+        aria-label={uiText("Review summary")}
         onChange={(event) => setSummary(reviewKey, event.target.value)}
       />
-      <div className="mt-2 flex justify-between gap-2">
-        <Select
-          value={selectedVerdict?.value ?? null}
-          disabled={pending}
-          onValueChange={(value) => {
-            if (value !== null) setRequestedVerdict(value);
-          }}
-        >
-          <SelectTrigger size="xs" className="w-auto min-w-0" aria-label="Review verdict">
-            <span className="flex items-center gap-1.5">
-              {selectedVerdict?.icon}
-              {selectedVerdict?.label}
-            </span>
-          </SelectTrigger>
-          <SelectPopup side="top" alignItemWithTrigger={false}>
-            {offered.map((verdict) => (
-              <SelectItem key={verdict.value} value={verdict.value}>
-                <span className="flex items-center gap-1.5">
-                  {verdict.icon}
-                  {verdict.label}
-                </span>
-              </SelectItem>
-            ))}
-          </SelectPopup>
-        </Select>
+      <div className="mt-2 flex justify-end gap-2">
+        {offered.length > 1 ? (
+          <Select
+            value={selectedVerdict?.value ?? null}
+            disabled={pending}
+            onValueChange={(value) => {
+              if (value !== null) setRequestedVerdict(value);
+            }}
+          >
+            <SelectTrigger size="xs" className="mr-auto w-auto min-w-0" aria-label={uiText("Review verdict")}>
+              <span className="flex items-center gap-1.5">
+                {selectedVerdict?.icon}
+                {selectedVerdict?.label}
+              </span>
+            </SelectTrigger>
+            <SelectPopup side="top" alignItemWithTrigger={false}>
+              {offered.map((verdict) => (
+                <SelectItem key={verdict.value} value={verdict.value}>
+                  <span className="flex items-center gap-1.5">
+                    {verdict.icon}
+                    {verdict.label}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectPopup>
+          </Select>
+        ) : null}
         <Button
           size="xs"
-          disabled={pending || selectedVerdict === undefined || !canSubmit(selectedVerdict.value)}
+          disabled={
+            pending || selectedVerdict === undefined || !canSubmit(selectedVerdict.value, body)
+          }
           onClick={() => {
             if (selectedVerdict !== undefined) void submit(selectedVerdict);
           }}
         >
-          {pending ? "Submitting..." : "Submit review"}
+          {pending ? uiText("Submitting...") : uiText("Submit review")}
         </Button>
       </div>
     </>

@@ -1,21 +1,25 @@
 import type { EnvironmentId, SidebarProjectGroupingMode } from "@t3tools/contracts";
 import { DEFAULT_SIDEBAR_PROJECT_SORT_ORDER } from "@t3tools/contracts";
+import { useAtomSet } from "@effect/atom-react";
 import {
   createContext,
   createElement,
-  useCallback,
   useContext,
-  useMemo,
+  useEffect,
+  useRef,
   useState,
   type PropsWithChildren,
   type Dispatch,
   type SetStateAction,
 } from "react";
 
+import type { ThreadListFilters } from "../../persistence/mobile-preferences";
+import { updateMobilePreferencesAtom } from "../../state/preferences";
 import type { HomeProjectSortOrder } from "./homeThreadList";
 
 export interface HomeListOptions {
   readonly selectedEnvironmentId: EnvironmentId | null;
+  readonly selectedProjectKey: string | null;
   readonly projectSortOrder: HomeProjectSortOrder;
 }
 
@@ -23,9 +27,10 @@ export interface ResolvedHomeListOptions extends HomeListOptions {
   readonly projectGroupingMode: SidebarProjectGroupingMode;
 }
 
-function defaultHomeListOptions(): HomeListOptions {
+function defaultHomeListOptions(filters?: ThreadListFilters): HomeListOptions {
   return {
-    selectedEnvironmentId: null,
+    selectedEnvironmentId: filters?.environmentId ?? null,
+    selectedProjectKey: filters?.projectKey ?? null,
     projectSortOrder:
       DEFAULT_SIDEBAR_PROJECT_SORT_ORDER === "manual"
         ? "updated_at"
@@ -41,18 +46,28 @@ interface HomeListOptionsContextValue {
 
 const HomeListOptionsContext = createContext<HomeListOptionsContextValue | null>(null);
 
-/** Keeps list preferences stable while the app moves between compact and split shells. */
 export function HomeListOptionsProvider({
   children,
   projectGroupingMode,
+  savedFilters,
 }: PropsWithChildren<{
   readonly projectGroupingMode: SidebarProjectGroupingMode;
+  readonly savedFilters?: ThreadListFilters | undefined;
 }>) {
-  const [options, setOptions] = useState<HomeListOptions>(defaultHomeListOptions);
-  const value = useMemo(
-    () => ({ options, setOptions, projectGroupingMode }),
-    [options, projectGroupingMode],
-  );
+  const [options, setOptions] = useState(() => defaultHomeListOptions(savedFilters));
+  const savePreferences = useAtomSet(updateMobilePreferencesAtom);
+  const saved = useRef(savedFilters);
+  const { selectedEnvironmentId: environmentId, selectedProjectKey: projectKey } = options;
+  useEffect(() => {
+    if (
+      (saved.current?.environmentId ?? null) === environmentId &&
+      (saved.current?.projectKey ?? null) === projectKey
+    )
+      return;
+    saved.current = { environmentId, projectKey };
+    savePreferences({ threadListFilters: saved.current });
+  }, [environmentId, projectKey, savePreferences]);
+  const value = { options, setOptions, projectGroupingMode };
   return createElement(HomeListOptionsContext, { value }, children);
 }
 
@@ -75,15 +90,19 @@ export function useHomeListOptions(availableEnvironmentIds: ReadonlySet<Environm
     projectGroupingMode: shared?.projectGroupingMode ?? "repository",
   };
 
-  const setSelectedEnvironmentId = useCallback((value: EnvironmentId | null) => {
+  const setSelectedEnvironmentId = (value: EnvironmentId | null) => {
     setOptions((current) => ({ ...current, selectedEnvironmentId: value }));
-  }, []);
-  const setProjectSortOrder = useCallback((value: HomeProjectSortOrder) => {
+  };
+  const setSelectedProjectKey = (value: string | null) => {
+    setOptions((current) => ({ ...current, selectedProjectKey: value }));
+  };
+  const setProjectSortOrder = (value: HomeProjectSortOrder) => {
     setOptions((current) => ({ ...current, projectSortOrder: value }));
-  }, []);
+  };
   return {
     options: resolvedOptions,
     setSelectedEnvironmentId,
+    setSelectedProjectKey,
     setProjectSortOrder,
   } as const;
 }

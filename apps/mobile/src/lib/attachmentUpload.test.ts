@@ -3,6 +3,7 @@ import * as Option from "effect/Option";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const mocks = vi.hoisted(() => ({
+  canOperate: true,
   documentUri: "file:///documents",
   createAssetUrl: vi.fn(),
   createUploadUrl: Symbol("create-upload-url"),
@@ -18,9 +19,6 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@t3tools/client-runtime/state/runtime", () => ({
-  // The client-runtime attachments module resolves the same file through its
-  // relative import, so these fakes also feed runAttachmentUploadCycle and
-  // verifyPersistedAttachmentUpload.
   createEnvironmentRpcCommand: () => Symbol("rpc-command"),
   executeAtomQuery: mocks.executeAtomQuery,
   runAtomCommand: mocks.runAtomCommand,
@@ -31,7 +29,6 @@ vi.mock("../state/atom-registry", () => ({
   appAtomRegistry: { get: mocks.readAtom },
 }));
 
-// The real read lease and cleanup are covered by the composer ownership suite.
 vi.mock("./composerAttachmentPreviewRetention", () => ({
   retainComposerAttachmentFileForPreview: () => () => {},
 }));
@@ -48,6 +45,7 @@ vi.mock("../state/attachments", () => ({
 }));
 
 vi.mock("../state/session", () => ({
+  readEnvironmentScope: () => mocks.canOperate,
   environmentSession: {
     preparedConnectionValueAtom: () => mocks.preparedConnection,
   },
@@ -131,7 +129,6 @@ const file = {
   fileUri: "file:///documents/report.pdf",
 } as const satisfies DraftComposerAttachment;
 
-/** A picture chosen through the document picker: typed `file`, with no usable mime. */
 const documentPickedImage = {
   id: "file-2",
   type: "file",
@@ -194,6 +191,7 @@ function removeCallsFor(attachmentId: string): number {
 
 describe("prepareTurnAttachments", () => {
   beforeEach(() => {
+    mocks.canOperate = true;
     mocks.documentUri = "file:///documents";
     mocks.createAssetUrl.mockReset();
     mocks.createAssetUrl.mockImplementation((target: unknown) => target);
@@ -220,6 +218,80 @@ describe("prepareTurnAttachments", () => {
         : { _tag: "Success", value: undefined },
     );
     mocks.upload.mockResolvedValue({ status: 204, body: "", headers: {} });
+  });
+
+  it("does not mint or transfer attachments without task operation access", async () => {
+    mocks.canOperate = false;
+    await expect(
+      prepareTurnAttachments({
+        environmentId,
+        attachments: [fileBackedImage],
+        supportsImageUploads: true,
+      }),
+    ).rejects.toThrow("cannot upload attachments");
+    expect(mocks.runAtomCommand).not.toHaveBeenCalled();
+    expect(mocks.upload).not.toHaveBeenCalled();
+  });
+
+  it("rechecks access after a signed URL is minted before sending any bytes", async () => {
+    mocks.runAtomCommand.mockImplementationOnce(async () => {
+      mocks.canOperate = false;
+      return {
+        _tag: "Success",
+        value: {
+          attachmentId: MINTED_ID,
+          relativeUrl: "/api/attachments/upload/signed",
+          expiresAt: 1,
+        },
+      };
+    });
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      await expect(
+        prepareTurnAttachments({
+          environmentId,
+          attachments: [fileBackedImage],
+          supportsImageUploads: true,
+        }),
+      ).rejects.toThrow("cannot upload attachments");
+      expect(mocks.upload).not.toHaveBeenCalled();
+      expect(mocks.runAtomCommand).toHaveBeenCalledTimes(1);
+    } finally {
+      warning.mockRestore();
+    }
+  });
+
+  it("does not replace an expired upload when access was revoked during verification", async () => {
+    mocks.executeAtomQuery.mockImplementationOnce(async () => {
+      mocks.canOperate = false;
+      return { _tag: "Failure", error: { _tag: "AssetAttachmentNotFoundError" } };
+    });
+    await expect(
+      prepareTurnAttachments({
+        environmentId,
+        attachments: [
+          {
+            ...fileBackedImage,
+            uploadedAttachmentId: MINTED_ID,
+            uploadEnvironmentId: environmentId,
+          },
+        ],
+        supportsImageUploads: true,
+      }),
+    ).rejects.toThrow("cannot upload attachments");
+    expect(mocks.runAtomCommand).not.toHaveBeenCalled();
+    expect(mocks.upload).not.toHaveBeenCalled();
+  });
+
+  it("rechecks deletion permission before retrying a failed cleanup", async () => {
+    mocks.runAtomCommand.mockImplementationOnce(async () => {
+      mocks.canOperate = false;
+      return { _tag: "Failure", error: new Error("Retry cleanup") };
+    });
+    await expect(releasePendingAttachmentUploads(environmentId, [MINTED_ID])).rejects.toThrow(
+      "cannot delete pending attachments",
+    );
+    expect(mocks.runAtomCommand).toHaveBeenCalledTimes(1);
   });
 
   it("keeps existing image attachments on the legacy wire path", async () => {
@@ -336,8 +408,6 @@ describe("prepareTurnAttachments", () => {
   });
 
   it("sends a document-picked picture with the mime it was uploaded under", async () => {
-    // The upload normalises `application/octet-stream` to `image/png`; the message reference
-    // has to agree, or `ChatImageAttachment` rejects the turn and nothing sends.
     const prepared = await prepareTurnAttachments({
       environmentId,
       attachments: [documentPickedImage],
@@ -473,9 +543,6 @@ describe("prepareTurnAttachments", () => {
   });
 
   it("keeps the uploaded id when a document-picked picture uploads as an image", () => {
-    // The draft stays `type: "file"` while the upload is promoted to `"image"`. Comparing the
-    // two types drops the id, so a later send re-uploads the bytes and the draft chip points at
-    // a local id nobody can resolve.
     expect(
       withUploadedMobileAttachmentReferences({
         environmentId,

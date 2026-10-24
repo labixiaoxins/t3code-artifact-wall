@@ -1,27 +1,21 @@
 import type { T3McpToolSummaryAction } from "@t3tools/shared/t3McpToolPresentation";
-
 export interface T3ToolSummaryCall {
   readonly input: unknown;
   readonly output: unknown;
   readonly outcome: "completed" | "failed" | "unfinished";
 }
-
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   return value !== null && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : undefined;
 }
-
 function id(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() !== "" ? value : undefined;
 }
-
 interface ToolResult {
   readonly data?: Record<string, unknown>;
   readonly failed: boolean;
 }
-
-/** Reads the structured/JSON MCP result envelopes retained by the provider adapters. */
 function readResult(value: unknown, depth = 0): ToolResult {
   if (depth > 4) return { failed: false };
   if (typeof value === "string") {
@@ -57,34 +51,31 @@ function readResult(value: unknown, depth = 0): ToolResult {
   }
   return { data: record, failed };
 }
-
 function readInput(value: unknown): Record<string, unknown> | undefined {
   const input = readResult(value).data;
-  // Cursor retains its MCP args envelope; other adapters retain the arguments directly.
+  // Historical Cursor items retain the MCP args envelope.
   return input && typeof input.toolName === "string" ? asRecord(input.args) : input;
 }
-
 /** MCP errors can be returned as data even when the provider completed the tool call. */
 export function t3ToolResultIndicatesFailure(output: unknown): boolean {
   return readResult(output).failed;
 }
-
 function countEntities(ids: ReadonlyArray<string | undefined>): number {
   return (
     new Set(ids.filter((value) => value !== undefined)).size +
     ids.filter((value) => value === undefined).length
   );
 }
-
 function quantity(count: number, noun: string, plural = `${noun}s`): string {
   return `${count} ${count === 1 ? noun : plural}`;
 }
-
-/** Counts successful effects separately from failed or unfinished tool calls. */
 export function summarizeT3ToolCalls(
   action: T3McpToolSummaryAction,
   calls: ReadonlyArray<T3ToolSummaryCall>,
-): { label: string; failedCount: number } {
+): {
+  label: string;
+  failedCount: number;
+} {
   const results = calls.map((call) => {
     const result = readResult(call.output);
     return {
@@ -94,7 +85,7 @@ export function summarizeT3ToolCalls(
     };
   });
   const completed = results.filter((call) => call.outcome === "completed");
-  const failedCount = results.filter((call) => call.outcome === "failed").length;
+  let failedCount = results.filter((call) => call.outcome === "failed").length;
   const selected = completed.length > 0 ? completed : results;
   const times = quantity(selected.length, "time");
   const phrase = (past: string, infinitive: string, object: string) =>
@@ -168,6 +159,13 @@ export function summarizeT3ToolCalls(
         quantity(countEntities(threadIds), "thread"),
       );
       break;
+    case "workflow-stop":
+      label = phrase(
+        "Requested stops for",
+        "stop",
+        quantity(countEntities(entityIds("subagentId")), "workflow"),
+      );
+      break;
     case "task-status":
       label = phrase("Checked", "check", `task status ${times}`);
       break;
@@ -196,7 +194,6 @@ export function summarizeT3ToolCalls(
       );
       break;
     case "schedule-delete":
-      // A successful delete can report deleted:false; it still represents a deletion request.
       label = phrase(
         "Requested deletion of",
         "delete",
@@ -344,7 +341,6 @@ export function summarizeT3ToolCalls(
       );
       break;
     case "attachment-send": {
-      // A message can contain several attachments. Count retries by message identity.
       const messages = new Map<string, (typeof selected)[number]>();
       selected.forEach((call, index) =>
         messages.set(id(call.output?.messageId) ?? `call-${index}`, call),
@@ -392,6 +388,36 @@ export function summarizeT3ToolCalls(
         `linked pull requests${selected.length === 1 ? "" : ` ${times}`}`,
       );
       break;
+    case "write-pr-guides": {
+      // One call writes many guides, and reports a refusal per guide rather than failing.
+      const outcomes = selected.flatMap((call) =>
+        Array.isArray(call.output?.guides)
+          ? call.output.guides.map((guide) => asRecord(guide)?.outcome)
+          : [],
+      );
+      const started = outcomes.filter((outcome) => outcome !== "failed").length;
+      const failed = outcomes.length - started;
+      failedCount += failed;
+      if (outcomes.length === 0) {
+        label = phrase(
+          "Started writing",
+          "start writing",
+          `review guides${selected.length === 1 ? "" : ` ${times}`}`,
+        );
+      } else if (started === 0) {
+        label = `Could not start ${quantity(failed, "review guide")}`;
+      } else {
+        label = phrase(
+          "Started",
+          "start",
+          `${quantity(started, "review guide")}${failed > 0 ? `, ${failed} failed` : ""}`,
+        );
+      }
+      break;
+    }
+    case "read-pr-guide":
+      label = phrase("Read", "read", quantity(selected.length, "review guide"));
+      break;
     case "browser":
       label = phrase("Used", "use", `browser ${times}`);
       break;
@@ -403,6 +429,12 @@ export function summarizeT3ToolCalls(
       break;
     case "html-render":
       label = phrase("Rendered", "render", quantity(selected.length, "HTML page"));
+      break;
+    case "artifact-list":
+      label = phrase("Listed", "list", `deliverable files ${times}`);
+      break;
+    case "artifact-check":
+      label = phrase("Recorded", "record", quantity(selected.length, "deliverable check"));
       break;
     case "capabilities":
       label = phrase("Checked", "check", `orchestration capabilities ${times}`);

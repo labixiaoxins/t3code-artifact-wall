@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type { ProviderDriverKind, ServerProvider } from "@t3tools/contracts";
 import { BotIcon, type LucideIcon } from "lucide-react";
 import { cn } from "../../lib/utils";
@@ -7,42 +8,41 @@ export function threadRelationshipStatusLabel(status: string | null): string {
   switch (status) {
     case "preparing":
     case "starting":
-      return "Starting";
+      return uiText("Starting");
     case "running":
     case "in_progress":
-      return "Running";
+      return uiText("Running");
     case "pending":
     case "queued":
-      return "Queued";
+      return uiText("Queued");
     case "waiting":
     case "blocked":
-      return "Waiting";
+      return uiText("Waiting");
     case "completed":
-      return "Done";
+      return uiText("Done");
     case "failed":
     case "error":
-      return "Failed";
+      return uiText("Failed");
     case "cancelled":
     case "interrupted":
-      return "Stopped";
+      return uiText("Stopped");
     case "rolled_back":
-      return "Reverted";
+      return uiText("Reverted");
     case "resolved_native":
-      return "Resolved (native)";
+      return uiText("Resolved (native)");
     case "resolved_portable":
-      return "Resolved (portable)";
+      return uiText("Resolved (portable)");
     case "consumed":
-      return "Consumed";
+      return uiText("Consumed");
     case "superseded":
-      return "Superseded";
+      return uiText("Superseded");
     case "idle":
-      return "Idle";
+      return uiText("Idle");
     default:
-      return "Unknown";
+      return uiText("Unknown");
   }
 }
 
-/** Shared by lineage and timeline links, including the provider glyph and status badge. */
 export function ThreadRelationshipIcon({
   driver,
   provider,

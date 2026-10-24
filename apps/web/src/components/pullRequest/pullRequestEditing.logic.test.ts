@@ -10,6 +10,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   canEditPullRequestChangeRequest,
   canEditPullRequestComment,
+  canResolvePullRequestThread,
 } from "./pullRequestEditing.logic";
 
 type Subject = Pick<PullRequestDetail, "author" | "capabilities" | "viewer" | "viewerPermissions">;
@@ -89,6 +90,32 @@ describe("canEditPullRequestChangeRequest", () => {
     ).toBe(true);
   });
 
+  it("follows the host's own answer about the reader over authorship and merge access", () => {
+    expect(
+      canEditPullRequestChangeRequest(
+        subject({
+          author: actor("someone-else"),
+          viewerPermissions: permissions({ editChangeRequest: true }),
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      canEditPullRequestChangeRequest(
+        subject({
+          viewerPermissions: permissions({ actions: ["merge"], editChangeRequest: false }),
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      canEditPullRequestChangeRequest(
+        subject({
+          capabilities: capabilities({ changeRequest: false, comment: true }),
+          viewerPermissions: permissions({ editChangeRequest: true }),
+        }),
+      ),
+    ).toBe(false);
+  });
+
   it("refuses a reader who neither wrote it nor may merge it", () => {
     expect(
       canEditPullRequestChangeRequest(
@@ -146,6 +173,22 @@ describe("canEditPullRequestComment", () => {
     );
   });
 
+  it("follows the host's own answer about a remark over authorship", () => {
+    expect(canEditPullRequestComment(subject(), comment({ canEdit: false }))).toBe(false);
+    expect(
+      canEditPullRequestComment(
+        subject(),
+        comment({ author: actor("someone-else"), canEdit: true }),
+      ),
+    ).toBe(true);
+    expect(
+      canEditPullRequestComment(
+        subject({ capabilities: capabilities({ changeRequest: true, comment: false }) }),
+        comment({ canEdit: true }),
+      ),
+    ).toBe(false);
+  });
+
   it("refuses a remark the host attributes to nobody", () => {
     expect(canEditPullRequestComment(subject(), comment({ author: null }))).toBe(false);
   });
@@ -168,5 +211,26 @@ describe("canEditPullRequestComment", () => {
 
   it("refuses where the host did not say who the reader is", () => {
     expect(canEditPullRequestComment(subject({ viewer: undefined }), comment())).toBe(false);
+  });
+});
+
+describe("canResolvePullRequestThread", () => {
+  it("uses the reader's repository-wide permission where the host says nothing per thread", () => {
+    expect(canResolvePullRequestThread(subject(), {})).toBe(true);
+    expect(
+      canResolvePullRequestThread(
+        subject({ viewerPermissions: permissions({ resolve: false }) }),
+        {},
+      ),
+    ).toBe(false);
+  });
+
+  it("only narrows the reader's permission with the host's answer for one thread", () => {
+    expect(canResolvePullRequestThread(subject(), { canResolve: false })).toBe(false);
+    expect(
+      canResolvePullRequestThread(subject({ viewerPermissions: permissions({ resolve: false }) }), {
+        canResolve: true,
+      }),
+    ).toBe(false);
   });
 });

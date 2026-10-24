@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { Check, Copy } from "lucide";
 
 import { MorphIcon } from "~/components/MorphIcon";
@@ -6,7 +7,6 @@ import { cn } from "~/lib/utils";
 
 import { Button } from "./ui/button";
 
-/** A shell command to copy and run elsewhere, such as on the environment's host. */
 export function CommandBlock({
   command,
   className,
@@ -35,7 +35,7 @@ export function CommandBlock({
       <Button
         size="icon-xs"
         variant="ghost"
-        aria-label="Copy command"
+        aria-label={uiText("Copy command")}
         onClick={() => copyToClipboard(command, undefined)}
       >
         <MorphIcon className="size-3.5" icon={isCopied ? Check : Copy} />

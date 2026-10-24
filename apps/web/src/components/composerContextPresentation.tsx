@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import ChatMarkdown from "./ChatMarkdown";
 import { ReadOnlySourcePreview } from "./files/AttachmentFilePreview";
 import type { PreviewAnnotationPayload, ThreadContextRecord } from "@t3tools/contracts";
@@ -48,21 +49,21 @@ import {
   UnresolvedChip,
 } from "./contextChipParts";
 
-/**
- * Draft-side payload behind a context reference chip. Each kind keeps its existing draft
- * shape; the editor only needs a way to look one up by id.
- */
 export type ComposerDraftContextRecord =
   | { kind: "terminal"; record: TerminalContextDraft }
   | { kind: "review-comment"; record: ReviewCommentContext }
-  | { kind: "preview-annotation"; record: PreviewAnnotationPayload }
+  | {
+      kind: "preview-annotation";
+      record: PreviewAnnotationPayload;
+      screenshot?: ComposerImageAttachment | undefined;
+    }
   | { kind: "image"; record: ComposerImageAttachment; upload?: AttachmentUploadState | undefined }
   | { kind: "file"; record: ComposerFileAttachment; upload?: AttachmentUploadState | undefined }
   | { kind: "thread"; record: ThreadContextRecord };
 
-/** What a chip can do beyond showing itself; the composer supplies the handlers. */
 export interface ComposerContextActions {
   environmentId: EnvironmentId | null;
+  cwd?: string | undefined;
   expandImage: (imageId: string) => void;
   expandVideo: (fileId: string) => void;
   openFile: (fileId: string) => void;
@@ -122,8 +123,13 @@ export function composerContextRecordsFromDraft(input: {
   for (const record of input.reviewComments ?? []) {
     records.set(reviewCommentContextId(record.id), { kind: "review-comment", record });
   }
+  const imagesById = new Map((input.images ?? []).map((image) => [image.id, image]));
   for (const record of input.previewAnnotations ?? []) {
-    records.set(previewAnnotationContextId(record.id), { kind: "preview-annotation", record });
+    records.set(previewAnnotationContextId(record.id), {
+      kind: "preview-annotation",
+      record,
+      screenshot: imagesById.get(record.id),
+    });
   }
   for (const record of input.threadContexts ?? []) {
     records.set(record.contextId, { kind: "thread", record });
@@ -232,7 +238,7 @@ function FileContextChip(props: {
       }
       tooltip={
         needsReattach
-          ? `${props.record.name} was not saved with this draft. Attach it again to send it.`
+          ? uiText("{0} was not saved with this draft. Attach it again to send it.", {"0": props.record.name})
           : attachmentTooltip(props.record, props.upload)
       }
     />
@@ -291,22 +297,24 @@ function ComposerReviewCommentDetails({ comment }: { comment: ReviewCommentConte
 
 function ComposerPreviewAnnotationDetails({
   annotation,
+  screenshot,
 }: {
   annotation: PreviewAnnotationPayload;
+  screenshot: ComposerImageAttachment | undefined;
 }) {
   const summary = previewAnnotationTooltip(annotation);
+  const screenshotUrl = annotation.screenshot?.dataUrl || screenshot?.previewUrl;
   return (
     <div className="overflow-hidden rounded-lg border border-border/70 bg-background/70">
-      {annotation.screenshot?.dataUrl ? (
+      {screenshotUrl ? (
         <img
-          src={annotation.screenshot.dataUrl}
-          alt="Annotated preview crop"
+          src={screenshotUrl}
+          alt={uiText("Annotated preview crop")}
           className="max-h-64 w-full border-border/70 border-b bg-muted object-contain"
         />
       ) : (
         <div className="border-border/70 border-b bg-muted/40 px-3 py-2 text-secondary-label text-xs">
-          Screenshot unavailable
-        </div>
+          {uiText("Screenshot unavailable")}</div>
       )}
       <div className="whitespace-pre-wrap wrap-break-word px-3 py-2.5 text-sm text-foreground">
         {summary}
@@ -315,11 +323,21 @@ function ComposerPreviewAnnotationDetails({
   );
 }
 
+function ComposerThreadContextChip(props: { record: ThreadContextRecord }) {
+  const { environmentId } = use(ComposerContextActionsContext);
+  return (
+    <ThreadContextChip
+      record={props.record}
+      unreadable={environmentId !== null && props.record.environmentId !== environmentId}
+    />
+  );
+}
+
 function UnresolvedContextChip(props: { label: string }) {
   return (
     <UnresolvedChip
       label={props.label}
-      tooltip="This context is no longer available. Remove it or attach it again."
+      tooltip={uiText("This context is no longer available. Remove it or attach it again.")}
     />
   );
 }
@@ -406,7 +424,12 @@ const composerContextPresentationRegistry = createContextPresentationRegistry<
             icon={<MousePointerClickIcon />}
             label={previewAnnotationContextLabel(entry.record)}
             kindLabel="Preview annotation"
-            details={<ComposerPreviewAnnotationDetails annotation={entry.record} />}
+            details={
+              <ComposerPreviewAnnotationDetails
+                annotation={entry.record}
+                screenshot={entry.screenshot}
+              />
+            }
             detailsMode={definition.capabilities.details}
             kind="preview-annotation"
           />
@@ -419,7 +442,7 @@ const composerContextPresentationRegistry = createContextPresentationRegistry<
       canRender: (entry) => entry.kind === "thread",
       render: (entry, context) =>
         entry.kind === "thread" ? (
-          <ThreadContextChip record={entry.record} />
+          <ComposerThreadContextChip record={entry.record} />
         ) : (
           <UnresolvedContextChip label={context.label} />
         ),
@@ -428,7 +451,6 @@ const composerContextPresentationRegistry = createContextPresentationRegistry<
   fallback: (_kind, _entry, context) => <UnresolvedContextChip label={context.label} />,
 });
 
-/** Compact chip for one reference. Unknown kinds and missing records use the registry fallback. */
 export function ComposerContextReferenceChip(props: {
   kind: string;
   contextId: string;

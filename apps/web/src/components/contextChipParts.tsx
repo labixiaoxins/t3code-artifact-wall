@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type { EnvironmentId, PullRequestContextMetadata } from "@t3tools/contracts";
 import { CircleDashedIcon, FilmIcon, ImageIcon } from "lucide-react";
 import {
@@ -19,7 +20,6 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import { PullRequestLinkPreview } from "./pullRequest/PullRequestLinkPreview";
 import { usePullRequestPreviewTarget } from "~/lib/openPullRequestLink";
 
-/** ContextChip kind for a pull request context in each display state. */
 export const PULL_REQUEST_CHIP_KINDS = {
   open: "pr-open",
   draft: "pr-draft",
@@ -28,7 +28,6 @@ export const PULL_REQUEST_CHIP_KINDS = {
   unknown: "pull-request",
 } as const satisfies Record<PullRequestContextDisplayState | "unknown", ContextChipKind>;
 
-/** A static chip with an optional tooltip; each surface keeps ownership of payload lookup. */
 export function ContextChipShell({
   icon,
   label,
@@ -37,7 +36,6 @@ export function ContextChipShell({
 }: Omit<ComponentProps<typeof ContextChip>, "className" | "render"> & {
   icon: ReactNode;
   label: string;
-  /** Newlines in the tooltip are kept. */
   tooltip?: ReactNode;
 }) {
   const chip = (
@@ -61,7 +59,6 @@ export function ContextChipShell({
   );
 }
 
-/** A chip that opens its details in a popover; the chip itself is the trigger. */
 export function ContextChipPopover(props: {
   kind: ContextChipKind;
   icon: ReactNode;
@@ -77,7 +74,7 @@ export function ContextChipPopover(props: {
           <ContextChip
             kind={props.kind}
             render={<button type="button" />}
-            aria-label={`${props.accessibleLabel}. Show details`}
+            aria-label={uiText("{0}. Show details", {"0": props.accessibleLabel})}
             data-markdown-copy={props.copyMarkdown}
           />
         }
@@ -110,9 +107,10 @@ export function PullRequestChip(props: {
     <ContextChip
       kind={props.kind}
       render={<button type="button" />}
-      aria-label={`Open ${props.kindLabel} ${props.label}: ${props.metadata.title}`}
+      aria-label={uiText("Open {0} {1}: {2}", {"0": props.kindLabel, "1": props.label, "2": props.metadata.title})}
       data-markdown-copy={props.copyMarkdown}
       onClick={(event) => props.onOpen(event, props.metadata.url)}
+      onAuxClick={(event) => props.onOpen(event, props.metadata.url)}
     >
       <StateIcon />
       <ContextChipLabel>{props.label}</ContextChipLabel>
@@ -139,7 +137,6 @@ export function PullRequestChip(props: {
   );
 }
 
-/** Sample the loaded thumbnail once; transparent pixels should not darken its accent. */
 function averageImageColor(image: HTMLImageElement): string | undefined {
   try {
     const canvas = document.createElement("canvas");
@@ -162,7 +159,6 @@ function averageImageColor(image: HTMLImageElement): string | undefined {
     if (alpha === 0) return;
     return `rgb(${Math.round(red / alpha)} ${Math.round(green / alpha)} ${Math.round(blue / alpha)})`;
   } catch {
-    // Cross-origin or unavailable pixels keep the default image tone and preview action.
     return;
   }
 }
@@ -177,7 +173,6 @@ export function ImageChipButton({
 }: Omit<ComponentProps<typeof ContextChip>, "kind" | "render"> & {
   name: string;
   previewUrl: string | undefined;
-  /** Every attachment chip reports its size; images are no exception. */
   size: string;
   suffix?: string | null;
 }) {
@@ -188,7 +183,7 @@ export function ImageChipButton({
     <ContextChip
       kind="image"
       render={<button type="button" />}
-      aria-label={`Image attachment, ${name}, ${size}`}
+      aria-label={uiText("Image attachment, {0}, {1}", {"0": name, "1": size})}
       style={{ ...style, ...(accent ? { "--context-chip-accent": accent } : {}) } as CSSProperties}
       {...props}
     >
@@ -207,9 +202,11 @@ export function ImageChipButton({
       ) : (
         <ImageIcon />
       )}
-      <ContextChipLabel className="max-w-72">{middleTruncateAttachmentName(name)}</ContextChipLabel>
-      <span className="shrink-0 text-3xs text-current">{size}</span>
-      {suffix ? <span className="text-3xs text-current">{suffix}</span> : null}
+      <ContextChipLabel className="flex items-baseline gap-[0.33em]">
+        <span className="max-w-72 truncate">{middleTruncateAttachmentName(name)}</span>
+        <span className="shrink-0 text-3xs text-current">{size}</span>
+        {suffix ? <span className="text-3xs text-current">{suffix}</span> : null}
+      </ContextChipLabel>
     </ContextChip>
   );
 }
@@ -281,11 +278,11 @@ function FileChipContent(props: {
       ) : (
         <PierreEntryIcon pathValue={props.name} kind="file" theme={props.theme} />
       )}
-      <ContextChipLabel className="max-w-72">
-        {middleTruncateAttachmentName(props.name)}
+      <ContextChipLabel className="flex items-baseline gap-[0.33em]">
+        <span className="max-w-72 truncate">{middleTruncateAttachmentName(props.name)}</span>
+        <span className="shrink-0 text-3xs text-current">{props.size}</span>
+        {props.suffix ? <span className="text-3xs text-current">{props.suffix}</span> : null}
       </ContextChipLabel>
-      <span className="shrink-0 text-3xs text-current">{props.size}</span>
-      {props.suffix ? <span className="text-3xs text-current">{props.suffix}</span> : null}
     </>
   );
 }
@@ -296,7 +293,7 @@ export function UnresolvedChip(props: { label: string; tooltip: string; copyMark
       icon={<CircleDashedIcon />}
       label={props.label}
       state="unresolved"
-      aria-label={`Unavailable context, ${props.label}`}
+      aria-label={uiText("Unavailable context, {0}", {"0": props.label})}
       data-markdown-copy={props.copyMarkdown}
       tooltip={props.tooltip}
     />

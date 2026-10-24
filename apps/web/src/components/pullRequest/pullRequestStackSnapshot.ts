@@ -47,7 +47,6 @@ export function savedPullRequestStack(
   };
 }
 
-/** A fresh absence overrides saved membership; failed refreshes preserve available navigation. */
 export function pullRequestStackView(
   query: {
     data: PullRequestStack | null;
@@ -60,7 +59,7 @@ export function pullRequestStackView(
   const data = query.isSuccess ? query.data : (query.data ?? saved);
   return {
     data,
-    isFresh: query.isSuccess && !query.isPending,
+    isFresh: query.isSuccess,
     notice:
       data === null
         ? null

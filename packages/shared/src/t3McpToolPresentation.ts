@@ -1,10 +1,8 @@
 export type T3McpToolLogo = "t3-code";
-
 export interface T3McpToolPresentation {
   readonly displayName: string;
   readonly logo: T3McpToolLogo;
 }
-
 export type T3McpToolSummaryAction =
   | "capabilities"
   | "delegate"
@@ -21,6 +19,7 @@ export type T3McpToolSummaryAction =
   | "thread-send"
   | "thread-wait"
   | "thread-interrupt"
+  | "workflow-stop"
   | "thread-configuration"
   | "thread-configure"
   | "thread-fork"
@@ -58,18 +57,20 @@ export type T3McpToolSummaryAction =
   | "list-prs"
   | "watch-pr"
   | "unwatch-pr"
+  | "write-pr-guides"
+  | "read-pr-guide"
   | "browser"
   | "device"
   | "html-preview"
+  | "artifact-list"
+  | "artifact-check"
   | "html-render";
-
 export interface T3McpToolDefinition {
   readonly displayName: string;
   readonly labels: readonly [action: string, running: string, completed: string, detail: string];
   readonly icon: "t3-code" | "browser" | "device" | "pull-request";
   readonly summaryAction: T3McpToolSummaryAction;
 }
-
 function tool(
   labels: T3McpToolDefinition["labels"],
   summaryAction: T3McpToolSummaryAction,
@@ -78,10 +79,7 @@ function tool(
 ): T3McpToolDefinition {
   return { displayName, labels, icon, summaryAction };
 }
-
 const T3_MCP_SERVER_ALIASES = new Set(["t3-code", "t3_code", "t3code"]);
-
-// Cards, activity rows, summaries, and provider identity recovery share this inventory.
 const T3_MCP_TOOLS: Readonly<Record<string, T3McpToolDefinition>> = {
   link_pull_request: tool(
     ["Link", "Linking", "Linked", "a pull request"],
@@ -104,8 +102,18 @@ const T3_MCP_TOOLS: Readonly<Record<string, T3McpToolDefinition>> = {
     "pull-request",
   ),
   unwatch_pull_request: tool(
-    ["Stop watching", "Stopping watching", "Stopped watching", "a pull request"],
+    ["Stop watching", "Unwatching", "Stopped watching", "a pull request"],
     "unwatch-pr",
+    "pull-request",
+  ),
+  write_pull_request_guides: tool(
+    ["Write", "Writing", "Started writing", "review guides"],
+    "write-pr-guides",
+    "pull-request",
+  ),
+  read_pull_request_guide: tool(
+    ["Read", "Reading", "Read", "a review guide"],
+    "read-pr-guide",
     "pull-request",
   ),
   orchestrator_capabilities: tool(
@@ -115,7 +123,7 @@ const T3_MCP_TOOLS: Readonly<Record<string, T3McpToolDefinition>> = {
   delegate_task: tool(["Delegate", "Delegating", "Delegated", "a child task"], "delegate"),
   task_status: tool(["Get", "Getting", "Got", "delegated task status"], "task-status"),
   task_cancel: tool(
-    ["Cancel", "Canceling", "Requested cancellation of", "delegated task"],
+    ["Cancel", "Canceling", "Requested cancellation of", "a delegated task"],
     "task-cancel",
   ),
   schedule_task: tool(
@@ -138,6 +146,10 @@ const T3_MCP_TOOLS: Readonly<Record<string, T3McpToolDefinition>> = {
   t3_thread_read: tool(["Read", "Reading", "Read", "a T3 thread"], "thread-read"),
   t3_thread_send: tool(["Send", "Sending", "Sent", "to a T3 thread"], "thread-send"),
   t3_thread_wait: tool(["Wait", "Waiting", "Waited", "for a T3 thread"], "thread-wait"),
+  t3_workflow_stop: tool(
+    ["Stop", "Stopping", "Requested a stop for", "a workflow"],
+    "workflow-stop",
+  ),
   t3_thread_interrupt: tool(
     ["Interrupt", "Interrupting", "Requested an interrupt of", "a T3 thread"],
     "thread-interrupt",
@@ -315,18 +327,16 @@ const T3_MCP_TOOLS: Readonly<Record<string, T3McpToolDefinition>> = {
   t3_thread_send_attachments: tool(["Send", "Sending", "Sent", "attachments"], "attachment-send"),
   html_preview: tool(["Preview", "Previewing", "Previewed", "an HTML page"], "html-preview"),
   html_render: tool(["Render", "Rendering", "Rendered", "an HTML page"], "html-render"),
+  artifact_list: tool(["List", "Listing", "Listed", "deliverable files"], "artifact-list"),
+  artifact_record_check: tool(
+    ["Record", "Recording", "Recorded", "a deliverable check"],
+    "artifact-check",
+  ),
 };
-
-/**
- * The T3 orchestration tool inventory, used to gate loose name matching on
- * both the server (ACP MCP identity recovery) and the client (logo branding).
- */
 export const T3_MCP_TOOL_NAMES: ReadonlySet<string> = new Set(Object.keys(T3_MCP_TOOLS));
-
 function normalizeT3McpToolLabel(value: string): string {
   return value.replace(/\s+(?:complete|completed)\s*$/i, "").trim();
 }
-
 /**
  * ACP agents disagree on how the injected T3 server prefixes its tools:
  * `mcp__t3-code__x` (Claude/Cursor), `t3-code.x` (Codex), plus single
@@ -345,14 +355,12 @@ function resolveT3McpToolName(value: string): string | null {
       ? tool
       : null;
   }
-
   const namespaceMatch = /^(?<server>t3-code|t3_code|t3code)(?:[.:/]|\s*·\s*)(?<tool>.+)$/i.exec(
     label,
   );
   if (namespaceMatch?.groups) {
     return namespaceMatch.groups.tool ?? null;
   }
-
   const prefixed = /^(?:mcp[-_]{1,2})?t3[-_ ]?code(?:__|[-_.:/ ])(?<tool>.+)$/i.exec(label);
   const candidate = prefixed?.groups?.tool ?? label;
   if (Object.hasOwn(T3_MCP_TOOLS, candidate)) return candidate;
@@ -366,27 +374,22 @@ function resolveT3McpToolName(value: string): string | null {
   }
   return longest;
 }
-
-/** The bare T3 tool name (`html_render`) for any provider's spelling of it. */
 export function resolveT3McpToolId(toolName: string | null | undefined): string | null {
   const name = toolName == null ? null : resolveT3McpToolName(toolName);
   return name !== null && Object.hasOwn(T3_MCP_TOOLS, name) ? name : null;
 }
-
 export function resolveT3McpToolDefinition(
   toolName: string | null | undefined,
 ): T3McpToolDefinition | null {
   const name = toolName == null ? null : resolveT3McpToolName(toolName);
   return name !== null && Object.hasOwn(T3_MCP_TOOLS, name) ? T3_MCP_TOOLS[name]! : null;
 }
-
 export function resolveT3McpToolPresentation(
   toolName: string | null | undefined,
 ): T3McpToolPresentation | null {
   const definition = resolveT3McpToolDefinition(toolName);
   return definition === null ? null : { displayName: definition.displayName, logo: "t3-code" };
 }
-
 export function resolveT3McpToolSummaryAction(
   toolName: string | null | undefined,
 ): T3McpToolSummaryAction | null {

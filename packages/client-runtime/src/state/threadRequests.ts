@@ -13,9 +13,7 @@ export interface ThreadPendingApproval {
   readonly requestKind: ProviderRequestKind;
   readonly createdAt: string;
   readonly detail?: string;
-  /** App requesting access for mcp-elicitation approvals (#8058). */
   readonly appName?: string;
-  /** Approval choices advertised by the provider (#8058); defaults apply when absent. */
   readonly options?: ReadonlyArray<ProviderApprovalOption>;
   readonly responseCapability: "live" | "not_resumable";
 }
@@ -41,7 +39,26 @@ export interface PendingThreadRequests {
   readonly userInputs: ReadonlyArray<ThreadPendingUserInput>;
 }
 
-/** Joins pending request entities to the request items that carry display data. */
+export function seedUserInputDraftAnswers<Draft extends { readonly customAnswer?: string }>(
+  questions: ReadonlyArray<
+    Pick<OrchestrationV2UserInputQuestion, "id" | "allowCustomAnswer" | "initialAnswer">
+  >,
+  drafts: Record<string, Draft>,
+): Record<string, Draft | { customAnswer: string }> {
+  let seeded: Record<string, Draft | { customAnswer: string }> = drafts;
+  for (const question of questions) {
+    if (
+      question.initialAnswer === undefined ||
+      question.allowCustomAnswer === false ||
+      seeded[question.id] !== undefined
+    )
+      continue;
+    if (seeded === drafts) seeded = { ...drafts };
+    seeded[question.id] = { customAnswer: question.initialAnswer };
+  }
+  return seeded;
+}
+
 export function derivePendingThreadRequests(
   projection: Pick<OrchestrationV2ThreadProjection, "runtimeRequests" | "turnItems">,
 ): PendingThreadRequests {
@@ -93,7 +110,6 @@ export function derivePendingThreadRequests(
   return { approvals, userInputs };
 }
 
-/** Older V2 answers were saved on requests without updating their timeline items. */
 export function createQuestionHistoryProjector() {
   type Rows = OrchestrationV2ThreadProjection["visibleTurnItems"];
   type Requests = OrchestrationV2ThreadProjection["runtimeRequests"];

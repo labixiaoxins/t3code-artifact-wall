@@ -5,35 +5,13 @@ import * as NodePath from "node:path";
 import * as NodeURL from "node:url";
 
 import { describe, expect, it, vi } from "@effect/vitest";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Scope from "effect/Scope";
 
-import {
-  capturePosixOwnershipLedger,
-  isSafeCgroupPath,
-  makeLinuxCgroupController,
-  makePosixProcessTreeController,
-  observePosixOwnershipLedger,
-  observePosixOwnershipLedgerContinuously,
-  parseCgroup2Mount,
-  parseCgroup2Mounts,
-  parseUnifiedCgroupPath,
-  posixProcessIsZombie,
-  resolveLinuxCgroupTargetCommand,
-  signalLinuxCgroupRootTerm,
-  sweepStaleLinuxCgroupSiblings,
-  terminateLinuxCgroupLease,
-  terminatePosixOwnedProcessTree,
-  wrapCommandForLinuxCgroup,
-  type AcpOwnedPosixProcess,
-  type AcpLinuxCgroupLease,
-  type AcpPosixOwnershipRoot,
-  type AcpPosixProcessIdentity,
-  type AcpPosixProcessTreeController,
-} from "./AcpSessionRuntime.ts";
+import * as AcpSessionRuntime from "@t3tools/provider-acp/server/AcpSessionRuntime";
 
 const threadSpawnHelperSource = NodeURL.fileURLToPath(
   new URL("../../../scripts/acp-thread-spawn-helper.c", import.meta.url),
@@ -46,7 +24,7 @@ const identity = (
   sid: number,
   startTime = String(pid),
   state = "S",
-): AcpPosixProcessIdentity => ({
+): AcpSessionRuntime.AcpPosixProcessIdentity => ({
   executable: `/proc/${pid}/exe`,
   pgid,
   pid,
@@ -57,16 +35,16 @@ const identity = (
 });
 
 function makeController(input: {
-  readonly processes: ReadonlyArray<AcpPosixProcessIdentity>;
+  readonly processes: ReadonlyArray<AcpSessionRuntime.AcpPosixProcessIdentity>;
   readonly onProcess?: (
-    processes: Map<number, AcpPosixProcessIdentity>,
+    processes: Map<number, AcpSessionRuntime.AcpPosixProcessIdentity>,
     pid: number,
     signal: NodeJS.Signals,
   ) => void;
 }) {
   const processes = new Map(input.processes.map((process) => [process.pid, process]));
   const signals: Array<string> = [];
-  const controller: AcpPosixProcessTreeController = {
+  const controller: AcpSessionRuntime.AcpPosixProcessTreeController = {
     childPidsOf: (pid) =>
       [...processes.values()]
         .filter((process) => process.ppid === pid)
@@ -96,19 +74,23 @@ function processExists(pid: number): boolean {
 
 describe("terminatePosixOwnedProcessTree", () => {
   it("parses unified cgroup paths and escaped cgroup2 mountinfo", () => {
-    expect(parseUnifiedCgroupPath("0::/user.slice/app.scope\n")).toBe("/user.slice/app.scope");
-    expect(parseUnifiedCgroupPath("0::/one\n0::/two\n")).toBeUndefined();
-    expect(isSafeCgroupPath("/user.slice/app.scope")).toBe(true);
-    expect(isSafeCgroupPath("/user.slice/../escape")).toBe(false);
-    expect(isSafeCgroupPath("/user.slice/app.scope (deleted)")).toBe(false);
+    expect(AcpSessionRuntime.parseUnifiedCgroupPath("0::/user.slice/app.scope\n")).toBe(
+      "/user.slice/app.scope",
+    );
+    expect(AcpSessionRuntime.parseUnifiedCgroupPath("0::/one\n0::/two\n")).toBeUndefined();
+    expect(AcpSessionRuntime.isSafeCgroupPath("/user.slice/app.scope")).toBe(true);
+    expect(AcpSessionRuntime.isSafeCgroupPath("/user.slice/../escape")).toBe(false);
+    expect(AcpSessionRuntime.isSafeCgroupPath("/user.slice/app.scope (deleted)")).toBe(false);
     expect(
-      parseCgroup2Mount(
+      AcpSessionRuntime.parseCgroup2Mount(
         "42 31 0:37 /user.slice /sys/fs/cgroup/user\\040mount rw - cgroup2 cgroup2 rw\n",
       ),
     ).toEqual({ mountPoint: "/sys/fs/cgroup/user mount", root: "/user.slice" });
-    expect(parseCgroup2Mount("42 31 0:37 / /sys/fs/cgroup rw - tmpfs tmpfs rw\n")).toBeUndefined();
     expect(
-      parseCgroup2Mounts(
+      AcpSessionRuntime.parseCgroup2Mount("42 31 0:37 / /sys/fs/cgroup rw - tmpfs tmpfs rw\n"),
+    ).toBeUndefined();
+    expect(
+      AcpSessionRuntime.parseCgroup2Mounts(
         "41 31 0:36 /other /sys/fs/cgroup/other rw - cgroup2 cgroup2 rw\n" +
           "42 31 0:37 /user.slice /sys/fs/cgroup/user rw - cgroup2 cgroup2 rw\n",
       ),
@@ -131,7 +113,6 @@ describe("terminatePosixOwnedProcessTree", () => {
         return path;
       };
       const deadPid = 2_147_483_646;
-      // Synthetic live foreign pid (not this process, still reported alive by the probe).
       const liveForeignPid = 2_147_483_645;
       const staleEmpty = writeSibling(`t3-acp-${deadPid}-aaaa`, "0");
       const currentPidSibling = writeSibling(`t3-acp-${process.pid}-bbbb`, "0");
@@ -140,7 +121,7 @@ describe("terminatePosixOwnedProcessTree", () => {
       const unrelated = writeSibling("other-lease", "0");
       const isProcessAlive = (pid: number) => pid === process.pid || pid === liveForeignPid;
       try {
-        sweepStaleLinuxCgroupSiblings(parent, {
+        AcpSessionRuntime.sweepStaleLinuxCgroupSiblings(parent, {
           isProcessAlive,
           readPopulated: (path) => populatedByPath.get(path),
           remove: (path) => {
@@ -153,9 +134,8 @@ describe("terminatePosixOwnedProcessTree", () => {
         expect(NodeFS.existsSync(liveForeignSibling)).toBe(true);
         expect(NodeFS.existsSync(stalePopulated)).toBe(true);
         expect(NodeFS.existsSync(unrelated)).toBe(true);
-        // Missing populated state must not remove a sibling.
         writeSibling(`t3-acp-${deadPid}-eeee`, null);
-        sweepStaleLinuxCgroupSiblings(parent, {
+        AcpSessionRuntime.sweepStaleLinuxCgroupSiblings(parent, {
           isProcessAlive,
           readPopulated: (path) => populatedByPath.get(path),
           remove: (path) => {
@@ -173,8 +153,8 @@ describe("terminatePosixOwnedProcessTree", () => {
 
   it.live("preserves exact argv and strips wrapper-only environment before exec", () =>
     Effect.gen(function* () {
-      if ((yield* HostProcessPlatform) !== "linux") return;
-      const lease = makeLinuxCgroupController().create();
+      if ((yield* HostProcess.Platform) !== "linux") return;
+      const lease = AcpSessionRuntime.makeLinuxCgroupController().create();
       if (lease === undefined) return;
       const scratchRoot = NodePath.join(process.cwd(), "tmp");
       NodeFS.mkdirSync(scratchRoot, { recursive: true });
@@ -192,17 +172,27 @@ describe("terminatePosixOwnedProcessTree", () => {
       NodeFS.symlinkSync(process.execPath, bareGrok);
       NodeFS.symlinkSync(process.execPath, NodePath.join(relativeBin, "grok"));
       NodeFS.symlinkSync(process.execPath, NodePath.join(validBin, "grok"));
-      expect(resolveLinuxCgroupTargetCommand("grok", scratch, { PATH: scratch })).toBe(bareGrok);
-      expect(resolveLinuxCgroupTargetCommand("grok", scratch, { PATH: "" })).toBe(bareGrok);
+      expect(
+        AcpSessionRuntime.resolveLinuxCgroupTargetCommand("grok", scratch, { PATH: scratch }),
+      ).toBe(bareGrok);
+      expect(AcpSessionRuntime.resolveLinuxCgroupTargetCommand("grok", scratch, { PATH: "" })).toBe(
+        bareGrok,
+      );
       // Undefined PATH uses Node's default search path (/usr/bin:/bin), not cwd alone
       // (bareGrok lives only in cwd / PATH=scratch).
-      expect(resolveLinuxCgroupTargetCommand("grok", scratch, { PATH: undefined })).toBeUndefined();
-      expect(resolveLinuxCgroupTargetCommand("node", scratch, { PATH: undefined })).toBeDefined();
-      expect(resolveLinuxCgroupTargetCommand("grok", scratch, { PATH: "relative-bin" })).toBe(
-        NodePath.join(relativeBin, "grok"),
-      );
       expect(
-        resolveLinuxCgroupTargetCommand("grok", scratch, {
+        AcpSessionRuntime.resolveLinuxCgroupTargetCommand("grok", scratch, { PATH: undefined }),
+      ).toBeUndefined();
+      expect(
+        AcpSessionRuntime.resolveLinuxCgroupTargetCommand("node", scratch, { PATH: undefined }),
+      ).toBeDefined();
+      expect(
+        AcpSessionRuntime.resolveLinuxCgroupTargetCommand("grok", scratch, {
+          PATH: "relative-bin",
+        }),
+      ).toBe(NodePath.join(relativeBin, "grok"));
+      expect(
+        AcpSessionRuntime.resolveLinuxCgroupTargetCommand("grok", scratch, {
           PATH: `directory-bin${NodePath.delimiter}valid-bin`,
         }),
       ).toBe(NodePath.join(validBin, "grok"));
@@ -214,7 +204,7 @@ describe("terminatePosixOwnedProcessTree", () => {
         "  wrapper: process.env.T3_ACP_CGROUP_WRAPPER,",
         "}));",
       ].join("\n");
-      const wrapped = wrapCommandForLinuxCgroup(lease, linkedNode, [
+      const wrapped = AcpSessionRuntime.wrapCommandForLinuxCgroup(lease, linkedNode, [
         "-e",
         target,
         outputPath,
@@ -236,14 +226,14 @@ describe("terminatePosixOwnedProcessTree", () => {
           '{"args":["space value","single\'quote","double\\"quote"]}',
         );
       } finally {
-        yield* terminateLinuxCgroupLease(lease).pipe(Effect.ignore);
+        yield* AcpSessionRuntime.terminateLinuxCgroupLease(lease).pipe(Effect.ignore);
         NodeFS.rmSync(scratch, { recursive: true, force: true });
       }
     }),
   );
 
   it("contains a packaged-runtime command without requiring cgroup delegation", () => {
-    if (HostProcessPlatform.defaultValue() !== "linux") return;
+    if (HostProcess.Platform.defaultValue() !== "linux") return;
     const scratchRoot = NodePath.join(process.cwd(), "tmp");
     NodeFS.mkdirSync(scratchRoot, { recursive: true });
     const scratch = NodeFS.mkdtempSync(NodePath.join(scratchRoot, "acp-cgroup-wrapper-fake-"));
@@ -251,9 +241,11 @@ describe("terminatePosixOwnedProcessTree", () => {
     const outputPath = NodePath.join(scratch, "argv output");
     NodeFS.mkdirSync(leasePath);
     NodeFS.writeFileSync(NodePath.join(leasePath, "cgroup.procs"), "");
-    const relativePath = parseUnifiedCgroupPath(NodeFS.readFileSync("/proc/self/cgroup", "utf8"));
+    const relativePath = AcpSessionRuntime.parseUnifiedCgroupPath(
+      NodeFS.readFileSync("/proc/self/cgroup", "utf8"),
+    );
     expect(relativePath).toBeDefined();
-    const lease: AcpLinuxCgroupLease = {
+    const lease: AcpSessionRuntime.AcpLinuxCgroupLease = {
       contains: () => false,
       exists: () => true,
       path: leasePath,
@@ -264,7 +256,7 @@ describe("terminatePosixOwnedProcessTree", () => {
     };
     const packagedExecPath = vi.spyOn(process, "execPath", "get").mockReturnValue("/bin/sh");
     try {
-      const wrapped = wrapCommandForLinuxCgroup(lease, "/bin/sh", [
+      const wrapped = AcpSessionRuntime.wrapCommandForLinuxCgroup(lease, "/bin/sh", [
         "-c",
         'printf "%s\\n" "$0" "$1" "$2" "$3" "${ELECTRON_RUN_AS_NODE-}" "${T3_ACP_CGROUP_WRAPPER-}" > "$4"',
         "packaged-target",
@@ -289,7 +281,7 @@ describe("terminatePosixOwnedProcessTree", () => {
         /^\d+\n$/,
       );
 
-      const mismatch = wrapCommandForLinuxCgroup(
+      const mismatch = AcpSessionRuntime.wrapCommandForLinuxCgroup(
         { ...lease, relativePath: "/not-the-current-cgroup" },
         "/bin/sh",
         ["-c", 'printf executed > "$0"', outputPath],
@@ -301,7 +293,11 @@ describe("terminatePosixOwnedProcessTree", () => {
       expect(mismatchResult.status, mismatchResult.stderr).toBe(126);
       expect(NodeFS.existsSync(outputPath)).toBe(false);
 
-      const missingTarget = wrapCommandForLinuxCgroup(lease, "/nonexistent-t3-probe", []);
+      const missingTarget = AcpSessionRuntime.wrapCommandForLinuxCgroup(
+        lease,
+        "/nonexistent-t3-probe",
+        [],
+      );
       const missingTargetResult = NodeChildProcess.spawnSync(
         missingTarget.command,
         missingTarget.args,
@@ -310,6 +306,15 @@ describe("terminatePosixOwnedProcessTree", () => {
         },
       );
       expect(missingTargetResult.status, missingTargetResult.stderr).toBe(125);
+      // CI's /bin/sh is dash, which runs the EXIT trap after a failed exec. Bash does not,
+      // so run the same wrapper under bash too.
+      const missingTargetBash = NodeChildProcess.spawnSync("bash", missingTarget.args, {
+        encoding: "utf8",
+      });
+      if ((missingTargetBash.error as NodeJS.ErrnoException | undefined)?.code !== "ENOENT") {
+        expect(missingTargetBash.status, missingTargetBash.stderr).toBe(125);
+        expect(missingTargetBash.stderr).toContain("/nonexistent-t3-probe");
+      }
     } finally {
       packagedExecPath.mockRestore();
       NodeFS.rmSync(scratch, { recursive: true, force: true });
@@ -318,13 +323,13 @@ describe("terminatePosixOwnedProcessTree", () => {
 
   it.live("kills a post-TERM detached double fork without touching an unrelated sentinel", () =>
     Effect.gen(function* () {
-      if ((yield* HostProcessPlatform) !== "linux") return;
-      const controller = makeLinuxCgroupController();
+      if ((yield* HostProcess.Platform) !== "linux") return;
+      const controller = AcpSessionRuntime.makeLinuxCgroupController();
       const lease = controller.create();
       if (lease === undefined) return;
-      expect(parseUnifiedCgroupPath(NodeFS.readFileSync("/proc/self/cgroup", "utf8"))).not.toBe(
-        lease.relativePath,
-      );
+      expect(
+        AcpSessionRuntime.parseUnifiedCgroupPath(NodeFS.readFileSync("/proc/self/cgroup", "utf8")),
+      ).not.toBe(lease.relativePath);
       const scratchRoot = NodePath.join(process.cwd(), "tmp");
       NodeFS.mkdirSync(scratchRoot, { recursive: true });
       const scratch = NodeFS.mkdtempSync(NodePath.join(scratchRoot, "acp-cgroup-kill-"));
@@ -349,7 +354,7 @@ describe("terminatePosixOwnedProcessTree", () => {
         "});",
         "setInterval(() => {}, 1000);",
       ].join("\n");
-      const wrapped = wrapCommandForLinuxCgroup(lease, process.execPath, [
+      const wrapped = AcpSessionRuntime.wrapCommandForLinuxCgroup(lease, process.execPath, [
         "-e",
         providerProgram,
         readyPath,
@@ -379,14 +384,12 @@ describe("terminatePosixOwnedProcessTree", () => {
             try {
               const pid = Number(NodeFS.readFileSync(childPath, "utf8"));
               if (Number.isSafeInteger(pid) && pid > 1) return pid;
-            } catch {
-              // The TERM-time launcher has not published its child yet.
-            }
+            } catch {}
             yield* Effect.sleep("10 millis");
           }
         }).pipe(Effect.timeout("2 seconds"));
         expect(processExists(detachedChildPid)).toBe(true);
-        yield* terminateLinuxCgroupLease(lease);
+        yield* AcpSessionRuntime.terminateLinuxCgroupLease(lease);
         expect(processExists(sentinel.pid!)).toBe(true);
         yield* Effect.gen(function* () {
           while (processExists(detachedChildPid!)) yield* Effect.sleep("10 millis");
@@ -397,27 +400,21 @@ describe("terminatePosixOwnedProcessTree", () => {
         expect(replacement?.path).not.toBe(lease.path);
         if (replacement !== undefined) {
           NodeFS.mkdirSync(NodePath.join(replacement.path, "nested"));
-          yield* terminateLinuxCgroupLease(replacement);
+          yield* AcpSessionRuntime.terminateLinuxCgroupLease(replacement);
           expect(NodeFS.existsSync(replacement.path)).toBe(false);
         }
       } finally {
-        yield* terminateLinuxCgroupLease(lease).pipe(Effect.ignore);
+        yield* AcpSessionRuntime.terminateLinuxCgroupLease(lease).pipe(Effect.ignore);
         try {
           process.kill(-provider.pid!, "SIGKILL");
-        } catch {
-          // The contained provider already exited.
-        }
+        } catch {}
         try {
           process.kill(-sentinel.pid!, "SIGKILL");
-        } catch {
-          // The unrelated sentinel already exited.
-        }
+        } catch {}
         if (detachedChildPid !== undefined && processExists(detachedChildPid)) {
           try {
             process.kill(detachedChildPid, "SIGKILL");
-          } catch {
-            // The detached child already exited.
-          }
+          } catch {}
         }
         NodeFS.rmSync(scratch, { recursive: true, force: true });
       }
@@ -430,7 +427,7 @@ describe("terminatePosixOwnedProcessTree", () => {
       let killCalls = 0;
       let populated = false;
       let removeCalls = 0;
-      const lease: AcpLinuxCgroupLease = {
+      const lease: AcpSessionRuntime.AcpLinuxCgroupLease = {
         contains: () => false,
         exists: () => exists,
         path: "/test/t3-acp-repopulation",
@@ -457,11 +454,11 @@ describe("terminatePosixOwnedProcessTree", () => {
         },
       };
 
-      yield* terminateLinuxCgroupLease(lease);
+      yield* AcpSessionRuntime.terminateLinuxCgroupLease(lease);
       expect(killCalls).toBeGreaterThanOrEqual(3);
       expect(removeCalls).toBe(3);
       expect(exists).toBe(false);
-      yield* terminateLinuxCgroupLease(lease);
+      yield* AcpSessionRuntime.terminateLinuxCgroupLease(lease);
       expect(removeCalls).toBe(3);
     }),
   );
@@ -471,7 +468,7 @@ describe("terminatePosixOwnedProcessTree", () => {
       const removeError = Object.assign(new Error("cgroup remains busy"), {
         code: "EBUSY",
       });
-      const lease: AcpLinuxCgroupLease = {
+      const lease: AcpSessionRuntime.AcpLinuxCgroupLease = {
         contains: () => false,
         exists: () => true,
         path: "/test/t3-acp-busy",
@@ -483,7 +480,7 @@ describe("terminatePosixOwnedProcessTree", () => {
         },
       };
 
-      const error = yield* Effect.flip(terminateLinuxCgroupLease(lease));
+      const error = yield* Effect.flip(AcpSessionRuntime.terminateLinuxCgroupLease(lease));
       expect(error.detail).toBe("Failed to remove ACP cgroup /test/t3-acp-busy");
       expect(error.cause).toBe(removeError);
     }),
@@ -493,13 +490,16 @@ describe("terminatePosixOwnedProcessTree", () => {
     const fixture = makeController({
       processes: [server(), identity(100, process.pid, 100, 100, "owned")],
     });
-    const ownedRoot: AcpOwnedPosixProcess = {
+    const ownedRoot: AcpSessionRuntime.AcpOwnedPosixProcess = {
       ...identity(100, process.pid, 100, 100, "owned"),
       parentExecutable: server().executable,
       parentStartTime: server().startTime,
     };
-    const root: AcpPosixOwnershipRoot = { captureAttempted: true, value: ownedRoot };
-    const lease: AcpLinuxCgroupLease = {
+    const root: AcpSessionRuntime.AcpPosixOwnershipRoot = {
+      captureAttempted: true,
+      value: ownedRoot,
+    };
+    const lease: AcpSessionRuntime.AcpLinuxCgroupLease = {
       contains: () => true,
       exists: () => true,
       path: "/test/t3-acp-root",
@@ -508,19 +508,19 @@ describe("terminatePosixOwnedProcessTree", () => {
       populated: () => true,
       remove: () => undefined,
     };
-    signalLinuxCgroupRootTerm({ controller: fixture.controller, lease, root });
+    AcpSessionRuntime.signalLinuxCgroupRootTerm({ controller: fixture.controller, lease, root });
     expect(fixture.signals).toEqual(["process:100:SIGTERM"]);
 
     const reused = makeController({
       processes: [server(), identity(100, process.pid, 100, 100, "reused")],
     });
-    signalLinuxCgroupRootTerm({ controller: reused.controller, lease, root });
+    AcpSessionRuntime.signalLinuxCgroupRootTerm({ controller: reused.controller, lease, root });
     expect(reused.signals).toEqual([]);
 
     const migrated = makeController({
       processes: [server(), identity(100, process.pid, 100, 100, "owned")],
     });
-    signalLinuxCgroupRootTerm({
+    AcpSessionRuntime.signalLinuxCgroupRootTerm({
       controller: migrated.controller,
       lease: { ...lease, contains: () => false },
       root,
@@ -530,7 +530,7 @@ describe("terminatePosixOwnedProcessTree", () => {
 
   it.live("finds a child forked by a non-leader pthread", () =>
     Effect.gen(function* () {
-      if ((yield* HostProcessPlatform) !== "linux") return;
+      if ((yield* HostProcess.Platform) !== "linux") return;
       const scratchRoot = NodePath.join(process.cwd(), "tmp");
       NodeFS.mkdirSync(scratchRoot, { recursive: true });
       const scratch = NodeFS.mkdtempSync(NodePath.join(scratchRoot, "acp-pthread-spawn-"));
@@ -557,23 +557,19 @@ describe("terminatePosixOwnedProcessTree", () => {
             try {
               const ids = NodeFS.readFileSync(pidPath, "utf8").trim().split(/\s+/).map(Number);
               if (ids.length === 2 && ids.every(Number.isSafeInteger)) return ids;
-            } catch {
-              // The worker has not published its TID and child yet.
-            }
+            } catch {}
             yield* Effect.sleep("10 millis");
           }
         }).pipe(Effect.timeout("2 seconds"));
         const [workerTid, childPid] = published;
         expect(workerTid).not.toBe(helper.pid);
-        expect(makePosixProcessTreeController("linux").childrenOf(helper.pid!)).toContainEqual(
-          expect.objectContaining({ pid: childPid, ppid: helper.pid }),
-        );
+        expect(
+          AcpSessionRuntime.makePosixProcessTreeController("linux").childrenOf(helper.pid!),
+        ).toContainEqual(expect.objectContaining({ pid: childPid, ppid: helper.pid }));
       } finally {
         try {
           process.kill(-helper.pid!, "SIGKILL");
-        } catch {
-          // The isolated fixture already exited.
-        }
+        } catch {}
         NodeFS.rmSync(scratch, { recursive: true, force: true });
       }
     }),
@@ -585,11 +581,11 @@ describe("terminatePosixOwnedProcessTree", () => {
       const fixture = makeController({
         processes: [server(), identity(100, process.pid, 100, 100), beforeExec],
       });
-      const frontier = new Map<number, AcpOwnedPosixProcess>();
+      const frontier = new Map<number, AcpSessionRuntime.AcpOwnedPosixProcess>();
       const childQueues = new Map<number, Array<number>>();
-      const ledger = new Map<string, AcpOwnedPosixProcess>();
-      const root: AcpPosixOwnershipRoot = { value: undefined };
-      observePosixOwnershipLedger({
+      const ledger = new Map<string, AcpSessionRuntime.AcpOwnedPosixProcess>();
+      const root: AcpSessionRuntime.AcpPosixOwnershipRoot = { value: undefined };
+      AcpSessionRuntime.observePosixOwnershipLedger({
         childQueues,
         controller: fixture.controller,
         frontier,
@@ -598,7 +594,7 @@ describe("terminatePosixOwnedProcessTree", () => {
         rootPid: 100,
       });
       fixture.processes.set(110, { ...beforeExec, executable: "/usr/bin/bash" });
-      observePosixOwnershipLedger({
+      AcpSessionRuntime.observePosixOwnershipLedger({
         childQueues,
         controller: fixture.controller,
         frontier,
@@ -610,7 +606,7 @@ describe("terminatePosixOwnedProcessTree", () => {
       expect([...ledger.values()].find((process) => process.pid === 110)?.executable).toBe(
         "/usr/bin/bash",
       );
-      yield* terminatePosixOwnedProcessTree({
+      yield* AcpSessionRuntime.terminatePosixOwnedProcessTree({
         controller: fixture.controller,
         grace: 0,
         ledger,
@@ -623,13 +619,13 @@ describe("terminatePosixOwnedProcessTree", () => {
 
   it("never adopts a replacement PID after initial root capture failed", () => {
     const fixture = makeController({ processes: [server()] });
-    const frontier = new Map<number, AcpOwnedPosixProcess>();
+    const frontier = new Map<number, AcpSessionRuntime.AcpOwnedPosixProcess>();
     const childQueues = new Map<number, Array<number>>();
-    const ledger = new Map<string, AcpOwnedPosixProcess>();
-    const root: AcpPosixOwnershipRoot = { value: undefined };
+    const ledger = new Map<string, AcpSessionRuntime.AcpOwnedPosixProcess>();
+    const root: AcpSessionRuntime.AcpPosixOwnershipRoot = { value: undefined };
     const capture = () => {
       try {
-        observePosixOwnershipLedger({
+        AcpSessionRuntime.observePosixOwnershipLedger({
           childQueues,
           controller: fixture.controller,
           frontier,
@@ -654,8 +650,11 @@ describe("terminatePosixOwnedProcessTree", () => {
 
   it.live("rotates more than 64 live parents without scanning retained tombstones", () =>
     Effect.gen(function* () {
+      // The server fixture's process group is the runner's real pid, so a synthetic
+      // parent sharing it would be skipped as the server's own group.
+      const parentPidBase = process.pid < 500_000 ? 500_000 : 1_000;
       const parents = Array.from({ length: 130 }, (_, index) =>
-        identity(1_000 + index, 100, 1_000 + index, 1_000 + index),
+        identity(parentPidBase + index, 100, parentPidBase + index, parentPidBase + index),
       );
       let childListReads = 0;
       let identityCalls = 0;
@@ -663,7 +662,7 @@ describe("terminatePosixOwnedProcessTree", () => {
       const fixture = makeController({
         processes: [server(), identity(100, process.pid, 100, 100)],
       });
-      const controller: AcpPosixProcessTreeController = {
+      const controller: AcpSessionRuntime.AcpPosixProcessTreeController = {
         ...fixture.controller,
         childPidsOf: (pid) => {
           childListReads += 1;
@@ -678,10 +677,10 @@ describe("terminatePosixOwnedProcessTree", () => {
           return fixture.controller.snapshot();
         },
       };
-      const frontier = new Map<number, AcpOwnedPosixProcess>();
+      const frontier = new Map<number, AcpSessionRuntime.AcpOwnedPosixProcess>();
       const childQueues = new Map<number, Array<number>>();
-      const ledger = new Map<string, AcpOwnedPosixProcess>();
-      const root: AcpPosixOwnershipRoot = { value: undefined };
+      const ledger = new Map<string, AcpSessionRuntime.AcpOwnedPosixProcess>();
+      const root: AcpSessionRuntime.AcpPosixOwnershipRoot = { value: undefined };
       for (let index = 0; index < 5_000; index += 1) {
         const tombstone = identity(100_000 + index, 1, 100_000 + index, 100_000 + index);
         ledger.set(`${tombstone.pid}:${tombstone.startTime}`, {
@@ -690,7 +689,7 @@ describe("terminatePosixOwnedProcessTree", () => {
           parentStartTime: "",
         });
       }
-      observePosixOwnershipLedger({
+      AcpSessionRuntime.observePosixOwnershipLedger({
         childQueues,
         controller,
         frontier,
@@ -714,7 +713,7 @@ describe("terminatePosixOwnedProcessTree", () => {
       ) {
         childListReads = 0;
         identityCalls = 0;
-        observePosixOwnershipLedger({
+        AcpSessionRuntime.observePosixOwnershipLedger({
           childQueues,
           controller,
           frontier,
@@ -732,7 +731,7 @@ describe("terminatePosixOwnedProcessTree", () => {
       );
       expect(missing, `missing after ${passes} passes`).toEqual([]);
       expect(passes).toBeGreaterThan(2);
-      yield* terminatePosixOwnedProcessTree({
+      yield* AcpSessionRuntime.terminatePosixOwnedProcessTree({
         controller,
         grace: 0,
         ledger,
@@ -751,7 +750,7 @@ describe("terminatePosixOwnedProcessTree", () => {
       const fixture = makeController({
         processes: [server(), identity(100, process.pid, 100, 100), identity(110, 100, 110, 110)],
       });
-      const controller: AcpPosixProcessTreeController = {
+      const controller: AcpSessionRuntime.AcpPosixProcessTreeController = {
         ...fixture.controller,
         childPidsOf: (pid) => {
           childrenCalls += 1;
@@ -767,16 +766,16 @@ describe("terminatePosixOwnedProcessTree", () => {
         },
       };
       const scope = yield* Scope.make();
-      const frontier = new Map<number, AcpOwnedPosixProcess>();
+      const frontier = new Map<number, AcpSessionRuntime.AcpOwnedPosixProcess>();
       const childQueues = new Map<number, Array<number>>();
       let ledgerValuesCalls = 0;
-      const ledger = new (class extends Map<string, AcpOwnedPosixProcess> {
-        override values(): MapIterator<AcpOwnedPosixProcess> {
+      const ledger = new (class extends Map<string, AcpSessionRuntime.AcpOwnedPosixProcess> {
+        override values(): MapIterator<AcpSessionRuntime.AcpOwnedPosixProcess> {
           ledgerValuesCalls += 1;
           return super.values();
         }
       })();
-      const root: AcpPosixOwnershipRoot = { value: undefined };
+      const root: AcpSessionRuntime.AcpPosixOwnershipRoot = { value: undefined };
       for (let index = 0; index < 5_000; index += 1) {
         const tombstone = identity(10_000 + index, 1, 10_000 + index, 10_000 + index);
         ledger.set(`${tombstone.pid}:${tombstone.startTime}`, {
@@ -785,7 +784,7 @@ describe("terminatePosixOwnedProcessTree", () => {
           parentStartTime: "",
         });
       }
-      yield* observePosixOwnershipLedgerContinuously({
+      yield* AcpSessionRuntime.observePosixOwnershipLedgerContinuously({
         childQueues,
         controller,
         frontier,
@@ -831,7 +830,7 @@ describe("terminatePosixOwnedProcessTree", () => {
         },
       });
 
-      yield* terminatePosixOwnedProcessTree({
+      yield* AcpSessionRuntime.terminatePosixOwnedProcessTree({
         controller: fixture.controller,
         grace: 0,
         rootPid: 100,
@@ -865,7 +864,7 @@ describe("terminatePosixOwnedProcessTree", () => {
         },
       });
 
-      yield* terminatePosixOwnedProcessTree({
+      yield* AcpSessionRuntime.terminatePosixOwnedProcessTree({
         controller: fixture.controller,
         grace: 0,
         rootPid: 100,
@@ -893,15 +892,13 @@ describe("terminatePosixOwnedProcessTree", () => {
       });
 
       const result = yield* Effect.exit(
-        terminatePosixOwnedProcessTree({
+        AcpSessionRuntime.terminatePosixOwnedProcessTree({
           controller: fixture.controller,
           grace: 0,
           rootPid: 100,
         }),
       );
 
-      // PID 110 morphs to a new identity under the owned root and never exits, so
-      // teardown fails closed after re-admitting and re-signalling the live child.
       expect(Exit.isFailure(result)).toBe(true);
       expect(fixture.processes.get(110)).toEqual(reused);
       expect(
@@ -913,9 +910,13 @@ describe("terminatePosixOwnedProcessTree", () => {
 
   it.live("does not treat zombie residual entries as teardown survivors", () =>
     Effect.gen(function* () {
-      expect(posixProcessIsZombie({ ...identity(1, 0, 1, 1), state: "Z" })).toBe(true);
-      expect(posixProcessIsZombie({ ...identity(1, 0, 1, 1), state: "S" })).toBe(false);
-      const withoutState: AcpPosixProcessIdentity = {
+      expect(AcpSessionRuntime.posixProcessIsZombie({ ...identity(1, 0, 1, 1), state: "Z" })).toBe(
+        true,
+      );
+      expect(AcpSessionRuntime.posixProcessIsZombie({ ...identity(1, 0, 1, 1), state: "S" })).toBe(
+        false,
+      );
+      const withoutState: AcpSessionRuntime.AcpPosixProcessIdentity = {
         executable: "/proc/1/exe",
         pgid: 1,
         pid: 1,
@@ -923,7 +924,7 @@ describe("terminatePosixOwnedProcessTree", () => {
         sid: 1,
         startTime: "1",
       };
-      expect(posixProcessIsZombie(withoutState)).toBe(false);
+      expect(AcpSessionRuntime.posixProcessIsZombie(withoutState)).toBe(false);
 
       const root = identity(100, process.pid, 100, 100);
       const zombieChild = identity(110, 100, 110, 110, "110", "Z");
@@ -936,7 +937,7 @@ describe("terminatePosixOwnedProcessTree", () => {
           processes.set(pid, { ...current, state: "Z" });
         },
       });
-      yield* terminatePosixOwnedProcessTree({
+      yield* AcpSessionRuntime.terminatePosixOwnedProcessTree({
         controller: fixture.controller,
         grace: 0,
         rootPid: 100,
@@ -948,19 +949,19 @@ describe("terminatePosixOwnedProcessTree", () => {
   );
 
   it("admits a live child after a free PID was previously reserved by a dead entry", () => {
-    const staleChild: AcpOwnedPosixProcess = {
+    const staleChild: AcpSessionRuntime.AcpOwnedPosixProcess = {
       ...identity(200, 100, 200, 200, "stale-child"),
       parentExecutable: `/proc/100/exe`,
       parentStartTime: "100",
     };
     const liveChild = identity(200, 100, 200, 200, "live-child");
     const root = identity(100, process.pid, 100, 100);
-    const ownedRoot: AcpOwnedPosixProcess = {
+    const ownedRoot: AcpSessionRuntime.AcpOwnedPosixProcess = {
       ...root,
       parentExecutable: `/proc/${process.pid}/exe`,
       parentStartTime: "server",
     };
-    const ledger = new Map<string, AcpOwnedPosixProcess>([
+    const ledger = new Map<string, AcpSessionRuntime.AcpOwnedPosixProcess>([
       [`100:${root.startTime}`, ownedRoot],
       [`200:${staleChild.startTime}`, staleChild],
     ]);
@@ -968,8 +969,7 @@ describe("terminatePosixOwnedProcessTree", () => {
       processes: [server(), root],
     }).controller;
 
-    // First capture: PID 200 is free, so the dead reservation is dropped.
-    capturePosixOwnershipLedger({
+    AcpSessionRuntime.capturePosixOwnershipLedger({
       controller,
       ledger,
       rootPid: 100,
@@ -977,8 +977,7 @@ describe("terminatePosixOwnedProcessTree", () => {
     });
     expect([...ledger.values()].some((entry) => entry.pid === 200)).toBe(false);
 
-    // Second capture: a new process reuses PID 200 under the owned parent.
-    capturePosixOwnershipLedger({
+    AcpSessionRuntime.capturePosixOwnershipLedger({
       controller: makeController({ processes: [server(), root, liveChild] }).controller,
       ledger,
       rootPid: 100,
@@ -990,24 +989,24 @@ describe("terminatePosixOwnedProcessTree", () => {
   });
 
   it("admits a live child when a stale ledger entry still occupies the reused PID", () => {
-    const staleChild: AcpOwnedPosixProcess = {
+    const staleChild: AcpSessionRuntime.AcpOwnedPosixProcess = {
       ...identity(200, 100, 200, 200, "stale-child"),
       parentExecutable: `/proc/100/exe`,
       parentStartTime: "100",
     };
     const liveChild = identity(200, 100, 200, 200, "live-child");
     const root = identity(100, process.pid, 100, 100);
-    const ownedRoot: AcpOwnedPosixProcess = {
+    const ownedRoot: AcpSessionRuntime.AcpOwnedPosixProcess = {
       ...root,
       parentExecutable: `/proc/${process.pid}/exe`,
       parentStartTime: "server",
     };
-    const ledger = new Map<string, AcpOwnedPosixProcess>([
+    const ledger = new Map<string, AcpSessionRuntime.AcpOwnedPosixProcess>([
       [`100:${root.startTime}`, ownedRoot],
       [`200:${staleChild.startTime}`, staleChild],
     ]);
 
-    capturePosixOwnershipLedger({
+    AcpSessionRuntime.capturePosixOwnershipLedger({
       controller: makeController({ processes: [server(), root, liveChild] }).controller,
       ledger,
       rootPid: 100,
@@ -1030,8 +1029,6 @@ describe("terminatePosixOwnedProcessTree", () => {
           identity(111, 110, 111, 111),
         ],
         onProcess: (processes, pid) => {
-          // Bottom-up: signal 111 first while 110 is still live, then fork 112
-          // under 110 so the same pass must enqueue and signal 112.
           if (pid === 111 && !forked) {
             forked = true;
             processes.set(112, identity(112, 110, 112, 112));
@@ -1040,7 +1037,7 @@ describe("terminatePosixOwnedProcessTree", () => {
         },
       });
 
-      yield* terminatePosixOwnedProcessTree({
+      yield* AcpSessionRuntime.terminatePosixOwnedProcessTree({
         controller: fixture.controller,
         grace: 0,
         rootPid: 100,
@@ -1058,25 +1055,21 @@ describe("terminatePosixOwnedProcessTree", () => {
       const fixture = makeController({
         processes: [server(), identity(100, process.pid, 100, 100), identity(110, 100, 110, 110)],
         onProcess: (processes, pid) => {
-          // Leave the descendant parent alive through teardown so it can fork
-          // immediately after the last signal pass.
           if (pid !== 110) processes.delete(pid);
         },
       });
       let snapshotCalls = 0;
-      const controller: AcpPosixProcessTreeController = {
+      const controller: AcpSessionRuntime.AcpPosixProcessTreeController = {
         ...fixture.controller,
         snapshot: () => {
           snapshotCalls += 1;
-          // Two TERM discovery passes, the root TERM pass, and two KILL passes
-          // precede the final survivor snapshot.
           if (snapshotCalls === 6) fixture.processes.set(lateChild.pid, lateChild);
           return fixture.controller.snapshot();
         },
       };
 
       const error = yield* Effect.flip(
-        terminatePosixOwnedProcessTree({
+        AcpSessionRuntime.terminatePosixOwnedProcessTree({
           controller,
           discoveryPasses: 2,
           grace: 0,
@@ -1092,10 +1085,10 @@ describe("terminatePosixOwnedProcessTree", () => {
   it.live("retains the ledger across root exit and an explicit failure for finalizer retry", () =>
     Effect.gen(function* () {
       let ignoreSignals = true;
-      const ledger = new Map<string, AcpOwnedPosixProcess>();
-      const frontier = new Map<number, AcpOwnedPosixProcess>();
+      const ledger = new Map<string, AcpSessionRuntime.AcpOwnedPosixProcess>();
+      const frontier = new Map<number, AcpSessionRuntime.AcpOwnedPosixProcess>();
       const childQueues = new Map<number, Array<number>>();
-      const root: AcpPosixOwnershipRoot = { value: undefined };
+      const root: AcpSessionRuntime.AcpPosixOwnershipRoot = { value: undefined };
       const fixture = makeController({
         processes: [
           server(),
@@ -1108,7 +1101,7 @@ describe("terminatePosixOwnedProcessTree", () => {
           if (!ignoreSignals) processes.delete(pid);
         },
       });
-      observePosixOwnershipLedger({
+      AcpSessionRuntime.observePosixOwnershipLedger({
         childQueues,
         controller: fixture.controller,
         frontier,
@@ -1118,7 +1111,7 @@ describe("terminatePosixOwnedProcessTree", () => {
       });
 
       const explicit = yield* Effect.exit(
-        terminatePosixOwnedProcessTree({
+        AcpSessionRuntime.terminatePosixOwnedProcessTree({
           controller: fixture.controller,
           grace: 0,
           ledger,
@@ -1130,7 +1123,7 @@ describe("terminatePosixOwnedProcessTree", () => {
       expect(fixture.processes.has(111)).toBe(true);
 
       fixture.processes.set(112, identity(112, 110, 112, 112));
-      observePosixOwnershipLedger({
+      AcpSessionRuntime.observePosixOwnershipLedger({
         childQueues,
         controller: fixture.controller,
         frontier,
@@ -1139,7 +1132,7 @@ describe("terminatePosixOwnedProcessTree", () => {
         rootPid: 100,
       });
       ignoreSignals = false;
-      yield* terminatePosixOwnedProcessTree({
+      yield* AcpSessionRuntime.terminatePosixOwnedProcessTree({
         controller: fixture.controller,
         grace: 0,
         ledger,
@@ -1153,7 +1146,7 @@ describe("terminatePosixOwnedProcessTree", () => {
 
   it("fails closed where a stable POSIX identity provider is unavailable", () => {
     try {
-      makePosixProcessTreeController("darwin");
+      AcpSessionRuntime.makePosixProcessTreeController("darwin");
       throw new Error("Expected Darwin process ownership to fail closed");
     } catch (error) {
       expect(error).toMatchObject({

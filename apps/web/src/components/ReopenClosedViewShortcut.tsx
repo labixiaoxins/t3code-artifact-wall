@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useAtomValue } from "@effect/atom-react";
 import {
   scopeProjectRef,
@@ -42,6 +43,12 @@ import {
   resolveThreadRouteTarget,
 } from "../threadRoutes";
 import { toastManager } from "./ui/toast";
+
+const PREVIEW_FORWARDED_LAYOUT_COMMANDS = [
+  "sidebar.toggle",
+  "rightPanel.toggle",
+  "rightPanel.toggleMaximized",
+] as const;
 
 const isGlobalPullRequests = (ref: ScopedThreadRef) =>
   scopedThreadKey(ref) === scopedThreadKey(PULL_REQUESTS_PANEL_REF);
@@ -132,7 +139,7 @@ export function ReopenClosedViewShortcut() {
       .catch((error: unknown) => {
         toastManager.add({
           type: "error",
-          title: "Could not reopen view",
+          title: uiText("Could not reopen view"),
           description: error instanceof Error ? error.message : String(error),
         });
       });
@@ -175,22 +182,33 @@ export function ReopenClosedViewShortcut() {
   useEffect(() => {
     const preview = window.desktopBridge?.preview;
     if (!preview?.setForwardedShortcuts) return;
+    const options = {
+      context: {
+        previewFocus: true,
+        previewOpen: true,
+        terminalFocus: false,
+        terminalOpen,
+        editableFocus: false,
+        modelPickerOpen: false,
+        isDesktop: true,
+        isWeb: false,
+      },
+    };
+    // A focused browser page is a separate process, so these chords never reach
+    // the app's keydown listeners. The desktop claims them in the guest and
+    // sends each command back as a menu action.
+    const commands = [
+      ...(hasHistory ? (["view.reopenClosed"] as const) : []),
+      ...PREVIEW_FORWARDED_LAYOUT_COMMANDS,
+    ];
     void preview
       .setForwardedShortcuts(
-        hasHistory
-          ? effectiveShortcutsForCommand(keybindings, "view.reopenClosed", {
-              context: {
-                previewFocus: true,
-                previewOpen: true,
-                terminalFocus: false,
-                terminalOpen,
-                editableFocus: false,
-                modelPickerOpen: false,
-                isDesktop: true,
-                isWeb: false,
-              },
-            }).map((shortcut) => ({ command: "view.reopenClosed", shortcut }))
-          : [],
+        commands.flatMap((command) =>
+          effectiveShortcutsForCommand(keybindings, command, options).map((shortcut) => ({
+            command,
+            shortcut,
+          })),
+        ),
       )
       .catch(() => undefined);
     return () => {

@@ -1,7 +1,9 @@
+import { uiText } from "~/i18n";
 import DOMPurify from "dompurify";
 import type { Mermaid } from "mermaid";
 import { use, useState } from "react";
 
+import { serializeCodeBlockToMarkdown } from "../../markdown-clipboard";
 import { Button } from "../ui/button";
 
 type MermaidRenderResult =
@@ -12,12 +14,11 @@ let mermaidModulePromise: Promise<Mermaid> | null = null;
 let renderQueue: Promise<unknown> = Promise.resolve();
 let nextDiagramId = 0;
 const MAX_CACHED_RENDERS = 64;
-// Keyed by the full source so distinct diagrams never share an entry. Pending
-// renders are never evicted, because use() must get the same promise on retry.
+// Pending renders are never evicted, because use() must get the same promise on
+// retry.
 const renderCache = new Map<string, Promise<MermaidRenderResult>>();
 const settledRenders = new WeakSet<Promise<MermaidRenderResult>>();
 
-// Mermaid is ~1MB, so it only loads once a diagram is actually shown.
 function loadMermaid(): Promise<Mermaid> {
   mermaidModulePromise ??= import("mermaid")
     .then((module) => module.default)
@@ -31,10 +32,70 @@ function loadMermaid(): Promise<Mermaid> {
 const REMOTE_CSS_URL = /url\(\s*(?!['"]?#)[^)]*\)/gi;
 let purifier: ReturnType<typeof DOMPurify> | null = null;
 
+// Mermaid renders $$...$$ labels with KaTeX's MathML output. These are KaTeX's
+// MathML element types, without annotation (Mermaid strips it), semantics (only
+// a wrapper, so its content is kept), and mglyph (a trusted-input image).
+const KATEX_MATHML_TAGS = new Set([
+  "math",
+  "menclose",
+  "mfrac",
+  "mi",
+  "mlabeledtr",
+  "mn",
+  "mo",
+  "mover",
+  "mpadded",
+  "mphantom",
+  "mroot",
+  "mrow",
+  "mspace",
+  "msqrt",
+  "mstyle",
+  "msub",
+  "msubsup",
+  "msup",
+  "mtable",
+  "mtd",
+  "mtext",
+  "mtr",
+  "munder",
+  "munderover",
+]);
+// Presentation attributes KaTeX sets on those elements. The existing profiles
+// already cover class, style, width, height, display, and xmlns.
+const KATEX_MATHML_ATTRIBUTES = new Set([
+  "accent",
+  "accentunder",
+  "columnalign",
+  "columnlines",
+  "columnspacing",
+  "depth",
+  "displaystyle",
+  "fence",
+  "largeop",
+  "linebreak",
+  "linethickness",
+  "lspace",
+  "mathbackground",
+  "mathcolor",
+  "mathsize",
+  "mathvariant",
+  "maxsize",
+  "minsize",
+  "notation",
+  "rowlines",
+  "rowspacing",
+  "rspace",
+  "scriptlevel",
+  "separator",
+  "stretchy",
+  "voffset",
+]);
+
 // Diagrams can come from untrusted PR descriptions, so strip anything that can
 // navigate, run script, or fetch remote content on top of Mermaid's own strict
-// sanitization. CSS keeps only local url(#id) references; label text is untouched.
-function sanitizeMermaidSvg(svg: string): string {
+// sanitization.
+export function sanitizeMermaidSvg(svg: string): string {
   if (!purifier) {
     purifier = DOMPurify(window);
     purifier.addHook("uponSanitizeElement", (node, data) => {
@@ -47,13 +108,20 @@ function sanitizeMermaidSvg(svg: string): string {
         data.attrValue = data.attrValue.replace(REMOTE_CSS_URL, "none");
     });
   }
-  return purifier.sanitize(svg, {
-    ADD_TAGS: ["foreignObject"],
+  const sanitized = purifier.sanitize(svg, {
+    // DOMPurify still only accepts <math> under an HTML parent, here the label
+    // <div> inside <foreignObject>, and checks every MathML child's namespace.
+    ADD_TAGS: ["foreignObject", ...KATEX_MATHML_TAGS],
+    ADD_ATTR: (attribute, tagName) =>
+      KATEX_MATHML_TAGS.has(tagName) && KATEX_MATHML_ATTRIBUTES.has(attribute),
     HTML_INTEGRATION_POINTS: { foreignobject: true },
     FORBID_ATTR: ["href", "xlink:href", "src", "srcset"],
     FORBID_TAGS: ["a", "img", "image", "script"],
     USE_PROFILES: { svg: true, svgFilters: true, html: true },
   });
+  // The expanded image parses this as XML, which has no &nbsp; entity. KaTeX
+  // writes spaces in math as U+00A0, which HTML serialization turns into &nbsp;.
+  return sanitized.replaceAll("&nbsp;", "&#160;");
 }
 
 // Mermaid also lazy-loads diagram chunks inside render(); losing the network
@@ -137,10 +205,8 @@ function mermaidRenderPromise(source: string, theme: "light" | "dark") {
 let expandedImageUrl: string | null = null;
 
 /**
- * Converts a rendered diagram into a standalone image with fixed size and background.
  * A blob URL, unlike a data URL, passes the desktop connect-src policy that media
- * save and copy actions fetch through. Only one diagram is expanded at a time, so
- * the previous URL is released.
+ * save and copy actions fetch through.
  */
 function mermaidImageUrl(svg: string): string {
   const svgDocument = new DOMParser().parseFromString(svg, "image/svg+xml");
@@ -152,7 +218,11 @@ function mermaidImageUrl(svg: string): string {
   }
   element.setAttribute("xmlns", "http://www.w3.org/2000/svg");
   element.style.maxWidth = "none";
-  element.style.backgroundColor = getComputedStyle(document.body).backgroundColor;
+  // A standalone image inherits nothing from the page, including the text color
+  // that HTML labels such as math use.
+  const { backgroundColor, color } = getComputedStyle(document.body);
+  element.style.backgroundColor = backgroundColor;
+  element.style.color = color;
   if (expandedImageUrl) URL.revokeObjectURL(expandedImageUrl);
   expandedImageUrl = URL.createObjectURL(
     new Blob([new XMLSerializer().serializeToString(element)], { type: "image/svg+xml" }),
@@ -160,7 +230,6 @@ function mermaidImageUrl(svg: string): string {
   return expandedImageUrl;
 }
 
-/** Suspends until the diagram renders; failures show the parser message above the source. */
 export function MermaidDiagram({
   source,
   theme,
@@ -177,7 +246,7 @@ export function MermaidDiagram({
     return (
       <div>
         <div className="flex items-center justify-between gap-2">
-          <p className="m-0 text-xs text-destructive">Unable to render diagram: {result.message}</p>
+          <p className="m-0 text-xs text-destructive">{uiText("Unable to render diagram:") + " "}{result.message}</p>
           {result.retryable ? (
             <Button
               type="button"
@@ -188,11 +257,13 @@ export function MermaidDiagram({
                 setAttempt((attempt) => attempt + 1);
               }}
             >
-              Retry
-            </Button>
+              {uiText("Retry")}</Button>
           ) : null}
         </div>
-        <pre className="mt-2 mb-0 overflow-auto font-mono text-xs whitespace-pre-wrap">
+        <pre
+          data-thread-find-ignore
+          className="mt-2 mb-0 overflow-auto font-mono text-xs whitespace-pre-wrap"
+        >
           {source}
         </pre>
       </div>
@@ -200,10 +271,14 @@ export function MermaidDiagram({
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div
+      className="chat-markdown-mermaid overflow-x-auto"
+      data-markdown-mermaid=""
+      data-markdown-copy={serializeCodeBlockToMarkdown(source, "mermaid")}
+    >
       <button
         type="button"
-        aria-label="Expand diagram"
+        aria-label={uiText("Expand diagram")}
         className="flex w-full cursor-zoom-in justify-center rounded-md focus-visible:outline-2 focus-visible:outline-ring [&_svg]:h-auto [&_svg]:max-w-full"
         onClick={() => onExpand(mermaidImageUrl(result.svg))}
         dangerouslySetInnerHTML={{ __html: result.svg }}

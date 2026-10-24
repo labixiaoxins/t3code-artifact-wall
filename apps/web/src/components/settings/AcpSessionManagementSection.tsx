@@ -1,3 +1,10 @@
+import { uiText } from "~/i18n";
+import {
+  AuthOrchestrationOperateScope,
+  AuthProvidersManageScope,
+  AuthOrchestrationReadScope,
+} from "@t3tools/contracts";
+import { useEnvironmentScope, readEnvironmentScope } from "~/state/session";
 import type {
   AcpRegistryConfigurableProvider,
   AcpRegistrySession,
@@ -12,7 +19,6 @@ import {
   type AtomCommandResult,
 } from "@t3tools/client-runtime/state/runtime";
 import { useState } from "react";
-
 import { ensureLocalApi } from "../../localApi";
 import { serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
@@ -21,13 +27,11 @@ import { Input } from "../ui/input";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { toastManager } from "../ui/toast";
 import { SettingsRow } from "./settingsLayout";
-
 interface AcpSessionProject {
   readonly id: ProjectId;
   readonly title: string;
   readonly workspaceRoot: string;
 }
-
 function reportFailure(title: string, result: AtomCommandResult<unknown, unknown>) {
   if (result._tag !== "Failure" || isAtomCommandInterrupted(result)) return;
   const error = squashAtomCommandFailure(result);
@@ -37,7 +41,35 @@ function reportFailure(title: string, result: AtomCommandResult<unknown, unknown
     description: error instanceof Error ? error.message : "The ACP operation failed.",
   });
 }
-
+function parseProviderHeaders(text: string):
+  | {
+      readonly ok: true;
+      readonly headers: Record<string, string> | undefined;
+    }
+  | {
+      readonly ok: false;
+      readonly error: string;
+    } {
+  if (text.trim().length === 0) return { ok: true, headers: undefined };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Headers must be valid JSON.",
+    };
+  }
+  if (
+    typeof parsed !== "object" ||
+    parsed === null ||
+    Array.isArray(parsed) ||
+    !Object.values(parsed).every((value) => typeof value === "string")
+  ) {
+    return { ok: false, error: "Headers must be a JSON object with string values." };
+  }
+  return { ok: true, headers: parsed as Record<string, string> };
+}
 export function AcpSessionManagementSection(props: {
   readonly environmentId: EnvironmentId;
   readonly instanceId: ProviderInstanceId;
@@ -45,6 +77,8 @@ export function AcpSessionManagementSection(props: {
   readonly projects: ReadonlyArray<AcpSessionProject>;
   readonly readOnly: boolean;
 }) {
+  const canOperate = useEnvironmentScope(props.environmentId, AuthOrchestrationOperateScope);
+  const canRead = useEnvironmentScope(props.environmentId, AuthOrchestrationReadScope);
   const [projectId, setProjectId] = useState<ProjectId | null>(props.projects[0]?.id ?? null);
   const [sessions, setSessions] = useState<ReadonlyArray<AcpRegistrySession>>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -56,7 +90,16 @@ export function AcpSessionManagementSection(props: {
   const [loadingProviders, setLoadingProviders] = useState(false);
   const [savingProviderId, setSavingProviderId] = useState<string | null>(null);
   const [providerDrafts, setProviderDrafts] = useState<
-    Readonly<Record<string, { apiType: string; baseUrl: string; headers: string }>>
+    Readonly<
+      Record<
+        string,
+        {
+          apiType: string;
+          baseUrl: string;
+          headers: string;
+        }
+      >
+    >
   >({});
   const listSessions = useAtomCommand(serverEnvironment.listAcpRegistrySessions, {
     reportFailure: false,
@@ -91,9 +134,7 @@ export function AcpSessionManagementSection(props: {
     deletingSessionId !== null ||
     loadingProviders ||
     savingProviderId !== null;
-
   if (!canList && !canLogout && !canConfigureProviders) return null;
-
   const loadSessions = async (cursor?: string) => {
     if (projectId === null || loading) return;
     setLoading(true);
@@ -115,9 +156,13 @@ export function AcpSessionManagementSection(props: {
     }
     reportFailure("Could not list ACP sessions", result);
   };
-
   const importNativeSession = async (session: AcpRegistrySession) => {
-    if (projectId === null || importingSessionId !== null) return;
+    if (
+      !readEnvironmentScope(props.environmentId, AuthOrchestrationOperateScope) ||
+      projectId === null ||
+      importingSessionId !== null
+    )
+      return;
     setImportingSessionId(session.sessionId);
     const result = await importSession({
       environmentId: props.environmentId,
@@ -146,7 +191,6 @@ export function AcpSessionManagementSection(props: {
     }
     reportFailure("Could not import ACP session", result);
   };
-
   const deleteNativeSession = async (session: AcpRegistrySession) => {
     if (projectId === null || deletingSessionId !== null || session.importedThreadId !== null)
       return;
@@ -154,7 +198,8 @@ export function AcpSessionManagementSection(props: {
       `Permanently delete native ACP session "${session.title ?? session.sessionId}"?`,
       { variant: "destructive" },
     );
-    if (!confirmed) return;
+    if (!confirmed || !readEnvironmentScope(props.environmentId, AuthOrchestrationOperateScope))
+      return;
     setDeletingSessionId(session.sessionId);
     const result = await deleteSession({
       environmentId: props.environmentId,
@@ -165,12 +210,11 @@ export function AcpSessionManagementSection(props: {
       setSessions((current) =>
         current.filter((candidate) => candidate.sessionId !== session.sessionId),
       );
-      toastManager.add({ type: "success", title: "ACP session deleted" });
+      toastManager.add({ type: "success", title: uiText("ACP session deleted") });
       return;
     }
     reportFailure("Could not delete ACP session", result);
   };
-
   const loadProviders = async () => {
     if (projectId === null || loadingProviders) return;
     setLoadingProviders(true);
@@ -197,33 +241,25 @@ export function AcpSessionManagementSection(props: {
     }
     reportFailure("Could not list ACP providers", result);
   };
-
   const saveProvider = async (provider: AcpRegistryConfigurableProvider) => {
-    if (projectId === null || savingProviderId !== null) return;
+    if (
+      !readEnvironmentScope(props.environmentId, AuthProvidersManageScope) ||
+      projectId === null ||
+      savingProviderId !== null
+    )
+      return;
     const draft = providerDrafts[provider.providerId];
     if (draft === undefined || draft.apiType.length === 0 || draft.baseUrl.length === 0) return;
-    let headers: Record<string, string> | undefined;
-    if (draft.headers.trim().length > 0) {
-      try {
-        const parsed: unknown = JSON.parse(draft.headers);
-        if (
-          typeof parsed !== "object" ||
-          parsed === null ||
-          Array.isArray(parsed) ||
-          !Object.values(parsed).every((value) => typeof value === "string")
-        ) {
-          throw new Error("Headers must be a JSON object with string values.");
-        }
-        headers = parsed as Record<string, string>;
-      } catch (error) {
-        toastManager.add({
-          type: "error",
-          title: "Invalid provider headers",
-          description: error instanceof Error ? error.message : "Headers must be valid JSON.",
-        });
-        return;
-      }
+    const parsedHeaders = parseProviderHeaders(draft.headers);
+    if (!parsedHeaders.ok) {
+      toastManager.add({
+        type: "error",
+        title: uiText("Invalid provider headers"),
+        description: parsedHeaders.error,
+      });
+      return;
     }
+    const headers = parsedHeaders.headers;
     setSavingProviderId(provider.providerId);
     const result = await setProvider({
       environmentId: props.environmentId,
@@ -238,20 +274,19 @@ export function AcpSessionManagementSection(props: {
     });
     setSavingProviderId(null);
     if (result._tag === "Success") {
-      toastManager.add({ type: "success", title: "ACP provider configured" });
+      toastManager.add({ type: "success", title: uiText("ACP provider configured") });
       await loadProviders();
       return;
     }
     reportFailure("Could not configure ACP provider", result);
   };
-
   const disableConfiguredProvider = async (provider: AcpRegistryConfigurableProvider) => {
     if (projectId === null || savingProviderId !== null || provider.required) return;
     const confirmed = await ensureLocalApi().dialogs.confirm(
       `Disable ACP provider "${provider.providerId}"?`,
       { variant: "destructive" },
     );
-    if (!confirmed) return;
+    if (!confirmed || !readEnvironmentScope(props.environmentId, AuthProvidersManageScope)) return;
     setSavingProviderId(provider.providerId);
     const result = await disableProvider({
       environmentId: props.environmentId,
@@ -259,15 +294,14 @@ export function AcpSessionManagementSection(props: {
     });
     setSavingProviderId(null);
     if (result._tag === "Success") {
-      toastManager.add({ type: "success", title: "ACP provider disabled" });
+      toastManager.add({ type: "success", title: uiText("ACP provider disabled") });
       await loadProviders();
       return;
     }
     reportFailure("Could not disable ACP provider", result);
   };
-
   const logoutProvider = async () => {
-    if (loggingOut) return;
+    if (loggingOut || !readEnvironmentScope(props.environmentId, AuthProvidersManageScope)) return;
     setLoggingOut(true);
     const result = await logout({
       environmentId: props.environmentId,
@@ -277,40 +311,39 @@ export function AcpSessionManagementSection(props: {
     if (result._tag === "Success") {
       setSessions([]);
       setNextCursor(null);
-      toastManager.add({ type: "success", title: "Logged out of ACP agent" });
+      toastManager.add({ type: "success", title: uiText("Logged out of ACP agent") });
       return;
     }
     reportFailure("Could not log out of ACP agent", result);
   };
-
   return (
-    <div className="grid gap-3">
+    <div className={"grid gap-3"}>
       <SettingsRow
-        title="Native sessions"
-        description="Resume agent-owned conversations as T3 threads."
+        title={uiText("Native sessions")}
+        description={uiText("Resume agent-owned conversations as T3 threads.")}
         status={
           canList && props.projects.length === 0
             ? "Add a project before importing sessions."
             : undefined
         }
         control={
-          <div className="flex flex-wrap items-center gap-2">
+          <div className={"flex flex-wrap items-center gap-2"}>
             {canLogout ? (
               <Button
-                type="button"
-                size="sm"
-                variant="outline"
+                type={"button"}
+                size={"sm"}
+                variant={"outline"}
                 disabled={props.readOnly || loggingOut}
                 onClick={() => void logoutProvider()}
               >
-                {loggingOut ? "Logging out" : "Log out"}
+                {loggingOut ? uiText("Logging out") : uiText("Log out")}
               </Button>
             ) : null}
             {canList && props.projects.length > 0 ? (
               <>
                 <Select
                   value={projectId ?? ""}
-                  disabled={props.readOnly || projectOperationPending}
+                  disabled={!canRead || projectOperationPending}
                   onValueChange={(value) => {
                     if (value === null) return;
                     setProjectId(value as ProjectId);
@@ -320,7 +353,11 @@ export function AcpSessionManagementSection(props: {
                     setProviderDrafts({});
                   }}
                 >
-                  <SelectTrigger aria-label="Project for ACP sessions" className="w-40" size="sm">
+                  <SelectTrigger
+                    aria-label={uiText("Project for ACP sessions")}
+                    className={"w-40"}
+                    size={"sm"}
+                  >
                     <SelectValue>
                       {props.projects.find((project) => project.id === projectId)?.title}
                     </SelectValue>
@@ -334,13 +371,13 @@ export function AcpSessionManagementSection(props: {
                   </SelectPopup>
                 </Select>
                 <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={props.readOnly || loading || projectId === null}
+                  type={"button"}
+                  size={"sm"}
+                  variant={"outline"}
+                  disabled={!canRead || loading || projectId === null}
                   onClick={() => void loadSessions()}
                 >
-                  {loading ? "Loading" : sessions.length === 0 ? "List sessions" : "Refresh"}
+                  {loading ? uiText("Loading") : sessions.length === 0 ? uiText("List sessions") : uiText("Refresh")}
                 </Button>
               </>
             ) : null}
@@ -350,27 +387,27 @@ export function AcpSessionManagementSection(props: {
         {canList && (sessions.length > 0 || nextCursor !== null) ? (
           <>
             {sessions.length > 0 ? (
-              <div className="divide-y divide-border/60 border-y border-border/60">
+              <div className={"divide-y divide-border/60 border-y border-border/60"}>
                 {sessions.map((session) => (
                   <div
                     key={session.sessionId}
-                    className="flex min-w-0 items-center justify-between gap-3 py-2"
+                    className={"flex min-w-0 items-center justify-between gap-3 py-2"}
                   >
-                    <div className="min-w-0">
-                      <p className="truncate text-xs text-foreground">
+                    <div className={"min-w-0"}>
+                      <p className={"truncate text-xs text-foreground"}>
                         {session.title ?? session.sessionId}
                       </p>
-                      <code className="block truncate text-3xs text-muted-foreground">
+                      <code className={"block truncate text-3xs text-muted-foreground"}>
                         {session.sessionId}
                       </code>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1">
+                    <div className={"flex shrink-0 items-center gap-1"}>
                       <Button
-                        type="button"
-                        size="xs"
-                        variant="ghost-muted"
+                        type={"button"}
+                        size={"xs"}
+                        variant={"ghost-muted"}
                         disabled={
-                          props.readOnly ||
+                          !canOperate ||
                           !canImport ||
                           session.importedThreadId !== null ||
                           importingSessionId !== null
@@ -378,24 +415,24 @@ export function AcpSessionManagementSection(props: {
                         onClick={() => void importNativeSession(session)}
                       >
                         {session.importedThreadId !== null
-                          ? "Imported"
+                          ? uiText("Imported")
                           : importingSessionId === session.sessionId
-                            ? "Importing"
-                            : "Import"}
+                            ? uiText("Importing")
+                            : uiText("Import")}
                       </Button>
                       {canDelete ? (
                         <Button
-                          type="button"
-                          size="xs"
-                          variant="ghost-muted"
+                          type={"button"}
+                          size={"xs"}
+                          variant={"ghost-muted"}
                           disabled={
-                            props.readOnly ||
+                            !canOperate ||
                             session.importedThreadId !== null ||
                             deletingSessionId !== null
                           }
                           onClick={() => void deleteNativeSession(session)}
                         >
-                          {deletingSessionId === session.sessionId ? "Deleting" : "Delete"}
+                          {deletingSessionId === session.sessionId ? uiText("Deleting") : uiText("Delete")}
                         </Button>
                       ) : null}
                     </div>
@@ -403,47 +440,44 @@ export function AcpSessionManagementSection(props: {
                 ))}
               </div>
             ) : null}
-
             {nextCursor !== null ? (
               <Button
-                type="button"
-                size="xs"
-                variant="ghost-muted"
-                className="w-fit"
-                disabled={props.readOnly || loading}
+                type={"button"}
+                size={"xs"}
+                variant={"ghost-muted"}
+                className={"w-fit"}
+                disabled={!canRead || loading}
                 onClick={() => void loadSessions(nextCursor)}
               >
-                {loading ? "Loading" : "Load more"}
+                {loading ? uiText("Loading") : uiText("Load more")}
               </Button>
             ) : null}
           </>
         ) : null}
       </SettingsRow>
-
       {canConfigureProviders ? (
-        <div className="grid gap-3 border-t border-border/60 px-3 py-3 sm:px-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className={"grid gap-3 border-t border-border/60 px-3 py-3 sm:px-4"}>
+          <div className={"flex flex-wrap items-center justify-between gap-2"}>
             <div>
-              <p className="text-xs font-medium text-foreground">Agent providers</p>
-              <p className="text-xs text-muted-foreground">
-                Configure non-secret routing. Headers are write-only.
+              <p className={"text-xs font-medium text-foreground"}>{uiText("Agent providers")}</p>
+              <p className={"text-xs text-muted-foreground"}>
+                {uiText("Configure non-secret routing. Headers are write-only.")}
               </p>
             </div>
             <Button
-              type="button"
-              size="xs"
-              variant="outline"
-              disabled={props.readOnly || loadingProviders || projectId === null}
+              type={"button"}
+              size={"xs"}
+              variant={"outline"}
+              disabled={!canRead || loadingProviders || projectId === null}
               onClick={() => void loadProviders()}
             >
-              {loadingProviders ? "Loading" : providers.length === 0 ? "List providers" : "Refresh"}
+              {loadingProviders ? uiText("Loading") : providers.length === 0 ? uiText("List providers") : uiText("Refresh")}
             </Button>
           </div>
-
           {!canList && props.projects.length > 1 ? (
             <Select
               value={projectId ?? ""}
-              disabled={props.readOnly || projectOperationPending}
+              disabled={!canRead || projectOperationPending}
               onValueChange={(value) => {
                 if (value === null) return;
                 setProjectId(value as ProjectId);
@@ -451,7 +485,11 @@ export function AcpSessionManagementSection(props: {
                 setProviderDrafts({});
               }}
             >
-              <SelectTrigger aria-label="Project for ACP providers" className="min-w-48" size="xs">
+              <SelectTrigger
+                aria-label={uiText("Project for ACP providers")}
+                className={"min-w-48"}
+                size={"xs"}
+              >
                 <SelectValue>
                   {props.projects.find((project) => project.id === projectId)?.title}
                 </SelectValue>
@@ -465,9 +503,8 @@ export function AcpSessionManagementSection(props: {
               </SelectPopup>
             </Select>
           ) : null}
-
           {providers.length > 0 ? (
-            <div className="divide-y divide-border/60 border-y border-border/60">
+            <div className={"divide-y divide-border/60 border-y border-border/60"}>
               {providers.map((provider) => {
                 const draft = providerDrafts[provider.providerId] ?? {
                   apiType: provider.current?.apiType ?? provider.supported[0] ?? "",
@@ -480,22 +517,22 @@ export function AcpSessionManagementSection(props: {
                     [provider.providerId]: { ...draft, ...update },
                   }));
                 return (
-                  <div key={provider.providerId} className="grid gap-2 py-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-xs font-medium text-foreground">
+                  <div key={provider.providerId} className={"grid gap-2 py-3"}>
+                    <div className={"flex items-center justify-between gap-2"}>
+                      <div className={"min-w-0"}>
+                        <p className={"truncate text-xs font-medium text-foreground"}>
                           {provider.providerId}
                         </p>
-                        <p className="text-3xs text-muted-foreground">
-                          {provider.current === null ? "Disabled" : "Configured"}
-                          {provider.required ? " · Required" : ""}
+                        <p className={"text-3xs text-muted-foreground"}>
+                          {provider.current === null ? uiText("Disabled") : uiText("Configured")}
+                          {provider.required ? uiText("· Required") : ""}
                         </p>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className={"flex items-center gap-1"}>
                         <Button
-                          type="button"
-                          size="xs"
-                          variant="outline"
+                          type={"button"}
+                          size={"xs"}
+                          variant={"outline"}
                           disabled={
                             props.readOnly ||
                             savingProviderId !== null ||
@@ -504,22 +541,22 @@ export function AcpSessionManagementSection(props: {
                           }
                           onClick={() => void saveProvider(provider)}
                         >
-                          {savingProviderId === provider.providerId ? "Saving" : "Save"}
+                          {savingProviderId === provider.providerId ? uiText("Saving") : uiText("Save")}
                         </Button>
                         {!provider.required && provider.current !== null ? (
                           <Button
-                            type="button"
-                            size="xs"
-                            variant="ghost-muted"
+                            type={"button"}
+                            size={"xs"}
+                            variant={"ghost-muted"}
                             disabled={props.readOnly || savingProviderId !== null}
                             onClick={() => void disableConfiguredProvider(provider)}
                           >
-                            Disable
+                            {uiText("Disable")}
                           </Button>
                         ) : null}
                       </div>
                     </div>
-                    <div className="grid gap-2 sm:grid-cols-[9rem_minmax(0,1fr)]">
+                    <div className={"grid gap-2 sm:grid-cols-[9rem_minmax(0,1fr)]"}>
                       <Select
                         value={draft.apiType}
                         disabled={props.readOnly || savingProviderId !== null}
@@ -527,7 +564,7 @@ export function AcpSessionManagementSection(props: {
                           if (value !== null) updateDraft({ apiType: value });
                         }}
                       >
-                        <SelectTrigger aria-label={`${provider.providerId} protocol`} size="sm">
+                        <SelectTrigger aria-label={uiText("{0} protocol", {"0": provider.providerId})} size={"sm"}>
                           <SelectValue>{draft.apiType}</SelectValue>
                         </SelectTrigger>
                         <SelectPopup>
@@ -539,20 +576,20 @@ export function AcpSessionManagementSection(props: {
                         </SelectPopup>
                       </Select>
                       <Input
-                        size="sm"
-                        type="url"
-                        aria-label={`${provider.providerId} base URL`}
-                        placeholder="https://api.example.com"
+                        size={"sm"}
+                        type={"url"}
+                        aria-label={uiText("{0} base URL", {"0": provider.providerId})}
+                        placeholder={"https://api.example.com"}
                         value={draft.baseUrl}
                         disabled={props.readOnly || savingProviderId !== null}
                         onValueChange={(value) => updateDraft({ baseUrl: value })}
                       />
                     </div>
                     <Input
-                      size="sm"
-                      type="password"
-                      aria-label={`${provider.providerId} write-only headers JSON`}
-                      placeholder='Write-only headers JSON, e.g. {"Authorization":"Bearer …"}'
+                      size={"sm"}
+                      type={"password"}
+                      aria-label={uiText("{0} write-only headers JSON", {"0": provider.providerId})}
+                      placeholder={uiText("Write-only headers JSON, e.g. {\"Authorization\":\"Bearer …\"}")}
                       value={draft.headers}
                       disabled={props.readOnly || savingProviderId !== null}
                       onValueChange={(value) => updateDraft({ headers: value })}

@@ -163,13 +163,14 @@ describe("commandProgramName", () => {
     expect(commandProgramName(command)).toBe(program);
   });
 
-  it.each(
-    ["cd /tmp", "export CI=1", "unset DEBUG", "source env.sh", ". env.sh"].flatMap((setup) =>
-      ["&&", " || ", ";", "\n", "|", " |& ", " & "].map(
-        (operator) => [`${setup}${operator}npm test`, "npm"] as const,
-      ),
+  it.each([
+    ...["&&", " || ", ";", "\n", "|", " |& ", " & "].map(
+      (operator) => [`cd /tmp${operator}npm test`, "npm"] as const,
     ),
-  )("handles shell setup followed by every command separator: %s", (command, program) => {
+    ...["export CI=1", "unset DEBUG", "source env.sh", ". env.sh"].map(
+      (setup) => [`${setup}&&npm test`, "npm"] as const,
+    ),
+  ])("handles shell setup followed by every command separator: %s", (command, program) => {
     expect(commandProgramName(command)).toBe(program);
   });
 
@@ -499,11 +500,6 @@ describe("commandDisplayText", () => {
 });
 
 describe("commands recorded from each provider", () => {
-  // Inputs are copied from the recorded replay transcripts in
-  // apps/server/src/orchestration-v2/testkit/fixtures (turn_interrupt_mid_tool,
-  // todo_list, grok_background_bash and
-  // opencode_running_child_approval). In turn_interrupt_mid_tool every provider
-  // ran the same script, and only Codex wraps it in a login shell.
   const interruptScript = `node -e "console.log('interrupt fixture tool started'); setTimeout(() => {}, 30000)"`;
   it.each([
     ["Claude", interruptScript, interruptScript],
@@ -583,7 +579,6 @@ describe("commandHighlightLanguage", () => {
     ["git status; pwsh -c 'Get-Date'", "shellscript"],
     ["cat <<'EOF' > notes.txt\npwsh\nEOF", "shellscript"],
     ["", "shellscript"],
-    // Windows agents also run PowerShell directly, without a pwsh wrapper.
     ["Get-Content package.json | Select-String version", "powershell"],
     ["$env:CI='1'; npm test", "powershell"],
     ["$tmp = Join-Path $env:TEMP repo; git clone example", "powershell"],

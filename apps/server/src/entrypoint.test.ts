@@ -13,7 +13,6 @@ const makeTempDir = () => NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-
 
 describe("isEntrypoint", () => {
   it("uses the runtime answer when Node provides one", () => {
-    // Node 22.18+ and 24.2+ populate `import.meta.main`; nothing else is consulted.
     expect(
       isEntrypoint({
         moduleUrl: "file:///somewhere/bin.mjs",
@@ -54,9 +53,11 @@ describe("isEntrypoint", () => {
       NodeFS.writeFileSync(real, "");
       NodeFS.symlinkSync(real, link);
 
+      // Node resolves the module URL to the real path, and on macOS the temp
+      // directory itself sits behind a symlink (`/var` -> `/private/var`).
       expect(
         isEntrypoint({
-          moduleUrl: NodeURL.pathToFileURL(real).href,
+          moduleUrl: NodeURL.pathToFileURL(NodeFS.realpathSync(real)).href,
           entryPath: link,
           runtimeMain: undefined,
         }),
@@ -65,7 +66,6 @@ describe("isEntrypoint", () => {
   );
 
   it("stays false for an imported module that is not the entrypoint", () => {
-    // This is what keeps `bin.test.ts` from launching the CLI on import.
     const dir = makeTempDir();
     const entry = NodePath.join(dir, "bin.mjs");
     const imported = NodePath.join(dir, "cli.mjs");

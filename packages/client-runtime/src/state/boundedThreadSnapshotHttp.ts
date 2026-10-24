@@ -1,4 +1,5 @@
 import type { ThreadId } from "@t3tools/contracts";
+import { boundedSnapshotProjection } from "@t3tools/shared/orchestrationV2BoundedSnapshot";
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -7,7 +8,6 @@ import { HttpClient } from "effect/http";
 
 import * as RemoteEnvironmentAuthorization from "../authorization/service.ts";
 import type { PreparedConnection } from "../connection/model.ts";
-import { environmentEndpointUrl } from "../environment/endpoint.ts";
 import * as ManagedRelay from "../relay/managedRelay.ts";
 import {
   executeAuthenticatedEnvironmentHttpRequest,
@@ -15,10 +15,8 @@ import {
 } from "./environmentHttpAuth.ts";
 import * as ThreadSnapshotLoader from "./threadSnapshotHttp.ts";
 
-// Same cold-open budget as the full snapshot path; bounded payloads should fit.
 const DEFAULT_BOUNDED_THREAD_SNAPSHOT_TIMEOUT_MS = 6_000;
 
-/** Load a bounded recent-window thread snapshot over HTTP. */
 export const fetchEnvironmentBoundedThreadSnapshot = Effect.fn(
   "clientRuntime.state.fetchEnvironmentBoundedThreadSnapshot",
 )(function* (input: {
@@ -30,28 +28,33 @@ export const fetchEnvironmentBoundedThreadSnapshot = Effect.fn(
   >;
   readonly timeoutMs?: number;
 }) {
+  const endpoint = {
+    params: { threadId: input.threadId },
+    query: { compactTurnItems: "1" },
+  };
   return yield* executeAuthenticatedEnvironmentHttpRequest({
     ...input,
     group: "orchestration",
     method: "GET",
-    url: (httpBaseUrl) =>
-      environmentEndpointUrl(httpBaseUrl, `/api/orchestration/threads/${input.threadId}/bounded`),
+    url: (urls) => urls.threadBoundedSnapshot(endpoint),
     timeoutMs: input.timeoutMs ?? DEFAULT_BOUNDED_THREAD_SNAPSHOT_TIMEOUT_MS,
     request: ({ client, headers }) =>
       client.threadBoundedSnapshot({
-        params: { threadId: input.threadId },
+        ...endpoint,
         headers: withOrchestrationProtocolHeader(headers),
       }),
-  });
+  }).pipe(
+    Effect.map(({ turnItemsOmitLocalVisible, ...snapshot }) => ({
+      ...snapshot,
+      projection: boundedSnapshotProjection({ ...snapshot, turnItemsOmitLocalVisible }),
+    })),
+  );
 });
 
 /**
- * Shared ThreadSnapshotLoader for clients that render progressive history.
- * Seeds from the bounded HTTP snapshot when available. Older servers that lack
- * the bounded route (plain/generic 404) fall back to the existing full HTTP
- * thread snapshot. Structured EnvironmentResourceNotFoundError from either
- * endpoint still means missing. Transient failures report `unavailable` so the
- * socket path remains a last resort for connectivity issues.
+ * Older servers that lack the bounded route (plain/generic 404) fall back to
+ * the existing full HTTP thread snapshot. Structured
+ * EnvironmentResourceNotFoundError from either endpoint still means missing.
  */
 export const layer: Layer.Layer<
   ThreadSnapshotLoader.ThreadSnapshotLoader,

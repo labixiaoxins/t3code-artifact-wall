@@ -1,35 +1,32 @@
+import { Button } from "../../components/ui/Button";
 import type {
   EnvironmentProject,
   EnvironmentThreadShell,
 } from "@t3tools/client-runtime/state/shell";
 import { LegendList } from "@legendapp/list/react-native";
 import {
+  AuthOrchestrationOperateScope,
   type EnvironmentId,
   type EnvironmentMachineKind,
   resolveEnvironmentMachineKind,
 } from "@t3tools/contracts";
 import { useNavigation } from "@react-navigation/native";
-import { ScreenHeader } from "../../components/ScreenHeader";
-import { SymbolView } from "../../components/AppSymbol";
+import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
+import { AppBar } from "../../components/ui/AppBar";
+import { SymbolView } from "../../components/ui/AppSymbol";
 import { useCallback, useMemo, useRef, type ComponentProps } from "react";
-import {
-  ActivityIndicator,
-  Platform,
-  Pressable,
-  RefreshControl,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { Platform, RefreshControl, useWindowDimensions, View } from "react-native";
 import { GestureDetector, useNativeGesture } from "react-native-gesture-handler";
 import type { SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
 
-import { AppText as Text } from "../../components/AppText";
-import { EmptyState } from "../../components/EmptyState";
+import { AppText as Text } from "../../components/ui/AppText";
+import { EmptyState } from "../../components/ui/EmptyState";
 import { EnvironmentMachineSymbol } from "../../components/EnvironmentMachineSymbol";
 import { ProjectFavicon } from "../../components/ProjectFavicon";
 import { relativeTime } from "../../lib/time";
 import { useUniwindTheme } from "../../lib/useUniwindTheme";
 import { useServerConfigs } from "../../state/entities";
+import { useEnvironmentScope } from "../../state/session";
 import { ThreadSwipeable } from "../home/thread-swipe-actions";
 import type { ArchivedThreadGroup, ArchivedThreadSortOrder } from "./archivedThreadList";
 import { SettingsScreenContent } from "../settings/components/SettingsScreen";
@@ -53,7 +50,7 @@ function ArchivedThreadsHeader(props: {
   const { width } = useWindowDimensions();
   const hasCustomFilter = props.selectedEnvironmentId !== null || props.sortOrder !== "newest";
   return (
-    <ScreenHeader
+    <AppBar
       title="Archived threads"
       sidebar={false}
       onBack={() => navigation.goBack()}
@@ -191,24 +188,73 @@ function ArchivedThreadRow(props: {
 }) {
   const { width: windowWidth } = useWindowDimensions();
   const cardColor = useUniwindTheme()["--color-grouped-card"];
+  const canOperateThread = useEnvironmentScope(
+    props.thread.environmentId,
+    AuthOrchestrationOperateScope,
+  );
   const timestamp = relativeTime(props.thread.archivedAt ?? props.thread.updatedAt);
   const subtitle = [props.environmentLabel, props.thread.branch].filter((part): part is string =>
     Boolean(part),
   );
+  const rowContent = (
+    <View
+      className={`flex-row items-center gap-3 bg-grouped-card px-4 py-3 ${props.isLast ? "" : "border-b border-separator"}`}
+    >
+      <View className="h-[34px] w-[34px] items-center justify-center rounded-[11px] bg-subtle">
+        <SymbolView
+          name="archivebox.fill"
+          size={15}
+          tintColorClassName="accent-icon-subtle"
+          type="monochrome"
+        />
+      </View>
+
+      <View className="min-w-0 flex-1 gap-1">
+        <View className="flex-row items-center gap-2">
+          <Text
+            className="min-w-0 flex-1 text-base font-t3-bold leading-snug text-foreground"
+            numberOfLines={1}
+          >
+            {props.thread.title}
+          </Text>
+          <Text className="min-w-[30px] text-right text-xs tabular-nums text-foreground-tertiary">
+            {timestamp}
+          </Text>
+        </View>
+        {subtitle.length > 0 ? (
+          <View className="flex-row items-center gap-1.5">
+            <SymbolView
+              name="arrow.triangle.branch"
+              size={10}
+              tintColorClassName="accent-icon-subtle"
+              type="monochrome"
+            />
+            <Text
+              className="min-w-0 flex-1 font-mono text-2xs text-foreground-tertiary"
+              numberOfLines={1}
+            >
+              {subtitle.join(" · ")}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+  const containerStyle = {
+    borderTopLeftRadius: props.isFirst ? 20 : 0,
+    borderTopRightRadius: props.isFirst ? 20 : 0,
+    borderBottomLeftRadius: props.isLast ? 20 : 0,
+    borderBottomRightRadius: props.isLast ? 20 : 0,
+    overflow: "hidden" as const,
+  };
+  if (!canOperateThread) return <View style={containerStyle}>{rowContent}</View>;
+
   return (
     <ThreadSwipeable
       resetKey={`${props.thread.environmentId}:${props.thread.id}`}
       threadKey={`${props.thread.environmentId}:${props.thread.id}`}
       backgroundColor={cardColor}
-      // Round + clip the swipeable container so the group's corners stay
-      // rounded while rows swipe; the row itself stays square inside.
-      containerStyle={{
-        borderTopLeftRadius: props.isFirst ? 20 : 0,
-        borderTopRightRadius: props.isFirst ? 20 : 0,
-        borderBottomLeftRadius: props.isLast ? 20 : 0,
-        borderBottomRightRadius: props.isLast ? 20 : 0,
-        overflow: "hidden",
-      }}
+      containerStyle={containerStyle}
       fullSwipeWidth={windowWidth - 32}
       onDelete={props.onDelete}
       onSwipeableClose={props.onSwipeableClose}
@@ -222,50 +268,7 @@ function ArchivedThreadRow(props: {
       simultaneousWith={props.simultaneousSwipeGesture}
       threadTitle={props.thread.title}
     >
-      {() => (
-        <View
-          className={`flex-row items-center gap-3 bg-grouped-card px-4 py-3 ${props.isLast ? "" : "border-b border-separator"}`}
-        >
-          <View className="h-[34px] w-[34px] items-center justify-center rounded-[11px] bg-subtle">
-            <SymbolView
-              name="archivebox.fill"
-              size={15}
-              tintColorClassName="accent-icon-subtle"
-              type="monochrome"
-            />
-          </View>
-
-          <View className="min-w-0 flex-1 gap-1">
-            <View className="flex-row items-center gap-2">
-              <Text
-                className="min-w-0 flex-1 text-base font-t3-bold leading-snug text-foreground"
-                numberOfLines={1}
-              >
-                {props.thread.title}
-              </Text>
-              <Text className="min-w-[30px] text-right text-xs tabular-nums text-foreground-tertiary">
-                {timestamp}
-              </Text>
-            </View>
-            {subtitle.length > 0 ? (
-              <View className="flex-row items-center gap-1.5">
-                <SymbolView
-                  name="arrow.triangle.branch"
-                  size={10}
-                  tintColorClassName="accent-icon-subtle"
-                  type="monochrome"
-                />
-                <Text
-                  className="min-w-0 flex-1 font-mono text-2xs text-foreground-tertiary"
-                  numberOfLines={1}
-                >
-                  {subtitle.join(" · ")}
-                </Text>
-              </View>
-            ) : null}
-          </View>
-        </View>
-      )}
+      {() => rowContent}
     </ThreadSwipeable>
   );
 }
@@ -277,9 +280,9 @@ function ArchiveError(props: { readonly message: string; readonly onRetry: () =>
         Could not load every archive
       </Text>
       <Text className="mt-1 text-sm text-foreground-muted">{props.message}</Text>
-      <Pressable className="mt-3 self-start active:opacity-60" onPress={props.onRetry}>
-        <Text className="text-sm font-t3-bold text-danger-foreground">Try again</Text>
-      </Pressable>
+      <View className="mt-3">
+        <Button label="Try again" tone="secondary" onPress={props.onRetry} />
+      </View>
     </View>
   );
 }
@@ -390,7 +393,7 @@ export function ArchivedThreadsScreen(props: {
     if (isInitialLoad) {
       return (
         <View className="items-center py-16">
-          <ActivityIndicator colorClassName="accent-icon" />
+          <AppActivityIndicator colorClassName="accent-icon" />
           <Text className="mt-3 text-sm text-foreground-muted">Loading archive...</Text>
         </View>
       );

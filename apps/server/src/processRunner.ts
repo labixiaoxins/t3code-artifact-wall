@@ -9,13 +9,12 @@ import * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
 import * as ChildProcess from "effect/process/ChildProcess";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
 import { resolveSpawnCommand } from "@t3tools/shared/shell";
 import {
   collectUint8StreamText,
   decodeUtf8,
   type CollectedUint8StreamText,
-} from "./stream/collectUint8StreamText.ts";
+} from "@t3tools/provider-core/server/collectStreamText";
 
 export interface ProcessRunInput {
   readonly command: string;
@@ -147,31 +146,12 @@ export class ProcessRunner extends Context.Service<
 >()("t3/processRunner") {}
 
 const DEFAULT_TIMEOUT = "60 seconds";
+// Keep SIGTERM-ignoring helpers from blocking timeouts or graceful shutdown.
+const FORCE_KILL_AFTER = "1 second";
 const DEFAULT_MAX_OUTPUT_BYTES = 8 * 1024 * 1024;
 
-const WINDOWS_COMMAND_NOT_FOUND_PATTERNS = [
-  /is not recognized as an internal or external command/i,
-  /n.o . reconhecido como um comando interno/i,
-  /non . riconosciuto come comando interno o esterno/i,
-  /n.est pas reconnu en tant que commande interne/i,
-  /no se reconoce como un comando interno o externo/i,
-  /wird nicht als interner oder externer befehl/i,
-] as const;
+export { isWindowsCommandNotFound } from "@t3tools/provider-core/server/snapshotProbe";
 
-function hasWindowsCommandNotFoundMessage(output: string): boolean {
-  return WINDOWS_COMMAND_NOT_FOUND_PATTERNS.some((pattern) => pattern.test(output));
-}
-
-export const isWindowsCommandNotFound = Effect.fn("processRunner.isWindowsCommandNotFound")(
-  function* (code: number | null, stderr: string) {
-    const platform = yield* HostProcessPlatform;
-    if (platform !== "win32") return false;
-    if (code === 9009) return true;
-    return hasWindowsCommandNotFoundMessage(stderr);
-  },
-);
-
-// Untraced: no attributes, and its time is the runProcessCore span. Errors fail that span.
 const collectText = Effect.fnUntraced(function* (input: {
   readonly command: string;
   readonly args: ReadonlyArray<string>;
@@ -286,7 +266,6 @@ function finalizeRunProcess<R>(
   );
 }
 
-/** The executable name without its directory, recorded as `process.command` on process spans. */
 export const commandName = (command: string) => command.replace(/^.*[\\/]/, "");
 
 const runProcessCore = Effect.fn("processRunner.runProcessCore")(function* (
@@ -304,6 +283,18 @@ const runProcessCore = Effect.fn("processRunner.runProcessCore")(function* (
     input.env === undefined ? {} : { env: input.env, extendEnv },
   );
 
+  const toSpawnError = (cause: unknown) =>
+    new ProcessSpawnError({
+      command: input.command,
+      argumentCount: input.args.length,
+      cwd: input.cwd,
+      spawnCwd: input.spawnCwd,
+      resolvedCommand: spawnCommand.command,
+      resolvedArgumentCount: spawnCommand.args.length,
+      shell: spawnCommand.shell,
+      cause,
+    });
+
   const child = yield* spawner
     .spawn(
       ChildProcess.make(spawnCommand.command, spawnCommand.args, {
@@ -315,22 +306,15 @@ const runProcessCore = Effect.fn("processRunner.runProcessCore")(function* (
             }
           : {}),
         shell: spawnCommand.shell,
+        forceKillAfter: FORCE_KILL_AFTER,
       }),
     )
     .pipe(
-      Effect.mapError(
-        (cause) =>
-          new ProcessSpawnError({
-            command: input.command,
-            argumentCount: input.args.length,
-            cwd: input.cwd,
-            spawnCwd: input.spawnCwd,
-            resolvedCommand: spawnCommand.command,
-            resolvedArgumentCount: spawnCommand.args.length,
-            shell: spawnCommand.shell,
-            cause,
-          }),
-      ),
+      Effect.mapError(toSpawnError),
+      // Node's spawn can also throw synchronously, e.g. ENOTDIR when a PATH
+      // entry is a file. That arrives as a defect, which `mapError` never sees,
+      // so callers that recover from spawn failures would be bypassed.
+      Effect.catchDefect((cause) => Effect.fail(toSpawnError(cause))),
     );
 
   const stdin = input.stdin;

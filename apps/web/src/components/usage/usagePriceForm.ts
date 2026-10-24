@@ -1,10 +1,11 @@
+import { uiText } from "~/i18n";
 import type { UsageModelPriceOverride } from "@t3tools/contracts";
 
 export const USAGE_PRICE_FIELDS = [
-  { key: "inputCostPerMillionTokens", label: "Input", optional: false },
-  { key: "outputCostPerMillionTokens", label: "Output", optional: false },
-  { key: "cacheReadCostPerMillionTokens", label: "Cache read", optional: true },
-  { key: "cacheWriteCostPerMillionTokens", label: "Cache write", optional: true },
+  { key: "inputCostPerMillionTokens", label: uiText("Input"), optional: false },
+  { key: "outputCostPerMillionTokens", label: uiText("Output"), optional: false },
+  { key: "cacheReadCostPerMillionTokens", label: uiText("Cache read"), optional: true },
+  { key: "cacheWriteCostPerMillionTokens", label: uiText("Cache write"), optional: true },
 ] as const;
 
 export type UsagePriceForm = { model: string } & Record<
@@ -20,6 +21,20 @@ export function usagePriceForm(model = "", price?: UsageModelPriceOverride): Usa
     cacheReadCostPerMillionTokens: price?.cacheReadCostPerMillionTokens?.toString() ?? "",
     cacheWriteCostPerMillionTokens: price?.cacheWriteCostPerMillionTokens?.toString() ?? "",
   };
+}
+
+/**
+ * Whether a price cell may change from `previous` to `next` while typing:
+ * digits with an optional decimal point, plus the exponent form saved rates can
+ * stringify to. Deleting a run of characters is always allowed so a mid-value
+ * delete such as `1e-7` to `e-7` is not stuck; saving still validates the result.
+ */
+export function isUsagePriceEdit(previous: string, next: string): boolean {
+  if (/^\s*(?:\d*\.?\d*|(?:\d+\.?\d*|\.\d+)e[+-]?\d*)\s*$/i.test(next)) return true;
+  if (next.length >= previous.length) return false;
+  let start = 0;
+  while (start < next.length && next[start] === previous[start]) start++;
+  return next.slice(start) === previous.slice(previous.length - (next.length - start));
 }
 
 /** Blank cache prices use the input rate; explicit zero means free. */

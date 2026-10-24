@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type { PreviewCard as PreviewCardPrimitive } from "@base-ui/react/preview-card";
 import { isAtomCommandInterrupted } from "@t3tools/client-runtime/state/runtime";
 import type { EnvironmentId, PullRequestRef } from "@t3tools/contracts";
@@ -11,7 +12,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { formatRelativeTimeLabel } from "~/timestampFormat";
+import { RelativeTime } from "~/components/RelativeTime";
 import { pullRequestEnvironment } from "~/state/pullRequests";
 import { useAtomQueryRunner } from "~/state/use-atom-query-runner";
 import { useEnvironmentQuery } from "~/state/query";
@@ -103,7 +104,6 @@ export function PullRequestLinkPreview({
       <Tooltip
         open={showUrlTooltip}
         onOpenChange={(nextOpen) => {
-          // Cancel the card's delayed hover too, without changing its content preview.
           if (!nextOpen && !showCard) previewActionsRef.current?.close();
         }}
       >
@@ -140,7 +140,7 @@ export function PullRequestLinkPreview({
                   <span className="min-w-0 truncate">{authorLabel}</span>
                   <span aria-hidden>·</span>
                   <span className="shrink-0">
-                    opened {formatRelativeTimeLabel(detail.createdAt)}
+                    {uiText("opened") + " "}<RelativeTime timestamp={detail.createdAt} />
                   </span>
                 </div>
               </div>

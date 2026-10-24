@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { Outlet, createFileRoute, redirect, useLocation } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { RotateCcwIcon } from "lucide-react";
@@ -38,8 +39,7 @@ function RestoreDeviceDefaultsButton({ onRestored }: { onRestored: () => void })
       onClick={() => void restoreDefaults()}
     >
       <RotateCcwIcon className="mx-1 size-3.5" />
-      Restore device defaults
-    </Button>
+      {uiText("Restore device defaults") + " "}</Button>
   );
 }
 
@@ -64,8 +64,8 @@ function SettingsScopeBoundary({ pathname, children }: { pathname: string; child
         eligibleEnvironmentIds={autoSettlementAvailability.eligibleEnvironmentIds}
       >
         {autoSettlementAvailability.eligibleEnvironmentIds.length > 0
-          ? `${searchTarget.title} requires a supporting environment. Choose one to continue.`
-          : `${searchTarget.title} requires a supporting environment. Connect or update an environment to continue.`}
+          ? uiText("{0} requires a supporting environment. Choose one to continue.", {"0": searchTarget.title})
+          : uiText("{0} requires a supporting environment. Connect or update an environment to continue.", {"0": searchTarget.title})}
       </SettingsScopeNotice>
     );
   }
@@ -82,16 +82,13 @@ function SettingsScopeBoundary({ pathname, children }: { pathname: string; child
         : "all";
     return (
       <SettingsScopeNotice target={target} targetId={hash}>
-        {`${searchTarget.title} is not available for the selected target. Choose its owning scope to continue.`}
+        {uiText("{0} is not available for the selected target. Choose its owning scope to continue.", {"0": searchTarget.title})}
       </SettingsScopeNotice>
     );
   }
-  // Device-local pages ignore the scope entirely; the project page follows
-  // remembered members while a grouping change replaces its URL key.
   if (SETTINGS_DEVICE_ONLY_PATHS.has(pathname) || pathname === "/settings/projects") {
     return children;
   }
-  // Keep the scope sentence on screen so the selection can be changed back.
   if (scope.kind === "unavailable")
     return (
       <SettingsPageContainer>
@@ -102,8 +99,7 @@ function SettingsScopeBoundary({ pathname, children }: { pathname: string; child
     return (
       <SettingsPageContainer>
         <p className="text-sm text-muted-foreground">
-          Reconnect {scope.label} to change its settings.
-        </p>
+          {uiText("Reconnect") + " "}{scope.label} {uiText("to change its settings.") + " "}</p>
       </SettingsPageContainer>
     );
   }
@@ -114,7 +110,11 @@ function SettingsContentLayout() {
   const location = useLocation();
   const navigateToMainApp = useNavigateToMainApp();
   useEscapeToGoBack(navigateToMainApp);
-  const { search } = useSettingsScope();
+  const { search, environment } = useSettingsScope();
+  const contentScopeKey =
+    location.pathname === "/settings/diagnostics" || location.pathname === "/settings/providers"
+      ? environment?.environmentId
+      : JSON.stringify(search);
   const [restoreSignal, setRestoreSignal] = useState(0);
 
   return (
@@ -133,10 +133,7 @@ function SettingsContentLayout() {
           </div>
         </WorkspacePageHeader>
 
-        <div
-          key={`${JSON.stringify(search)}:${restoreSignal}`}
-          className="min-h-0 flex flex-1 flex-col"
-        >
+        <div key={`${contentScopeKey}:${restoreSignal}`} className="min-h-0 flex flex-1 flex-col">
           <SettingsScopeBoundary pathname={location.pathname}>
             <Outlet />
           </SettingsScopeBoundary>

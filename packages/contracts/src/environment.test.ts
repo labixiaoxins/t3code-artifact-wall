@@ -14,6 +14,20 @@ const descriptor = {
 } as const;
 
 describe("ExecutionEnvironmentDescriptor", () => {
+  it("keeps settled cleanup optional alongside current worktree capabilities", () => {
+    expect(decodeDescriptor(descriptor).capabilities.settledWorktreeCleanup).toBeUndefined();
+    const capabilities = {
+      settledWorktreeCleanup: true,
+      storageCleanupRun: true,
+      projectWorktreeCleanup: true,
+      worktreesDirectory: true,
+      threadAutoSettlementScope: true,
+    };
+    expect(decodeDescriptor({ ...descriptor, capabilities }).capabilities).toMatchObject(
+      capabilities,
+    );
+  });
+
   it("decodes old, recognized and future manual installation descriptors", () => {
     expect(decodeDescriptor(descriptor).capabilities.serverInstallation).toBeUndefined();
     for (const installation of [{ kind: "npx" }, { kind: "npm-global", prefix: "/opt/node" }]) {
@@ -94,6 +108,16 @@ describe("ExecutionEnvironmentDescriptor", () => {
           serverResolvedCommandContext: true,
         },
       }).capabilities.serverResolvedCommandContext,
+    ).toBe(true);
+  });
+
+  it("enables thread Stop only when advertised by the server", () => {
+    expect(decodeDescriptor(descriptor).capabilities.threadStop).toBeUndefined();
+    expect(
+      decodeDescriptor({
+        ...descriptor,
+        capabilities: { ...descriptor.capabilities, threadStop: true },
+      }).capabilities.threadStop,
     ).toBe(true);
   });
 });

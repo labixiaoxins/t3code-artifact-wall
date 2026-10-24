@@ -1,5 +1,4 @@
 import {
-  AuthAdministrativeScopes,
   AuthStandardClientScopes,
   type AuthEnvironmentScope,
   type AuthPairingLink,
@@ -66,6 +65,15 @@ export class UnavailableBootstrapCredentialError extends Schema.TaggedError<Unav
 ) {
   override get message(): string {
     return "Bootstrap credential is no longer available.";
+  }
+}
+
+export class BootstrapCredentialScopeNotGrantedError extends Schema.TaggedError<BootstrapCredentialScopeNotGrantedError>()(
+  "BootstrapCredentialScopeNotGrantedError",
+  {},
+) {
+  override get message(): string {
+    return "The requested authentication scope was not granted.";
   }
 }
 
@@ -174,6 +182,7 @@ export const isBootstrapCredentialInternalError = Schema.is(BootstrapCredentialI
 export const BootstrapCredentialError = Schema.Union([
   BootstrapCredentialInvalidError,
   BootstrapCredentialInternalError,
+  BootstrapCredentialScopeNotGrantedError,
 ]);
 export type BootstrapCredentialError = typeof BootstrapCredentialError.Type;
 
@@ -204,10 +213,6 @@ export class PairingGrantStore extends Context.Service<
       readonly subject?: string;
       readonly label?: string;
       readonly proofKeyThumbprint?: string;
-      /**
-       * "startup" marks the credential the server mints for itself at boot,
-       * which gets the long dev TTL when a dev URL is configured.
-       */
       readonly purpose?: "startup";
     }) => Effect.Effect<IssuedBootstrapCredential, BootstrapCredentialInternalError>;
     readonly listActive: () => Effect.Effect<
@@ -220,6 +225,7 @@ export class PairingGrantStore extends Context.Service<
       credential: string,
       input?: {
         readonly proofKeyThumbprint?: string;
+        readonly requestedScopes?: ReadonlyArray<AuthEnvironmentScope>;
       },
     ) => Effect.Effect<BootstrapGrant, BootstrapCredentialError>;
   }
@@ -232,7 +238,7 @@ interface StoredBootstrapGrant extends BootstrapGrant {
 type ConsumeResult =
   | {
       readonly _tag: "error";
-      readonly reason: "not-found" | "expired";
+      readonly reason: "not-found" | "expired" | "scope-not-granted";
       readonly error: BootstrapCredentialError;
     }
   | {
@@ -241,23 +247,7 @@ type ConsumeResult =
     };
 
 const DEFAULT_ONE_TIME_TOKEN_TTL_MINUTES = Duration.minutes(5);
-// The desktop-bootstrap grant rides on a trusted IPC channel (fd3 or
-// stdin) at backend launch, so it doesn't have to be short-lived the
-// way a user-facing pairing link does. Letting it live for the
-// lifetime of the backend process (24h is more than long enough for
-// practical desktop use, and well under "forever" in case the seed
-// gets logged anywhere by accident) means a page reload past the 5-min
-// window can still recover by re-bootstrapping rather than locking
-// the user out of the backend.
 const DESKTOP_BOOTSTRAP_TTL_HOURS = Duration.hours(24);
-// A dev server's startup token is read off a log by whoever (or whatever) is
-// driving the session, often minutes later — after a `node --watch` restart, a
-// detour into another task, or a hand-off to the person actually doing the
-// testing. Five minutes turns that into a restart-the-server loop for no
-// security benefit: the token only unlocks a local dev backend, and its holder
-// could read the log anyway. Same reasoning (and duration) as the desktop
-// bootstrap grant above. Only applies when a dev URL is configured; user-issued
-// pairing links and real servers keep the 5-minute default.
 const DEV_STARTUP_TTL_HOURS = Duration.hours(24);
 const PAIRING_TOKEN_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 const PAIRING_TOKEN_LENGTH = 12;
@@ -325,7 +315,7 @@ export const make = Effect.gen(function* () {
     const now = yield* DateTime.now;
     yield* seedGrant(config.desktopBootstrapToken, {
       method: "desktop-bootstrap",
-      scopes: AuthAdministrativeScopes,
+      scopes: AuthStandardClientScopes,
       subject: "desktop-bootstrap",
       expiresAt: DateTime.add(now, {
         milliseconds: Duration.toMillis(DESKTOP_BOOTSTRAP_TTL_HOURS),
@@ -387,11 +377,14 @@ export const make = Effect.gen(function* () {
   const issueOneTimeToken: PairingGrantStore["Service"]["issueOneTimeToken"] = Effect.fn(
     "PairingGrantStore.issueOneTimeToken",
   )(function* (input) {
-    const id = yield* crypto.randomUUIDv4.pipe(
-      Effect.mapError(
-        (cause) => new PairingCredentialRandomGenerationError({ operation: "generate-id", cause }),
-      ),
-    );
+    const id = yield* crypto
+      .randomUUIDv4()
+      .pipe(
+        Effect.mapError(
+          (cause) =>
+            new PairingCredentialRandomGenerationError({ operation: "generate-id", cause }),
+        ),
+      );
     const credential = yield* generatePairingToken;
     const isDevStartupToken = config.devUrl !== undefined && input?.purpose === "startup";
     const ttl =
@@ -447,7 +440,7 @@ export const make = Effect.gen(function* () {
       if (consumeRotatingDesktopToken(credential, now.epochMilliseconds)) {
         return {
           method: "desktop-bootstrap",
-          scopes: AuthAdministrativeScopes,
+          scopes: AuthStandardClientScopes,
           subject: "desktop-bootstrap",
           expiresAt: DateTime.add(now, {
             milliseconds: DESKTOP_BOOTSTRAP_TOKEN_WINDOW_MS,
@@ -493,6 +486,20 @@ export const make = Effect.gen(function* () {
             ];
           }
 
+          if (
+            input?.requestedScopes !== undefined &&
+            !input.requestedScopes.some((scope) => grant.scopes.includes(scope))
+          ) {
+            return [
+              {
+                _tag: "error",
+                reason: "scope-not-granted",
+                error: new BootstrapCredentialScopeNotGrantedError({}),
+              },
+              current,
+            ];
+          }
+
           const remainingUses = grant.remainingUses;
           if (typeof remainingUses === "number") {
             if (remainingUses <= 1) {
@@ -531,10 +538,16 @@ export const make = Effect.gen(function* () {
         return yield* seededResult.error;
       }
 
+      // The scope check is part of the UPDATE's WHERE clause so a rejected
+      // request cannot consume a one-time link. The re-check below only
+      // explains why nothing matched.
       const consumed = yield* pairingLinks
         .consumeAvailable({
           credential,
           proofKeyThumbprint: input?.proofKeyThumbprint ?? null,
+          ...(input?.requestedScopes !== undefined
+            ? { requestedScopes: input.requestedScopes }
+            : {}),
           consumedAt: now,
           now,
         })
@@ -578,6 +591,13 @@ export const make = Effect.gen(function* () {
         matching.value.proofKeyThumbprint !== input?.proofKeyThumbprint
       ) {
         return yield* new BootstrapCredentialProofKeyMismatchError({});
+      }
+
+      if (
+        input?.requestedScopes !== undefined &&
+        !input.requestedScopes.some((scope) => matching.value.scopes.includes(scope))
+      ) {
+        return yield* new BootstrapCredentialScopeNotGrantedError({});
       }
 
       return yield* new UnavailableBootstrapCredentialError({});

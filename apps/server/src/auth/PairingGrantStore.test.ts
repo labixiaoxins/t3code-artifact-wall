@@ -1,3 +1,4 @@
+import { AuthStandardClientScopes } from "@t3tools/contracts";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { expect, it } from "@effect/vitest";
 import * as Duration from "effect/Duration";
@@ -83,13 +84,7 @@ it.layer(NodeServices.layer)("PairingGrantStore.layer", (it) => {
       const second = yield* Effect.flip(bootstrapCredentials.consume(issued.credential));
 
       expect(first.method).toBe("one-time-token");
-      expect(first.scopes).toEqual([
-        "orchestration:read",
-        "orchestration:operate",
-        "terminal:operate",
-        "review:write",
-        "relay:read",
-      ]);
+      expect(first.scopes).toEqual(AuthStandardClientScopes);
       expect(first.subject).toBe("one-time-token");
       expect(first.label).toBe("Julius iPhone");
       expect(issued.label).toBe("Julius iPhone");
@@ -104,7 +99,11 @@ it.layer(NodeServices.layer)("PairingGrantStore.layer", (it) => {
       const token = yield* bootstrapCredentials.issueOneTimeToken();
       const results = yield* Effect.all(
         Array.from({ length: 8 }, () =>
-          Effect.result(bootstrapCredentials.consume(token.credential)),
+          Effect.result(
+            bootstrapCredentials.consume(token.credential, {
+              requestedScopes: ["orchestration:read"],
+            }),
+          ),
         ),
         {
           concurrency: "unbounded",
@@ -128,20 +127,30 @@ it.layer(NodeServices.layer)("PairingGrantStore.layer", (it) => {
       const bootstrapCredentials = yield* PairingGrantStore.PairingGrantStore;
       const token = yield* bootstrapCredentials.issueOneTimeToken({
         proofKeyThumbprint: "client-proof-key-thumbprint",
+        scopes: ["orchestration:read"],
       });
 
       const missing = yield* Effect.flip(bootstrapCredentials.consume(token.credential));
       const wrong = yield* Effect.flip(
         bootstrapCredentials.consume(token.credential, {
           proofKeyThumbprint: "other-proof-key-thumbprint",
+          requestedScopes: ["access:write"],
+        }),
+      );
+      const forbiddenScope = yield* Effect.flip(
+        bootstrapCredentials.consume(token.credential, {
+          proofKeyThumbprint: "client-proof-key-thumbprint",
+          requestedScopes: ["access:write"],
         }),
       );
       const consumed = yield* bootstrapCredentials.consume(token.credential, {
         proofKeyThumbprint: "client-proof-key-thumbprint",
+        requestedScopes: ["orchestration:read"],
       });
 
       expect(missing.message).toContain("proof key mismatch");
       expect(wrong.message).toContain("proof key mismatch");
+      expect(forbiddenScope._tag).toBe("BootstrapCredentialScopeNotGrantedError");
       expect(consumed.proofKeyThumbprint).toBe("client-proof-key-thumbprint");
     }).pipe(Effect.provide(layerPairingGrantStore())),
   );
@@ -154,16 +163,7 @@ it.layer(NodeServices.layer)("PairingGrantStore.layer", (it) => {
       const third = yield* bootstrapCredentials.consume("desktop-bootstrap-token");
 
       expect(first.method).toBe("desktop-bootstrap");
-      expect(first.scopes).toEqual([
-        "orchestration:read",
-        "orchestration:operate",
-        "terminal:operate",
-        "review:write",
-        "relay:read",
-        "access:read",
-        "access:write",
-        "relay:write",
-      ]);
+      expect(first.scopes).toEqual(AuthStandardClientScopes);
       expect(first.subject).toBe("desktop-bootstrap");
       expect(second.method).toBe("desktop-bootstrap");
       expect(third.method).toBe("desktop-bootstrap");
@@ -180,8 +180,6 @@ it.layer(NodeServices.layer)("PairingGrantStore.layer", (it) => {
     Effect.gen(function* () {
       const bootstrapCredentials = yield* PairingGrantStore.PairingGrantStore;
 
-      // The desktop-bootstrap grant lives for 24h. Within that window
-      // it stays reusable.
       yield* TestClock.adjust(Duration.hours(12));
       const stillValid = yield* bootstrapCredentials.consume("desktop-bootstrap-token");
       expect(stillValid.method).toBe("desktop-bootstrap");
@@ -208,7 +206,6 @@ it.layer(NodeServices.layer)("PairingGrantStore.layer", (it) => {
       const bootstrapCredentials = yield* PairingGrantStore.PairingGrantStore;
       const window = DESKTOP_BOOTSTRAP_TOKEN_WINDOW_MS;
 
-      // A desktop open for days hands the renderer a fresh token each window.
       yield* TestClock.adjust(Duration.days(5));
       const now = 5 * 24 * 60 * 60 * 1000;
       const current = yield* bootstrapCredentials.consume(
@@ -223,7 +220,6 @@ it.layer(NodeServices.layer)("PairingGrantStore.layer", (it) => {
       );
       expect(stale._tag).toBe("UnknownBootstrapCredentialError");
 
-      // The launch token is not accepted on its own once a secret is present.
       const launch = yield* Effect.flip(bootstrapCredentials.consume("desktop-bootstrap-token"));
       expect(launch._tag).toBe("UnknownBootstrapCredentialError");
     }).pipe(

@@ -9,6 +9,10 @@ const state = vi.hoisted(() => ({
   autoRefresh: async () => {},
   refreshingRef: { current: false },
 }));
+vi.mock("../../state/session", () => ({
+  useEnvironmentScope: () => true,
+  readEnvironmentScope: () => true,
+}));
 vi.mock("react", () => ({
   useState: (initial: unknown) => {
     const index = state.cursor++;
@@ -31,7 +35,7 @@ vi.mock("react", () => ({
 }));
 vi.mock("@effect/atom-react", () => ({ useAtomValue: () => state.presentations }));
 vi.mock("react-native", () => ({ Alert: {}, Pressable: "button", View: "div" }));
-vi.mock("../../components/AppText", () => ({ AppText: "span" }));
+vi.mock("../../components/ui/AppText", () => ({ AppText: "span" }));
 vi.mock("../../components/ProviderIcon", () => ({ ProviderIcon: () => null }));
 vi.mock("./usageProviders", () => ({ useProviderColors: () => ({}) }));
 vi.mock("../../state/presentation", () => ({

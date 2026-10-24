@@ -1,21 +1,19 @@
+import { uiText } from "~/i18n";
 import { useState } from "react";
-import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
+import {
+  AuthSourceControlWriteScope,
+  type EnvironmentId,
+  type ScopedThreadRef,
+} from "@t3tools/contracts";
 
 import { cn } from "~/lib/utils";
+import { readEnvironmentScope, useEnvironmentScope } from "~/state/session";
 
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import { Toggle, ToggleGroup } from "../ui/toggle-group";
 import { PullRequestMarkdown } from "./PullRequestMarkdown";
 
-/**
- * The box a body is rewritten in — a description, or a remark already posted. It owns the draft
- * and nothing else: the caller sends the request and says whether it is still in flight, so the
- * same box serves every mutation without knowing which one it is.
- *
- * Preview renders through the same component the saved body will be read through, which is the
- * only way to see what a host's markdown will actually become before it is sent.
- */
 export function PullRequestMarkdownEditor({
   value,
   cwd,
@@ -32,30 +30,28 @@ export function PullRequestMarkdownEditor({
   readonly value: string;
   readonly cwd: string;
   readonly environmentId: EnvironmentId;
-  /** Thread the editor sits beside, so links in its preview follow the link target setting. */
   readonly threadRef?: ScopedThreadRef | null;
   readonly placeholder?: string | undefined;
   readonly label: string;
   readonly saving: boolean;
-  /** A description may be cleared, which is how one is removed; a remark may not be emptied. */
   readonly allowEmpty?: boolean;
   readonly className?: string | undefined;
   readonly onSave: (next: string) => void;
   readonly onCancel: () => void;
 }) {
+  const canWriteSourceControl = useEnvironmentScope(environmentId, AuthSourceControlWriteScope);
   const [draft, setDraft] = useState(value);
   const [preview, setPreview] = useState(false);
-  // The words this draft started from. React keeps a component instance wherever the same
-  // position and key come round again, so an editor opened on one remark can be handed another's
-  // words without being rebuilt — and saving would then write the first remark's text onto the
-  // second. Different words mean a different subject, and the draft starts again from them.
+  // React keeps a component instance wherever the same position and key come round again, so an
+  // editor opened on one remark can be handed another's words without being rebuilt — and saving
+  // would then write the first remark's text onto the second.
   const [seed, setSeed] = useState(value);
   if (seed !== value) {
     setSeed(value);
     setDraft(value);
   }
   const empty = draft.trim().length === 0;
-  const saveDisabled = saving || (empty && !allowEmpty);
+  const saveDisabled = !canWriteSourceControl || saving || (empty && !allowEmpty);
 
   return (
     <div
@@ -70,7 +66,12 @@ export function PullRequestMarkdownEditor({
         ) {
           event.preventDefault();
           event.stopPropagation();
-          if (!saveDisabled && !event.repeat) onSave(draft);
+          if (
+            !saveDisabled &&
+            !event.repeat &&
+            readEnvironmentScope(environmentId, AuthSourceControlWriteScope)
+          )
+            onSave(draft);
           return;
         }
         if (event.key !== "Escape" || saving) return;
@@ -79,7 +80,7 @@ export function PullRequestMarkdownEditor({
       }}
     >
       <ToggleGroup
-        aria-label="Markdown editor mode"
+        aria-label={uiText("Markdown editor mode")}
         variant="segmented"
         value={[preview ? "preview" : "write"]}
         disabled={saving}
@@ -88,13 +89,13 @@ export function PullRequestMarkdownEditor({
           if (mode === "write" || mode === "preview") setPreview(mode === "preview");
         }}
       >
-        <Toggle value="write">Write</Toggle>
-        <Toggle value="preview">Preview</Toggle>
+        <Toggle value="write">{uiText("Write")}</Toggle>
+        <Toggle value="preview">{uiText("Preview")}</Toggle>
       </ToggleGroup>
       {preview ? (
         <div className="rounded-lg border border-border/60 px-3 py-2">
           {empty ? (
-            <p className="text-xs text-muted-foreground">Nothing to preview.</p>
+            <p className="text-xs text-muted-foreground">{uiText("Nothing to preview.")}</p>
           ) : (
             <PullRequestMarkdown
               text={draft}
@@ -117,10 +118,22 @@ export function PullRequestMarkdownEditor({
       )}
       <div className="flex justify-end gap-2">
         <Button size="xs" variant="ghost" disabled={saving} onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button size="xs" variant="outline" disabled={saveDisabled} onClick={() => onSave(draft)}>
-          {saving ? "Saving..." : "Save"}
+          {uiText("Cancel")}</Button>
+        <Button
+          size="xs"
+          variant="outline"
+          disabled={!canWriteSourceControl || saving || (empty && !allowEmpty)}
+          onClick={() => {
+            if (
+              !readEnvironmentScope(environmentId, AuthSourceControlWriteScope) ||
+              saving ||
+              (empty && !allowEmpty)
+            )
+              return;
+            onSave(draft);
+          }}
+        >
+          {saving ? uiText("Saving...") : uiText("Save")}
         </Button>
       </div>
     </div>

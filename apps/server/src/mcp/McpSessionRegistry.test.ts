@@ -151,8 +151,6 @@ it.effect("keeps a credential alive across turns that never touch an MCP tool", 
     });
     const token = issued.config.authorizationHeader.replace(/^Bearer\s+/, "");
 
-    // Well past the liveness window in total, but each turn reports in before
-    // it lapses — this is the long-session case that used to lose the toolkit.
     for (let turn = 0; turn < 10; turn += 1) {
       timestamp += 99;
       yield* registry.touch(threadId);
@@ -179,4 +177,66 @@ it.effect("does not keep credentials of other threads alive", () =>
 
     expect(yield* registry.resolve(token)).toBeUndefined();
   }),
+);
+
+it.effect("only a trusted touch restores an expired token with its original scope", () =>
+  Effect.gen(function* () {
+    let timestamp = 1_000;
+    const registry = yield* makeRegistry(() => timestamp);
+    const threadId = ThreadId.make("thread-idle");
+    const issued = yield* registry.issue({
+      threadId,
+      providerInstanceId: ProviderInstanceId.make("claude"),
+      capabilities: new Set(["preview"]),
+    });
+    const token = issued.config.authorizationHeader.replace(/^Bearer\s+/, "");
+    const scope = yield* registry.resolve(token);
+    expect(scope).toBeDefined();
+
+    timestamp += 101;
+    expect(yield* registry.resolve(token)).toBeUndefined();
+    const otherThreadId = ThreadId.make("thread-active");
+    const other = yield* registry.issue({
+      threadId: otherThreadId,
+      providerInstanceId: ProviderInstanceId.make("codex"),
+      capabilities: new Set(["device"]),
+    });
+    yield* registry.touch(otherThreadId);
+    expect(
+      (yield* registry.resolve(other.config.authorizationHeader.replace(/^Bearer\s+/, "")))?.thread
+        .threadId,
+    ).toBe(otherThreadId);
+    expect(yield* registry.resolve("unknown-token")).toBeUndefined();
+    expect(yield* registry.resolve(token)).toBeUndefined();
+
+    yield* registry.touch(threadId);
+    expect(yield* registry.resolve(token)).toEqual(scope);
+    timestamp += 101;
+    expect(yield* registry.resolve(token)).toBeUndefined();
+  }),
+);
+
+it.effect.each(["provider-session", "thread", "all"] as const)(
+  "never restores an expired token after %s revocation",
+  (revocation) =>
+    Effect.gen(function* () {
+      let timestamp = 1_000;
+      const registry = yield* makeRegistry(() => timestamp);
+      const threadId = ThreadId.make("thread-revoked");
+      const issued = yield* registry.issue({
+        threadId,
+        providerInstanceId: ProviderInstanceId.make("codex"),
+        capabilities: new Set(["preview"]),
+      });
+      const token = issued.config.authorizationHeader.replace(/^Bearer\s+/, "");
+
+      timestamp += 101;
+      yield* {
+        "provider-session": registry.revokeProviderSession(issued.config.providerSessionId),
+        thread: registry.revokeThread(threadId),
+        all: registry.revokeAll,
+      }[revocation];
+      yield* registry.touch(threadId);
+      expect(yield* registry.resolve(token)).toBeUndefined();
+    }),
 );

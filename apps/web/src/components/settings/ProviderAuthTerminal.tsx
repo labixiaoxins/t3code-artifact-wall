@@ -1,10 +1,10 @@
+import { uiText } from "~/i18n";
 import type { ProviderAuthResponse } from "@t3tools/contracts";
 import { useEffect, useRef, useState } from "react";
 import { GhosttyTerminalSurface } from "../../terminal/ghostty/surface";
 import { ensureLocalApi } from "../../localApi";
 import { terminalThemeFromApp } from "../ThreadTerminalDrawer";
 
-/** Loaded only for an interactive login. PTY input is serialized by the parent. */
 export default function ProviderAuthTerminal({
   output,
   outputOffset,
@@ -67,7 +67,7 @@ export default function ProviderAuthTerminal({
     <>
       <div
         ref={mount}
-        aria-label="Provider sign-in terminal"
+        aria-label={uiText("Provider sign-in terminal")}
         className="relative h-64 overflow-hidden rounded-md border border-border"
       />
       {error ? (

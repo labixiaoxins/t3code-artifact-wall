@@ -4,10 +4,10 @@ import { useState } from "react";
 import { Platform, Pressable, ScrollView, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { AndroidSheetHeader } from "../../../components/AndroidScreenHeader";
-import { MaterialScreenContent } from "../../../components/MaterialScreenContent";
+import { AndroidSheetHeader } from "../../../components/ui/AndroidScreenHeader";
+import { ScreenContent } from "../../../components/ui/ScreenContent";
 import { NativeStackScreenOptions } from "../../../native/StackHeader";
-import { AppText as Text, AppTextInput as TextInput } from "../../../components/AppText";
+import { AppText as Text, AppTextInput as TextInput } from "../../../components/ui/AppText";
 import { cn } from "../../../lib/cn";
 import { useEnvironmentQuery } from "../../../state/query";
 import { useThreadSelection } from "../../../state/use-thread-selection";
@@ -30,6 +30,7 @@ export function GitBranchesSheet(_props: GitBranchesSheetProps) {
   const { selectedThreadCwd, selectedThreadWorktreePath } = useSelectedThreadWorktree();
   const gitState = useSelectedThreadGitState();
   const gitActions = useSelectedThreadGitActions();
+  const { canChangeThreadBranch } = gitActions;
 
   const gitStatus = useEnvironmentQuery(
     selectedThread !== null && selectedThreadCwd !== null
@@ -81,8 +82,9 @@ export function GitBranchesSheet(_props: GitBranchesSheetProps) {
           hideBottomBorder
         />
       ) : null}
-      <MaterialScreenContent fitToContents>
+      <ScreenContent fitToContents>
         <ScrollView
+          nestedScrollEnabled
           className="android:shrink android:grow-0 ios:flex-1"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -109,11 +111,12 @@ export function GitBranchesSheet(_props: GitBranchesSheetProps) {
               icon="plus"
               label="Create & checkout"
               tone="primary"
-              disabled={busy || newBranchName.trim().length === 0}
+              disabled={!canChangeThreadBranch || busy || newBranchName.trim().length === 0}
               onPress={() => {
                 const branch = sanitizeFeatureBranchName(newBranchName.trim());
                 if (branch.length === 0) return;
-                void gitActions.onCreateSelectedThreadBranch(branch).then(() => {
+                void gitActions.onCreateSelectedThreadBranch(branch).then((result) => {
+                  if (result === null) return;
                   setNewBranchName("");
                   navigation.goBack();
                 });
@@ -150,6 +153,7 @@ export function GitBranchesSheet(_props: GitBranchesSheetProps) {
               label="Create worktree"
               tone="primary"
               disabled={
+                !canChangeThreadBranch ||
                 busy ||
                 worktreeBaseBranch.trim().length === 0 ||
                 worktreeBranchName.trim().length === 0
@@ -160,7 +164,8 @@ export function GitBranchesSheet(_props: GitBranchesSheetProps) {
                 if (baseBranch.length === 0 || newBranch.length === 0) return;
                 void gitActions
                   .onCreateSelectedThreadWorktree({ baseBranch, newBranch })
-                  .then(() => {
+                  .then((result) => {
+                    if (result === null) return;
                     setWorktreeBranchName("");
                     navigation.goBack();
                   });
@@ -203,9 +208,10 @@ export function GitBranchesSheet(_props: GitBranchesSheetProps) {
                   )}
                   accessibilityRole="button"
                   accessibilityState={{ selected: branch.current, disabled: busy || disabled }}
-                  disabled={busy || disabled}
+                  disabled={!canChangeThreadBranch || busy || disabled}
                   onPress={() => {
-                    void gitActions.onCheckoutSelectedThreadBranch(branch.name).then(() => {
+                    void gitActions.onCheckoutSelectedThreadBranch(branch.name).then((result) => {
+                      if (result === null) return;
                       navigation.goBack();
                     });
                   }}
@@ -222,7 +228,7 @@ export function GitBranchesSheet(_props: GitBranchesSheetProps) {
             })}
           </View>
         </ScrollView>
-      </MaterialScreenContent>
+      </ScreenContent>
     </View>
   );
 }

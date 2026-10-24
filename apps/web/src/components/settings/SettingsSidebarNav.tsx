@@ -1,9 +1,8 @@
+import { uiText } from "~/i18n";
 import {
   lazy,
   Suspense,
-  useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   type ComponentType,
@@ -78,6 +77,7 @@ const SETTINGS_SECTION_ICONS: Readonly<
   Record<SettingsPath, ComponentType<{ className?: string }>>
 > = {
   "/settings/general": Settings2Icon,
+  "/settings/diagnostics": Settings2Icon,
   "/settings/appearance": PaletteIcon,
   "/settings/projects": PanelsTopLeftIcon,
   "/settings/keybindings": KeyboardIcon,
@@ -95,22 +95,24 @@ const SETTINGS_NAV_ITEMS: ReadonlyArray<{
   label: string;
   to: SettingsPath;
   icon: ComponentType<{ className?: string }>;
-}> = (Object.keys(SETTINGS_SECTION_LABELS) as SettingsPath[]).map((to) => ({
-  to,
-  label: SETTINGS_SECTION_LABELS[to],
-  icon: SETTINGS_SECTION_ICONS[to],
-}));
+}> = (Object.keys(SETTINGS_SECTION_LABELS) as SettingsPath[])
+  .filter((to) => to !== "/settings/diagnostics")
+  .map((to) => ({
+    to,
+    label: SETTINGS_SECTION_LABELS[to],
+    icon: SETTINGS_SECTION_ICONS[to],
+  }));
 
 function SettingsSectionIcon({ to }: { to: SettingsPath }) {
   const Icon = SETTINGS_SECTION_ICONS[to];
-  return <Icon className="mt-0.5 size-3.5 shrink-0 text-sidebar-muted-foreground/60" />;
+  return <Icon className="size-3.5 h-5 shrink-0 text-sidebar-muted-foreground/60" />;
 }
 
 export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   const navigate = useNavigate();
   const currentHash = useLocation({ select: (location) => location.hash });
   const currentSearch = useLocation({ select: (location) => location.search });
-  const scopeSearch = useMemo(() => validateSettingsScopeSearch(currentSearch), [currentSearch]);
+  const scopeSearch = validateSettingsScopeSearch(currentSearch);
   const navItems = SETTINGS_NAV_ITEMS.filter(
     (item) => item.to !== "/settings/projects" || isSettingsOverviewVisible(scopeSearch),
   );
@@ -119,13 +121,14 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   const [query, setQuery] = useState("");
   const [activeResultIndex, setActiveResultIndex] = useState(0);
   const searchableItems = useAvailableSettingsSearchItems(scopeSearch);
-  const results = useMemo(() => searchSettings(query, searchableItems), [query, searchableItems]);
+  const results = searchSettings(query, searchableItems);
   const isSearching = query.trim().length > 0;
   const hasResults = results.length > 0;
-
-  useEffect(() => {
-    setActiveResultIndex((index) => Math.min(index, Math.max(results.length - 1, 0)));
-  }, [results.length]);
+  const maxResultIndex = Math.max(results.length - 1, 0);
+  // Persist the clamp so a shrink-then-recover of results keeps the clamped highlight.
+  if (activeResultIndex > maxResultIndex) {
+    setActiveResultIndex(maxResultIndex);
+  }
 
   useEffect(() => {
     const result = results[activeResultIndex];
@@ -137,17 +140,26 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
 
   useEffect(() => {
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (event.defaultPrevented || event.isComposing) return;
+      const isFindShortcut =
+        event.key.toLowerCase() === "f" &&
+        (event.metaKey || event.ctrlKey) &&
+        !event.altKey &&
+        !event.shiftKey;
+      const isSlashShortcut =
+        event.key === "/" && !event.metaKey && !event.ctrlKey && !event.altKey;
+      if (!isFindShortcut && !isSlashShortcut) return;
 
       const target = event.target;
       if (
         target instanceof HTMLElement &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.isContentEditable ||
-          // Keep focus inside open dialogs and popups instead of escaping
-          // their focus trap into the sidebar search.
-          target.closest('[role="dialog"], [aria-modal="true"], [data-slot$="popup"]') !== null)
+        ((isSlashShortcut &&
+          (target.tagName === "INPUT" ||
+            target.tagName === "TEXTAREA" ||
+            target.isContentEditable)) ||
+          target.closest(
+            '[role="dialog"], [aria-modal="true"], [data-slot$="popup"], [data-keybinding-capture]',
+          ) !== null)
       ) {
         return;
       }
@@ -167,72 +179,66 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isMobile, open, setOpen, setOpenMobile]);
 
-  const handleSectionClick = useCallback(
-    (to: SettingsPath) => {
-      if (isMobile) {
-        setOpenMobile(false);
-      }
-      void navigate({
-        to,
-        hash: "",
-        replace: true,
-        hashScrollIntoView: false,
-      });
-    },
-    [isMobile, navigate, setOpenMobile],
-  );
-  const clearSearch = useCallback(() => {
+  const handleSectionClick = (to: SettingsPath) => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+    void navigate({
+      to,
+      hash: "",
+      replace: true,
+      hashScrollIntoView: false,
+    });
+  };
+
+  const clearSearch = () => {
     setQuery("");
     setActiveResultIndex(0);
-  }, []);
-  const handleSearchResultClick = useCallback(
-    (item: SettingsSearchItem) => {
+  };
+  const handleSearchResultClick = (item: SettingsSearchItem) => {
+    clearSearch();
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+    const targetId = item.targetId ?? item.id;
+    if (pathname === item.to && currentHash.replace(/^#/, "") === targetId) {
+      scrollToSettingsTarget(targetId);
+      return;
+    }
+    void navigate({
+      to: item.to,
+      hash: targetId,
+      replace: true,
+      hashScrollIntoView: false,
+      state: { settingsTargetHighlight: true },
+    });
+  };
+
+  const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Escape" && isSearching) {
+      event.preventDefault();
+      event.stopPropagation();
       clearSearch();
-      if (isMobile) {
-        setOpenMobile(false);
-      }
-      const targetId = item.targetId ?? item.id;
-      if (pathname === item.to && currentHash.replace(/^#/, "") === targetId) {
-        scrollToSettingsTarget(targetId);
-        return;
-      }
-      void navigate({
-        to: item.to,
-        hash: targetId,
-        replace: true,
-        hashScrollIntoView: false,
-        state: { settingsTargetHighlight: true },
-      });
-    },
-    [clearSearch, currentHash, isMobile, navigate, pathname, setOpenMobile],
-  );
-  const handleSearchKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLInputElement>) => {
-      if (event.key === "Escape" && isSearching) {
-        event.preventDefault();
-        event.stopPropagation();
-        clearSearch();
-        return;
-      }
-      if (results.length === 0) return;
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        setActiveResultIndex((index) => (index + 1) % results.length);
-        return;
-      }
-      if (event.key === "ArrowUp") {
-        event.preventDefault();
-        setActiveResultIndex((index) => (index - 1 + results.length) % results.length);
-        return;
-      }
-      if (event.key === "Enter") {
-        event.preventDefault();
-        const result = results[activeResultIndex];
-        if (result) handleSearchResultClick(result);
-      }
-    },
-    [activeResultIndex, clearSearch, handleSearchResultClick, isSearching, results],
-  );
+      return;
+    }
+    if (results.length === 0) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveResultIndex((activeResultIndex + 1) % results.length);
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveResultIndex((activeResultIndex - 1 + results.length) % results.length);
+      return;
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      const result = results[activeResultIndex];
+      if (result) handleSearchResultClick(result);
+    }
+  };
+
   return (
     <>
       <SidebarContent className="overflow-x-hidden">
@@ -250,8 +256,8 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
                   setActiveResultIndex(0);
                 }}
                 onKeyDown={handleSearchKeyDown}
-                placeholder="Search"
-                aria-label="Search settings"
+                placeholder={uiText("Search")}
+                aria-label={uiText("Search settings")}
                 role="combobox"
                 aria-autocomplete="list"
                 aria-expanded={isSearching && hasResults}
@@ -269,7 +275,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
                   size="icon-micro"
                   variant="ghost-muted"
                   className="shrink-0"
-                  aria-label="Clear settings search"
+                  aria-label={uiText("Clear settings search")}
                   onClick={() => {
                     clearSearch();
                     searchInputRef.current?.focus();
@@ -286,14 +292,13 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
                 role="status"
                 className="px-2 py-6 text-center text-xs text-sidebar-muted-foreground"
               >
-                No settings found
-              </p>
+                {uiText("No settings found")}</p>
             ) : null}
             {isSearching ? (
               <SidebarMenu
                 id={hasResults ? "settings-search-results" : undefined}
                 role={hasResults ? "listbox" : undefined}
-                aria-label={hasResults ? "Settings search results" : undefined}
+                aria-label={hasResults ? uiText("Settings search results") : undefined}
               >
                 {results.map((item, index) => (
                   <SidebarMenuItem key={item.id} role="presentation">

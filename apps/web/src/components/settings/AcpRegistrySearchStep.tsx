@@ -1,3 +1,6 @@
+import { uiText } from "~/i18n";
+import { ACP_REGISTRY_MAX_AGENTS, AuthProvidersManageScope } from "@t3tools/contracts";
+import { readEnvironmentScope, useEnvironmentScope } from "../../state/session";
 import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
@@ -10,7 +13,6 @@ import type {
 } from "@t3tools/contracts";
 import { ExternalLinkIcon, SearchIcon } from "lucide-react";
 import { type FormEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
-
 import { serverEnvironment } from "../../state/server";
 import { useEnvironmentQuery } from "../../state/query";
 import { useAtomCommand } from "../../state/use-atom-command";
@@ -22,13 +24,11 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { isConfiguredAcpRegistryAgent } from "./AddProviderInstanceDialog.logic";
 import { ProviderDriverKind } from "@t3tools/contracts";
 import { ProviderInstanceIcon } from "../chat/ProviderInstanceIcon";
-
 function errorMessage(error: unknown): string {
   return error instanceof Error && error.message.trim()
     ? error.message
     : "The ACP could not be prepared.";
 }
-
 interface AcpRegistrySearchStepProps {
   readonly environmentId: EnvironmentId;
   readonly providerInstances: Readonly<Record<string, ProviderInstanceConfig>>;
@@ -38,7 +38,6 @@ interface AcpRegistrySearchStepProps {
   readonly onLoadingChange?: (loading: boolean) => void;
   readonly onPreparingChange?: (preparing: boolean) => void;
 }
-
 function applyAcpRegistryPrepareResult(
   agent: AcpRegistrySearchAgent,
   prepared: AcpRegistryPrepareResult,
@@ -50,7 +49,6 @@ function applyAcpRegistryPrepareResult(
     distribution: prepared.distribution,
   };
 }
-
 export function AcpRegistrySearchStep({
   environmentId,
   providerInstances,
@@ -61,9 +59,8 @@ export function AcpRegistrySearchStep({
   onPreparingChange,
 }: AcpRegistrySearchStepProps) {
   const [query, setQuery] = useState("");
-  // An empty registry query is the compact compatible catalog. Start there so
-  // entering this step is useful before the user knows what to search for.
   const [submittedQuery, setSubmittedQuery] = useState("");
+  const canManageProviders = useEnvironmentScope(environmentId, AuthProvidersManageScope);
   const [preparingId, setPreparingId] = useState<string | null>(null);
   const [prepareError, setPrepareError] = useState<string | null>(null);
   const prepareGeneration = useRef(0);
@@ -71,13 +68,14 @@ export function AcpRegistrySearchStep({
   const search = useEnvironmentQuery(
     serverEnvironment.searchAcpRegistry({
       environmentId,
-      input: { query: submittedQuery },
+      input: submittedQuery
+        ? { query: submittedQuery }
+        : { query: "", limit: ACP_REGISTRY_MAX_AGENTS },
     }),
   );
   const prepareAgent = useAtomCommand(serverEnvironment.prepareAcpRegistryAgent, {
     reportFailure: false,
   });
-
   useEffect(
     () => () => {
       prepareGeneration.current += 1;
@@ -86,7 +84,6 @@ export function AcpRegistrySearchStep({
     },
     [onPreparingChange],
   );
-
   const submitSearch = (nextQuery: string) => {
     if (searchTimer.current !== null) clearTimeout(searchTimer.current);
     const trimmed = nextQuery.trim();
@@ -98,13 +95,12 @@ export function AcpRegistrySearchStep({
       setSubmittedQuery(trimmed);
     }
   };
-
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     submitSearch(query);
   };
-
   const handlePrepare = async (agent: AcpRegistrySearchAgent) => {
+    if (!readEnvironmentScope(environmentId, AuthProvidersManageScope)) return;
     const generation = ++prepareGeneration.current;
     setPrepareError(null);
     setPreparingId(agent.id);
@@ -121,30 +117,26 @@ export function AcpRegistrySearchStep({
       setPrepareError(errorMessage(squashAtomCommandFailure(result)));
     }
   };
-
   const results = search.data?.agents ?? null;
   const isInitialSearch = search.isPending && results === null;
   const isRefreshing = search.isPending && results !== null;
   const resultCount = results?.length ?? 0;
-
   useLayoutEffect(() => {
     onLoadingChange?.(search.isPending);
     return () => onLoadingChange?.(false);
   }, [onLoadingChange, search.isPending]);
-
   return (
-    <section className="grid gap-3" aria-labelledby="acp-registry-search-heading">
-      <h3 className="sr-only" id="acp-registry-search-heading">
-        Choose an agent
+    <section className={"grid gap-3"} aria-labelledby={"acp-registry-search-heading"}>
+      <h3 className={"sr-only"} id={"acp-registry-search-heading"}>
+        {uiText("Choose an agent")}
       </h3>
-
-      <form className="flex flex-wrap items-center gap-2" onSubmit={handleSearch}>
-        <InputGroup className="min-w-40 flex-1">
+      <form className={"flex flex-wrap items-center gap-2"} onSubmit={handleSearch}>
+        <InputGroup className={"min-w-40 flex-1"}>
           <InputGroupAddon>
             <SearchIcon />
           </InputGroupAddon>
           <InputGroupInput
-            aria-label="Search ACP Registry"
+            aria-label={uiText("Search ACP Registry")}
             disabled={preparingId !== null}
             onChange={(event) => {
               const nextQuery = event.currentTarget.value;
@@ -156,137 +148,151 @@ export function AcpRegistrySearchStep({
                 setSubmittedQuery(nextQuery.trim());
               }, 300);
             }}
-            placeholder="Search agents…"
-            size="sm"
-            type="search"
+            placeholder={uiText("Search agents…")}
+            size={"sm"}
+            type={"search"}
             value={query}
           />
         </InputGroup>
         <Button
           disabled={preparingId !== null}
           onClick={onManualConfiguration}
-          size="sm"
-          type="button"
-          variant="ghost-muted"
+          size={"sm"}
+          type={"button"}
+          variant={"ghost-muted"}
         >
-          Enter manually
+          {uiText("Enter manually")}
         </Button>
         {onLocalConfiguration ? (
           <Button
             disabled={preparingId !== null}
             onClick={onLocalConfiguration}
-            size="sm"
-            type="button"
-            variant="outline"
+            size={"sm"}
+            type={"button"}
+            variant={"outline"}
           >
-            Local ACP command
+            {uiText("Local ACP command")}
           </Button>
         ) : null}
       </form>
-
-      <div className="sr-only" role="status">
+      <div className={"sr-only"} role={"status"}>
         {isInitialSearch
-          ? "Searching the ACP Registry."
+          ? uiText("Searching the ACP Registry.")
           : isRefreshing
-            ? "Refreshing ACP Registry results."
+            ? uiText("Refreshing ACP Registry results.")
             : results
-              ? `${resultCount} compatible ${resultCount === 1 ? "agent" : "agents"} found.`
+              ? uiText("{0} compatible {1} found.", {"0": resultCount, "1": resultCount === 1 ? "agent" : "agents"})
               : ""}
       </div>
-
       {search.error || prepareError ? (
-        <Alert variant="error" role="status" aria-live="polite">
+        <Alert variant={"error"} role={"status"} aria-live={"polite"}>
           <AlertDescription>{prepareError ?? search.error}</AlertDescription>
         </Alert>
       ) : null}
-
       {isInitialSearch ? (
-        <div className="flex min-h-20 items-center justify-center text-sm text-muted-foreground">
-          Searching the registry...
+        <div className={"flex min-h-20 items-center justify-center text-sm text-muted-foreground"}>
+          {uiText("Searching the registry...")}
         </div>
       ) : null}
-
       {results ? (
         results.length === 0 ? (
-          <div className="flex min-h-28 flex-col items-center justify-center rounded-2xl border border-dashed px-4 text-center">
-            <p className="text-sm font-medium">No compatible agents found</p>
-            <p className="mt-1 text-xs text-muted-foreground">Try a broader search.</p>
+          <div
+            className={
+              "flex min-h-28 flex-col items-center justify-center rounded-2xl border border-dashed px-4 text-center"
+            }
+          >
+            <p className={"text-sm font-medium"}>{uiText("No compatible agents found")}</p>
+            <p className={"mt-1 text-xs text-muted-foreground"}>{uiText("Try a broader search.")}</p>
           </div>
         ) : (
-          <ScrollArea scrollFade className="max-h-64">
-            {/* The overlay scrollbar takes no layout space, so the rows
-                reserve its lane explicitly. */}
-            <div className="pr-2.5">
-              {results.map((agent) => {
-                const alreadyAdded = isConfiguredAcpRegistryAgent(providerInstances, agent.id);
-                const isPreparing = preparingId === agent.id;
-                const progressLabel = agent.distribution === "binary" ? "Downloading" : "Preparing";
-                return (
-                  <article className="min-w-0 py-2.5" key={agent.id}>
-                    <div className="flex min-w-0 items-center justify-between gap-3">
-                      <div className="flex min-w-0 flex-1 items-center gap-3">
-                        <ProviderInstanceIcon
-                          driverKind={ProviderDriverKind.make("acpRegistry")}
-                          displayName={agent.name}
-                          acpRegistryAgentId={agent.id}
-                          acpRegistryIconUrl={agent.icon ?? undefined}
-                          iconClassName="size-6 rounded-md text-muted-foreground"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex min-w-0 items-baseline gap-2">
-                            <h4 className="min-w-0 truncate text-sm font-medium text-foreground">
-                              {agent.name}
-                            </h4>
-                          </div>
-                          {agent.description ? (
-                            <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                              {agent.description}
-                            </p>
-                          ) : null}
-                        </div>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1.5">
-                        {agent.website || agent.repository ? (
-                          <Tooltip>
-                            <TooltipTrigger
-                              render={
-                                <Button
-                                  size="icon-xs"
-                                  variant="ghost-muted"
-                                  aria-label={`About ${agent.name}`}
-                                  render={
-                                    <a
-                                      href={agent.website || agent.repository || undefined}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                    />
-                                  }
-                                >
-                                  <ExternalLinkIcon />
-                                </Button>
-                              }
-                            />
-                            <TooltipPopup>About {agent.name}</TooltipPopup>
-                          </Tooltip>
-                        ) : null}
-                        <Button
-                          aria-label={`${alreadyAdded ? "Already added" : isPreparing ? progressLabel : "Add"} ${agent.name}`}
-                          disabled={alreadyAdded || preparingId !== null}
-                          onClick={() => void handlePrepare(agent)}
-                          size="xs"
-                          variant={isPreparing ? "secondary" : "outline"}
-                        >
-                          {alreadyAdded ? "Added" : isPreparing ? progressLabel : "Add"}
-                        </Button>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
+          <ScrollArea scrollFade className={"max-h-64"}>
+            <div className={"pr-2.5"}>
+              {results.map((agent) => (
+                <AcpRegistryAgentRow
+                  agent={agent}
+                  alreadyAdded={isConfiguredAcpRegistryAgent(providerInstances, agent.id)}
+                  canAdd={canManageProviders && preparingId === null}
+                  isPreparing={preparingId === agent.id}
+                  key={agent.id}
+                  onAdd={handlePrepare}
+                />
+              ))}
             </div>
           </ScrollArea>
         )
       ) : null}
     </section>
+  );
+}
+function AcpRegistryAgentRow({
+  agent,
+  alreadyAdded,
+  canAdd,
+  isPreparing,
+  onAdd,
+}: {
+  readonly agent: AcpRegistrySearchAgent;
+  readonly alreadyAdded: boolean;
+  readonly canAdd: boolean;
+  readonly isPreparing: boolean;
+  readonly onAdd: (agent: AcpRegistrySearchAgent) => void;
+}) {
+  const progressLabel = agent.distribution === "binary" ? "Downloading" : "Preparing";
+  const aboutUrl = agent.website || agent.repository;
+  return (
+    <article className={"min-w-0 py-2.5"}>
+      <div className={"flex min-w-0 items-center justify-between gap-3"}>
+        <div className={"flex min-w-0 flex-1 items-center gap-3"}>
+          <ProviderInstanceIcon
+            driverKind={ProviderDriverKind.make("acpRegistry")}
+            displayName={agent.name}
+            acpRegistryAgentId={agent.id}
+            acpRegistryIconUrl={agent.icon ?? undefined}
+            iconClassName={"size-6 rounded-md text-muted-foreground"}
+          />
+          <div className={"min-w-0 flex-1"}>
+            <div className={"flex min-w-0 items-baseline gap-2"}>
+              <h4 className={"min-w-0 truncate text-sm font-medium text-foreground"}>
+                {agent.name}
+              </h4>
+            </div>
+            {agent.description ? (
+              <p className={"mt-0.5 truncate text-xs text-muted-foreground"}>{agent.description}</p>
+            ) : null}
+          </div>
+        </div>
+        <div className={"flex shrink-0 items-center gap-1.5"}>
+          {aboutUrl ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    size={"icon-xs"}
+                    variant={"ghost-muted"}
+                    aria-label={uiText("About {0}", {"0": agent.name})}
+                    render={<a href={aboutUrl} target={"_blank"} rel={"noreferrer"} />}
+                  >
+                    <ExternalLinkIcon />
+                  </Button>
+                }
+              />
+              <TooltipPopup>
+                {uiText("About")}
+                {agent.name}
+              </TooltipPopup>
+            </Tooltip>
+          ) : null}
+          <Button
+            aria-label={`${alreadyAdded ? "Already added" : isPreparing ? progressLabel : "Add"} ${agent.name}`}
+            disabled={!canAdd || alreadyAdded}
+            onClick={() => onAdd(agent)}
+            size={"xs"}
+            variant={isPreparing ? "secondary" : "outline"}
+          >
+            {alreadyAdded ? uiText("Added") : isPreparing ? progressLabel : uiText("Add")}
+          </Button>
+        </div>
+      </div>
+    </article>
   );
 }

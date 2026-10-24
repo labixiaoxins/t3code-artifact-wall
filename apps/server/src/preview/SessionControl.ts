@@ -11,12 +11,19 @@ export class BrowserControlInterrupted extends Error {
   }
 }
 
+const settle = (work: Promise<unknown>) =>
+  work.then(
+    () => undefined,
+    () => undefined,
+  );
+
 /** Reserves control immediately, but drains running work before the new owner can act. */
 export class SessionControl {
   readonly agentId: string | null;
   private readonly onGenerationChange: () => void;
   private tail: Promise<unknown> = Promise.resolve();
   private pending: Promise<void> = Promise.resolve();
+  private readonly handoff = new Set<Promise<void>>();
   private owner: string | null = null;
   private epoch = 0;
   private closed = false;
@@ -45,11 +52,15 @@ export class SessionControl {
 
   /** An action can respond before its navigation commits, while later actions still wait. */
   track(work: Promise<unknown>) {
-    const settled = work.then(
-      () => undefined,
-      () => undefined,
-    );
-    this.pending = Promise.all([this.pending, settled]).then(() => undefined);
+    this.pending = Promise.all([this.pending, settle(work)]).then(() => undefined);
+  }
+
+  /** Viewer input stays responsive, but control handoffs still drain its navigations. */
+  trackUntilHandoff(work: Promise<unknown>) {
+    const settled = settle(work).finally(() => {
+      this.handoff.delete(settled);
+    });
+    this.handoff.add(settled);
   }
 
   private assertOpen() {
@@ -62,19 +73,29 @@ export class SessionControl {
     this.onGenerationChange();
   }
 
-  private async action<A>(allowed: () => boolean, run: () => Promise<A>) {
+  private async action<A>(allowed: () => boolean, run: () => Promise<A>, deadlineMs?: number) {
     this.assertOpen();
     if (!allowed()) throw new BrowserControlInterrupted("You do not control this browser tab.");
     const epoch = this.epoch;
     return this.enqueue(async () => {
       this.assertOpen();
       if (epoch !== this.epoch || !allowed()) throw new BrowserControlInterrupted();
+      if (deadlineMs !== undefined && performance.now() >= deadlineMs) {
+        throw new DOMException(
+          "This browser request expired before it could start.",
+          "TimeoutError",
+        );
+      }
       return run();
     });
   }
 
-  agent<A>(agentId: string, run: () => Promise<A>) {
-    if (this.agentId !== agentId)
+  agentMayAct(agentId: string) {
+    return this.agentId === null || this.agentId === agentId;
+  }
+
+  agent<A>(agentId: string, run: () => Promise<A>, deadlineMs?: number) {
+    if (!this.agentMayAct(agentId))
       return Promise.reject(
         new BrowserControlInterrupted("This tab belongs to another agent.", "agentMismatch"),
       );
@@ -82,13 +103,22 @@ export class SessionControl {
       return Promise.reject(
         new BrowserControlInterrupted("A human controls this tab.", "humanControl"),
       );
-    return this.action(() => this.agentId === agentId && this.owner === null, run);
+    return this.action(() => this.agentMayAct(agentId) && this.owner === null, run, deadlineMs);
+  }
+
+  agentCanActNow(agentId: string) {
+    return this.agentMayAct(agentId) && this.owner === null;
   }
 
   /**
-   * Work any client may ask for, such as a viewport or appearance change. It
-   * waits its turn behind running actions but needs no control.
+   * A read that needs no control and does not queue, so an agent can look at
+   * a page while a human drives it without holding up the human's input.
    */
+  observe<A>(run: () => Promise<A>) {
+    this.assertOpen();
+    return run();
+  }
+
   system<A>(run: () => Promise<A>) {
     this.assertOpen();
     return this.enqueue(async () => {
@@ -118,7 +148,10 @@ export class SessionControl {
       );
     }
     this.changeOwner(null);
-    await this.enqueue(afterDrain);
+    await this.enqueue(async () => {
+      await Promise.all(this.handoff);
+      await afterDrain();
+    });
   }
 
   async disconnect(viewerId: string, afterDrain?: () => Promise<void>) {

@@ -1,6 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off - Tests exercise the Node filesystem build boundary.
 
 import * as NodeFSP from "node:fs/promises";
+import * as NodeChildProcess from "node:child_process";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 import * as NodeURL from "node:url";
@@ -18,6 +19,12 @@ const REPOSITORY_ROOT = NodePath.resolve(
   NodePath.dirname(NodeURL.fileURLToPath(import.meta.url)),
   "../..",
 );
+const DEVICE_TOOL_VERSIONS = JSON.parse(
+  await NodeFSP.readFile(
+    NodePath.join(REPOSITORY_ROOT, "apps/server/src/device/deviceToolVersions.json"),
+    "utf8",
+  ),
+) as { readonly "agent-device": string; readonly "expo-device-hub": string };
 
 async function writeJson(path: string, value: unknown): Promise<void> {
   await NodeFSP.mkdir(NodePath.dirname(path), { recursive: true });
@@ -77,6 +84,127 @@ afterEach(async () => {
 });
 
 describe("third-party license generation", () => {
+  it("generates mobile notices without scripts workspace dependency links", async () => {
+    const fixture = await createFixture();
+    const generatorPath = NodePath.join(fixture.root, "scripts/lib/third-party-licenses.ts");
+    const versionsPath = NodePath.join(
+      fixture.root,
+      "apps/server/src/device/deviceToolVersions.json",
+    );
+    await Promise.all([
+      NodeFSP.mkdir(NodePath.dirname(generatorPath), { recursive: true }),
+      NodeFSP.mkdir(NodePath.dirname(versionsPath), { recursive: true }),
+    ]);
+    await Promise.all([
+      writeJson(NodePath.join(fixture.root, "scripts/package.json"), { type: "module" }),
+      NodeFSP.copyFile(
+        NodePath.join(REPOSITORY_ROOT, "scripts/lib/third-party-licenses.ts"),
+        generatorPath,
+      ),
+      NodeFSP.copyFile(
+        NodePath.join(REPOSITORY_ROOT, "apps/server/src/device/deviceToolVersions.json"),
+        versionsPath,
+      ),
+      writeJson(fixture.configFile, {
+        customNotices: Object.keys(DEVICE_TOOL_VERSIONS).map((name) => ({
+          name,
+          license: "MIT",
+          noticeFile: "asset-notice.txt",
+          bundles: ["device-tools"],
+          includeInBundles: ["mobile", "web"],
+        })),
+      }),
+    ]);
+
+    const output = NodeChildProcess.execFileSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "--eval",
+        `
+          import { pathToFileURL } from "node:url";
+          const { generateThirdPartyLicenseManifest } = await import(
+            pathToFileURL(process.argv[1]).href + "?version=1"
+          );
+          const manifest = await generateThirdPartyLicenseManifest({
+            configFile: process.argv[2],
+            packageManifests: [{ bundle: "mobile", path: process.argv[3] }],
+          });
+          process.stdout.write(JSON.stringify(manifest));
+        `,
+        generatorPath,
+        fixture.configFile,
+        fixture.appManifest,
+      ],
+      { cwd: fixture.root, encoding: "utf8" },
+    );
+    const manifest = JSON.parse(output) as {
+      entries: ReadonlyArray<{ name: string; version: string }>;
+    };
+    expect(manifest.entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "agent-device",
+          version: DEVICE_TOOL_VERSIONS["agent-device"],
+        }),
+        expect.objectContaining({
+          name: "expo-device-hub",
+          version: DEVICE_TOOL_VERSIONS["expo-device-hub"],
+        }),
+      ]),
+    );
+  });
+
+  it.each(["web", "mobile"])(
+    "uses installer pins for device tool notices in the %s manifest",
+    async (bundle) => {
+      const fixture = await createFixture();
+      await writeJson(fixture.configFile, {
+        customNotices: [
+          {
+            name: "agent-device",
+            license: "MIT",
+            noticeFile: "asset-notice.txt",
+            bundles: ["device-tools"],
+            includeInBundles: ["web", "mobile"],
+          },
+          {
+            name: "expo-device-hub",
+            license: "MIT",
+            noticeFile: "asset-notice.txt",
+            version: "0.0.0",
+            bundles: ["device-tools"],
+            includeInBundles: ["web", "mobile"],
+          },
+          {
+            name: "vendored-asset",
+            license: "MIT",
+            noticeFile: "asset-notice.txt",
+            version: "1.2.3",
+            bundles: ["web", "mobile"],
+          },
+        ],
+      });
+
+      const manifest = await generateThirdPartyLicenseManifest({
+        configFile: fixture.configFile,
+        packageManifests: [{ bundle, path: fixture.appManifest }],
+      });
+
+      expect(manifest.entries.find((entry) => entry.name === "agent-device")).toMatchObject({
+        version: DEVICE_TOOL_VERSIONS["agent-device"],
+        bundles: ["device-tools"],
+      });
+      expect(manifest.entries.find((entry) => entry.name === "expo-device-hub")).toMatchObject({
+        version: DEVICE_TOOL_VERSIONS["expo-device-hub"],
+        bundles: ["device-tools"],
+      });
+      expect(manifest.entries.find((entry) => entry.name === "vendored-asset")?.version).toBe(
+        "1.2.3",
+      );
+    },
+  );
+
   it("keeps the GhosttyKit notice pinned to the vendored framework revision", async () => {
     const [config, revision] = await Promise.all([
       NodeFSP.readFile(NodePath.join(REPOSITORY_ROOT, "third-party-licenses.config.json"), "utf8"),
@@ -193,6 +321,90 @@ describe("third-party license generation", () => {
       exports: {},
       repository: "example/demo-dependency",
     });
+
+    const manifest = await generateThirdPartyLicenseManifest({
+      configFile: fixture.configFile,
+      packageManifests: [{ bundle: "web", path: fixture.appManifest }],
+    });
+
+    expect(manifest.entries.some((entry) => entry.name === "demo-dependency")).toBe(true);
+  });
+
+  it("leaves type-only packages out of the notices but still walks their dependencies", async () => {
+    const fixture = await createFixture();
+    const modules = NodePath.join(fixture.root, "node_modules");
+    const write = async (name: string, packageJson: Record<string, unknown>) => {
+      await writeJson(NodePath.join(modules, name, "package.json"), {
+        name,
+        version: "1.0.0",
+        license: "MIT",
+        ...packageJson,
+      });
+      await NodeFSP.writeFile(NodePath.join(modules, name, "LICENSE"), `${name} license\n`, "utf8");
+    };
+    await writeJson(fixture.appManifest, {
+      name: "fixture-app",
+      dependencies: { "demo-dependency": "1.2.3", "@types/demo": "1.0.0" },
+    });
+    // The DefinitelyTyped shape, and the csstype / undici-types one it pulls in.
+    await write("@types/demo", {
+      main: "",
+      types: "index.d.ts",
+      exports: {
+        ".": { types: { import: "./index.d.mts", default: "./index.d.ts" } },
+        "./package.json": "./package.json",
+      },
+      dependencies: { "demo-css-types": "1.0.0", "demo-runtime": "1.0.0" },
+    });
+    await write("demo-css-types", { main: "", types: "index.d.ts" });
+    await write("demo-runtime", { main: "index.js" });
+
+    const manifest = await generateThirdPartyLicenseManifest({
+      configFile: fixture.configFile,
+      packageManifests: [{ bundle: "web", path: fixture.appManifest }],
+    });
+
+    const names = manifest.entries.map((entry) => entry.name);
+    expect(names).toContain("demo-dependency");
+    expect(names).toContain("demo-runtime");
+    expect(names).not.toContain("@types/demo");
+    expect(names).not.toContain("demo-css-types");
+  });
+
+  it.each([
+    {
+      shape: "a JS entry next to its declarations",
+      // The @shikijs/types shape: a types condition next to a real JS entry.
+      entry: {
+        main: "./dist/index.mjs",
+        exports: { ".": { types: "./dist/index.d.mts", import: "./dist/index.mjs" } },
+      },
+      indexFile: null,
+    },
+    { shape: "only a stylesheet", entry: { main: "", style: "dist/theme.css" }, indexFile: null },
+    {
+      shape: "only a react-native entry",
+      entry: { main: "", "react-native": "lib/index.native.js" },
+      indexFile: null,
+    },
+    { shape: "an index.js behind an empty main", entry: { main: "" }, indexFile: "index.js" },
+    { shape: "an index.node addon and no main", entry: {}, indexFile: "index.node" },
+  ])("keeps a package that declares types but ships $shape", async ({ entry, indexFile }) => {
+    const fixture = await createFixture();
+    await writeJson(NodePath.join(fixture.dependencyRoot, "package.json"), {
+      name: "demo-dependency",
+      version: "1.2.3",
+      license: "MIT",
+      types: "./dist/index.d.mts",
+      ...entry,
+      repository: "example/demo-dependency",
+    });
+    if (indexFile !== "index.js") {
+      await NodeFSP.rm(NodePath.join(fixture.dependencyRoot, "index.js"));
+    }
+    if (indexFile !== null) {
+      await NodeFSP.writeFile(NodePath.join(fixture.dependencyRoot, indexFile), "", "utf8");
+    }
 
     const manifest = await generateThirdPartyLicenseManifest({
       configFile: fixture.configFile,

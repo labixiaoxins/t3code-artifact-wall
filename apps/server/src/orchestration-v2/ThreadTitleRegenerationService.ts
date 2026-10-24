@@ -19,8 +19,8 @@ import type { OrchestratorV2Error } from "./Orchestrator.ts";
 import * as ProjectStore from "./ProjectStore.ts";
 import * as ThreadManagementService from "./ThreadManagementService.ts";
 
-import { formatThreadTitleContext } from "../textGeneration/ThreadTitleContext.ts";
-export { formatThreadTitleContext } from "../textGeneration/ThreadTitleContext.ts";
+import { formatThreadTitleContext } from "@t3tools/provider-core/server/threadTitleContext";
+export { formatThreadTitleContext } from "@t3tools/provider-core/server/threadTitleContext";
 
 export class ThreadTitleRegenerationService extends Context.Service<
   ThreadTitleRegenerationService,
@@ -33,7 +33,10 @@ export class ThreadTitleRegenerationService extends Context.Service<
         | { readonly type: "regenerate" };
     }) => Effect.Effect<
       void,
-      OrchestratorV2Error | ProjectStore.ProjectStoreV2Error | ServerSettingsError
+      | OrchestratorV2Error
+      | ProjectStore.ProjectStoreV2Error
+      | ServerSettingsError
+      | ThreadManagementService.ThreadManagementProviderInstanceDisabledError
     >;
   }
 >()("t3/orchestration-v2/ThreadTitleRegenerationService") {}

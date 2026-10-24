@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type { ClientSettingsPatch, DesktopSnapShotState, SnapShotSound } from "@t3tools/contracts";
 import {
   captureSetupBackend,
@@ -50,16 +51,12 @@ export function snapShotShortcutStatus(state: DesktopSnapShotState | null): stri
 }
 
 export function snapShotSetupButtonLabel(state: DesktopSnapShotState | null): string {
-  if (!state) return "Continue setup";
-  if (captureSetupAccessReady(state)) return "Manage capture";
+  if (!state) return uiText("Continue setup");
+  if (captureSetupAccessReady(state)) return uiText("Manage capture");
   const desktop = captureSetupDesktopName(state);
   return desktop ? `Set up ${desktop} capture` : "Continue setup";
 }
 
-// Windows needs no permissions or setup: turning capture on is enough. macOS setup
-// has nothing left to manage once permissions and the shortcut are in place; the
-// shortcut row stays editable inline. Revoking a permission brings the button back
-// as "Continue setup" through the state message.
 export function snapShotSetupComplete(
   state: DesktopSnapShotState | null,
   includeAccessibility: boolean,
@@ -83,7 +80,7 @@ export function snapShotFeedbackUnavailableMessage(
     return state.hyprlandHelper?.status === "ready"
       ? "Capture effects aren't available on this desktop."
       : "Install or update the capture helper to enable effects.";
-  if (state.linuxBackend === "niri") return "Capture effects aren't available on Niri.";
+  if (state.linuxBackend === "niri") return uiText("Capture effects aren't available on Niri.");
   if (state.linuxBackend === "kde")
     return state.kdeHelper?.status === "ready"
       ? "Capture effects aren't available on this desktop."
@@ -106,7 +103,7 @@ export function snapShotAccessibilityUnavailableMessage(
 ): string | undefined {
   if (state?.mode !== "portal") return undefined;
   if (state.linuxBackend === "picker" || state.linuxBackend === "screenshot-portal")
-    return "This desktop only provides a screenshot.";
+    return uiText("This desktop only provides a screenshot.");
   return undefined;
 }
 

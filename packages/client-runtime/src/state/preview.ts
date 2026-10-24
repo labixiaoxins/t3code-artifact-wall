@@ -1,4 +1,5 @@
 import { WS_METHODS } from "@t3tools/contracts";
+import * as Stream from "effect/Stream";
 import { Atom } from "effect/reactivity";
 
 import type { EnvironmentRegistry } from "../connection/registry.ts";
@@ -28,6 +29,8 @@ export function createPreviewEnvironmentAtoms<R, E>(
     events: createEnvironmentRpcSubscriptionAtomFamily(runtime, {
       label: "environment-data:preview:events",
       tag: WS_METHODS.subscribePreviewEvents,
+      // Stream atoms publish only the last value per chunk; every preview event must arrive.
+      transform: (stream) => stream.pipe(Stream.rechunk(1)),
     }),
     discoveredServers: createEnvironmentRpcSubscriptionAtomFamily(runtime, {
       label: "environment-data:preview:discovered-servers",
@@ -75,6 +78,11 @@ export function createPreviewEnvironmentAtoms<R, E>(
     clearProfile: createEnvironmentRpcCommand(runtime, {
       label: "environment-data:preview:clear-profile",
       tag: WS_METHODS.previewClearProfile,
+    }),
+    reportProfiles: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:preview:report-profiles",
+      tag: WS_METHODS.previewReportProfiles,
+      concurrency: { mode: "latest", key: ({ environmentId }) => environmentId },
     }),
     reportStatus: createEnvironmentRpcCommand(runtime, {
       label: "environment-data:preview:report-status",

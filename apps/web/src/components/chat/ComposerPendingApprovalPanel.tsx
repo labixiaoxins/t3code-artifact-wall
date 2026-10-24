@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { memo } from "react";
 import { type PendingApproval } from "../../session-logic";
 import { cn } from "~/lib/utils";
@@ -51,16 +52,16 @@ export const ComposerPendingApprovalPanel = memo(function ComposerPendingApprova
       <Detail
         aria-label={detailAriaLabel}
         className={cn(
-          "block max-h-20 w-full min-w-0 overflow-auto text-xs text-foreground [scrollbar-width:thin] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70 [&::-webkit-scrollbar]:h-1.5",
+          "block w-full min-w-0 overflow-auto text-xs text-foreground [scrollbar-width:thin] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70 [&::-webkit-scrollbar]:h-1.5",
           approval.requestKind === "mcp-elicitation"
-            ? "whitespace-pre-wrap font-sans wrap-break-word"
-            : "whitespace-pre font-mono",
+            ? "max-h-20 whitespace-pre-wrap font-sans wrap-break-word"
+            : "max-h-40 whitespace-pre-wrap font-mono wrap-anywhere",
         )}
         data-approval-detail="complete"
         tabIndex={0}
       >
         {approval.responseCapability === "not_resumable"
-          ? "Provider process is gone — interrupt or restart the run to respond."
+          ? uiText("Provider process is gone — interrupt or restart the run to respond.")
           : approval.detail || fallbackLabel}
       </Detail>
     </span>

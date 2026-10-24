@@ -1,13 +1,5 @@
-/**
- * The single floating control over a pull request. Commenting on the change and submitting the
- * review that carries the Code tab's line comments used to float as two buttons that crowded
- * each other and read as the same offer twice; they are two modes of one composer now.
- *
- * Opening picks the mode with work waiting in it, so a reader who has collected line comments
- * lands on the review and everyone else lands on the comment box. Either mode's draft survives
- * the toggle: they are separate texts going to separate places, and merging them would send a
- * summary as a comment or the reverse.
- */
+import { uiText } from "~/i18n";
+import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import type { EnvironmentId, PullRequestDetailView, PullRequestRef } from "@t3tools/contracts";
 import { MessageSquareIcon, Trash2Icon, XIcon } from "lucide-react";
 import { useRef, useState } from "react";
@@ -31,6 +23,7 @@ export function PullRequestComposer({
   onCommentAction,
   onCommented,
   onReviewSubmitted,
+  openReviewRequest,
 }: {
   environmentId: EnvironmentId;
   reference: PullRequestRef;
@@ -42,6 +35,7 @@ export function PullRequestComposer({
   ) => Promise<{ readonly commentPosted: boolean }>;
   onCommented: () => void;
   onReviewSubmitted: () => void;
+  openReviewRequest?: number | undefined;
 }) {
   const [open, setOpen] = useState(false);
   const [reviewPending, setReviewPending] = useState(false);
@@ -57,10 +51,13 @@ export function PullRequestComposer({
     (store) => (store.summaries[reviewKey] ?? "").trim().length > 0,
   );
   const reviewStarted = pendingComments.length > 0 || summaryStarted;
+  const [answeredOpenRequest, setAnsweredOpenRequest] = useState(openReviewRequest);
+  if (openReviewRequest !== answeredOpenRequest) {
+    setAnsweredOpenRequest(openReviewRequest);
+    setRequestedMode("review");
+    setOpen(true);
+  }
 
-  // What is offered is the intersection of two different questions: what this host can do at
-  // all, and what this account may do on this repository. Either one saying no means a control
-  // that would only ever end in a refusal.
   const canComment = detail.capabilities.comment && detail.viewerPermissions.comment;
   const verdicts = detail.capabilities.review.verdicts.filter((verdict) =>
     detail.viewerPermissions.verdicts.includes(verdict),
@@ -79,14 +76,12 @@ export function PullRequestComposer({
     >
       <PopoverTrigger
         render={<Button size="icon" variant="glass" />}
-        // The only label this control has, so the pending count belongs in it: the badge beside
-        // the icon is decorative and a reader who cannot see it still needs the number.
         aria-label={
           pendingComments.length > 0
-            ? `Review pull request, ${pendingComments.length} ${pendingComments.length === 1 ? "comment" : "comments"} pending`
+            ? uiText("Review pull request, {0} {1} pending", {"0": pendingComments.length, "1": pendingComments.length === 1 ? "comment" : "comments"})
             : reviewStarted || !canComment
-              ? "Review pull request"
-              : "Comment on pull request"
+              ? uiText("Review pull request")
+              : uiText("Comment on pull request")
         }
       >
         <MessageSquareIcon className="size-4" />
@@ -106,12 +101,12 @@ export function PullRequestComposer({
         sideOffset={8}
         width="lg"
         initialFocus={mode === "review" ? reviewRef : commentRef}
-        aria-label="Pull request composer"
+        aria-label={uiText("Pull request composer")}
       >
         <div className="mb-3 flex items-center justify-between gap-2">
           {canComment && verdicts.length > 0 ? (
             <ToggleGroup
-              aria-label="Composer mode"
+              aria-label={uiText("Composer mode")}
               variant="segmented"
               value={[mode]}
               onValueChange={(next) => {
@@ -119,14 +114,14 @@ export function PullRequestComposer({
                 if (value === "comment" || value === "review") setRequestedMode(value);
               }}
             >
-              <Toggle value="comment">Comment</Toggle>
+              <Toggle value="comment">{uiText("Comment")}</Toggle>
               <Toggle value="review">
-                {pendingComments.length > 0 ? `Review (${pendingComments.length})` : "Review"}
+                {pendingComments.length > 0 ? uiText("Review ({0})", {"0": pendingComments.length}) : uiText("Review")}
               </Toggle>
             </ToggleGroup>
           ) : (
             <PopoverTitle>
-              {mode === "review" ? "Review pull request" : "Comment on pull request"}
+              {mode === "review" ? uiText("Review pull request") : uiText("Comment on pull request")}
             </PopoverTitle>
           )}
           <div className="flex items-center gap-1">
@@ -134,8 +129,8 @@ export function PullRequestComposer({
               <Button
                 size="icon-xs"
                 variant="ghost"
-                aria-label="Discard pending line comments"
-                title="Discard pending line comments"
+                aria-label={uiText("Discard pending line comments")}
+                title={uiText("Discard pending line comments")}
                 disabled={reviewPending}
                 onClick={() => clearComments(reviewKey)}
               >
@@ -144,7 +139,7 @@ export function PullRequestComposer({
             ) : null}
             <PopoverClose
               render={<Button size="icon-xs" variant="ghost" />}
-              aria-label="Close composer"
+              aria-label={uiText("Close composer")}
             >
               <XIcon className="size-3.5" />
             </PopoverClose>
@@ -158,7 +153,9 @@ export function PullRequestComposer({
               environmentId={environmentId}
               reference={reference}
               verdicts={verdicts}
-              requestChangesSummaryRequired={detail.provider === "forgejo"}
+              requestChangesSummaryRequired={sourceControlClients
+                .get(detail.provider)
+                .reviewSummaryRequired("request-changes")}
               textareaRef={reviewRef}
               pending={reviewPending}
               onPendingChange={setReviewPending}

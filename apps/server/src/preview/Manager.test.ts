@@ -6,6 +6,7 @@ import { PreviewUrlNormalizationError } from "@t3tools/shared/preview";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as PubSub from "effect/PubSub";
+import * as TestClock from "effect/testing/TestClock";
 import { expect } from "vite-plus/test";
 
 import * as ServerConfig from "../config.ts";
@@ -14,7 +15,6 @@ import * as PreviewManager from "./Manager.ts";
 const DRAIN_LIMIT = 100;
 
 interface EventCollector {
-  /** Drain everything published since the last call (or since subscribe). */
   readonly drain: Effect.Effect<ReadonlyArray<PreviewEvent>>;
 }
 
@@ -77,10 +77,6 @@ it.layer(layer)("PreviewManager", (it) => {
       const opened = yield* manager.open({ threadId, profileId: "work" });
       expect(opened.profileId).toBe("work");
 
-      // `navigate` and `reportStatus` rebuild the snapshot field by field
-      // rather than spreading it, so a new field is dropped unless carried
-      // explicitly — which would silently move the tab to another profile's
-      // partition on its first navigation.
       const navigated = yield* manager.navigate({
         threadId,
         tabId: opened.tabId,
@@ -120,7 +116,6 @@ it.layer(layer)("PreviewManager", (it) => {
         zoomFactor: 1.25,
       });
       expect(adjusted).toMatchObject({ viewport, colorScheme: "dark", zoomFactor: 1.25 });
-      // One-off requests go to the server's browser and leave the tab's state alone.
       yield* manager.adjust({ threadId, tabId: opened.tabId, hardReload: true, clear: "cache" });
       const events = (yield* collector.drain).filter((event) => event.type === "resized");
       expect(events.at(-1)).toMatchObject({
@@ -141,7 +136,6 @@ it.layer(layer)("PreviewManager", (it) => {
       const first = (yield* manager.list({ threadId })).sessions[0];
       expect(first?.reveal).toBe(true);
       expect(first?.revealRequest?.force).toBe(true);
-      // Server tabs report navigation through their controlling browser.
       const refused = yield* manager
         .navigate({ threadId, tabId: opened.tabId, url: "localhost:5173" })
         .pipe(Effect.flip);
@@ -466,12 +460,12 @@ it.layer(layer)("PreviewManager", (it) => {
       const threadId = freshThreadId();
       const manager = yield* PreviewManager.PreviewManager;
       const first = yield* manager.open({ threadId, url: "http://localhost:5173" });
+      yield* TestClock.adjust("1 second");
       const second = yield* manager.open({ threadId, url: "http://localhost:3000" });
+      yield* TestClock.adjust("1 second");
+      yield* manager.navigate({ threadId, tabId: first.tabId, url: "http://localhost:5173/next" });
       const result = yield* manager.list({ threadId });
-      expect(result.sessions).toHaveLength(2);
-      const ids = result.sessions.map((s) => s.tabId);
-      expect(ids).toContain(first.tabId);
-      expect(ids).toContain(second.tabId);
+      expect(result.sessions.map((s) => s.tabId)).toEqual([second.tabId, first.tabId]);
     }),
   );
 

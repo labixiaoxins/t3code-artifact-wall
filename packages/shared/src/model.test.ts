@@ -63,8 +63,6 @@ const codexCaps: ModelCapabilities = createModelCapabilities({
 
 describe("model slug normalization", () => {
   it("preserves exact custom slugs instead of expanding provider aliases", () => {
-    // Claude aliases now resolve through the model catalog (#9084), so the
-    // provider alias table passes unknown slugs through unchanged.
     const claude = ProviderDriverKind.make("claudeAgent");
 
     expect(normalizeModelSlug("opus", claude)).toBe("opus");
@@ -164,22 +162,6 @@ describe("descriptor helpers", () => {
         { id: "fastMode", value: true },
       ]),
     ).toEqual([{ id: "fastMode", value: true }]);
-  });
-
-  it("stores option selection arrays in model selections", () => {
-    expect(
-      createModelSelection(ProviderInstanceId.make("codex"), "gpt-5.4", [
-        { id: "reasoningEffort", value: "high" },
-        { id: "fastMode", value: true },
-      ]),
-    ).toEqual({
-      instanceId: "codex",
-      model: "gpt-5.4",
-      options: [
-        { id: "reasoningEffort", value: "high" },
-        { id: "fastMode", value: true },
-      ],
-    });
   });
 
   it("reads typed option selection values", () => {

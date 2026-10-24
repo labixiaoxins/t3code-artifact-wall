@@ -2,14 +2,15 @@ import * as Schema from "effect/Schema";
 import { PositiveInt, TrimmedNonEmptyString } from "./baseSchemas.ts";
 import { VcsDriverKind } from "./vcs.ts";
 
-export const SourceControlProviderKind = Schema.Literals([
-  "github",
-  "gitlab",
-  "forgejo",
-  "azure-devops",
-  "bitbucket",
-  "unknown",
-]);
+/**
+ * Open on purpose, like `ProviderDriverKind`: a server can report a host this client does not
+ * ship a definition for, and clients fall back to a generic presentation instead of failing to
+ * decode.
+ */
+export const SourceControlProviderKind = TrimmedNonEmptyString.check(
+  Schema.isMaxLength(64),
+  Schema.isPattern(/^[a-z][a-z0-9-]*$/),
+).pipe(Schema.brand("SourceControlProviderKind"));
 export type SourceControlProviderKind = typeof SourceControlProviderKind.Type;
 
 export const SourceControlProviderInfo = Schema.Struct({
@@ -29,8 +30,8 @@ export const ChangeRequest = Schema.Struct({
   url: Schema.String,
   baseRefName: TrimmedNonEmptyString,
   headRefName: TrimmedNonEmptyString,
+  headSha: Schema.optional(TrimmedNonEmptyString),
   state: ChangeRequestState,
-  /** Present when the provider can tell that an open change request is still a draft. */
   isDraft: Schema.optional(Schema.Boolean),
   closedAt: Schema.optional(Schema.NullOr(Schema.String)),
   mergedAt: Schema.optional(Schema.NullOr(Schema.String)),
@@ -123,7 +124,6 @@ export const SourceControlProviderAuth = Schema.Struct({
   account: Schema.Option(TrimmedNonEmptyString),
   host: Schema.Option(TrimmedNonEmptyString),
   detail: Schema.Option(TrimmedNonEmptyString),
-  /** Every login the provider CLI holds, across hosts. Only GitHub reports these today. */
   accounts: Schema.optionalKey(
     Schema.Array(
       Schema.Struct({

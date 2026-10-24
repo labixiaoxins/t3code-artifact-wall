@@ -4,15 +4,13 @@ import { ProviderInstanceId } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
-import * as ServerConfig from "../config.ts";
+import * as TestProviderHost from "@t3tools/provider-testing/TestProviderHost";
 import * as OpenCode2AdapterV2Testkit from "../orchestration-v2/Adapters/OpenCode2AdapterV2.testkit.ts";
-import * as OpenCode2Server from "../provider/opencode2/OpenCode2Server.ts";
-import * as OpenCode2TextGeneration from "./OpenCode2TextGeneration.ts";
+import * as OpenCode2Server from "@t3tools/provider-opencode/server/v2/OpenCode2Server";
+import * as OpenCode2TextGeneration from "@t3tools/provider-opencode/server/v2/textGeneration";
 import { OPENCODE2_TITLE_GENERATION } from "./OpenCode2TextGeneration.fixture.ts";
 
-const layer = ServerConfig.ServerConfig.layerTest(process.cwd(), {
-  prefix: "t3code-opencode2-text-generation-test-",
-}).pipe(Layer.provideMerge(NodeServices.layer));
+const layer = TestProviderHost.layer().pipe(Layer.provideMerge(NodeServices.layer));
 
 it.layer(layer)("OpenCode2TextGeneration", (it) => {
   it.effect("generates a title in a temporary session on the free tier and removes it", () =>
@@ -74,7 +72,6 @@ it.layer(layer)("OpenCode2TextGeneration", (it) => {
               },
             },
           },
-          // The server goes away before the reply; the temporary session is still removed.
           { type: "runtime_exit", status: "success" },
           {
             type: "expect_outbound",
@@ -107,7 +104,6 @@ it.layer(layer)("OpenCode2TextGeneration", (it) => {
     Effect.gen(function* () {
       const [subscribe, connected, create, created] = OPENCODE2_TITLE_GENERATION;
       const sessionId = "ses_f0ec85cf6ffebfalpvV2E9nocu";
-      // The spike's `text_generation` recording: a deny-all session is refused this way.
       const refusal = {
         type: "provider.auth",
         message:

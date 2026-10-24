@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   parseUsagePriceForm,
   usagePriceForm,
@@ -35,13 +36,12 @@ function modelAlias(target: UsagePriceTarget, model: string) {
   return target.aliases && Object.hasOwn(target.aliases, model) ? target.aliases[model] : undefined;
 }
 
-/** The "Map to" cell across the selected environments, read like a price cell. */
 export function usageAliasCell(targets: readonly UsagePriceTarget[], model: string) {
   if (targets.some((target) => target.aliases === null))
-    return { value: "", placeholder: "Unavailable" };
+    return { value: "", placeholder: uiText("Unavailable") };
   const values = targets.map((target) => modelAlias(target, model) ?? "");
-  if (values.some((value) => value !== values[0])) return { value: "", placeholder: "Mixed" };
-  return { value: values[0] ?? "", placeholder: "None" };
+  if (values.some((value) => value !== values[0])) return { value: "", placeholder: uiText("Mixed") };
+  return { value: values[0] ?? "", placeholder: uiText("None") };
 }
 
 export function usagePriceCell(
@@ -54,15 +54,14 @@ export function usagePriceCell(
     modelPrice(target, model) ? usagePriceForm(model, modelPrice(target, model))[field] : null,
   );
   if (targets.some((target) => target.prices === null))
-    return { value: "", placeholder: "Unavailable" };
-  if (values.some((value) => value !== values[0])) return { value: "", placeholder: "Mixed" };
+    return { value: "", placeholder: uiText("Unavailable") };
+  if (values.some((value) => value !== values[0])) return { value: "", placeholder: uiText("Mixed") };
   return {
     value: values[0] ?? "",
     placeholder: values[0] === null ? "Automatic" : optional ? "Input rate" : "0.00",
   };
 }
 
-/** Only edited cells replace rates; untouched cells retain each environment's own values. */
 export function usagePriceTableChanges(
   target: UsagePriceTarget,
   drafts: readonly UsagePriceDraft[],
@@ -78,7 +77,6 @@ export function usagePriceTableChanges(
       if (currentAlias !== undefined) changes.push({ model, alias: null });
       continue;
     }
-    // A mapped model is priced as its target, so mapping it drops its own price.
     const alias = (draft.alias ?? currentAlias ?? "").trim();
     if (alias !== "") {
       if (model === "") errors.set(draft.id, "Enter a model ID.");
@@ -91,7 +89,6 @@ export function usagePriceTableChanges(
     }
     if (currentAlias !== undefined) {
       changes.push({ model, alias: null });
-      // Clearing a mapping without entering prices returns to automatic pricing.
       if (
         !modelPrice(target, model) &&
         Object.values(draft.values).every((value) => value.trim() === "")
@@ -122,7 +119,6 @@ export function usagePriceTableChanges(
   return { changes, errors };
 }
 
-/** Unavailable destinations report a save failure without blocking writable environments. */
 export function usagePriceTableErrors(
   targets: readonly UsagePriceTarget[],
   drafts: readonly UsagePriceDraft[],

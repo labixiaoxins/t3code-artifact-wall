@@ -1,7 +1,8 @@
+import { uiText } from "~/i18n";
 import { useAtomValue } from "@effect/atom-react";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { isWindowsAbsolutePath } from "@t3tools/shared/path";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { primaryServerKeybindingsAtom } from "~/state/server";
 import { useTheme } from "~/hooks/useTheme";
@@ -17,6 +18,7 @@ import {
 import { useProjectFilePickerQuery } from "../files/projectFilesQueryState";
 import { CommandDialog, CommandDialogPopup, CommandFooterAction } from "../ui/command";
 import { toastManager } from "../ui/toast";
+import { ProjectFaviconThumbnail } from "./ProjectFaviconThumbnail";
 
 function emptyMessage(query: string, error: string | null, isPending: boolean): string {
   if (error) return error;
@@ -48,34 +50,40 @@ export function ProjectFaviconPickerDialog(props: {
   );
   const { resolvedTheme } = useTheme();
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
-  const pickExternal = props.onPickExternal;
+  const { onPickExternal: pickExternal, onSelect } = props;
   const fileManagerName = getLocalFileManagerName(
     typeof navigator === "undefined" ? "" : navigator.platform,
   );
-  const items = useMemo<CommandPaletteActionItem[]>(
-    () =>
-      getProjectFilePickerMatches(result.entries, result.matchedQuery).map((match) => ({
-        kind: "action",
-        value: `project-favicon:${match.path}`,
-        searchTerms: [match.name, match.path],
-        title: match.name,
-        description: match.path,
-        icon: <PierreEntryIcon pathValue={match.path} kind="file" theme={resolvedTheme} />,
-        run: async () => props.onSelect(match.path),
-      })),
-    [props.onSelect, resolvedTheme, result.entries, result.matchedQuery],
-  );
+  const items: CommandPaletteActionItem[] = getProjectFilePickerMatches(
+    result.entries,
+    result.matchedQuery,
+  ).map((match) => ({
+    kind: "action",
+    value: `project-favicon:${match.path}`,
+    searchTerms: [match.name, match.path],
+    title: match.name,
+    description: match.path,
+    icon: (
+      <ProjectFaviconThumbnail
+        cwd={props.cwd}
+        environmentId={props.environmentId}
+        fallback={<PierreEntryIcon pathValue={match.path} kind="file" theme={resolvedTheme} />}
+        path={match.path}
+      />
+    ),
+    run: async () => onSelect(match.path),
+  }));
 
   return (
     <CommandDialog open={props.open} onOpenChange={props.onOpenChange}>
       {props.open ? (
         <CommandDialogPopup
-          aria-label="Choose project icon"
+          aria-label={uiText("Choose project icon")}
           className="overflow-hidden"
           onBackdropPointerDown={() => props.onOpenChange(false)}
         >
           <CommandPaletteContent
-            aria-label="Choose project icon"
+            aria-label={uiText("Choose project icon")}
             autoHighlight="always"
             escapeLabel="Close"
             footerActionLabel="Select icon"
@@ -89,12 +97,12 @@ export function ProjectFaviconPickerDialog(props: {
                       .then((path) => {
                         if (!path) return;
                         props.onOpenChange(false);
-                        props.onSelect(path);
+                        onSelect(path);
                       })
                       .catch((error: unknown) => {
                         toastManager.add({
                           type: "error",
-                          title: "Could not open image picker",
+                          title: uiText("Could not open image picker"),
                           description:
                             error instanceof Error ? error.message : "An error occurred.",
                         });
@@ -102,11 +110,11 @@ export function ProjectFaviconPickerDialog(props: {
                       .finally(() => setIsPickingExternal(false));
                   }}
                 >
-                  {`Open in ${fileManagerName}`}
+                  {uiText("Open in {0}", {"0": fileManagerName})}
                 </CommandFooterAction>
               ) : null
             }
-            inputProps={{ placeholder: "Search image files…" }}
+            inputProps={{ placeholder: uiText("Search image files…") }}
             mode="none"
             onItemHighlighted={(value) => {
               setHighlightedItemValue(typeof value === "string" ? value : null);

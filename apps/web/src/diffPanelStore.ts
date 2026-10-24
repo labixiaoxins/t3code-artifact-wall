@@ -10,7 +10,6 @@ export type DiffPanelSelection =
   | { kind: "unstaged" }
   | { kind: "turn"; turnId: RunId; filePath: string | null; revealRequestId: number };
 
-// "branch" is the Changes view: everything this checkout changed since its base.
 const DEFAULT_SELECTION: DiffPanelSelection = { kind: "branch", baseRef: null };
 
 interface DiffPanelStoreState {
@@ -130,6 +129,29 @@ export const useDiffPanelStore = create<DiffPanelStoreState>()(
     },
   ),
 );
+
+interface DiffPanelSessionStoreState {
+  collapsedFileKeysByScopeKey: Record<string, ReadonlySet<string>>;
+  updateCollapsedFileKeys: (
+    scopeKey: string,
+    defaults: ReadonlySet<string>,
+    update: (current: ReadonlySet<string>) => ReadonlySet<string>,
+  ) => void;
+}
+
+// Session-only so folds survive right-panel switches without changing reload defaults.
+export const useDiffPanelSessionStore = create<DiffPanelSessionStoreState>()((set) => ({
+  collapsedFileKeysByScopeKey: {},
+  updateCollapsedFileKeys: (scopeKey, defaults, update) =>
+    set((state) => {
+      const current = state.collapsedFileKeysByScopeKey[scopeKey] ?? defaults;
+      const next = update(current);
+      if (next === current) return state;
+      return {
+        collapsedFileKeysByScopeKey: { ...state.collapsedFileKeysByScopeKey, [scopeKey]: next },
+      };
+    }),
+}));
 
 export function selectThreadDiffPanelSelection(
   byThreadKey: Record<string, DiffPanelSelection>,

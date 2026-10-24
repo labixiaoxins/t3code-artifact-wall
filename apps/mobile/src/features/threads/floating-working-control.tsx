@@ -3,7 +3,6 @@ import { formatDuration } from "@t3tools/shared/orchestrationTiming";
 import { GlassContainer, GlassView } from "expo-glass-effect";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   type LayoutChangeEvent,
   Pressable,
   Text as SystemText,
@@ -22,19 +21,18 @@ import Animated, {
 } from "react-native-reanimated";
 import { withUniwind } from "uniwind";
 
-import { AppText as Text } from "../../components/AppText";
-import { SymbolView } from "../../components/AppSymbol";
-import { ControlPill } from "../../components/ControlPill";
+import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
+import { AppText as Text } from "../../components/ui/AppText";
+import { SymbolView } from "../../components/ui/AppSymbol";
+import { ControlPill } from "../../components/ui/ControlPill";
 import { NATIVE_LIQUID_GLASS_SUPPORTED } from "../../native/native-glass";
 import { BrowserPreviewButton } from "../browser/browser-preview-button";
 import { DevicePreviewButton } from "../devices/device-preview-button";
 import type { FloatingWorkingStatus } from "./floating-working-status";
 import { ShimmeringWorkContent } from "./thread-work-log";
+import { useVisibleSecondClock } from "./use-visible-second-clock";
 
-const CONTROL_HEIGHT = 38.5; // h-11 with the mobile 14px rem
-// The collapsed composer capsule starts 6 below its overlay's top edge, so
-// the pill sits at (gap - 6) above the overlay to leave the same gap to the
-// capsule as the feed's end inset leaves between it and the last row.
+const CONTROL_HEIGHT = 38.5;
 const CONTROL_GAP = 8;
 const COMPOSER_CAPSULE_INSET = 6;
 const GLASS_MERGE_SPACING = 12;
@@ -45,9 +43,8 @@ const CONTROL_TIMING = {
   easing: Easing.out(Easing.cubic),
   reduceMotion: ReduceMotion.System,
 } as const;
-const CONTROL_SEPARATION = (16 + CONTROL_HEIGHT) / 2;
-// Both rows share the same centered anchor, so the outgoing one clears fast and
-// the incoming one waits for it to be mostly gone before it starts to show.
+const CONTROL_ROW_GAP = 14;
+const CONTROL_SEPARATION = (CONTROL_ROW_GAP + CONTROL_HEIGHT) / 2;
 const LABEL_ENTERING = FadeIn.duration(160).delay(80).reduceMotion(ReduceMotion.System);
 const LABEL_EXITING = FadeOut.duration(100).reduceMotion(ReduceMotion.System);
 
@@ -60,6 +57,13 @@ const UniwindGlassContainer = withUniwind(GlassContainer, {
   style: { fromClassName: "className" },
 });
 const AnimatedGlassView = Animated.createAnimatedComponent(UniwindGlassView);
+
+// The segment widths feed labelWidth, and labelWidth moves the segments. Pixel
+// rounding then flips a segment's width by one physical pixel per layout, which
+// re-ellipsizes a truncated label every frame. Sub-point changes are ignored.
+function settleWidth(next: number) {
+  return (current: number) => (Math.abs(current - next) < 1 ? current : next);
+}
 
 const CONTROL_OVERLAY_OFFSET = CONTROL_HEIGHT + CONTROL_GAP - COMPOSER_CAPSULE_INSET;
 export const FLOATING_WORKING_CONTROL_COVERAGE = CONTROL_OVERLAY_OFFSET + CONTROL_GAP;
@@ -75,7 +79,6 @@ export function FloatingWorkingControl(props: {
   readonly onOpenAgents: () => void;
   readonly queuedCount: number;
   readonly onOpenQueue: () => void;
-  /** Extra distance to rise above the anchor, e.g. an overlay card's coverage. */
   readonly lift?: SharedValue<number>;
 }) {
   const { width: windowWidth } = useWindowDimensions();
@@ -87,8 +90,6 @@ export function FloatingWorkingControl(props: {
   const [previewWidth, setPreviewWidth] = useState(0);
   const agents = props.agents;
   const hasAgents = agents !== null;
-  // Segments keep their measured width; only the status label absorbs the
-  // remainder, so a long "Working 12m 04s" truncates before a count does.
   const labelWidth = Math.max(
     0,
     Math.min(overlayWidth, windowWidth) -
@@ -130,8 +131,6 @@ export function FloatingWorkingControl(props: {
     measuredWidthRef.current = width;
     capsuleWidth.value = first ? width : withTiming(width, CONTROL_TIMING);
   };
-  // Forget the width while no label is shown so the next one appears at its
-  // own size instead of animating from the previous label's.
   const hasStatus = props.status !== null;
   const hasCapsule = hasStatus || hasQueue || hasAgents || hasPreview;
   useEffect(() => {
@@ -143,8 +142,6 @@ export function FloatingWorkingControl(props: {
   const capsuleStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: CONTROL_SEPARATION * (1 - separationProgress.value) }],
   }));
-  // Zero until the first measurement lands, so the capsule never paints around
-  // a label it has not sized to yet.
   const capsuleSizerStyle = useAnimatedStyle(() => ({
     width: capsuleWidth.value ?? 0,
   }));
@@ -153,21 +150,18 @@ export function FloatingWorkingControl(props: {
     return null;
   }
 
-  // Both preview buttons fit beside each other only as icons.
   const previewCompact =
     hasStatus ||
     hasAgents ||
     hasQueue ||
     (props.devicePreview !== null && props.browserPreview !== null);
-  // The queue, agents, and reconnect labels have separate tap targets.
-  const statusInteractive = props.status?.kind === "connection";
+  const statusInteractive =
+    props.status?.kind === "connection" || props.status?.kind === "child-input";
   const capsuleInteractive = statusInteractive || hasQueue || hasAgents || hasPreview;
-  // The host stays centered on the capsule, but its measurement constraint
-  // comes from the overlay, independent of the capsule's current width.
   const statusContent =
     props.status !== null ? (
       <View
-        pointerEvents={props.status.kind === "connection" ? "box-none" : "none"}
+        pointerEvents={statusInteractive ? "box-none" : "none"}
         className="h-11 items-center justify-center"
       >
         <Animated.View className="h-11" style={capsuleSizerStyle} />
@@ -195,7 +189,7 @@ export function FloatingWorkingControl(props: {
       {hasPreview ? (
         <View
           className="h-11 flex-row items-center"
-          onLayout={(event) => setPreviewWidth(event.nativeEvent.layout.width)}
+          onLayout={(event) => setPreviewWidth(settleWidth(event.nativeEvent.layout.width))}
         >
           {hasStatus ? <View className="h-4 w-px bg-border" /> : null}
           {props.devicePreview !== null ? (
@@ -212,7 +206,7 @@ export function FloatingWorkingControl(props: {
           accessibilityLabel={`Open agents, ${agents.accessibilityLabel}`}
           accessibilityHint="Opens this turn's subagents"
           onPress={props.onOpenAgents}
-          onLayout={(event) => setAgentsWidth(event.nativeEvent.layout.width)}
+          onLayout={(event) => setAgentsWidth(settleWidth(event.nativeEvent.layout.width))}
           className="h-11 flex-row items-center gap-1.5 px-3 active:opacity-70"
         >
           {hasStatus || hasPreview ? <View className="mr-1 h-4 w-px bg-border" /> : null}
@@ -228,7 +222,7 @@ export function FloatingWorkingControl(props: {
           accessibilityLabel={`Open queue, ${props.queuedCount} messages`}
           accessibilityHint="Opens queued messages for reordering, steering, or removal"
           onPress={props.onOpenQueue}
-          onLayout={(event) => setQueueWidth(event.nativeEvent.layout.width)}
+          onLayout={(event) => setQueueWidth(settleWidth(event.nativeEvent.layout.width))}
           style={{ maxWidth: Math.min(overlayWidth, windowWidth) * 0.45 }}
           className="h-11 flex-row items-center gap-2 px-3 active:opacity-70"
         >
@@ -272,7 +266,7 @@ export function FloatingWorkingControl(props: {
 
           <AnimatedGlassView
             colorScheme={props.colorScheme}
-            glassEffectStyle="regular"
+            glassEffectStyle={{ style: props.showScrollToEnd ? "regular" : "none", animate: true }}
             isInteractive
             pointerEvents={props.showScrollToEnd ? "auto" : "none"}
             accessibilityElementsHidden={!props.showScrollToEnd}
@@ -351,8 +345,6 @@ function FloatingStatusLabel(props: {
   readonly status: FloatingWorkingStatus;
   readonly onLayout: (event: LayoutChangeEvent) => void;
 }) {
-  // Keyed by kind so a swap mounts a fresh row and the two cross-fade while
-  // the capsule animates to the new row's measured width.
   if (props.status.kind === "syncing") {
     return (
       <StatusLabelRow
@@ -361,7 +353,7 @@ function FloatingStatusLabel(props: {
         className="gap-2"
         onLayout={props.onLayout}
       >
-        <ActivityIndicator size="small" colorClassName="accent-icon-muted" />
+        <AppActivityIndicator size="small" colorClassName="accent-icon-muted" />
         <Text className="shrink font-t3-medium text-xs text-foreground" numberOfLines={1}>
           {props.status.label}
         </Text>
@@ -370,6 +362,23 @@ function FloatingStatusLabel(props: {
   }
   if (props.status.kind === "compacting") {
     return <CompactingLabel key="compacting" onLayout={props.onLayout} />;
+  }
+  if (props.status.kind === "child-input") {
+    return (
+      <StatusLabelRow
+        key="child-input"
+        accessibilityLabel={props.status.accessibilityLabel}
+        accessibilityRole="button"
+        className="gap-2"
+        onLayout={props.onLayout}
+        onPress={props.status.onPress}
+      >
+        <SymbolView name="text.bubble" size={13} tintColorClassName="foreground" />
+        <Text className="shrink font-t3-medium text-xs text-foreground" numberOfLines={1}>
+          {props.status.label}
+        </Text>
+      </StatusLabelRow>
+    );
   }
   if (props.status.kind === "connection") {
     return (
@@ -382,7 +391,7 @@ function FloatingStatusLabel(props: {
         onPress={props.status.onPress}
       >
         {props.status.tone === "reconnecting" ? (
-          <ActivityIndicator size="small" colorClassName="accent-icon-muted" />
+          <AppActivityIndicator size="small" colorClassName="accent-icon-muted" />
         ) : (
           <View className="h-2 w-2 rounded-full bg-red-500" />
         )}
@@ -403,8 +412,6 @@ function FloatingStatusLabel(props: {
         className="gap-2"
         onLayout={props.onLayout}
       >
-        {/* A dev server can run for hours after the agent is done, so only work
-            that will wake the agent gets the bolt. */}
         <SymbolView
           name={props.status.waiting ? { ios: "bolt", android: "bolt" } : "terminal"}
           size={13}
@@ -463,7 +470,6 @@ function FloatingStatusLabel(props: {
   );
 }
 
-// Absolute rows cross-fade around the same center without affecting each other.
 function StatusLabelRow(props: {
   readonly accessibilityLabel?: string;
   readonly accessibilityRole?: "button";
@@ -510,11 +516,7 @@ function WorkingDuration(props: {
 }
 
 export function WorkingTimer(props: { readonly startedAt: string }) {
-  const [nowMs, setNowMs] = useState(() => Date.now());
-  useEffect(() => {
-    const intervalId = setInterval(() => setNowMs(Date.now()), 1_000);
-    return () => clearInterval(intervalId);
-  }, []);
+  const nowMs = useVisibleSecondClock(true);
   return (
     <SystemText
       className="shrink text-xs text-foreground"

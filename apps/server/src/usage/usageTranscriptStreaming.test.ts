@@ -5,18 +5,20 @@ import * as NodePath from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "@effect/vitest";
 
+import { TEST_FORMATS } from "./usageTestFormats.ts";
 import {
   readTranscriptRecords as readWithDefaultThreshold,
   type TranscriptParsePosition,
 } from "./usageTranscriptReader.ts";
 
-// Exercise the same transition with compact fixtures. UsageService tests and
-// external 65/517 MiB fixtures also exercise the production threshold.
 const readTranscriptRecords = (
   path: string,
-  provider: "claude" | "codex" | "grok",
+  provider: keyof typeof TEST_FORMATS,
   position?: TranscriptParsePosition,
-) => readWithDefaultThreshold(path, provider, position, { streamingThresholdBytes: 256 * 1024 });
+) =>
+  readWithDefaultThreshold(path, TEST_FORMATS[provider], position, {
+    streamingThresholdBytes: 256 * 1024,
+  });
 
 let dir: string;
 beforeEach(async () => {
@@ -48,8 +50,8 @@ const claude = (id = "m1", output = 99) => ({
   },
 });
 const codex = [
-  { type: "session_meta", timestamp, payload: { id: "s1" } },
-  { type: "turn_context", timestamp, payload: { model: "gpt-5.6-sol" } },
+  { type: "session_meta", timestamp, payload: { id: "s1", model_provider: "openai" } },
+  { type: "turn_context", timestamp, payload: { model: "gpt-5.6-sol", turn_id: "initial-turn" } },
   {
     type: "event_msg",
     timestamp,
@@ -95,7 +97,7 @@ const grok = {
 
 async function scan(
   lines: readonly unknown[],
-  provider: "claude" | "codex" | "grok",
+  provider: keyof typeof TEST_FORMATS,
   name = "history",
 ) {
   const path = NodePath.join(dir, `${name}.jsonl`);
@@ -106,6 +108,49 @@ async function scan(
 }
 
 describe("large usage records", () => {
+  it("keeps Pi model, cost, and fork identity after large assistant content", async () => {
+    const entry = {
+      type: "message",
+      id: "a123abcd",
+      timestamp,
+      message: {
+        role: "assistant",
+        provider: "anthropic",
+        model: "requested",
+        responseModel: "actual",
+        content: [{ type: "text", text: content }],
+        usage: {
+          input: 100,
+          output: 99,
+          cacheRead: 20,
+          cacheWrite: 5,
+          reasoning: 10,
+          cost: { total: 0.25 },
+        },
+      },
+    };
+    const result = await scan([{ type: "session", id: "pi-session" }, entry], "pi");
+    expect(result.records).toEqual([
+      {
+        provider: "pi",
+        model: "anthropic/actual",
+        rateModel: "actual",
+        sessionId: "pi-session",
+        timestampMs: Date.parse(timestamp),
+        totals: {
+          uncachedInputTokens: 100,
+          outputTokens: 99,
+          cachedInputTokens: 20,
+          cacheCreationTokens: 5,
+          reasoningTokens: 10,
+        },
+        reportedCostUsd: 0.25,
+        speed: "standard",
+        dedupeKey: JSON.stringify(["pi", entry.id, timestamp, "anthropic/actual"]),
+      },
+    ]);
+  });
+
   it("keeps usage after large Claude tool input, including fast-mode cost and dedupe metadata", async () => {
     const result = await scan([claude()], "claude");
     expect(result.records).toEqual([
@@ -144,7 +189,7 @@ describe("large usage records", () => {
         );
         const actual = await scan(large, provider);
         expect(actual.records).toEqual(expected.records);
-        expect(actual.position.codexState).toEqual(expected.position.codexState);
+        expect(actual.position.state).toEqual(expected.position.state);
       }
     },
   );
@@ -207,9 +252,14 @@ describe("large usage records", () => {
   it("preserves Codex model switches and duplicate suppression across streaming resumes", async () => {
     const path = NodePath.join(dir, "history.jsonl");
     const first = await scan(
-      codex.map((record) => ({ padding: content, ...record })),
+      codex.map((record) => ({ padding: "x".repeat(9 * 1024 * 1024), ...record })),
       "codex",
     );
+    expect(first.records[0]).toMatchObject({
+      sessionId: "s1",
+      model: "gpt-5.6-sol",
+      unresolvedServiceTierTurnId: "initial-turn",
+    });
     await NodeFSP.appendFile(
       path,
       [
@@ -236,6 +286,7 @@ describe("large usage records", () => {
       sessionId: "s1",
       totals: { outputTokens: 101 },
     });
+    expect(result?.records[0]).not.toHaveProperty("unresolvedServiceTierTurnId");
     const full = await readTranscriptRecords(path, "codex");
     expect([...first.records, ...result!.records]).toEqual(full?.records);
   });

@@ -13,9 +13,9 @@ import { CodexProviderCapabilitiesV2 } from "./Adapters/CodexAdapterV2.ts";
 import { DispatchModeLimit } from "./DispatchModeLimit.ts";
 import * as Orchestrator from "./Orchestrator.ts";
 import * as ProjectionStore from "./ProjectionStore.ts";
-import type { ProviderAdapterV2Shape } from "./ProviderAdapter.ts";
 import * as ProviderAdapterRegistry from "./ProviderAdapterRegistry.ts";
 import * as ProviderReplayHarness from "./testkit/ProviderReplayHarness.ts";
+import type * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
 
 const instanceId = ProviderInstanceId.make("codex");
 const adapter = {
@@ -24,7 +24,7 @@ const adapter = {
   getCapabilities: () => Effect.succeed(CodexProviderCapabilitiesV2),
   planSelectionTransition: () => Effect.succeed({ type: "apply_on_next_turn" as const }),
   openSession: () => Effect.die("No provider process needed for metadata commands"),
-} as ProviderAdapterV2Shape;
+} as ProviderAdapter.ProviderAdapterV2["Service"];
 const layerDatabase = SqlitePersistence.layerMemory;
 const layerTest = Layer.mergeAll(
   layerDatabase,
@@ -63,7 +63,6 @@ it.layer(layerTest)("DispatchModeLimit", (it) => {
       const projections = yield* ProjectionStore.ProjectionStoreV2;
       const threadId = ThreadId.make("thread:limit-raised");
       yield* createThread(threadId);
-      // The user raises the thread; the user's own commands have no limit.
       yield* orchestrator.dispatch({
         type: "thread.runtime-mode.set",
         commandId: CommandId.make("raise"),
@@ -82,8 +81,6 @@ it.layer(layerTest)("DispatchModeLimit", (it) => {
       assert.equal(refused._tag, "OrchestratorThreadAboveModeLimitError");
       assert.equal((yield* projections.getThreadShell(threadId))?.title, "Before");
 
-      // Refused before planning, so no receipt holds the command id: once the
-      // user lowers the thread again, the same command goes through.
       yield* orchestrator.dispatch({
         type: "thread.runtime-mode.set",
         commandId: CommandId.make("lower"),
@@ -150,8 +147,6 @@ it.layer(layerTest)("DispatchModeLimit", (it) => {
       assert.equal(refused.threadId, sourceThreadId);
       assert.isNull(yield* projections.getThreadShell(targetThreadId));
 
-      // The refusal records no receipt: once the source is lowered, the same
-      // command is planned again (and fails only for want of a finished run).
       yield* orchestrator.dispatch({
         type: "thread.runtime-mode.set",
         commandId: CommandId.make("lower-source"),

@@ -1,5 +1,22 @@
 import type { WallArtifact } from "@t3tools/contracts";
 
+export function artifactCheckLabel(artifact: WallArtifact): string {
+  switch (artifact.verification?.status) {
+    case "passed":
+      return "检查命令通过";
+    case "failed":
+      return "检查未通过";
+    case "stale":
+      return "文件已更新，需重新检查";
+    default:
+      return "文件已生成 · 未附检查记录";
+  }
+}
+
+function artifactTime(artifact: WallArtifact) {
+  return artifact.modifiedAt ?? artifact.createdAt;
+}
+
 export function artifactCounts(artifacts: readonly WallArtifact[]) {
   const counts = { all: artifacts.length, image: 0, page: 0, document: 0 };
   for (const a of artifacts) counts[a.kind]++;
@@ -14,9 +31,9 @@ export function groupArtifacts(artifacts: readonly WallArtifact[], now = new Dat
   const yesterday = day(yesterdayDate);
   const groups = new Map<string, { label: string; artifacts: WallArtifact[] }>();
   for (const a of [...artifacts].sort(
-    (a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id),
+    (a, b) => artifactTime(b).localeCompare(artifactTime(a)) || a.id.localeCompare(b.id),
   )) {
-    const key = day(new Date(a.createdAt));
+    const key = day(new Date(artifactTime(a)));
     const group = groups.get(key) ?? {
       label: key === today ? "今天" : key === yesterday ? "昨天" : key,
       artifacts: [],
@@ -34,9 +51,11 @@ export function previousArtifactImage(selected: WallArtifact, artifacts: readonl
           a.kind === "image" &&
           a.threadId === selected.threadId &&
           a.id !== selected.id &&
-          a.createdAt < selected.createdAt,
+          artifactTime(a) < artifactTime(selected),
       )
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id))[0] ?? null
+      .sort(
+        (a, b) => artifactTime(b).localeCompare(artifactTime(a)) || a.id.localeCompare(b.id),
+      )[0] ?? null
   );
 }
 export const ARTIFACT_DRAG_TYPE = "application/x-t3-artifact";

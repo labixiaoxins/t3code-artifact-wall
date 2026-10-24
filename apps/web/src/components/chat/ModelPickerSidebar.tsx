@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { Toolbar } from "@base-ui/react/toolbar";
 import { type ProviderInstanceId } from "@t3tools/contracts";
 import { memo, useLayoutEffect, useRef, useState } from "react";
@@ -11,11 +12,6 @@ import {
   type ProviderInstanceEntry,
 } from "../../providerInstances";
 
-/**
- * Build the hover tooltip for an instance button. Mirrors the old
- * kind-based copy but uses the entry's configured `displayName` so custom
- * instances get their user-authored name (e.g. "Codex Personal — Unavailable.").
- */
 function describeUnavailableInstance(entry: ProviderInstanceEntry): string {
   const label = entry.displayName;
   if (!entry.enabled || entry.status === "disabled") {
@@ -36,7 +32,6 @@ const BADGE_BASE_CLASS =
   "pointer-events-none absolute -right-0.5 top-0.5 z-10 flex size-3.5 items-center justify-center rounded-full bg-transparent shadow-sm ";
 const NEW_BADGE_CLASS = `${BADGE_BASE_CLASS} text-update-foreground `;
 
-/** Opens toward the rail so the list stays readable (not over the model names). */
 const PICKER_TOOLTIP_SIDE = "left" as const;
 const PICKER_TOOLTIP_SIDE_OFFSET = 8;
 
@@ -44,25 +39,11 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
   selectedInstanceId: ProviderInstanceId | "favorites";
   onSelectInstance: (instanceId: ProviderInstanceId | "favorites") => void;
   onFocusSearch: () => void;
-  /**
-   * Instance entries to render as rail buttons. Each entry becomes one icon
-   * keyed by `instanceId`, so the default built-in Codex and a user-authored
-   * `codex_personal` appear as two distinct rail items, each routing to
-   * their own model list.
-   */
   instanceEntries: ReadonlyArray<ProviderInstanceEntry>;
-  /** Render the favorites rail entry. Hidden for locked-provider instance switching. */
   showFavorites?: boolean;
-  /** Instance ids shown in the rail but unavailable for the current picker context. */
   disabledInstanceIds?: ReadonlySet<ProviderInstanceId>;
-  /** Non-ready instances whose selected unavailable model remains reachable. */
   selectableUnavailableInstanceIds?: ReadonlySet<ProviderInstanceId>;
   getDisabledInstanceTooltip?: (entry: ProviderInstanceEntry) => string;
-  /**
-   * Instance id values that should render the "new" sparkle badge. Callers
-   * pass the subset of default built-in ids they want flagged (custom
-   * instances are never flagged — the user just made them).
-   */
   newBadgeInstanceIds?: ReadonlySet<ProviderInstanceId>;
 }) {
   const handleSelect = (instanceId: ProviderInstanceId | "favorites") => {
@@ -85,13 +66,18 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
       return;
     }
     setSelectedIndicatorTop(selectedItem.offsetTop + selectedItem.offsetHeight / 2 - 10);
-  }, [props.instanceEntries, props.selectedInstanceId, showFavorites]);
+  }, [
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Adding, removing or reordering providers moves the selected item, so the indicator re-measures.
+    props.instanceEntries,
+    props.selectedInstanceId,
+    showFavorites,
+  ]);
 
   return (
     <Toolbar.Root
       className="w-11 shrink-0 overflow-hidden bg-muted/30"
       data-model-picker-sidebar="true"
-      aria-label="Providers"
+      aria-label={uiText("Providers")}
       orientation="vertical"
       onKeyDown={(event) => {
         if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
@@ -114,7 +100,6 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
               style={{ top: selectedIndicatorTop }}
             />
           ) : null}
-          {/* Favorites section */}
           {showFavorites ? (
             <>
               <div className="relative w-full" data-model-picker-provider="favorites">
@@ -127,7 +112,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                         )}
                         onClick={() => handleSelect("favorites")}
                         type="button"
-                        aria-label="Favorites"
+                        aria-label={uiText("Favorites")}
                         aria-pressed={props.selectedInstanceId === "favorites"}
                       >
                         <StarIcon className="size-5 fill-current shrink-0" aria-hidden />
@@ -139,15 +124,13 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                     sideOffset={PICKER_TOOLTIP_SIDE_OFFSET}
                     align="center"
                   >
-                    Favorites
-                  </TooltipPopup>
+                    {uiText("Favorites")}</TooltipPopup>
                 </Tooltip>
               </div>
               <div className="border-b border-border/70" aria-hidden="true" />
             </>
           ) : null}
 
-          {/* Instance buttons (one per configured instance — built-in + custom) */}
           {props.instanceEntries.map((entry) => {
             const isUnavailable = !isProviderInstancePickerReady(entry);
             const isContextDisabled = props.disabledInstanceIds?.has(entry.instanceId) ?? false;
@@ -192,7 +175,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                   isUnavailable || isContextDisabled
                     ? tooltip
                     : showNewBadge
-                      ? `${entry.displayName}, new`
+                      ? uiText("{0}, new", {"0": entry.displayName})
                       : entry.displayName
                 }
               >

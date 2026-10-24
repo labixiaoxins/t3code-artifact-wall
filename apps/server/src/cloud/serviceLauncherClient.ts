@@ -1,5 +1,5 @@
 import type { ServerSelfUpdateOutcome } from "@t3tools/contracts";
-import { HostProcessEnvironment } from "@t3tools/shared/hostProcess";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -20,7 +20,6 @@ export class ServiceLauncherClientError extends Schema.TaggedError<ServiceLaunch
     operation: Schema.Literals([
       "decode-context",
       "version-mismatch",
-      "ipc-unavailable",
       "unmanaged",
       "send",
       "disconnect",
@@ -35,8 +34,6 @@ export class ServiceLauncherClientError extends Schema.TaggedError<ServiceLaunch
         return "The service launcher supplied invalid startup context.";
       case "version-mismatch":
         return "The service launcher started a different t3 version.";
-      case "ipc-unavailable":
-        return "The service launcher IPC channel is unavailable.";
       case "unmanaged":
         return "This server is not managed by the launcher.";
       case "send":
@@ -114,9 +111,12 @@ export class ServiceLauncherClient extends Context.Service<
 const resolveStartup = Effect.fn("cloud.service_launcher_client.resolve_startup")(
   function* (options?: { readonly currentVersion?: string }) {
     const host = yield* ServiceLauncherHostProcess;
-    const environment = yield* HostProcessEnvironment;
+    const environment = yield* HostProcess.Environment;
     const currentVersion = options?.currentVersion ?? packageJson.version;
-    const rawContext = environment[SERVICE_LAUNCHER_CONTEXT_ENV];
+    // The launcher always spawns its child with an IPC channel, and Node does
+    // not pass that channel on. Without one, the context was inherited from an
+    // ancestor (e.g. `t3 serve` run in a T3 terminal), so it describes someone else.
+    const rawContext = host.connected ? environment[SERVICE_LAUNCHER_CONTEXT_ENV] : undefined;
     const context = rawContext === undefined ? undefined : decodeServiceLauncherContext(rawContext);
 
     if (rawContext !== undefined && context === undefined) {
@@ -126,10 +126,7 @@ const resolveStartup = Effect.fn("cloud.service_launcher_client.resolve_startup"
       return yield* new ServiceLauncherClientError({ operation: "version-mismatch" });
     }
 
-    const managed = context !== undefined && host.connected;
-    if (context !== undefined && !managed) {
-      return yield* new ServiceLauncherClientError({ operation: "ipc-unavailable" });
-    }
+    const managed = context !== undefined;
 
     return { host, context, managed };
   },

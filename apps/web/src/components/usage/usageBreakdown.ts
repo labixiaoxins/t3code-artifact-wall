@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type { UsageTokenTotals } from "@t3tools/contracts";
 import {
   isModelCostUnknown,
@@ -40,11 +41,9 @@ export function costPerMillionTokens(model: ModelTotals): number | null {
     : (model.costUsd / pricedTokens) * 1_000_000;
 }
 
-/** A neutral step between background and foreground, so mixes never borrow a provider's color. */
 const ink = (percent: number) =>
   `color-mix(in oklab, var(--foreground) ${percent}%, var(--background))`;
 
-/** Adjacent segments stay above the 15 ΔE separation floor in both themes. */
 const TYPE_COLORS = {
   input: ink(60),
   cacheRead: ink(30),
@@ -55,13 +54,11 @@ const TYPE_COLORS = {
 
 export function costTypeSegments(cost: CategoryCost): readonly ShareSegment[] {
   return [
-    { label: "Input", value: cost.input, color: TYPE_COLORS.input },
-    { label: "Cache read", value: cost.cacheRead, color: TYPE_COLORS.cacheRead },
-    { label: "Cache write", value: cost.cacheWrite, color: TYPE_COLORS.cacheWrite },
-    { label: "Output", value: cost.output, color: TYPE_COLORS.output },
-    // Reported cost with no rates to split it, or from older servers. Below a
-    // cent it is rounding, not usage.
-    { label: "Other", value: cost.unsplit >= 0.005 ? cost.unsplit : 0, color: TYPE_COLORS.other },
+    { label: uiText("Input"), value: cost.input, color: TYPE_COLORS.input },
+    { label: uiText("Cache read"), value: cost.cacheRead, color: TYPE_COLORS.cacheRead },
+    { label: uiText("Cache write"), value: cost.cacheWrite, color: TYPE_COLORS.cacheWrite },
+    { label: uiText("Output"), value: cost.output, color: TYPE_COLORS.output },
+    { label: uiText("Other"), value: cost.unsplit >= 0.005 ? cost.unsplit : 0, color: TYPE_COLORS.other },
   ];
 }
 
@@ -69,18 +66,17 @@ export function tokenTypeSegments(
   tokens: Omit<UsageTokenTotals, "reasoningTokens">,
 ): readonly ShareSegment[] {
   return [
-    { label: "Input", value: tokens.uncachedInputTokens, color: TYPE_COLORS.input },
-    { label: "Cache read", value: tokens.cachedInputTokens, color: TYPE_COLORS.cacheRead },
-    { label: "Cache write", value: tokens.cacheCreationTokens, color: TYPE_COLORS.cacheWrite },
-    { label: "Output", value: tokens.outputTokens, color: TYPE_COLORS.output },
+    { label: uiText("Input"), value: tokens.uncachedInputTokens, color: TYPE_COLORS.input },
+    { label: uiText("Cache read"), value: tokens.cachedInputTokens, color: TYPE_COLORS.cacheRead },
+    { label: uiText("Cache write"), value: tokens.cacheCreationTokens, color: TYPE_COLORS.cacheWrite },
+    { label: uiText("Output"), value: tokens.outputTokens, color: TYPE_COLORS.output },
   ];
 }
 
-/** Speeds are ordered by price, so they brighten from standard to ultrafast. */
 export function speedCostSegments(cost: SpeedCost): readonly ShareSegment[] {
   return [
-    { label: "Standard", value: cost.standard, color: ink(34) },
-    { label: "Fast", value: cost.fast, color: ink(66) },
-    { label: "Ultrafast", value: cost.ultrafast, color: ink(100) },
+    { label: uiText("Standard"), value: cost.standard, color: ink(34) },
+    { label: uiText("Fast"), value: cost.fast, color: ink(66) },
+    { label: uiText("Ultrafast"), value: cost.ultrafast, color: ink(100) },
   ];
 }

@@ -1,5 +1,7 @@
 "use client";
+import { uiText } from "~/i18n";
 
+import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
 import {
   createPreviewFramePainter,
   createPreviewStreamClient,
@@ -26,14 +28,12 @@ import {
   type KeyboardEvent,
   type PointerEvent,
   type Ref,
-  useCallback,
   useEffect,
   useEffectEvent,
   useImperativeHandle,
   useRef,
   useState,
 } from "react";
-
 import { AgentCursorMark } from "~/components/preview/AgentBrowserCursor";
 import { CommandBlock } from "~/components/CommandBlock";
 import { Button } from "~/components/ui/button";
@@ -41,8 +41,7 @@ import { Input } from "~/components/ui/input";
 import { toastManager } from "~/components/ui/toast";
 import { cn } from "~/lib/utils";
 import { refreshPreviewStreamAccess, usePreviewStreamAccess } from "~/state/previewStream";
-
-/** Chrome-row controls for a server tab; commands require current ownership. */
+import { observeResize } from "~/lib/observeResize";
 export interface ServerBrowserHandle {
   readonly navigate: (url: string) => void;
   readonly history: (delta: -1 | 1) => void;
@@ -50,13 +49,12 @@ export interface ServerBrowserHandle {
   readonly viewport: (setting: PreviewViewportSetting) => void;
   readonly canvas: () => HTMLCanvasElement | null;
 }
-
-const RESIZE_DEBOUNCE_MS = 150;
-const ACCESS_RETRY_MS = 10_000;
+const RESIZE_THROTTLE_MS = 150;
+const ACCESS_RETRY_MS = 10000;
 // A recent probe answer near a new tap stands in for that tap's own answer,
 // which on a slow link arrives after the tap ends.
 const PROBE_REUSE_PX = 24;
-const PROBE_REUSE_MS = 10_000;
+const PROBE_REUSE_MS = 10000;
 // Kept in the input so soft keyboards have something to delete: Android
 // reports Backspace only as a deletion of text, not as a key.
 const INPUT_SENTINEL = "\u200b";
@@ -67,17 +65,23 @@ const TAP_SLOP_PX = 8;
 const MULTI_CLICK_MS = 500;
 const MULTI_CLICK_SLOP_PX = 4;
 const WHEEL_LINE_PX = 16;
-
-type MouseInput = Extract<PreviewStreamInput, { type: "mouse" }>;
-type WheelInput = Extract<PreviewStreamInput, { type: "wheel" }>;
-
+type MouseInput = Extract<
+  PreviewStreamInput,
+  {
+    type: "mouse";
+  }
+>;
+type WheelInput = Extract<
+  PreviewStreamInput,
+  {
+    type: "wheel";
+  }
+>;
 interface PagePoint {
   readonly x: number;
   readonly y: number;
-  /** Page CSS px per client px. */
   readonly scale: number;
 }
-
 interface TouchGesture {
   readonly pointerId: number;
   readonly startX: number;
@@ -86,48 +90,39 @@ interface TouchGesture {
   lastY: number;
   panning: boolean;
 }
-
-/** Whether the page point under a touch takes text; null until the server answers. */
 interface TouchProbe {
   readonly x: number;
   readonly y: number;
   editable: boolean | null;
-  /** True only for this tap's own reply, never for a cached answer. */
   answered: boolean;
-  /** The tap ended before the answer arrived. */
   tapped: boolean;
 }
-
 const buttonOf = (button: number): PreviewStreamMouseButton =>
   button === 0 ? "left" : button === 1 ? "middle" : button === 2 ? "right" : "none";
-
 const pressedButtonOf = (buttons: number): PreviewStreamMouseButton =>
   buttons & 1 ? "left" : buttons & 2 ? "right" : buttons & 4 ? "middle" : "none";
-
 /** Browsers may refuse a write that arrives after the key press; a toast button is a fresh gesture. */
 async function copyPageText(text: string) {
   try {
-    await navigator.clipboard.writeText(text);
+    await writeTextToClipboard(text, "browser page text");
   } catch {
     const id = toastManager.add({
       type: "info",
-      title: "The page copied text",
+      title: uiText("The page copied text"),
       actionProps: {
         children: "Copy",
         onClick: () => {
           toastManager.close(id);
-          void navigator.clipboard.writeText(text).catch(() => undefined);
+          void writeTextToClipboard(text, "browser page text").catch(() => undefined);
         },
       },
     });
   }
 }
-
-/** The download happens on the environment; this hands the finished file to this device. */
 function offerDownload(download: PreviewStreamDownload) {
   const id = toastManager.add({
     type: "info",
-    title: `Downloaded ${download.fileName}`,
+    title: uiText("Downloaded {0}", {"0": download.fileName}),
     actionProps: {
       children: "Save",
       onClick: () => {
@@ -140,20 +135,19 @@ function offerDownload(download: PreviewStreamDownload) {
     },
   });
 }
-
 export function ServerBrowserSurface(props: {
   readonly environmentId: EnvironmentId;
   readonly threadId: string;
   readonly tabId: string;
   readonly visible: boolean;
-  /** Sends the surface size so fill-mode tabs follow it. The floating player scales the page instead. */
   readonly followSize?: boolean;
-  /** Floating previews reserve the top edge for their existing hover controls. */
   readonly controlPosition?: "top" | "bottom";
   readonly onFirstFrame?: () => void;
   readonly onViewport?: (viewport: PreviewStreamViewport) => void;
   readonly onControl?: (control: PreviewStreamControl | null) => void;
+  readonly onPopup?: (tabId: string) => void;
   readonly className?: string;
+  readonly pdfUrl?: string | null;
   readonly ref?: Ref<ServerBrowserHandle>;
 }) {
   const {
@@ -166,7 +160,9 @@ export function ServerBrowserSurface(props: {
     onFirstFrame,
     onViewport,
     onControl,
+    onPopup,
     className,
+    pdfUrl = null,
     ref,
   } = props;
   const access = usePreviewStreamAccess(environmentId);
@@ -175,7 +171,10 @@ export function ServerBrowserSurface(props: {
   const keySentRef = useRef(false);
   const clientRef = useRef<PreviewStreamClient | null>(null);
   const viewportRef = useRef<PreviewStreamViewport | null>(null);
-  const sizeRef = useRef<{ width: number; height: number } | null>(null);
+  const sizeRef = useRef<{
+    width: number;
+    height: number;
+  } | null>(null);
   const hasFrameRef = useRef(false);
   const controlRef = useRef<PreviewStreamControl | null>(null);
   const [control, setControl] = useState<PreviewStreamControl | null>(null);
@@ -190,7 +189,7 @@ export function ServerBrowserSurface(props: {
     void uploadPreviewStreamFiles(chooser, files).catch((cause: unknown) =>
       toastManager.add({
         type: "error",
-        title: "Could not send the files to the page",
+        title: uiText("Could not send the files to the page"),
         description: cause instanceof Error ? cause.message : undefined,
       }),
     );
@@ -212,21 +211,28 @@ export function ServerBrowserSurface(props: {
   } | null>(null);
   const touchRef = useRef<TouchGesture | null>(null);
   const probeRef = useRef<TouchProbe | null>(null);
-  const lastProbeRef = useRef<{ x: number; y: number; editable: boolean; at: number } | null>(null);
+  const lastProbeRef = useRef<{
+    x: number;
+    y: number;
+    editable: boolean;
+    at: number;
+  } | null>(null);
   const firstFrame = useEffectEvent(() => onFirstFrame?.());
   const viewportChanged = useEffectEvent((viewport: PreviewStreamViewport) =>
     onViewport?.(viewport),
   );
   const controlChanged = useEffectEvent((next: PreviewStreamControl | null) => onControl?.(next));
-  // Frame cap in device px, fixed per socket. It grows with the surface and
-  // never shrinks, so only outgrowing it reconnects.
-  const [cap, setCap] = useState<{ width: number; height: number } | null>(null);
-
-  const send = useCallback((input: PreviewStreamInput) => {
+  const popupOpened = useEffectEvent((popupTabId: string) => onPopup?.(popupTabId));
+  const [cap, setCap] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+  // These read only refs, so each is cached once. The stream effect keys on
+  // clearInput and would reconnect if it changed.
+  const send = (input: PreviewStreamInput) => {
     clientRef.current?.send(input);
-  }, []);
-
-  const clearInput = useCallback(() => {
+  };
+  const clearInput = () => {
     if (inputFrameRef.current !== null) cancelAnimationFrame(inputFrameRef.current);
     inputFrameRef.current = null;
     pendingMoveRef.current = pendingWheelRef.current = null;
@@ -237,9 +243,8 @@ export function ServerBrowserSurface(props: {
     keySentRef.current = false;
     if (inputRef.current) inputRef.current.value = INPUT_SENTINEL;
     inputRef.current?.blur();
-  }, []);
-
-  const flushInput = useCallback(() => {
+  };
+  const flushInput = () => {
     if (inputFrameRef.current !== null) cancelAnimationFrame(inputFrameRef.current);
     inputFrameRef.current = null;
     const move = pendingMoveRef.current;
@@ -248,55 +253,43 @@ export function ServerBrowserSurface(props: {
     pendingWheelRef.current = null;
     if (move) send(move);
     if (wheel) send(wheel);
-  }, [send]);
-
-  // Coalesce moves and wheel deltas to one message each per animation frame.
-  const scheduleFlush = useCallback(() => {
-    inputFrameRef.current ??= requestAnimationFrame(flushInput);
-  }, [flushInput]);
-
-  const queueWheel = useCallback(
-    (point: PagePoint, deltaX: number, deltaY: number, modifiers: number) => {
-      const pending = pendingWheelRef.current;
-      pendingWheelRef.current = {
-        type: "wheel",
-        x: point.x,
-        y: point.y,
-        deltaX: (pending?.deltaX ?? 0) + deltaX,
-        deltaY: (pending?.deltaY ?? 0) + deltaY,
-        modifiers,
-      };
-      scheduleFlush();
-    },
-    [scheduleFlush],
-  );
-
-  const pagePoint = useCallback(
-    (clientX: number, clientY: number, clamp: boolean): PagePoint | null => {
-      const canvas = canvasRef.current;
-      const viewport = viewportRef.current;
-      if (!canvas || !viewport || !hasFrameRef.current || controlRef.current?.controller !== "you")
-        return null;
-      const rect = canvas.getBoundingClientRect();
-      // `object-contain` letterboxes the frame inside the canvas box.
-      const fit = Math.min(rect.width / canvas.width, rect.height / canvas.height);
-      const width = canvas.width * fit;
-      const height = canvas.height * fit;
-      if (!(width > 0 && height > 0)) return null;
-      const scale = viewport.width / width;
-      const x = (clientX - rect.left - (rect.width - width) / 2) * scale;
-      const y = (clientY - rect.top - (rect.height - height) / 2) * (viewport.height / height);
-      const inside = x >= 0 && y >= 0 && x <= viewport.width && y <= viewport.height;
-      if (!inside && !clamp) return null;
-      return {
-        x: Math.min(Math.max(x, 0), viewport.width),
-        y: Math.min(Math.max(y, 0), viewport.height),
-        scale,
-      };
-    },
-    [],
-  );
-
+  };
+  const scheduleFlush = () => {
+    if (inputFrameRef.current === null) inputFrameRef.current = requestAnimationFrame(flushInput);
+  };
+  const queueWheel = (point: PagePoint, deltaX: number, deltaY: number, modifiers: number) => {
+    const pending = pendingWheelRef.current;
+    pendingWheelRef.current = {
+      type: "wheel",
+      x: point.x,
+      y: point.y,
+      deltaX: (pending?.deltaX ?? 0) + deltaX,
+      deltaY: (pending?.deltaY ?? 0) + deltaY,
+      modifiers,
+    };
+    scheduleFlush();
+  };
+  const pagePoint = (clientX: number, clientY: number, clamp: boolean): PagePoint | null => {
+    const canvas = canvasRef.current;
+    const viewport = viewportRef.current;
+    if (!canvas || !viewport || !hasFrameRef.current || controlRef.current?.controller !== "you")
+      return null;
+    const rect = canvas.getBoundingClientRect();
+    const fit = Math.min(rect.width / canvas.width, rect.height / canvas.height);
+    const width = canvas.width * fit;
+    const height = canvas.height * fit;
+    if (!(width > 0 && height > 0)) return null;
+    const scale = viewport.width / width;
+    const x = (clientX - rect.left - (rect.width - width) / 2) * scale;
+    const y = (clientY - rect.top - (rect.height - height) / 2) * (viewport.height / height);
+    const inside = x >= 0 && y >= 0 && x <= viewport.width && y <= viewport.height;
+    if (!inside && !clamp) return null;
+    return {
+      x: Math.min(Math.max(x, 0), viewport.width),
+      y: Math.min(Math.max(y, 0), viewport.height),
+      scale,
+    };
+  };
   const countClick = (button: PreviewStreamMouseButton, x: number, y: number, time: number) => {
     const last = lastClickRef.current;
     const count =
@@ -309,9 +302,7 @@ export function ServerBrowserSurface(props: {
     lastClickRef.current = { button, time, x, y, count };
     return count;
   };
-
   const focusInput = () => inputRef.current?.focus({ preventScroll: true });
-
   useImperativeHandle(
     ref,
     () => ({
@@ -320,24 +311,19 @@ export function ServerBrowserSurface(props: {
       reload: (options) =>
         send({ type: "reload", ...(options?.ignoreCache ? { ignoreCache: true } : {}) }),
       viewport: (setting) => send({ type: "viewport", setting }),
-      canvas: () => (hasFrameRef.current ? canvasRef.current : null),
+      canvas: () => (!pdfUrl && hasFrameRef.current ? canvasRef.current : null),
     }),
-    [send],
+    [pdfUrl, send],
   );
-
   useEffect(() => {
     const element = canvasRef.current?.parentElement;
     if (!element) return;
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const measure = () => {
-      timer = null;
-      const rect = element.getBoundingClientRect();
-      if (rect.width < 1 || rect.height < 1) return;
-      const size = { width: Math.round(rect.width), height: Math.round(rect.height) };
-      const previous = sizeRef.current;
-      if (previous?.width === size.width && previous.height === size.height) return;
-      sizeRef.current = size;
-      if (followSize) clientRef.current?.send({ type: "resize", ...size });
+    let capTimer: ReturnType<typeof setTimeout> | null = null;
+    const growCap = () => {
+      capTimer = null;
+      const size = sizeRef.current;
+      if (!size) return;
       const ratio = window.devicePixelRatio || 1;
       const width = Math.round(size.width * ratio);
       const height = Math.round(size.height * ratio);
@@ -350,18 +336,30 @@ export function ServerBrowserSurface(props: {
             },
       );
     };
-    const observer = new ResizeObserver(() => {
-      if (timer !== null) clearTimeout(timer);
-      // The first size connects right away; later ones settle before resizing the page.
-      timer = setTimeout(measure, sizeRef.current === null ? 0 : RESIZE_DEBOUNCE_MS);
+    const measure = () => {
+      timer = null;
+      const rect = element.getBoundingClientRect();
+      if (rect.width < 1 || rect.height < 1) return;
+      const size = { width: Math.round(rect.width), height: Math.round(rect.height) };
+      const previous = sizeRef.current;
+      if (previous?.width === size.width && previous.height === size.height) return;
+      sizeRef.current = size;
+      if (followSize) clientRef.current?.send({ type: "resize", ...size });
+      // Outgrowing the cap reconnects the stream, so grow it once the size settles
+      // rather than on every throttled resize of a drag.
+      if (capTimer !== null) clearTimeout(capTimer);
+      capTimer = setTimeout(growCap, previous === null ? 0 : RESIZE_THROTTLE_MS * 2);
+    };
+    const stopObserving = observeResize(element, () => {
+      if (timer !== null) return;
+      timer = setTimeout(measure, sizeRef.current === null ? 0 : RESIZE_THROTTLE_MS);
     });
-    observer.observe(element);
     return () => {
-      observer.disconnect();
+      stopObserving();
       if (timer !== null) clearTimeout(timer);
+      if (capTimer !== null) clearTimeout(capTimer);
     };
   }, [followSize]);
-
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!visible || accessDenied || hostSetup || !access || !cap || !canvas) return;
@@ -386,7 +384,6 @@ export function ServerBrowserSurface(props: {
           probe.editable = result.editable;
           probe.answered = true;
           if (!probe.tapped) return;
-          // Late answer: Android still raises the keyboard; iOS waits for the next tap.
           probeRef.current = null;
           if (result.editable) inputRef.current?.focus({ preventScroll: true });
           else inputRef.current?.blur();
@@ -397,6 +394,7 @@ export function ServerBrowserSurface(props: {
         },
         onClipboard: (text) => void copyPageText(text),
         onDownload: offerDownload,
+        onPopup: popupOpened,
         onFileChooser: setFileChooser,
         onViewport: (viewport) => {
           viewportRef.current = viewport;
@@ -429,7 +427,6 @@ export function ServerBrowserSurface(props: {
         },
         onHostSetup: setHostSetup,
         onUnauthorized: () => {
-          // Fresh tickets re-run this effect. Repeated refusals need an explicit retry.
           const refusals = ++unauthorizedRef.current;
           if (refusals >= MAX_UNAUTHORIZED_REFUSALS) {
             inputRef.current?.blur();
@@ -438,7 +435,7 @@ export function ServerBrowserSurface(props: {
           }
           refreshTimer = setTimeout(
             () => refreshPreviewStreamAccess(environmentId),
-            refusals === 1 ? 0 : 1_000 * 2 ** (refusals - 1),
+            refusals === 1 ? 0 : 1000 * 2 ** (refusals - 1),
           );
         },
       },
@@ -466,14 +463,11 @@ export function ServerBrowserSurface(props: {
     threadId,
     visible,
   ]);
-
   useEffect(() => {
     if (!visible || accessDenied || access !== null) return;
-    // A failed ticket mint, e.g. while the server restarts, never retries on its own.
     const timer = setInterval(() => refreshPreviewStreamAccess(environmentId), ACCESS_RETRY_MS);
     return () => clearInterval(timer);
   }, [access, accessDenied, environmentId, visible]);
-
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -493,14 +487,12 @@ export function ServerBrowserSurface(props: {
     canvas.addEventListener("wheel", onWheel, { passive: false });
     return () => canvas.removeEventListener("wheel", onWheel);
   }, [pagePoint, queueWheel]);
-
   useEffect(
     () => () => {
       if (inputFrameRef.current !== null) cancelAnimationFrame(inputFrameRef.current);
     },
     [],
   );
-
   const handlePointer = (event: PointerEvent<HTMLCanvasElement>) => {
     if (controlRef.current?.controller !== "you") return;
     const { type, pointerId, clientX, clientY } = event;
@@ -638,22 +630,18 @@ export function ServerBrowserSurface(props: {
       scheduleFlush();
     }
   };
-
   const resetInput = (textarea: HTMLTextAreaElement) => {
     keySentRef.current = false;
     textarea.value = INPUT_SENTINEL;
     textarea.setSelectionRange(INPUT_SENTINEL.length, INPUT_SENTINEL.length);
   };
-
   const sendKeyPress = (key: typeof BACKSPACE | typeof DELETE) => {
     send({ type: "key", action: "down", ...key, modifiers: 0 });
     send({ type: "key", action: "up", ...key, modifiers: 0 });
   };
-
   const handleKey = (action: "down" | "up", event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (controlRef.current?.controller !== "you") return;
     keySentRef.current = false;
-    // IME and soft keyboards deliver text through composition and input events.
     if (
       event.nativeEvent.isComposing ||
       event.keyCode === 229 ||
@@ -662,7 +650,6 @@ export function ServerBrowserSurface(props: {
     ) {
       return;
     }
-    // Keep plain Escape and Tab in the page; Shift+Escape returns to the app.
     if (event.key === "Escape" && event.shiftKey) {
       event.preventDefault();
       event.stopPropagation();
@@ -670,8 +657,6 @@ export function ServerBrowserSurface(props: {
       return;
     }
     const shortcut = event.ctrlKey || event.metaKey;
-    // Paste arrives as a paste event carrying this device's clipboard. Copy and cut run
-    // in the page, which sends the copied text back. Shift+Insert is the same paste.
     if (shortcut && event.key.toLowerCase() === "v") return;
     if (event.shiftKey && event.key === "Insert") return;
     // Enter carries "\r" like Puppeteer's key table, so forms submit and textareas break lines.
@@ -696,12 +681,10 @@ export function ServerBrowserSurface(props: {
       action === "down" &&
       !shortcut &&
       (text !== undefined || event.key === "Backspace" || event.key === "Delete");
-    // Shortcuts stay with the app (copy, paste, keybindings); other keys belong to the page.
     if (shortcut) return;
     event.preventDefault();
     event.stopPropagation();
   };
-
   const handleInput = (event: FormEvent<HTMLTextAreaElement>) => {
     const native = event.nativeEvent;
     if (native instanceof InputEvent && native.isComposing) return;
@@ -716,7 +699,6 @@ export function ServerBrowserSurface(props: {
     }
     resetInput(textarea);
   };
-
   return (
     <div
       className={cn("relative flex flex-col overflow-hidden", className)}
@@ -728,35 +710,42 @@ export function ServerBrowserSurface(props: {
           controlPosition === "bottom" ? "order-last border-t" : "border-b",
         )}
       >
-        <span role="status" className="text-xs text-muted-foreground">
+        <span role={"status"} className={"text-xs text-muted-foreground"}>
           {previewStreamControlLabel(control)}
         </span>
         {control?.canOperate ? (
           <Button
-            variant="outline"
-            size="xs"
+            variant={"outline"}
+            size={"xs"}
             disabled={control.controller === "another-viewer"}
             onClick={() =>
               send({ type: control.controller === "you" ? "releaseControl" : "takeControl" })
             }
           >
-            {control.controller === "you" ? "Release control" : "Take control"}
+            {control.controller === "you" ? uiText("Release control") : uiText("Take control")}
           </Button>
         ) : null}
       </div>
-      <div className="relative min-h-0 flex-1">
+      <div className={"relative min-h-0 flex-1"}>
+        {pdfUrl ? (
+          <embed
+            src={pdfUrl}
+            type={"application/pdf"}
+            title={"PDF document"}
+            className={"absolute inset-0 z-10 size-full border-0"}
+          />
+        ) : null}
         <canvas
           ref={canvasRef}
-          className="block size-full touch-none object-contain"
+          className={"block size-full touch-none object-contain"}
           onPointerDown={handlePointer}
           onPointerMove={handlePointer}
           onPointerUp={handlePointer}
           onPointerCancel={handlePointer}
-          // Keeps focus in the page input below and stops native text selection.
           onMouseDown={(event) => event.preventDefault()}
           onContextMenu={(event) => event.preventDefault()}
         />
-        {agentCursor && control?.controller !== "you" ? (
+        {!pdfUrl && agentCursor && control?.controller !== "you" ? (
           <AgentCursorMark
             {...agentCursor}
             controller={control?.controller === "agent" ? "agent" : "none"}
@@ -766,17 +755,17 @@ export function ServerBrowserSurface(props: {
           scrolls the surface; 16px keeps iOS from zooming the app on focus. */}
         <textarea
           ref={inputRef}
-          aria-label="Browser page"
-          aria-description="Press Shift+Escape to leave the browser page."
-          autoCapitalize="off"
-          autoComplete="off"
-          autoCorrect="off"
+          aria-label={uiText("Browser page")}
+          aria-description={uiText("Press Shift+Escape to leave the browser page.")}
+          autoCapitalize={"off"}
+          autoComplete={"off"}
+          autoCorrect={"off"}
           spellCheck={false}
-          disabled={control?.controller !== "you"}
+          disabled={pdfUrl !== null || control?.controller !== "you"}
           defaultValue={INPUT_SENTINEL}
           // The caret must sit after the sentinel for a deletion to have something to delete.
           onFocus={(event) => resetInput(event.currentTarget)}
-          className="sr-only top-0 left-0 text-base"
+          className={"sr-only top-0 left-0 text-base"}
           onKeyDown={(event) => handleKey("down", event)}
           onKeyUp={(event) => handleKey("up", event)}
           onInput={handleInput}
@@ -796,17 +785,21 @@ export function ServerBrowserSurface(props: {
         />
         {fileChooser && control?.controller === "you" ? (
           <div
-            className="absolute inset-x-2 top-2 z-10 flex flex-col gap-2 rounded-lg border border-border bg-background p-3 shadow-lg"
-            role="dialog"
-            aria-label="Choose files for the page"
+            className={
+              "absolute inset-x-2 top-2 z-10 flex flex-col gap-2 rounded-lg border border-border bg-background p-3 shadow-lg"
+            }
+            role={"dialog"}
+            aria-label={uiText("Choose files for the page")}
           >
-            <p className="text-sm">
-              The page asks for {fileChooser.multiple ? "files" : "a file"}.
+            <p className={"text-sm"}>
+              {uiText("The page asks for")}
+              {fileChooser.multiple ? uiText("files") : uiText("a file")}
+              {"."}
             </p>
             <input
               ref={fileInputRef}
-              type="file"
-              className="hidden"
+              type={"file"}
+              className={"hidden"}
               multiple={fileChooser.multiple}
               accept={fileChooser.accept}
               onChange={(event) => {
@@ -815,42 +808,45 @@ export function ServerBrowserSurface(props: {
                 if (files.length > 0) answerFileChooser(files);
               }}
             />
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => answerFileChooser([])}>
-                Cancel
+            <div className={"flex justify-end gap-2"}>
+              <Button variant={"outline"} size={"sm"} onClick={() => answerFileChooser([])}>
+                {uiText("Cancel")}
               </Button>
-              <Button size="sm" onClick={() => fileInputRef.current?.click()}>
-                Choose {fileChooser.multiple ? "files" : "file"}
+              <Button size={"sm"} onClick={() => fileInputRef.current?.click()}>
+                {uiText("Choose")}
+                {fileChooser.multiple ? uiText("files") : uiText("file")}
               </Button>
             </div>
           </div>
         ) : null}
         {control?.dialog ? (
           <div
-            className="absolute inset-x-2 top-2 z-10 flex flex-col gap-2 rounded-lg border border-border bg-background p-3 shadow-lg"
-            role="dialog"
-            aria-label="Browser dialog"
+            className={
+              "absolute inset-x-2 top-2 z-10 flex flex-col gap-2 rounded-lg border border-border bg-background p-3 shadow-lg"
+            }
+            role={"dialog"}
+            aria-label={uiText("Browser dialog")}
           >
-            <p className="break-words text-sm">{control.dialog.message}</p>
+            <p className={"break-words text-sm"}>{control.dialog.message}</p>
             {control.controller === "you" ? (
               <>
                 {control.dialog.type === "prompt" ? (
                   <Input
-                    aria-label="Dialog response"
+                    aria-label={uiText("Dialog response")}
                     value={promptText}
                     onChange={(event) => setPromptText(event.target.value)}
                   />
                 ) : null}
-                <div className="flex justify-end gap-2">
+                <div className={"flex justify-end gap-2"}>
                   <Button
-                    variant="outline"
-                    size="sm"
+                    variant={"outline"}
+                    size={"sm"}
                     onClick={() => send({ type: "dialog", accept: false })}
                   >
-                    Dismiss
+                    {uiText("Dismiss")}
                   </Button>
                   <Button
-                    size="sm"
+                    size={"sm"}
                     onClick={() =>
                       send({
                         type: "dialog",
@@ -859,58 +855,63 @@ export function ServerBrowserSurface(props: {
                       })
                     }
                   >
-                    Accept
+                    {uiText("Accept")}
                   </Button>
                 </div>
               </>
             ) : (
-              <p className="text-xs text-muted-foreground">Take control to respond.</p>
+              <p className={"text-xs text-muted-foreground"}>{uiText("Take control to respond.")}</p>
             )}
           </div>
         ) : null}
       </div>
       {visible && hostSetup ? (
-        <div className="visible absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-background p-4 text-center">
-          <p role="alert" className="max-w-sm text-sm text-muted-foreground">
+        <div
+          className={
+            "visible absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-background p-4 text-center"
+          }
+        >
+          <p role={"alert"} className={"max-w-sm text-sm text-muted-foreground"}>
             {previewStreamHostSetupMessage(hostSetup)}
           </p>
-          <CommandBlock command={hostSetup.command} className="w-full max-w-md text-left" />
-          <Button variant="outline" size="sm" onClick={() => setHostSetup(null)}>
-            Try again
+          <CommandBlock command={hostSetup.command} className={"w-full max-w-md text-left"} />
+          <Button variant={"outline"} size={"sm"} onClick={() => setHostSetup(null)}>
+            {uiText("Try again")}
           </Button>
         </div>
       ) : null}
       {visible && accessDenied ? (
         // The page can be invisible beneath an empty or unreachable state; reconnect must remain reachable.
-        <div className="visible absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-background p-3 text-center">
-          <p role="alert" className="text-xs text-muted-foreground">
-            Browser connection was refused.
+        <div
+          className={
+            "visible absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-background p-3 text-center"
+          }
+        >
+          <p role={"alert"} className={"text-xs text-muted-foreground"}>
+            {uiText("Browser connection was refused.")}
           </p>
           <Button
-            variant="outline"
-            size="sm"
+            variant={"outline"}
+            size={"sm"}
             onClick={() => {
               unauthorizedRef.current = 0;
               setAccessDenied(false);
               refreshPreviewStreamAccess(environmentId);
             }}
           >
-            Reconnect
+            {uiText("Reconnect")}
           </Button>
         </div>
       ) : null}
     </div>
   );
 }
-
 interface AgentCursorPlacement {
   readonly phase: PreviewStreamPointer["phase"];
   readonly sequence: number;
   readonly left: number;
   readonly top: number;
 }
-
-/** Places the agent cursor over the letterboxed frame, the inverse of the viewer's own pointer mapping. */
 function placeAgentCursor(
   pointer: PreviewStreamPointer,
   canvas: HTMLCanvasElement | null,

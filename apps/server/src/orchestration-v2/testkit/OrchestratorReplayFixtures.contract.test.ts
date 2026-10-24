@@ -4,11 +4,11 @@ import { OrchestrationV2Command, ProviderInstanceId } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 
-import * as IdAllocator from "../IdAllocator.ts";
+import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
 import { provideDeterministicTestRuntime } from "./DeterministicRuntime.ts";
 import { ORCHESTRATOR_REPLAY_FIXTURES } from "./fixtures/index.ts";
 import { materializeFixtureInput } from "./fixtures/shared.ts";
-import { readProviderReplayTranscript } from "./ReplayTranscriptNdjson.ts";
+import { readProviderReplayTranscript } from "@t3tools/provider-testing/replayTranscript";
 
 const decodeCommand = Schema.decodeUnknownEffect(OrchestrationV2Command);
 const readTranscript = Effect.fn("readOrchestratorReplayContractTranscript")(function* (file: URL) {
@@ -74,8 +74,6 @@ describe("orchestrator replay fixture contract", () => {
               throw new Error(`${fixture.name}/${provider.driver} must start with thread.create`);
             }
             assert.equal(firstCommand.threadId, materialized.projectionThreadIds[0]);
-            // These fixture steps coordinate the test runtime; every other
-            // input step dispatches a command.
             const commandProducingSteps = fixture
               .buildInput()
               .steps.filter(

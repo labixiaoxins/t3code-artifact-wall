@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useAtomValue } from "@effect/atom-react";
 import { resolveEnvironmentMachineKind } from "@t3tools/contracts";
 import {
@@ -17,17 +18,13 @@ import { FoldedSettingsSection } from "./FoldedSettingsSection";
 import { searchableSetting } from "./settingsSearch";
 
 const options: ReadonlyArray<{ value: GitHubRoutingPermission; label: string }> = [
-  { value: "off", label: "Off" },
-  { value: "read", label: "Read PRs" },
-  { value: "read-write", label: "Read and act" },
+  { value: "off", label: uiText("Off") },
+  { value: "read", label: uiText("Read PRs") },
+  { value: "read-write", label: uiText("Read and act") },
 ];
 
 const summaryLabels = { "read-write": "read and act", read: "read PRs" } as const;
 
-/**
- * Closed-header summary: the machines that share, grouped by permission.
- * Null when nothing is shared.
- */
 export function summarizeGitHubRouting(
   entries: ReadonlyArray<{ readonly label: string; readonly permission: GitHubRoutingPermission }>,
 ): string | null {
@@ -40,12 +37,6 @@ export function summarizeGitHubRouting(
   return groups.length === 0 ? null : groups.join(" · ");
 }
 
-/**
- * Folded section under the environments list. One row per switched-on machine
- * with how much of its GitHub access the other machines may use. The trust
- * warning is the first line of the body so it sits next to the control.
- * Rendered only when two or more machines are on.
- */
 export function GitHubRoutingSettings({
   environments,
 }: {
@@ -73,10 +64,7 @@ export function GitHubRoutingSettings({
       }
     >
       <p className="px-3 py-2.5 text-xs text-muted-foreground sm:px-4">
-        Machines you trust here can read PR data through each other's GitHub access. Enable both
-        machines. Read and act may use broader permissions than the machine that owns them. This
-        applies only to this device.
-      </p>
+        {uiText("Machines you trust here can read PR data through each other's GitHub access. Enable both machines. Read and act may use broader permissions than the machine that owns them. This applies only to this device.")}</p>
       {environments.map((environment) => (
         <EnvironmentRow
           key={environment.environmentId}
@@ -99,7 +87,7 @@ export function GitHubRoutingSettings({
                   if (result._tag === "Failure")
                     toastManager.add({
                       type: "error",
-                      title: "Could not save GitHub routing permission",
+                      title: uiText("Could not save GitHub routing permission"),
                     });
                 },
               );
@@ -108,7 +96,7 @@ export function GitHubRoutingSettings({
             <SelectTrigger
               size="xs"
               className="w-32"
-              aria-label={`${environment.label} GitHub routing`}
+              aria-label={uiText("{0} GitHub routing", {"0": environment.label})}
             >
               <SelectValue />
             </SelectTrigger>

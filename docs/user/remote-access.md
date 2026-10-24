@@ -21,9 +21,11 @@ server with `t3 serve`. Saving your sign-in alone does not make the machine
 reachable.
 
 On your other device, sign in to the same T3 Connect account and choose the
-environment. Over SSH, the CLI prints a browser link and a short code. Open the
-link on any device, confirm the code matches, and approve. The CLI continues on
-its own, so you do not need to forward an OAuth callback port.
+environment. On the app.t3.codes home page with no computer added yet, signing
+in adds compatible computers linked to your account. Over SSH, the CLI prints a
+browser link and a short code. Open the link on any device, confirm the code
+matches, and approve. The CLI continues on its own, so you do not need to forward
+an OAuth callback port.
 
 T3 Connect renews access credentials when needed without disconnecting a healthy
 connection. Pull request diffs and provider settings keep working after the
@@ -64,11 +66,14 @@ another link to share.
 
 ### Reach one machine several ways
 
-A machine can have more than one route: LAN, Tailscale, a public URL, SSH, or
-T3 Connect. To add one, choose **Add route** in the machine's route list, or
-next to it in the T3 Connect list. Pairing the same machine again over another
-address also adds a route instead of a second machine. A new route is placed by
-speed, in that order, and you can reorder routes at any time.
+A machine can have more than one route: LAN, Tailscale, another VPN, a public
+URL, SSH, or T3 Connect. Tailscale shares its `100.64.0.0/10` address range with
+other VPNs such as Cloudflare WARP, so an address in that range shows as VPN
+unless the machine confirms it is on Tailscale. To add a route, choose **Add
+route** in the machine's route list, or next to it in the T3 Connect list.
+Pairing the same machine again over another address also adds a route instead
+of a second machine. A new route is placed by speed, in that order, and you can
+reorder routes at any time.
 
 While connected through T3 Connect or a paired address, T3 Code also learns the
 machine's current LAN and Tailscale addresses and adds them as routes, so
@@ -90,6 +95,13 @@ On web and desktop, select the route count under the machine's name in
 or remove it. On mobile, open the machine under **Settings → Environments** and
 choose **Edit**. Signing out of T3 Connect removes only that route; a machine
 you can still reach another way stays saved.
+
+Open **Permissions** next to **Routes** in web or desktop, or **Your permissions**
+in the mobile route details, to see what your current connection can do on that
+environment. For a remote environment, this is in its route details. Permissions
+shown there apply only to the route marked **In use**; other routes are not
+checked. Direct pairing and T3 Connect have separate sessions and may grant
+different permissions.
 
 ### Balance new threads across machines
 
@@ -169,6 +181,12 @@ If SSH reconnecting fails after an app update, retry the launch once. Removing
 the connection stops a server that T3 Code launched; a server that was already
 running is left alone.
 
+Each desktop app keeps one session on the host for its SSH connection and reuses
+it when it reconnects. Revoke sessions you no longer use in **Settings →
+Connections** on the host, or on a headless host with `t3 auth session list` and
+`t3 auth session revoke <id>`. A desktop that can still sign in over SSH pairs
+again on its next connect.
+
 For Antigravity's Google callback on a remote host, see
 [remote sign-in](./providers-antigravity.md#sign-in-from-a-remote-device).
 
@@ -213,40 +231,20 @@ sudo t3 browser setup
 
 The server shows the exact line for how you started it, such as
 `sudo npx t3 browser setup`, and keeps your `PATH` when Node is installed only
-for your user. It allows Chrome's sandbox with an AppArmor profile and installs
-any missing libraries with apt. It is safe to run again. Without `sudo`, it
-only reports what it would change.
+for your user. Where `t3` is not on your `PATH`, such as with only the
+desktop app installed, it names the full path of the app's own `t3` instead. It allows Chrome's sandbox with an AppArmor profile and installs
+any missing libraries and system fonts with apt; pages that load without text
+can mean the host has no fonts. It is safe to run again. Without `sudo`, it only
+reports what it would change.
 
 The browser always runs in Chrome's sandbox. Where you cannot change the host,
 set `T3CODE_SERVER_BROWSER_SANDBOX=0` for the environment to run without it.
 
 ## Connect an outside agent
 
-An agent T3 Code did not start, such as Claude Code in your own terminal, can
-drive threads on an environment through its MCP server. In **Settings →
-Connections**, open a saved environment's menu and choose **Copy MCP URL**, then
-add it to the agent. For example:
-
-```sh
-claude mcp add --transport http t3 https://<environment-address>/mcp
-```
-
-The first time the agent connects, it opens a sign-in page on the environment.
-Enter a pairing code from **Settings → Connections** on a device that can manage
-access, or from `t3 auth pairing create` on the host, and choose what the agent
-may do. A browser already signed in to that environment as an administrator can
-approve without a code.
-
-- **Read only** lets the agent read projects and threads in every project, and
-  see which providers and models are available. It cannot change anything.
-- **Supervised** through **Full access** also let it start, message and stop
-  threads in every project, but it cannot start or steer a thread with more
-  permissions than the mode you chose.
-
-Use an HTTPS address: T3 Connect, Tailscale Serve, or `localhost` on the host
-itself. Agents refuse to sign in through a plain `http://` LAN or tailnet
-address. The agent appears under **Settings → Connections** like any other
-client; revoke it there. Sign-ins last 30 days.
+Claude Code, Codex, ChatGPT and other agents T3 Code did not start can drive
+threads on an environment through its MCP server. See
+[outside agents](./outside-agents.md) for setup.
 
 ## Manage or revoke access
 
@@ -258,11 +256,60 @@ management is available through `t3 auth --help`.
 A session with an open connection stays listed after its access credential
 expires.
 
+To choose a token's permissions, pass `--scope` once for each scope you want:
+
+```sh
+npx t3 pair --scope orchestration:read --scope relay:read
+```
+
+The selected scopes replace the default permissions. The same option works with
+`npx t3 auth pairing create` and `npx t3 auth session issue`; each command's
+`--help` lists the available scopes. Without `--scope`, pairing tokens and issued
+bearer sessions get every permission, including managing access and T3 Connect.
+A terminal or a full-access agent on the host can reach those as well, so a
+client that should not manage access also needs to go without `terminal:operate`
+and `orchestration:operate`.
+
+To change an existing client's permissions, create a fresh pairing link with the
+scopes it needs. In a browser opened directly on the environment, open that link
+to replace the browser's current grant. For mobile or a saved remote environment
+in web or desktop, use **Add Environment** with the fresh link or code; pairing
+the same environment replaces its saved grant. Reconnecting alone does not change
+permissions.
+
+Grouping checkouts does not combine their permissions. Shared project settings
+require `orchestration:operate` on every member environment; actions on one
+checkout use that checkout's permissions.
+
+`source-control:write` covers direct Git and pull request changes made from the
+client: pushing, switching or creating branches, cloning, and removing
+worktrees. It does not restrict what a task does. Starting a task in a new
+worktree still creates that branch and worktree with `orchestration:operate`,
+and the agent it runs can use Git however the environment allows.
+
+Settings changes, provider management, environment maintenance, access
+management, and T3 Connect management can each be granted separately. New
+pairings without `--scope` include all of them. Existing clients keep the
+permissions they paired with and can stay connected after an update, but newly
+separated features may require pairing again with the permissions they need.
+Older clients may show controls that the server denies. Create a fresh pairing
+link to change a client's permissions.
+
+`filesystem:read` allows browsing host files, opening workspace files, and viewing
+local changes. Add `filesystem:write` to allow editing files or saving plans to
+the workspace. These scopes control direct file access from the client.
+
 To remove an environment from T3 Connect, open your account menu's **T3 Connect**
 page, or **Settings → T3 Connect** on mobile, and choose **Deregister**. This
 revokes its cloud access and frees its host space even when the environment is
-offline or has been wiped. Removing an environment from a device's connection
-settings only forgets it on that device; it stays registered to your account.
+offline or has been wiped. When T3 Connect rejects a host's link, the host
+shows that it was removed from T3 Connect. To link it again, turn on
+**T3 Connect** in **Settings → Connections** on a desktop host, or run
+`t3 connect link` on a command-line host and then restart T3 Code there. A
+command-line host that released its tunnel when it last stopped may link itself
+again on its next start; run `t3 connect unlink` on that host to keep it off.
+Removing an environment from a device's connection settings only forgets it on
+that device; it stays registered to your account.
 
 When idle tunnel cleanup is enabled, T3 Connect removes a linked environment's
 tunnel after it stays offline for several minutes. The environment stays linked
@@ -284,26 +331,9 @@ screenshots, logs, or bug reports.
 
 ## T3 Connect troubleshooting
 
-Run `t3 connect status` on the host to inspect saved authorization and link
-configuration. It is not a live reachability check. If the environment appears
-offline, run `t3 service status` and read the displayed log. If it disappears
-when SSH closes, see [background-service troubleshooting](./background-service.md#troubleshooting).
-
-| Error                                                     | Recovery                                                                                                                                    |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `environment_link_limit_exceeded` or managed tunnel limit | Deregister an unused environment, then restart T3 Code on the host.                                                                         |
-| `auth_invalid` or `invalid_bearer`                        | Run `t3 connect login`. If credentials were revoked, run `t3 connect logout`, then `t3 connect` again. Restart the server after signing in. |
-| Expired or invalid link proof                             | Check the host's date and time, update T3 Code, then restart it.                                                                            |
-| HTTP 403 without a recognized error                       | Check relay access, proxies, and firewall rules. Keep any Cloudflare Ray ID for a bug report.                                               |
-| HTTP 408, 429, or 5xx                                     | Check network and relay availability. Startup retries temporary failures for up to ten minutes.                                             |
-
-After fixing a permanent rejection, restart the host's server. On Linux, use
-`systemctl --user restart t3code.service` for the background service. For a
-foreground server, stop it and run `t3 serve` again with your usual options.
-Include the diagnostic message and trace ID when reporting a persistent failure.
-
-For a connection that still fails after linking, check the date and time on both
-devices. For server version warnings, follow [Updating T3 Code](./updating.md).
+When a T3 Connect connection fails, see
+[T3 Connect troubleshooting](./t3-connect-troubleshooting.md). It explains each
+error, where the problem is, and how to fix it.
 
 ## Using the Desktop App as a Remote Only
 

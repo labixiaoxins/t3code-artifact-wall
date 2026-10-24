@@ -9,10 +9,11 @@
     "tunnels:census": "node scripts/tunnel-census.ts",
     "destroy": "alchemy destroy",
     "test": "vp test run --config ../../vite.config.ts --dir .",
-    "typecheck": "node ../../scripts/typecheck.ts"
+    "typecheck": "tsc-rs --noEmit"
   },
   "dependencies": {
     "@clerk/backend": "catalog:",
+    "@distilled.cloud/cloudflare": "catalog:",
     "@effect/sql-pg": "catalog:",
     "@effect/sql-sqlite-do": "catalog:",
     "@noble/curves": "catalog:",

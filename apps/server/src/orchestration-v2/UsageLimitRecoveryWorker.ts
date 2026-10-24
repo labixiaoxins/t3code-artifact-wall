@@ -5,9 +5,9 @@ import * as Layer from "effect/Layer";
 import * as Scheduler from "../scheduling/Scheduler.ts";
 import * as ServerSettings from "../serverSettings.ts";
 import * as ProjectionStore from "./ProjectionStore.ts";
+import * as Orchestrator from "./Orchestrator.ts";
 import * as ThreadManagement from "./ThreadManagementService.ts";
 
-/** The persisted run and reset form the identity of one recovery opportunity. */
 export function limitRecoveryCommand(
   thread: ProjectionStore.ProjectionLimitRecoveryCandidate,
   autoResume: boolean,
@@ -74,6 +74,7 @@ export function limitRecoveryCommand(
 const makeSweep = Effect.gen(function* () {
   const projections = yield* ProjectionStore.ProjectionStoreV2;
   const threads = yield* ThreadManagement.ThreadManagementService;
+  const orchestrator = yield* Orchestrator.OrchestratorV2;
   const settings = yield* ServerSettings.ServerSettingsService;
   return Effect.fn("UsageLimitRecoveryWorker.sweep")(function* () {
     const preferences = yield* settings.getSettings;
@@ -92,7 +93,17 @@ const makeSweep = Effect.gen(function* () {
         preferences.snoozeLimitedThreads,
       );
       if (command === null) continue;
-      yield* threads.dispatch(command).pipe(
+      yield* Effect.gen(function* () {
+        if (command.type === "thread.metadata.update" && command.limitRecovery != null) {
+          yield* orchestrator.autoArmLimitRecovery({
+            commandId: command.commandId,
+            threadId: command.threadId,
+            limitRecovery: command.limitRecovery,
+          });
+        } else {
+          yield* threads.dispatch(command);
+        }
+      }).pipe(
         Effect.catchCause((cause) =>
           Effect.logWarning("orchestration-v2.limit-recovery.dispatch-failed", {
             threadId: thread.id,
@@ -104,8 +115,6 @@ const makeSweep = Effect.gen(function* () {
   });
 });
 
-// The shared scheduler derives due work from persisted failures and recovery
-// choices, so restarts need no timer restoration or connected client.
 export const layer = Layer.effectDiscard(
   Effect.gen(function* () {
     const sweep = yield* makeSweep;

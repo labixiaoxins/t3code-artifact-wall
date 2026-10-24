@@ -1,3 +1,4 @@
+import { SourceControlProviderKind } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -10,30 +11,38 @@ import {
 
 describe("source control presentation", () => {
   it("uses merge request terminology for GitLab", () => {
-    expect(getChangeRequestTerminologyForKind("gitlab")).toEqual({
+    expect(getChangeRequestTerminologyForKind(SourceControlProviderKind.make("gitlab"))).toEqual({
       shortLabel: "MR",
       singular: "merge request",
     });
   });
 
   it("uses pull request terminology for GitHub-compatible providers", () => {
-    expect(getChangeRequestTerminologyForKind("github")).toEqual({
+    expect(getChangeRequestTerminologyForKind(SourceControlProviderKind.make("github"))).toEqual({
       shortLabel: "PR",
       singular: "pull request",
     });
-    expect(getChangeRequestTerminologyForKind("azure-devops")).toEqual({
+    expect(
+      getChangeRequestTerminologyForKind(SourceControlProviderKind.make("azure-devops")),
+    ).toEqual({
       shortLabel: "PR",
       singular: "pull request",
     });
-    expect(getChangeRequestTerminologyForKind("bitbucket")).toEqual({
-      shortLabel: "PR",
-      singular: "pull request",
-    });
+    expect(getChangeRequestTerminologyForKind(SourceControlProviderKind.make("bitbucket"))).toEqual(
+      {
+        shortLabel: "PR",
+        singular: "pull request",
+      },
+    );
   });
 
   it("falls back to generic change request copy for unknown providers", () => {
     expect(
-      resolveChangeRequestPresentation({ kind: "unknown", name: "forge", baseUrl: "" }),
+      resolveChangeRequestPresentation({
+        kind: SourceControlProviderKind.make("unknown"),
+        name: "forge",
+        baseUrl: "",
+      }),
     ).toEqual(
       expect.objectContaining({
         shortName: "change request",
@@ -69,14 +78,13 @@ describe("detectSourceControlProviderFromRemoteUrl", () => {
         },
       );
     }
-    expect(getChangeRequestTerminologyForKind("forgejo")).toEqual({
+    expect(getChangeRequestTerminologyForKind(SourceControlProviderKind.make("forgejo"))).toEqual({
       shortLabel: "PR",
       singular: "pull request",
     });
   });
 
   it("detects Azure DevOps SSH remotes", () => {
-    // The default Azure DevOps SSH clone URL uses the ssh.dev.azure.com host.
     expect(
       detectSourceControlProviderFromRemoteUrl("git@ssh.dev.azure.com:v3/org/project/repo")?.kind,
     ).toBe("azure-devops");
@@ -84,7 +92,6 @@ describe("detectSourceControlProviderFromRemoteUrl", () => {
       detectSourceControlProviderFromRemoteUrl("ssh://git@ssh.dev.azure.com:22/v3/org/project/repo")
         ?.kind,
     ).toBe("azure-devops");
-    // Legacy visualstudio.com SSH host stays classified too.
     expect(
       detectSourceControlProviderFromRemoteUrl("git@vs-ssh.visualstudio.com:v3/org/project/repo")
         ?.kind,
@@ -138,6 +145,22 @@ describe("detectSourceControlProviderFromRemoteUrl", () => {
       detectSourceControlProviderFromRemoteUrl("https://bitbucket.example.com/workspace/repo.git")
         ?.kind,
     ).toBe("bitbucket");
+  });
+
+  it("detects GitHub Enterprise Cloud data residency hosts on ghe.com", () => {
+    expect(detectSourceControlProviderFromRemoteUrl("https://acme.ghe.com/owner/repo.git")).toEqual(
+      {
+        kind: "github",
+        name: "GitHub Self-Hosted",
+        baseUrl: "https://acme.ghe.com",
+      },
+    );
+    expect(detectSourceControlProviderFromRemoteUrl("git@acme.ghe.com:owner/repo.git")?.kind).toBe(
+      "github",
+    );
+    expect(detectSourceControlProviderFromRemoteUrl("https://ghe.com/owner/repo.git")?.kind).toBe(
+      "unknown",
+    );
   });
 
   it("does not match provider names embedded in unrelated DNS labels", () => {

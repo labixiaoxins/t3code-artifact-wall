@@ -1,10 +1,11 @@
-import { ScreenScrollView as ScrollView } from "../../components/ScreenScrollView";
-import { AppText as Text, AppTextInput } from "../../components/AppText";
+import { ScreenScrollView as ScrollView } from "../../components/ui/ScreenScrollView";
+import { AppText as Text, AppTextInput } from "../../components/ui/AppText";
+import { Button } from "../../components/ui/Button";
 import { ProjectFavicon } from "../../components/ProjectFavicon";
 import { deriveProjectGroupLabel } from "@t3tools/client-runtime/state/project-grouping";
 import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
 import { useState } from "react";
-import { Platform, Pressable, View } from "react-native";
+import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { projectEnvironment } from "../../state/projects";
@@ -75,19 +76,16 @@ function ProjectOverviewContent(props: {
     if (!canSave) return;
     setIsSaving(true);
     void (async () => {
-      try {
-        const results = await Promise.all(
-          props.members.map((member) =>
-            updateProject({
-              environmentId: member.environmentId,
-              input: { projectId: member.id, title: nextName },
-            }),
-          ),
-        );
-        if (results.every((result) => result._tag !== "Failure")) setDraftName(null);
-      } finally {
-        setIsSaving(false);
-      }
+      const results = await Promise.all(
+        props.members.map((member) =>
+          updateProject({
+            environmentId: member.environmentId,
+            input: { projectId: member.id, title: nextName },
+          }),
+        ),
+      );
+      setIsSaving(false);
+      if (results.every((result) => result._tag !== "Failure")) setDraftName(null);
     })();
   };
 
@@ -126,14 +124,12 @@ function ProjectOverviewContent(props: {
               editable={!isSaving}
             />
             {canSave ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Save project name"
+              <Button
+                label="Save"
+                accessibilityHint="Save project name"
+                tone="secondary"
                 onPress={saveName}
-                className="rounded-full bg-subtle-strong px-4 py-2 active:opacity-70"
-              >
-                <Text className="text-sm font-t3-medium text-foreground">Save</Text>
-              </Pressable>
+              />
             ) : null}
           </View>
         </View>

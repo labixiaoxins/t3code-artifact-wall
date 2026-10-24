@@ -21,20 +21,17 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
 import * as Stream from "effect/Stream";
-
 import { CodexProviderCapabilitiesV2 } from "./Adapters/CodexAdapterV2.ts";
 import * as ProjectionStore from "./ProjectionStore.ts";
-import type { ProviderAdapterV2SessionRuntime } from "./ProviderAdapter.ts";
+import type * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
 import * as ProviderSessionManager from "./ProviderSessionManager.ts";
 import * as ProviderTurnControlService from "./ProviderTurnControlService.ts";
-
 const driver = ProviderDriverKind.make("codex");
 const providerInstanceId = ProviderInstanceId.make("codex");
 const modelSelection = {
   instanceId: providerInstanceId,
   model: "gpt-5.4",
 } satisfies ModelSelection;
-
 function makeProjection(input: {
   readonly now: DateTime.Utc;
   readonly threadId: ThreadId;
@@ -121,7 +118,6 @@ function makeProjection(input: {
     updatedAt: input.now,
   };
 }
-
 it.effect(
   "interrupts the historical session only for the exact committed restart replacement",
   () =>
@@ -142,8 +138,6 @@ it.effect(
         id: providerThreadId,
         driver,
         providerInstanceId,
-        // The restart command has already projected this replacement binding
-        // before the process-bound restart effect executes.
         providerSessionId: replacementSessionId,
         appThreadId: threadId,
         ownerNodeId: null,
@@ -177,7 +171,7 @@ it.effect(
         updatedAt: now,
         lastError: null,
       };
-      const runtime: ProviderAdapterV2SessionRuntime = {
+      const runtime: ProviderAdapter.ProviderAdapterV2SessionRuntime = {
         instanceId: providerInstanceId,
         driver,
         providerSessionId: oldSessionId,
@@ -211,12 +205,15 @@ it.effect(
         ProjectionStore.ProjectionStoreV2,
         ProjectionStore.ProjectionStoreV2.of({
           apply: () => Effect.void,
+          getArchiveBlockReason: () => Effect.succeed("unavailable" as const),
           getLimitRecoveryCandidates: () => Effect.die("unused getLimitRecoveryCandidates"),
           getShellSnapshot: () => Effect.die("unused getShellSnapshot"),
+          readShellSnapshot: () => Effect.die("unused readShellSnapshot"),
           getThreadShell: () => Effect.die("unused getThreadShell"),
           getThread: () => Ref.get(projection).pipe(Effect.map((state) => state.thread)),
           getSettlementCandidates: () => Effect.die("unused getSettlementCandidates"),
           getThreadsWithPullRequests: () => Effect.die("unused getThreadsWithPullRequests"),
+          getThreadWorktreePaths: () => Effect.die("unused getThreadWorktreePaths"),
           getThreadProjection: () => Effect.die("control effects must not load transcript"),
           getTurnStartContext: () => Effect.die("unused"),
           getTurnStartHistory: () => Effect.die("unused"),
@@ -224,6 +221,9 @@ it.effect(
           getPlan: () => Effect.die("unused"),
           hasUnpairedRunInterruptRequest: () => Effect.die("unused interrupt read"),
           getThreadAttachmentIds: () => Effect.die("Unused attachment lookup"),
+          searchThread: () => Effect.die("unused"),
+          searchThreadStream: () => Stream.empty,
+          getThreadHistoryPage: () => Effect.die("unused"),
           getTimelinePage: () => Effect.die("Unused timeline read"),
           getMessageCount: () => Effect.die("unused message count"),
           getNextTurnItemOrdinal: () => Effect.die("unused ordinal read"),
@@ -249,8 +249,10 @@ it.effect(
               })),
             ),
           getCheckpointContext: () => Effect.die("not used"),
+          getCheckpointRollbackContext: () => Effect.die("unused rollback context"),
           getCheckpointCaptureContext: () => Effect.die("not used"),
           getRunMessage: () => Effect.die("not used"),
+          isNodeStored: () => Effect.die("not used"),
           canStartQueuedRun: () => Effect.die("not used"),
           getRecoveryThreadIds: () => Effect.die("unused getRecoveryThreadIds"),
           getUnreadableThreadIds: () => Effect.die("unused getUnreadableThreadIds"),
@@ -267,6 +269,7 @@ it.effect(
             Effect.succeed(
               providerSessionId === oldSessionId ? Option.some(runtime) : Option.none(),
             ),
+          isLive: (providerSessionId) => Effect.succeed(providerSessionId === oldSessionId),
           close: () => Effect.void,
           closeInstance: () => Effect.void,
           release: () => Effect.void,
@@ -276,7 +279,6 @@ it.effect(
       const layerControl = ProviderTurnControlService.layer.pipe(
         Layer.provide(Layer.merge(layerProjection, layerSessionManager)),
       );
-
       const [ordinaryInterrupt, unrelatedRestart] = yield* Effect.gen(function* () {
         const control = yield* ProviderTurnControlService.ProviderTurnControlServiceV2;
         const ordinary = yield* Effect.exit(
@@ -299,11 +301,9 @@ it.effect(
         );
         return [ordinary, unrelated] as const;
       }).pipe(Effect.provide(layerControl));
-
       assert.isTrue(Exit.isFailure(ordinaryInterrupt));
       assert.isTrue(Exit.isFailure(unrelatedRestart));
       assert.isNull(yield* Ref.get(interruptedThread));
-
       yield* Effect.gen(function* () {
         const control = yield* ProviderTurnControlService.ProviderTurnControlServiceV2;
         yield* control.interruptAndAwaitTerminal({
@@ -315,7 +315,6 @@ it.effect(
           interruptedAttemptId: attemptId,
         });
       }).pipe(Effect.provide(layerControl));
-
       const interrupted = yield* Ref.get(interruptedThread);
       assert.isNotNull(interrupted);
       assert.equal(interrupted?.providerSessionId, oldSessionId);

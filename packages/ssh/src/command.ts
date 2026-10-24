@@ -1,5 +1,5 @@
 import type { DesktopSshEnvironmentTarget } from "@t3tools/contracts";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Crypto from "effect/Crypto";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -25,7 +25,7 @@ const MAX_SSH_ERROR_OUTPUT_LENGTH = 4_000;
 const sshCommandForPlatform = (platform: NodeJS.Platform): string =>
   platform === "win32" ? "ssh.exe" : "ssh";
 
-export const resolveSshCommand = Effect.map(HostProcessPlatform, sshCommandForPlatform);
+export const resolveSshCommand = Effect.map(HostProcess.Platform, sshCommandForPlatform);
 
 const encoder = new TextEncoder();
 
@@ -39,6 +39,8 @@ export interface RunSshCommandOptions extends SshAuthOptions {
   readonly remoteCommandArgs?: ReadonlyArray<string>;
   readonly stdin?: string;
   readonly timeoutMs?: number;
+  /** Keep the end of long failed-command stdout, where the final cause usually is. */
+  readonly keepErrorOutputTail?: boolean;
 }
 
 export function parseSshResolveOutput(alias: string, stdout: string): DesktopSshEnvironmentTarget {
@@ -72,7 +74,6 @@ export function targetConnectionKey(target: DesktopSshEnvironmentTarget): string
   return `${target.alias}\u0000${target.hostname}\u0000${target.username ?? ""}\u0000${target.port ?? ""}`;
 }
 
-/** Names the remote state directory for a target: the first 16 hex chars of its SHA-256 key. */
 export const remoteStateKey = Effect.fn("ssh/command.remoteStateKey")(function* (
   target: DesktopSshEnvironmentTarget,
 ): Effect.fn.Return<string, never, Crypto.Crypto> {
@@ -125,9 +126,7 @@ export function getLastNonEmptyOutputLine(stdout: string): string | null {
   );
 }
 
-export const collectProcessOutput = <E>(
-  stream: Stream.Stream<Uint8Array, E>,
-): Effect.Effect<string, E> =>
+const collectProcessOutput = <E>(stream: Stream.Stream<Uint8Array, E>): Effect.Effect<string, E> =>
   stream.pipe(
     Stream.decodeText(),
     Stream.runFold(
@@ -136,14 +135,15 @@ export const collectProcessOutput = <E>(
     ),
   );
 
-function redactSshErrorOutput(output: string): string {
+function redactSshErrorOutput(output: string, keepTail = false): string {
   const redacted = output.replace(
     /("(?:access_token|bearerToken|credential|pairingToken|token)"\s*:\s*")[^"]+(")/giu,
     "$1[redacted]$2",
   );
-  return redacted.length > MAX_SSH_ERROR_OUTPUT_LENGTH
-    ? `${redacted.slice(0, MAX_SSH_ERROR_OUTPUT_LENGTH)}\n[truncated]`
-    : redacted;
+  if (redacted.length <= MAX_SSH_ERROR_OUTPUT_LENGTH) return redacted;
+  return keepTail
+    ? `[truncated]\n${redacted.slice(-MAX_SSH_ERROR_OUTPUT_LENGTH)}`
+    : `${redacted.slice(0, MAX_SSH_ERROR_OUTPUT_LENGTH)}\n[truncated]`;
 }
 
 function normalizeSshErrorMessage(input: {
@@ -203,6 +203,7 @@ const runSshCommandInScope = Effect.fn("ssh/command.runSshCommand.inScope")(func
       batchMode: input.batchMode ?? (input.interactiveAuth ? "no" : "yes"),
     }),
     ...(input.preHostArgs ?? []),
+    "--",
     hostSpec,
     ...(input.remoteCommandArgs ?? []),
   ];
@@ -264,7 +265,7 @@ const runSshCommandInScope = Effect.fn("ssh/command.runSshCommand.inScope")(func
   );
 
   if (exitCode !== 0) {
-    const diagnosticStdout = redactSshErrorOutput(stdout);
+    const diagnosticStdout = redactSshErrorOutput(stdout, input.keepErrorOutputTail);
     yield* Effect.logWarning("ssh.command.failed", {
       ...sshTargetLogFields(target),
       command: ["ssh", ...args],

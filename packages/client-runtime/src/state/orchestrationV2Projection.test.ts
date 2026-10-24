@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 import {
+  type ThreadPullRequestLink,
   type OrchestrationV2DomainEvent,
   type OrchestrationV2Run,
   type OrchestrationV2ThreadProjection,
@@ -105,6 +106,34 @@ const emptyProjection = {
 } as OrchestrationV2ThreadProjection;
 
 describe("applyOrchestrationV2ProjectionEvent", () => {
+  it("applies a compact PR sync without replacing other links or thread metadata", () => {
+    const link = (number: number): ThreadPullRequestLink => ({
+      host: "github.com",
+      repository: "pingdotgg/t3code",
+      number,
+      url: `https://github.com/pingdotgg/t3code/pull/${number}`,
+      source: "manual",
+      linkedAt: DateTime.formatIso(now),
+      snapshot: null,
+      stack: null,
+    });
+    const links = [link(1), link(2)];
+    const projection = {
+      ...emptyProjection,
+      thread: { ...emptyProjection.thread, pullRequests: links },
+    };
+    const updated = { ...links[1]!, source: "agent" as const };
+    const next = applyOrchestrationV2ProjectionEvent(projection, {
+      id: "compact-sync" as OrchestrationV2DomainEvent["id"],
+      type: "thread.pull-request-link-updated",
+      threadId,
+      occurredAt: now,
+      payload: updated,
+    });
+    expect(next?.thread).toEqual({ ...projection.thread, pullRequests: [links[0], updated] });
+    expect(next?.thread.pullRequests?.[0]).toBe(links[0]);
+  });
+
   it("keeps live token usage when the terminal provider turn omits it", () => {
     const providerTurnId = ProviderTurnId.make("provider-turn-reducer");
     const running = {
@@ -273,6 +302,195 @@ describe("applyOrchestrationV2ProjectionEvent", () => {
       queuedFuture.id,
     ]);
     expect(next?.visibleTurnItems.map((row) => row.position)).toEqual([0, 1]);
+  });
+
+  it("moves an updated item to its new ordinal and renumbers the rows it passes", () => {
+    const inherited = {
+      ...commandItem("item-inherited", "parent", 0),
+      threadId: ThreadId.make("parent"),
+    };
+    const items = [
+      commandItem("item-a", "a", 1),
+      commandItem("item-b", "b", 2),
+      commandItem("item-c", "c", 2),
+    ];
+    const rows = [
+      {
+        position: 0,
+        visibility: "inherited" as const,
+        sourceThreadId: inherited.threadId,
+        sourceItemId: inherited.id,
+        item: inherited,
+      },
+      ...items.map((item, index) => ({
+        position: index + 1,
+        visibility: "local" as const,
+        sourceThreadId: threadId,
+        sourceItemId: item.id,
+        item,
+      })),
+    ];
+    const moved = commandItem("item-a", "moved", 2);
+    const next = applyOrchestrationV2ProjectionEvent(
+      { ...emptyProjection, runs: [run], turnItems: items, visibleTurnItems: rows },
+      {
+        id: "event-move",
+        type: "turn-item.updated",
+        threadId,
+        runId,
+        occurredAt: now,
+        payload: moved,
+      } as OrchestrationV2DomainEvent,
+    );
+
+    // Equal ordinals order by id, so item-a stays ahead of item-b.
+    expect(next?.visibleTurnItems.map((row) => [row.item.id, row.position])).toEqual([
+      ["item-inherited", 0],
+      ["item-a", 1],
+      ["item-b", 2],
+      ["item-c", 3],
+    ]);
+    expect(next?.visibleTurnItems[0]).toBe(rows[0]);
+    expect(next?.visibleTurnItems[1]?.item).toBe(moved);
+    expect(next?.turnItems.map((item) => item.id)).toEqual(["item-a", "item-b", "item-c"]);
+
+    const later = commandItem("item-a", "later", 3);
+    const last = applyOrchestrationV2ProjectionEvent(next, {
+      id: "event-move-later",
+      type: "turn-item.updated",
+      threadId,
+      runId,
+      occurredAt: now,
+      payload: later,
+    } as OrchestrationV2DomainEvent);
+    expect(last?.visibleTurnItems.map((row) => [row.item.id, row.position])).toEqual([
+      ["item-inherited", 0],
+      ["item-b", 1],
+      ["item-c", 2],
+      ["item-a", 3],
+    ]);
+    expect(last?.turnItems.at(0)).toBe(later);
+  });
+
+  describe("partial timeline", () => {
+    const queuedRunId = RunId.make("run-queued");
+    const steerRunId = RunId.make("run-steer");
+    const queuedRun = { ...run, id: queuedRunId, ordinal: 2, status: "queued" } as const;
+    const steerRun = { ...run, id: steerRunId, ordinal: 3, status: "completed" } as const;
+    const runItem = (id: string, itemRunId: RunId, ordinal: number) => ({
+      ...commandItem(id, id, ordinal),
+      runId: itemRunId,
+    });
+    const windowOf = (
+      runs: ReadonlyArray<OrchestrationV2Run>,
+      items: ReadonlyArray<OrchestrationV2TurnItem>,
+    ): OrchestrationV2ThreadProjection => ({
+      ...emptyProjection,
+      runs,
+      turnItems: items,
+      visibleTurnItems: items.map((item, position) => ({
+        position,
+        visibility: "local" as const,
+        sourceThreadId: threadId,
+        sourceItemId: item.id,
+        item,
+      })),
+    });
+    const itemEvent = (payload: OrchestrationV2TurnItem) =>
+      ({
+        id: `event-${payload.id}`,
+        type: "turn-item.updated",
+        threadId,
+        occurredAt: now,
+        payload,
+      }) as OrchestrationV2DomainEvent;
+    const runEvent = (payload: OrchestrationV2Run) =>
+      ({
+        id: `event-${payload.id}-${payload.status}`,
+        type: "run.updated",
+        threadId,
+        occurredAt: now,
+        payload,
+      }) as OrchestrationV2DomainEvent;
+
+    it("shows a queued run that starts after a newer steer raised the watermark", () => {
+      const steerItems = [
+        runItem("item-steer-user", steerRunId, 3_000_001),
+        runItem("item-steer-reply", steerRunId, 3_000_002),
+      ];
+      let projection: OrchestrationV2ThreadProjection | null = windowOf(
+        [run, queuedRun, steerRun],
+        steerItems,
+      );
+      let latestLocalTurnOrdinal = 3_000_002;
+      const queuedUser = runItem("item-queued-user", queuedRunId, 2_000_001);
+      const queuedReply = runItem("item-queued-reply", queuedRunId, 2_000_002);
+      for (const event of [
+        itemEvent(queuedUser),
+        runEvent({ ...queuedRun, status: "running" }),
+        itemEvent(queuedReply),
+        runEvent({ ...queuedRun, status: "completed" }),
+      ]) {
+        projection = applyOrchestrationV2ProjectionEvent(projection, event, {
+          partialTimeline: true,
+          latestLocalTurnOrdinal,
+        });
+        if (event.type === "turn-item.updated") {
+          latestLocalTurnOrdinal = Math.max(latestLocalTurnOrdinal, event.payload.ordinal);
+        }
+      }
+
+      expect(projection?.visibleTurnItems.map((row) => row.item.id)).toEqual([
+        queuedUser.id,
+        queuedReply.id,
+        ...steerItems.map((item) => item.id),
+      ]);
+      expect(projection?.turnItems.map((item) => item.id)).toContain(queuedReply.id);
+    });
+
+    it("keeps a running run's item when the window starts after its earlier items", () => {
+      const runningRun = { ...queuedRun, status: "running" } as const;
+      const steerItems = [
+        runItem("item-steer-user", steerRunId, 3_000_001),
+        runItem("item-steer-reply", steerRunId, 3_000_002),
+      ];
+      const projection = windowOf([run, runningRun, steerRun], steerItems);
+      const reply = runItem("item-running-reply", queuedRunId, 2_000_003);
+
+      const next = applyOrchestrationV2ProjectionEvent(projection, itemEvent(reply), {
+        partialTimeline: true,
+        latestLocalTurnOrdinal: 3_000_002,
+      });
+
+      expect(next?.visibleTurnItems.map((row) => row.item.id)).toEqual([
+        reply.id,
+        ...steerItems.map((item) => item.id),
+      ]);
+    });
+
+    it.each([
+      { name: "keeps an item of a run already in the window", itemRunId: steerRunId, kept: true },
+      { name: "drops an item of a finished run outside the window", itemRunId: runId, kept: false },
+    ])("$name that arrives below the watermark", ({ itemRunId, kept }) => {
+      const first = runItem("item-first", steerRunId, 3_000_001);
+      const later = runItem("item-later", steerRunId, 3_000_003);
+      const late = runItem("item-late", itemRunId, 3_000_002);
+      const projection = windowOf([run, steerRun], [first, later]);
+
+      const next = applyOrchestrationV2ProjectionEvent(projection, itemEvent(late), {
+        partialTimeline: true,
+        latestLocalTurnOrdinal: later.ordinal,
+      });
+      if (kept) {
+        expect(next?.visibleTurnItems.map((row) => row.item.id)).toEqual([
+          first.id,
+          late.id,
+          later.id,
+        ]);
+      } else {
+        expect(next).toBe(projection);
+      }
+    });
   });
 
   it("removes only hidden local items while preserving inherited rows", () => {

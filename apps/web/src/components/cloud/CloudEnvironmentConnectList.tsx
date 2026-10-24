@@ -1,3 +1,5 @@
+import { uiText } from "~/i18n";
+import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
 import { findErrorTraceId } from "@t3tools/client-runtime/errors";
 import {
   type EnvironmentConnectionPresentation,
@@ -8,6 +10,7 @@ import {
 import { relayOfflineReasonMessage } from "@t3tools/client-runtime/relay";
 import {
   isAtomCommandInterrupted,
+  settlePromise,
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
 import {
@@ -20,8 +23,7 @@ import type {
   RelayEnvironmentStatusResponse,
 } from "@t3tools/contracts/relay";
 import * as Option from "effect/Option";
-import { type ReactNode, useCallback, useEffect, useEffectEvent, useState } from "react";
-
+import { type ReactNode, useEffect, useEffectEvent, useState } from "react";
 import { environmentCatalog } from "~/connection/catalog";
 import { cn } from "~/lib/utils";
 import { relayEnvironmentDiscovery } from "~/state/relay";
@@ -36,46 +38,32 @@ import { Skeleton } from "../ui/skeleton";
 import { toastManager } from "../ui/toast";
 import { Tooltip, TooltipTrigger, TooltipPopup } from "../ui/tooltip";
 import { presentSavedCloudEnvironmentConnection } from "./cloudEnvironmentConnectionPresentation";
-
-const EMPTY_DISCOVERY_REFRESH_INTERVAL_MS = 5_000;
-
+const EMPTY_DISCOVERY_REFRESH_INTERVAL_MS = 5000;
 function discoveredCompatibilityError(
   status: Option.Option<RelayEnvironmentStatusResponse> | undefined,
 ) {
   const descriptor = status === undefined ? undefined : Option.getOrNull(status)?.descriptor;
   return descriptor === undefined ? null : orchestrationProtocolCompatibilityError(descriptor);
 }
-
 export interface SavedCloudEnvironmentConnection {
   readonly environmentId: EnvironmentId;
   readonly connection: EnvironmentConnectionPresentation;
-  /** False for a machine saved over another route (LAN, Tailscale, SSH) only. */
   readonly relayManaged: boolean;
-  /** Present once connected; carries the user's icon override. */
-  readonly serverConfig?: ServerConfig | null;
+  readonly serverConfig?: Pick<ServerConfig, "environment"> | null;
 }
-
 function RemoteEnvironmentRowsSkeleton() {
   return (
     <div className={ITEM_ROW_CLASSNAME}>
       <div className={ITEM_ROW_INNER_CLASSNAME}>
-        <div className="min-w-0 flex-1 space-y-2">
-          <Skeleton shape="pill" className="h-4 w-32" />
-          <Skeleton shape="pill" className="h-3 w-20" />
+        <div className={"min-w-0 flex-1 space-y-2"}>
+          <Skeleton shape={"pill"} className={"h-4 w-32"} />
+          <Skeleton shape={"pill"} className={"h-3 w-20"} />
         </div>
-        <Skeleton className="h-7 w-16" />
+        <Skeleton className={"h-7 w-16"} />
       </div>
     </div>
   );
 }
-
-/**
- * The user's T3 Connect environments from relay discovery, each with a
- * Connect button. The primary environment is always excluded; already-saved
- * environments are hidden unless `showSavedEnvironments` renders them with
- * their live connection state (used by onboarding, where the full device mesh
- * should be visible).
- */
 export function CloudEnvironmentConnectRows({
   primaryEnvironmentId,
   savedEnvironments,
@@ -108,18 +96,15 @@ export function CloudEnvironmentConnectRows({
     if (environmentsState.refreshing || environmentsState.offline) return;
     await refreshRelayEnvironments();
   });
-  const connectRelayEnvironment = useCallback(
-    (environment: RelayClientEnvironmentRecord) =>
-      registerEnvironment(
-        new RelayConnectionRegistration({
-          target: new RelayConnectionTarget({
-            environmentId: environment.environmentId,
-            label: environment.label,
-          }),
+  const connectRelayEnvironment = (environment: RelayClientEnvironmentRecord) =>
+    registerEnvironment(
+      new RelayConnectionRegistration({
+        target: new RelayConnectionTarget({
+          environmentId: environment.environmentId,
+          label: environment.label,
         }),
-      ),
-    [registerEnvironment],
-  );
+      }),
+    );
   const [connectingEnvironmentIds, setConnectingEnvironmentIds] = useState<
     ReadonlySet<EnvironmentId>
   >(new Set());
@@ -128,13 +113,11 @@ export function CloudEnvironmentConnectRows({
       .filter((environment) => environment.relayManaged)
       .map((environment) => [environment.environmentId, environment]),
   );
-  // Saved over another route only: T3 Connect would be an added fallback.
   const savedWithoutRelay = new Set(
     savedEnvironments
       .filter((environment) => !environment.relayManaged)
       .map((environment) => environment.environmentId),
   );
-
   useEffect(() => {
     let active = true;
     if (onDiscoveryReady || !refreshWhileEmpty || document.visibilityState === "visible") {
@@ -146,7 +129,6 @@ export function CloudEnvironmentConnectRows({
       active = false;
     };
   }, [refreshRelayEnvironments, refreshWhileEmpty, onDiscoveryReady]);
-
   const connectEnvironment = async (environment: RelayClientEnvironmentRecord) => {
     if (
       discoveredCompatibilityError(
@@ -183,61 +165,63 @@ export function CloudEnvironmentConnectRows({
     console.error("[t3-connect] Could not connect environment", { message, traceId, cause });
     toastManager.add({
       type: "error",
-      title: "Could not connect environment",
+      title: uiText("Could not connect environment"),
       description: message,
       data: traceId
         ? {
             secondaryActionProps: {
               children: "Copy trace ID",
-              onClick: () => void navigator.clipboard?.writeText(traceId),
+              onClick: () => void writeTextToClipboard(traceId, "trace ID").catch(() => undefined),
             },
           }
         : undefined,
     });
     return false;
   };
-
   // During onboarding selection a machine saved over another route already
   // has its own row elsewhere, and selecting it must not add a T3 Connect
   // route as a side effect, so it is left out here.
+  const isVisibleEnvironment = (environmentId: EnvironmentId) =>
+    environmentId !== primaryEnvironmentId &&
+    (showSavedEnvironments || !savedById.has(environmentId)) &&
+    !(selection && savedWithoutRelay.has(environmentId));
   const visibleEnvironments = [...environmentsState.environments.values()].filter(
-    ({ environment }) =>
-      environment.environmentId !== primaryEnvironmentId &&
-      (showSavedEnvironments || !savedById.has(environment.environmentId)) &&
-      !(selection && savedWithoutRelay.has(environment.environmentId)),
+    ({ environment }) => isVisibleEnvironment(environment.environmentId),
   );
-  const selectNewComputers = useEffectEvent(() => {
-    const seen = selection?.autoSelectedComputers;
-    if (!selection || !seen) return;
-    for (const { environment, status, availability } of visibleEnvironments) {
-      const id = environment.environmentId;
-      if (availability === "checking") continue;
-      if (
-        discoveredCompatibilityError(status) !== null ||
-        savedById.get(id)?.connection.phase === "unsupported"
-      ) {
+  const selectNewComputers = useEffectEvent(
+    (environments: typeof environmentsState.environments) => {
+      const seen = selection?.autoSelectedComputers;
+      if (!selection || !seen) return;
+      for (const { environment, status, availability } of environments.values()) {
+        if (!isVisibleEnvironment(environment.environmentId)) continue;
+        const id = environment.environmentId;
+        if (availability === "checking") continue;
+        if (
+          discoveredCompatibilityError(status) !== null ||
+          savedById.get(id)?.connection.phase === "unsupported"
+        ) {
+          seen.add(id);
+          if (selection.selectedIds.has(id)) selection.onChange(id, false);
+          continue;
+        }
+        if (seen.has(id)) continue;
         seen.add(id);
-        if (selection.selectedIds.has(id)) selection.onChange(id, false);
-        continue;
+        selection.onChange(id, true);
+        if (!savedById.has(id)) {
+          void connectEnvironment(environment).then((connected) => {
+            if (!connected) selection.onChange(id, false);
+          });
+        }
       }
-      if (seen.has(id)) continue;
-      seen.add(id);
-      selection.onChange(id, true);
-      if (!savedById.has(id)) {
-        void connectEnvironment(environment).then((connected) => {
-          if (!connected) selection.onChange(id, false);
-        });
-      }
-    }
-  });
+    },
+  );
   useEffect(() => {
-    selectNewComputers();
+    // oxlint-disable-next-line react/set-state-in-effect -- Discovery results arrive from an external store and auto-selection starts relay connections, which mark themselves connecting.
+    selectNewComputers(environmentsState.environments);
   }, [environmentsState.environments]);
-
   // Discovery clears its list on refresh, so poll only until a machine appears.
   const shouldRefreshWhileEmpty =
     refreshWhileEmpty && visibleEnvironments.length === 0 && !environmentsState.offline;
-
   useEffect(() => {
     if (!shouldRefreshWhileEmpty) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -254,19 +238,15 @@ export function CloudEnvironmentConnectRows({
       if (disposed || pending || !visible()) return;
       clearTimeout(timer);
       pending = true;
-      try {
-        await refreshDiscoveryWhenIdle();
-      } finally {
-        pending = false;
-        schedule();
-      }
+      await settlePromise(() => refreshDiscoveryWhenIdle());
+      pending = false;
+      schedule();
     };
     const onFocus = () => void refresh();
     const onVisibilityChange = () => {
       clearTimeout(timer);
       if (visible()) void refresh();
     };
-
     schedule();
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibilityChange);
@@ -277,9 +257,7 @@ export function CloudEnvironmentConnectRows({
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [shouldRefreshWhileEmpty]);
-
   const standalone = showSavedEnvironments || savedEnvironments.length === 0;
-
   if (
     !refreshWhileEmpty &&
     standalone &&
@@ -289,34 +267,30 @@ export function CloudEnvironmentConnectRows({
   ) {
     return <RemoteEnvironmentRowsSkeleton />;
   }
-
   if (standalone && visibleEnvironments.length === 0) {
-    // A failed or offline discovery is not "no environments" — misreporting it
-    // as empty would read as the user's devices having disappeared.
     const discoveryProblem = environmentsState.offline
       ? "You appear to be offline."
       : (Option.getOrNull(environmentsState.error)?.message ?? null);
     if (discoveryProblem !== null && !environmentsState.refreshing) {
       return (
         <div className={ITEM_ROW_CLASSNAME}>
-          <p className="text-sm font-medium text-destructive">
-            Could not load T3 Connect environments
+          <p className={"text-sm font-medium text-destructive"}>
+            {uiText("Could not load T3 Connect environments")}
           </p>
-          <p className="mt-1 text-xs text-muted-foreground">{discoveryProblem}</p>
+          <p className={"mt-1 text-xs text-muted-foreground"}>{discoveryProblem}</p>
           <Button
-            size="sm"
-            variant="outline"
-            className="mt-3"
+            size={"sm"}
+            variant={"outline"}
+            className={"mt-3"}
             onClick={() => void refreshRelayEnvironments()}
           >
-            Try again
+            {uiText("Try again")}
           </Button>
         </div>
       );
     }
     return empty;
   }
-
   return visibleEnvironments.map(({ environment, availability, error, status }) => {
     const savedEnvironment = savedById.get(environment.environmentId);
     const compatibilityError = discoveredCompatibilityError(status);
@@ -333,13 +307,8 @@ export function CloudEnvironmentConnectRows({
       : savedEnvironment
         ? presentSavedCloudEnvironmentConnection(savedEnvironment.connection)
         : null;
-    // A connected machine's own config (with the user's icon pick) wins. Before
-    // that, the relay's health probe already carries the server's descriptor, so
-    // a machine can wear its detected glyph before this device ever connects.
     const relayStatus = status === undefined ? null : Option.getOrNull(status);
     const descriptor = relayStatus?.descriptor;
-    // Why the relay reports this environment offline, when it knows more than
-    // "no answer". Shown for saved and unsaved rows alike.
     const offlineReason =
       availability === "offline" && relayStatus !== null
         ? relayOfflineReasonMessage(relayStatus)
@@ -385,7 +354,9 @@ export function CloudEnvironmentConnectRows({
       return (
         <label
           key={environment.environmentId}
-          className="flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5 has-disabled:cursor-default"
+          className={
+            "flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5 has-disabled:cursor-default"
+          }
         >
           <Checkbox
             checked={!unsupported && selection.selectedIds.has(environment.environmentId)}
@@ -402,9 +373,16 @@ export function CloudEnvironmentConnectRows({
           <EnvironmentMachineIcon
             aria-hidden
             kind={machineKind}
-            className="size-4 shrink-0 text-muted-foreground"
+            className={"size-4 shrink-0 text-muted-foreground"}
           />
-          <span className="min-w-0 flex-1 truncate text-sm font-medium">{environment.label}</span>
+          <span className={"min-w-0 flex-1"}>
+            <span className={"block truncate text-sm font-medium"}>{environment.label}</span>
+            {unsupportedDetail !== null ? (
+              <span className={"mt-0.5 block text-xs text-muted-foreground"}>
+                {unsupportedDetail}
+              </span>
+            ) : null}
+          </span>
           <Tooltip>
             <TooltipTrigger
               render={<span tabIndex={0} />}
@@ -414,15 +392,15 @@ export function CloudEnvironmentConnectRows({
               )}
             >
               {connectingEnvironmentIds.has(environment.environmentId)
-                ? "Connecting…"
+                ? uiText("Connecting…")
                 : (savedConnection?.buttonLabel ??
                   (availability === "online"
-                    ? "Available"
+                    ? uiText("Available")
                     : availability === "offline"
-                      ? "Offline"
+                      ? uiText("Offline")
                       : availability === "error"
-                        ? "Unavailable"
-                        : "Checking…"))}
+                        ? uiText("Unavailable")
+                        : uiText("Checking…")))}
             </TooltipTrigger>
             <TooltipPopup>{unsupportedDetail ?? statusText}</TooltipPopup>
           </Tooltip>
@@ -432,8 +410,8 @@ export function CloudEnvironmentConnectRows({
     return (
       <div key={environment.environmentId} className={ITEM_ROW_CLASSNAME}>
         <div className={ITEM_ROW_INNER_CLASSNAME}>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
+          <div className={"min-w-0"}>
+            <div className={"flex items-center gap-2"}>
               <ConnectionStatusDot
                 dotClassName={dotClassName}
                 pingClassName={
@@ -461,9 +439,9 @@ export function CloudEnvironmentConnectRows({
               <EnvironmentMachineIcon
                 aria-hidden
                 kind={machineKind}
-                className="size-4 shrink-0 text-muted-foreground"
+                className={"size-4 shrink-0 text-muted-foreground"}
               />
-              <p className="truncate text-sm font-medium">{environment.label}</p>
+              <p className={"truncate text-sm font-medium"}>{environment.label}</p>
             </div>
             <p
               className={cn(
@@ -480,28 +458,28 @@ export function CloudEnvironmentConnectRows({
           </div>
           {unsupported && !savedEnvironment ? (
             <Tooltip>
-              <TooltipTrigger render={<span className="inline-flex" tabIndex={0} />}>
-                <Button size="sm" disabled>
-                  Add
+              <TooltipTrigger render={<span className={"inline-flex"} tabIndex={0} />}>
+                <Button size={"sm"} disabled>
+                  {uiText("Add")}
                 </Button>
               </TooltipTrigger>
-              <TooltipPopup>{unsupportedDetail ?? "Client not supported"}</TooltipPopup>
+              <TooltipPopup>{unsupportedDetail ?? uiText("Client not supported")}</TooltipPopup>
             </Tooltip>
           ) : savedConnection ? (
-            <Button size="sm" variant="outline" disabled>
+            <Button size={"sm"} variant={"outline"} disabled>
               {savedConnection.buttonLabel}
             </Button>
           ) : (
             <Button
-              size="sm"
+              size={"sm"}
               disabled={connectingEnvironmentIds.size > 0}
               onClick={() => void connectEnvironment(environment)}
             >
               {connectingEnvironmentIds.has(environment.environmentId)
-                ? "Adding…"
+                ? uiText("Adding…")
                 : savedWithoutRelay.has(environment.environmentId)
-                  ? "Add route"
-                  : "Add"}
+                  ? uiText("Add route")
+                  : uiText("Add")}
             </Button>
           )}
         </div>

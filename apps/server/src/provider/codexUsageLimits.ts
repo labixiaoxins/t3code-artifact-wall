@@ -1,11 +1,3 @@
-/**
- * Codex subscription usage. The `account/rateLimits/read` response and the
- * `account/rateLimits/updated` notification carry the same snapshot shape, so
- * one mapper serves the status probe and the turn-driven update; both emit
- * windows with the same ids so they merge onto the same rows.
- *
- * @module provider/codexUsageLimits
- */
 import type {
   ProviderUsageLimitsUpdate,
   ServerProviderResetCredits,
@@ -16,7 +8,7 @@ import * as DateTime from "effect/DateTime";
 import * as Option from "effect/Option";
 import type * as CodexErrors from "effect-codex-app-server/errors";
 
-import { clampPercent, makeUsageLimits } from "./providerUsageLimits.ts";
+import { clampPercent, makeUsageLimits } from "@t3tools/provider-core/server/usageLimits";
 
 interface CodexRateLimitWindow {
   readonly usedPercent: number;
@@ -24,16 +16,18 @@ interface CodexRateLimitWindow {
   readonly windowDurationMins?: number | null;
 }
 
-/** Structural view of the generated `RateLimitSnapshot`; both messages satisfy it. */
 export interface CodexRateLimitSnapshot {
   readonly limitId?: string | null;
   readonly planType?: string | null;
   readonly rateLimitReachedType?: string | null;
   readonly primary?: CodexRateLimitWindow | null;
   readonly secondary?: CodexRateLimitWindow | null;
+  readonly individualLimit?: {
+    readonly remainingPercent: number;
+    readonly resetsAt: number;
+  } | null;
 }
 
-/** Structural view of the read response's `rateLimitResetCredits`. */
 export interface CodexResetCreditsSummary {
   readonly availableCount: number;
   readonly credits?: ReadonlyArray<{
@@ -94,6 +88,17 @@ function codexRateLimitsToWindows(
       ...(resetsAt ? { resetsAt } : {}),
     });
   }
+  const individualLimit = snapshot.individualLimit;
+  if (individualLimit && Number.isFinite(individualLimit.remainingPercent)) {
+    const resetsAt = isoFromEpochSeconds(individualLimit.resetsAt);
+    windows.push({
+      id: "individual",
+      kind: "monthly",
+      label: "Monthly credit limit",
+      usedPercent: clampPercent(100 - individualLimit.remainingPercent),
+      ...(resetsAt ? { resetsAt } : {}),
+    });
+  }
   return windows;
 }
 
@@ -123,7 +128,6 @@ export function codexRateLimitsToLimits(input: {
   readonly checkedAt: string;
 }): ServerProviderUsageLimits {
   const resetCredits = codexResetCreditsToContract(input.resetCredits);
-  // Select the main bucket explicitly; the legacy snapshot can name another limit.
   const windows = codexRateLimitsToWindows(input.rateLimitsByLimitId?.codex ?? input.snapshot);
   return {
     ...makeUsageLimits({
@@ -141,11 +145,6 @@ export function codexRateLimitsToUpdate(
   return windows.length > 0 ? { windows } : undefined;
 }
 
-/**
- * A bounded, client-safe reason for a failed `account/rateLimits/read`. The
- * raw error is for the log; only the category and, for a JSON-RPC failure,
- * the code reach the Limits view.
- */
 export function codexRateLimitsFailureMessage(error: CodexErrors.CodexAppServerError): string {
   switch (error._tag) {
     case "CodexAppServerRequestError":
@@ -182,10 +181,10 @@ export function mergeCodexRateLimits(
       : {}),
     ...(update.primary !== undefined ? { primary: update.primary } : {}),
     ...(update.secondary !== undefined ? { secondary: update.secondary } : {}),
+    ...(update.individualLimit !== undefined ? { individualLimit: update.individualLimit } : {}),
   };
 }
 
-/** Coarse remaining wait, matching how the usage rows read: `5d 5h`, `3h 20m`, `12m`. */
 function formatCodexUsageLimitWait(waitMs: number): string {
   const totalMinutes = Math.ceil(waitMs / 60_000);
   const days = Math.floor(totalMinutes / (24 * 60));
@@ -209,12 +208,6 @@ function codexUsageLimitNextStep(rateLimitReachedType: string | null | undefined
   }
 }
 
-/**
- * The message a usage-limit stop shows instead of the provider sentence, which
- * on a Business workspace blames credits for a window that simply ran out. The
- * window named is the exhausted one that has yet to reset, latest first; `atIso`
- * is the stopping event's timestamp, not the wall clock.
- */
 export function codexUsageLimitMessage(
   snapshot: CodexRateLimitSnapshot | undefined,
   atIso: string,

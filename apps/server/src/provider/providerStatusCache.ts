@@ -9,7 +9,7 @@ import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
 
-import { writeFileStringAtomically } from "../atomicWrite.ts";
+import { writeFileStringAtomically } from "@t3tools/shared/atomicWrite";
 
 const decodeProviderStatusCache = Schema.decodeUnknownEffect(
   Schema.fromJsonString(ServerProviderSchema),
@@ -29,10 +29,6 @@ const mergeProviderModels = (
   ];
 };
 
-/**
- * Built-in drivers in presentation order. Codex and Claude lead, the opt-in
- * providers follow, and unknown or fork drivers sort after every built-in.
- */
 const BUILT_IN_DRIVER_ORDER: ReadonlyArray<string> = [
   "codex",
   "claudeAgent",
@@ -99,16 +95,6 @@ export const hydrateCachedProvider = (input: {
 };
 
 /**
- * Resolve the on-disk cache path for a provider instance snapshot.
- *
- * File naming: `<cacheDir>/<instanceId>.json`. For the default instance of
- * a built-in kind this equals the legacy `<kind>.json` path (because
- * `defaultInstanceIdForDriver(kind).toString() === kind`), so existing
- * cached snapshots remain readable without any rename step.
- *
- * Non-default instances (e.g. `codex_personal`) land in their own files and
- * never collide with other instances.
- *
  * Cache contents must still carry matching `instanceId` + `driver` identity
  * before hydration. The filename alone is not trusted as a routing key.
  */
@@ -122,8 +108,8 @@ export const resolveProviderStatusCachePath = Effect.fn("resolveProviderStatusCa
   },
 );
 
-export const readProviderStatusCache = (filePath: string) =>
-  Effect.gen(function* () {
+export const readProviderStatusCache = Effect.fn("providerStatusCache.readProviderStatusCache")(
+  function* (filePath: string) {
     const fs = yield* FileSystem.FileSystem;
     const exists = yield* fs.exists(filePath).pipe(Effect.orElseSucceed(() => false));
     if (!exists) {
@@ -146,7 +132,8 @@ export const readProviderStatusCache = (filePath: string) =>
         onSuccess: Effect.succeed,
       }),
     );
-  });
+  },
+);
 
 export const writeProviderStatusCache = (input: {
   readonly filePath: string;

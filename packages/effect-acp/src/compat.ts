@@ -8,7 +8,6 @@ type KnownContentBlock<T extends V2.ContentBlock["type"]> = Extract<
   { readonly type: T }
 >;
 
-/** Provider-neutral content accepted by T3 after ACP v1 or v2 negotiation. */
 export type ContentBlock =
   | KnownContentBlock<"text">
   | KnownContentBlock<"image">
@@ -318,6 +317,7 @@ export type SessionUpdate =
       readonly state: "idle";
       readonly stopReason?: StopReason | null;
       readonly usage?: Usage | null;
+      readonly error?: V2.Error | null;
       readonly _meta?: Meta;
     }
   | {
@@ -380,8 +380,6 @@ export type RequestPermissionRequest = {
 };
 export type RequestPermissionResponse = V2.RequestPermissionResponse;
 
-// ACP v1 client-mediated filesystem and terminal shapes remain as internal
-// types for the legacy policy helpers. ACP v2 never advertises or wires them.
 export interface ReadTextFileRequest {
   readonly sessionId: string;
   readonly path: string;

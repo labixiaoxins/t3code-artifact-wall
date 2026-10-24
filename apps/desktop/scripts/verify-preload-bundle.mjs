@@ -108,6 +108,8 @@ const executeBundle = (source, sandboxModules) => {
     {
       process: sandboxProcess,
       require: requireSandboxModule,
+      // Packaged preload registers DOM listeners before exposing the bridge.
+      window: { addEventListener: () => undefined },
     },
     {
       filename: "desktop-preload.cjs",

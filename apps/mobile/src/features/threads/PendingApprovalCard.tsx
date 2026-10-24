@@ -1,4 +1,4 @@
-import { RequestActionButton } from "./RequestActionButton";
+import { Button } from "../../components/ui/Button";
 import type {
   ProviderApprovalDecision,
   ProviderApprovalOption,
@@ -6,10 +6,11 @@ import type {
 } from "@t3tools/contracts";
 import { View } from "react-native";
 
-import { AppText as Text } from "../../components/AppText";
+import { AppText as Text } from "../../components/ui/AppText";
 import type { PendingApproval } from "../../lib/threadActivity";
 
 export interface PendingApprovalCardProps {
+  readonly canOperateThread: boolean;
   readonly approval: PendingApproval;
   readonly respondingApprovalId: RuntimeRequestId | null;
   readonly onRespond: (
@@ -28,8 +29,6 @@ export function PendingApprovalCard(props: PendingApprovalCardProps) {
   const options: ReadonlyArray<ProviderApprovalOption> =
     props.approval.options ?? DEFAULT_APPROVAL_OPTIONS;
   const warning = options.find((option) => option.warning)?.warning;
-  // Opaque for the same reason as PendingUserInputCard: nothing blurs the feed
-  // behind this card, so a translucent surface bleeds messages through it.
   const canRespond = props.approval.responseCapability === "live";
   const disabled = !canRespond || props.respondingApprovalId === props.approval.requestId;
   return (
@@ -46,7 +45,7 @@ export function PendingApprovalCard(props: PendingApprovalCardProps) {
         </Text>
       ) : null}
       {!canRespond ? (
-        <Text className="font-sans text-sm leading-5 text-adaptive-neutral-600-400">
+        <Text className="font-sans text-sm leading-5 text-foreground-muted">
           The provider process for this request is no longer available. Interrupt or restart the run
           to continue.
         </Text>
@@ -56,7 +55,7 @@ export function PendingApprovalCard(props: PendingApprovalCardProps) {
       ) : null}
       <View className="flex-row flex-wrap gap-2.5">
         {options.map((option) => (
-          <RequestActionButton
+          <Button
             key={option.decision}
             label={option.label}
             tone={
@@ -66,11 +65,16 @@ export function PendingApprovalCard(props: PendingApprovalCardProps) {
                   ? "danger"
                   : "secondary"
             }
-            disabled={disabled}
+            disabled={disabled || !props.canOperateThread}
             onPress={() => void props.onRespond(props.approval.requestId, option.decision)}
           />
         ))}
       </View>
+      {!props.canOperateThread ? (
+        <Text className="font-sans text-xs text-foreground-muted">
+          This connection cannot respond to approvals.
+        </Text>
+      ) : null}
     </View>
   );
 }

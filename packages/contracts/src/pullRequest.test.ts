@@ -1,22 +1,31 @@
+import { SourceControlProviderKind } from "./sourceControl.ts";
 import * as Schema from "effect/Schema";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
   PullRequestActionInput,
   PullRequestCapabilities,
+  PullRequestChangeBreakdown,
+  PullRequestDetail,
   PullRequestFilesViewedResult,
   PullRequestListInput,
   PullRequestListResult,
   PullRequestReviewerRequestInput,
   PullRequestSetFilesViewedInput,
+  PullRequestSubmitReviewInput,
   pullRequestHostOf,
   resolvePullRequestAuthorFilter,
 } from "./pullRequest.ts";
 
-const decodeListResult = Schema.decodeUnknownSync(PullRequestListResult);
+const decodeListResult = Schema.decodeUnknownSync(Schema.toCodecJson(PullRequestListResult));
+const decodeDetail = Schema.decodeUnknownSync(Schema.toCodecJson(PullRequestDetail));
+const decodeChangeBreakdown = Schema.decodeUnknownSync(
+  Schema.toCodecJson(PullRequestChangeBreakdown),
+);
 const decodeListInput = Schema.decodeUnknownSync(PullRequestListInput);
 const decodeReviewerRequest = Schema.decodeUnknownSync(PullRequestReviewerRequestInput);
-const decodeAction = Schema.decodeUnknownSync(PullRequestActionInput);
+const decodeAction = Schema.decodeUnknownSync(Schema.toCodecJson(PullRequestActionInput));
+const decodeReview = Schema.decodeUnknownSync(Schema.toCodecJson(PullRequestSubmitReviewInput));
 const decodeSetFilesViewed = Schema.decodeUnknownSync(PullRequestSetFilesViewedInput);
 const decodeFilesViewed = Schema.decodeUnknownSync(PullRequestFilesViewedResult);
 
@@ -25,7 +34,7 @@ const LIST_RESULT: PullRequestListResult = {
   providers: [
     {
       host: "github.com",
-      kind: "github",
+      kind: SourceControlProviderKind.make("github"),
       searchesOnHost: true,
       projectCount: 1,
       configured: true,
@@ -33,7 +42,7 @@ const LIST_RESULT: PullRequestListResult = {
     },
     {
       host: "gitlab.com",
-      kind: "gitlab",
+      kind: SourceControlProviderKind.make("gitlab"),
       searchesOnHost: true,
       projectCount: 1,
       configured: false,
@@ -42,7 +51,7 @@ const LIST_RESULT: PullRequestListResult = {
   ],
   entries: [
     {
-      provider: "github",
+      provider: SourceControlProviderKind.make("github"),
       host: "github.com",
       projectId: "project-1" as PullRequestListResult["entries"][number]["projectId"],
       projectTitle: "t3code",
@@ -75,19 +84,23 @@ describe("PullRequestListResult", () => {
       canonicalKey: "forge.example/team/repo",
       locator: { remoteUrl: "http://forge.example:3000/team/repo.git" },
     };
-    expect(pullRequestHostOf(identity, "forgejo")).toBe("forge.example:3000");
-    expect(pullRequestHostOf(identity, "gitlab")).toBe("forge.example");
+    expect(pullRequestHostOf(identity, SourceControlProviderKind.make("forgejo"))).toBe(
+      "forge.example:3000",
+    );
+    expect(pullRequestHostOf(identity, SourceControlProviderKind.make("gitlab"))).toBe(
+      "forge.example",
+    );
     expect(
       pullRequestHostOf(
         { ...identity, locator: { remoteUrl: "ssh://git@forge.example:2222/team/repo.git" } },
-        "forgejo",
+        SourceControlProviderKind.make("forgejo"),
       ),
     ).toBe("forge.example");
   });
   /**
    * The RPC builds this codec at call time, so a shape it cannot lower — an open-keyed record
    * with an optional value, for one — fails as an interrupted request rather than as a schema
-   * error. Building it here turns that into a test failure instead.
+   * error.
    */
   it("round-trips through the JSON codec the RPC serializes with", () => {
     const codec = Schema.toCodecJson(PullRequestListResult);
@@ -95,6 +108,18 @@ describe("PullRequestListResult", () => {
     const decoded = Schema.decodeSync(codec)(Schema.encodeUnknownSync(codec)(LIST_RESULT));
 
     expect(decoded).toStrictEqual(LIST_RESULT);
+  });
+
+  it("loads a newer server's list response, dropping unknown provider actions in order", () => {
+    const decoded = decodeListResult({
+      ...LIST_RESULT,
+      providers: [{ ...LIST_RESULT.providers[0], actions: ["close", "archive", "merge"] }],
+    });
+
+    expect(decoded).toEqual({
+      ...LIST_RESULT,
+      providers: [{ ...LIST_RESULT.providers[0], actions: ["close", "merge"] }],
+    });
   });
 
   it("keys a viewer by host, so two hosts of one kind stay separate accounts", () => {
@@ -144,8 +169,6 @@ describe("PullRequestReviewerRequestInput", () => {
   const reviewer = { id: "octocat", kind: "user" };
 
   it("carries the same shape whichever direction the request goes", () => {
-    // One operation, turned around: `requested` is the whole difference between asking somebody
-    // for a review and taking the request back.
     for (const requested of [true, false]) {
       expect(decodeReviewerRequest({ ...ref, reviewers: [reviewer], requested }).requested).toBe(
         requested,
@@ -215,6 +238,16 @@ describe("leaving a merge for the host to make once it is ready", () => {
 });
 
 describe("reverting a merged pull request", () => {
+  it("carries a standalone branch deletion action", () => {
+    expect(
+      decodeAction({
+        projectId: "project-1",
+        repository: "acme/web",
+        number: 7,
+        action: "delete-branch",
+      }).action,
+    ).toBe("delete-branch");
+  });
   it("carries the revert action without merge options", () => {
     const action = decodeAction({
       projectId: "project-1",
@@ -256,6 +289,68 @@ describe("PullRequestCapabilities", () => {
   it("decodes a server that says nothing about reactions as a server with none", () => {
     expect(decodeCapabilities(base).reactions).toBeUndefined();
   });
+
+  it("only offers branch deletion when the server advertises it", () => {
+    expect(decodeCapabilities(base).deleteBranch).toBeUndefined();
+    expect(decodeCapabilities({ ...base, deleteBranch: true }).deleteBranch).toBe(true);
+  });
+
+  it("loads a newer server's detail response, dropping unknown options in order", () => {
+    const options = {
+      actions: ["close", "archive", "merge"],
+      verdicts: ["request-changes", "block", "approve"],
+      updateMethods: ["rebase", "fast-forward", "merge"],
+    };
+    const detail = {
+      ...LIST_RESULT.entries[0],
+      workspaceRoot: "/workspace/t3code",
+      body: "",
+      changedFiles: 1,
+      mergedAt: null,
+      closedAt: null,
+      reviewers: [],
+      checks: [],
+      mergeCapabilities: { merge: true, squash: true, rebase: true },
+      capabilities: {
+        ...base,
+        actions: options.actions,
+        mergeMethods: ["squash", "fast-forward", "merge"],
+        updateMethods: options.updateMethods,
+        review: { ...base.review, verdicts: options.verdicts },
+      },
+      viewerPermissions: { ...options, comment: true, resolve: true, requestReviewers: true },
+    };
+    const decoded = decodeDetail(detail);
+
+    expect(decoded.capabilities).toEqual({
+      ...base,
+      actions: ["close", "merge"],
+      mergeMethods: ["squash", "merge"],
+      updateMethods: ["rebase", "merge"],
+      review: { ...base.review, verdicts: ["request-changes", "approve"] },
+    });
+    expect(decoded.viewerPermissions).toEqual({
+      actions: ["close", "merge"],
+      verdicts: ["request-changes", "approve"],
+      updateMethods: ["rebase", "merge"],
+      comment: true,
+      resolve: true,
+      requestReviewers: true,
+    });
+    expect(decoded.title).toBe(detail.title);
+  });
+});
+
+describe("pull request mutation requests", () => {
+  it("still rejects unknown actions, merge methods, and review verdicts on the wire", () => {
+    const ref = { projectId: "project-1", repository: "acme/web", number: 7 };
+
+    expect(() => decodeAction({ ...ref, action: "archive" })).toThrow();
+    expect(() => decodeAction({ ...ref, action: "merge", mergeMethod: "fast-forward" })).toThrow();
+    const review = { ...ref, body: "", comments: [], verdict: "approve" };
+    expect(decodeReview(review).verdict).toBe("approve");
+    expect(() => decodeReview({ ...review, verdict: "block" })).toThrow();
+  });
 });
 
 describe("naming the reader as the author to narrow by", () => {
@@ -277,9 +372,6 @@ describe("naming the reader as the author to narrow by", () => {
 });
 
 describe("naming the file a tick belongs to", () => {
-  // A space on either end of a name is part of the name as far as git is concerned. The patch on
-  // screen and the environment's record of what was cleared are both keyed by it, so a path
-  // tidied in transit ticks a file that does not exist and leaves the one on screen unticked.
   it("keeps the spaces around a path being ticked", () => {
     expect(
       decodeSetFilesViewed({
@@ -312,9 +404,6 @@ describe("naming the file a tick belongs to", () => {
   });
 
   it("refuses a batch larger than a reader can press", () => {
-    // Every element of a batch is a statement of its own inside one transaction on an
-    // environment-kept host, or a field of its own in one GraphQL document on GitHub, so what a
-    // client may send has to be bounded rather than trusted to be a burst of presses.
     const press = (path: string) => ({ path, viewed: true });
     const batch = (count: number) => ({
       projectId: "p1",
@@ -336,5 +425,25 @@ describe("naming the file a tick belongs to", () => {
         files: [{ path: `src/${"a".repeat(4096)}.ts`, viewed: true }],
       }),
     ).toThrow();
+  });
+});
+
+describe("PullRequestChangeBreakdown", () => {
+  it("reads a breakdown from a server that predates the docs kind", () => {
+    const line = { additions: 1, deletions: 0 };
+    expect(
+      decodeChangeBreakdown({
+        code: line,
+        tests: line,
+        mocks: line,
+        generated: line,
+      }),
+    ).toEqual({
+      code: line,
+      tests: line,
+      mocks: line,
+      generated: line,
+      docs: { additions: 0, deletions: 0 },
+    });
   });
 });

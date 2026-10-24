@@ -1,0 +1,51 @@
+name: Setup CI dependencies
+description: Install Vite+ and the workspace dependencies from cache.
+runs:
+  using: composite
+  steps:
+    # setup-vp reuses an installed exact version, so restoring its home skips the
+    # installer download on every job.
+    - name: Resolve Vite+ version
+      id: vp
+      shell: bash
+      run: |
+        echo "version=$(sed -nE 's/^  vite-plus: ([0-9][^ ]*)$/\1/p' pnpm-workspace.yaml)" >> "$GITHUB_OUTPUT"
+
+    - name: Cache Vite+
+      if: steps.vp.outputs.version != ''
+      uses: actions/cache@v6
+      with:
+        path: ~/.vite-plus
+        key: vite-plus-home-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.vp.outputs.version }}
+
+    - name: Setup Vite+
+      uses: voidzero-dev/setup-vp@v1
+      with:
+        node-version-file: package.json
+        cache: false
+        run-install: false
+
+    - name: Resolve pnpm store path
+      id: pnpm_store
+      shell: bash
+      run: |
+        store_path="$(vp pm cache dir)"
+        echo "path=$store_path" >> "$GITHUB_OUTPUT"
+
+    # setup-vp's shared cache key ignores install filters. Keep full installs in a
+    # separate namespace, including fallback restores.
+    # The pnpm store stays a cache tarball on the runner's own disk. A store on a
+    # Blacksmith sticky disk mounts in under a second, but pnpm then copies every
+    # package across filesystems instead of hard-linking it: install took 28-49s
+    # against 9s plus an 11s restore.
+    - name: Cache full pnpm store
+      uses: actions/cache@v6
+      with:
+        path: ${{ steps.pnpm_store.outputs.path }}
+        key: pnpm-full-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
+        restore-keys: |
+          pnpm-full-v1-${{ runner.os }}-${{ runner.arch }}-
+
+    - name: Install dependencies
+      shell: bash
+      run: vp install

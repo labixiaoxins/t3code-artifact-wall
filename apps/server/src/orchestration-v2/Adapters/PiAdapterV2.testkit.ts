@@ -1,19 +1,3 @@
-/**
- * Pi RPC replay: swaps the `ChildProcessSpawner` that `PiAdapterV2` uses to
- * spawn `pi --mode rpc` for one that answers from a recorded transcript. The
- * real adapter and `PiRpc` framing run unchanged against recorded Pi output.
- *
- * Transcript entries are stdio records. `expect_outbound` is one JSONL record
- * the adapter wrote to stdin and `emit_inbound` is one record Pi wrote to
- * stdout. Pi echoes the adapter's request ids, so a recorded id is rebound to
- * the id the replaying adapter actually sent. `<any>` in an outbound frame
- * matches any value.
- *
- * Every spawned Pi process begins with a synthetic `process_start` outbound
- * record carrying its argv. Records of the Nth process (N > 1) carry an `@pN`
- * label suffix, because a native fork runs a short-lived `--fork` process
- * next to the session process.
- */
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import {
   ProviderReplayEntry,
@@ -30,15 +14,12 @@ import * as Sink from "effect/Sink";
 import * as Stream from "effect/Stream";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 
-import * as ServerConfig from "../../config.ts";
-import * as IdAllocator from "../IdAllocator.ts";
-import { ProviderAdapterDriverCreateError } from "../ProviderAdapterDriver.ts";
+import * as TestProviderHost from "@t3tools/provider-testing/TestProviderHost";
+import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
+import { ProviderAdapterDriverCreateError } from "@t3tools/provider-core/server/adapterDriver";
 import * as ProviderAdapterRegistry from "../ProviderAdapterRegistry.ts";
-import {
-  makeReplayServerConfig,
-  type OrchestratorV2ProviderReplayHarness,
-} from "../testkit/ProviderReplayHarness.ts";
-import { PI_PROVIDER, PiAdapterV2Driver } from "./PiAdapterV2.ts";
+import type { OrchestratorV2ProviderReplayHarness } from "../testkit/ProviderReplayHarness.ts";
+import { PI_PROVIDER, PiAdapterV2Driver } from "@t3tools/provider-pi/server";
 
 export const PI_RPC_REPLAY_PROTOCOL = "pi.rpc-jsonl";
 export const PI_REPLAY_ANY = "<any>";
@@ -99,7 +80,6 @@ class PiReplayIncompleteError extends Schema.TaggedError<PiReplayIncompleteError
   }
 }
 
-/** Label or, failing that, entry type: bounded context for a replay error. */
 function entryLabel(entry: ProviderReplayEntryType | undefined): string | undefined {
   if (entry === undefined) return undefined;
   return entry.type === "runtime_exit" ? "runtime_exit" : (entry.label ?? entry.type);
@@ -132,7 +112,6 @@ function replayValueMatches(expected: unknown, actual: unknown): boolean {
   return Object.is(expected, actual);
 }
 
-/** PiRpc numbers its correlated requests `t3-N` per process. */
 const ADAPTER_REQUEST_ID = /^t3-\d+$/u;
 
 function adapterRequestId(frame: unknown): string | undefined {
@@ -152,7 +131,6 @@ function withRequestId(expected: unknown, actual: unknown): unknown {
     : expected;
 }
 
-/** A write may not match past one of these: it would be a turn early. */
 function startsTurn(entry: ProviderReplayEntryType): boolean {
   if (entry.type !== "expect_outbound") return false;
   const type = isRecord(entry.frame) ? entry.frame.type : undefined;
@@ -164,7 +142,6 @@ function processStartFrame(command: ChildProcess.Command) {
   return { type: "process_start", args: [...args] };
 }
 
-/** `response:get_state@p2` belongs to the second spawned process; no suffix is the first. */
 function entryProcess(entry: ProviderReplayEntryType): number {
   const label = entry.type === "runtime_exit" ? undefined : entry.label;
   const match = label === undefined ? null : /@p(\d+)$/u.exec(label);
@@ -186,7 +163,6 @@ function recordLabel(frame: unknown, process: number): string | undefined {
 const decodeJsonLine = Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown));
 const encodeJsonLine = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
 
-/** Splits a byte stream into LF-delimited records, as Pi's RPC framing requires. */
 function makeLineSplitter() {
   let buffer = "";
   const decoder = new TextDecoder();
@@ -201,16 +177,11 @@ function makeLineSplitter() {
 interface PiReplayProcess {
   readonly ordinal: number;
   readonly stdout: Queue.Queue<Uint8Array, Cause.Done>;
-  /** Recorded request id -> id the replaying adapter sent in its place. */
   readonly ids: Map<string, string>;
   open: boolean;
 }
 
 /**
- * Drives every Pi process of one scenario from a single ordered transcript.
- * Outbound records must match the recording; the inbound records that follow
- * them are written to the stdout of the process that produced them.
- *
  * Independent adapter fibers (skill discovery beside thread setup, a settle
  * probe beside a steer) can reach stdin in a different order than recorded, so
  * a write that matches a later outbound record of the same turn is held until
@@ -279,7 +250,6 @@ class PiReplayController {
     this.advance();
   }
 
-  /** The adapter released a process: its scope closed. */
   close(process: PiReplayProcess): void {
     process.open = false;
     Queue.endUnsafe(process.stdout);
@@ -298,7 +268,6 @@ class PiReplayController {
     }
   }
 
-  /** Emits due inbound records and consumes held writes until neither can progress. */
   private advance(): void {
     let progressed = true;
     while (progressed && this.failure === null) {
@@ -313,7 +282,6 @@ class PiReplayController {
     }
   }
 
-  /** Matches a write against the outbound records due before the next inbound one. */
   private consumePending(process: PiReplayProcess, actual: unknown): boolean {
     const entries = this.transcript.entries;
     for (let index = this.cursor; index < entries.length; index += 1) {
@@ -338,8 +306,6 @@ class PiReplayController {
     while (this.failure === null) {
       const entry = this.transcript.entries[this.cursor];
       if (entry?.type === "runtime_exit") {
-        // Pi exited on its own in the recording: end the newest process's
-        // stdout, which is the EOF the adapter observed.
         this.cursor += 1;
         emitted = true;
         const process = this.processes.at(-1);
@@ -351,7 +317,6 @@ class PiReplayController {
       if (process === undefined) return emitted;
       this.cursor += 1;
       emitted = true;
-      // Output a process wrote after the adapter released it was never observed.
       if (!process.open) continue;
       const frame = entry.frame;
       const recordedId = isRecord(frame) ? frame.id : undefined;
@@ -402,11 +367,6 @@ function makePiReplaySpawner(
   );
 }
 
-/**
- * Registry with the real Pi driver on the given spawner. The recorder passes a
- * spawner that tees a live `pi`; replay passes the transcript-backed one. The
- * launch arguments are part of the recorded argv, so replay reuses them.
- */
 export function layer<E, R>(input: {
   readonly scenario: string;
   readonly spawner: Layer.Layer<ChildProcessSpawner.ChildProcessSpawner, E, R>;
@@ -414,10 +374,6 @@ export function layer<E, R>(input: {
   readonly launchArgs: string;
   readonly environment?: ProviderInstanceEnvironment;
 }) {
-  const layerServerConfig = Layer.effect(
-    ServerConfig.ServerConfig,
-    makeReplayServerConfig(`pi-${input.scenario}`).pipe(Effect.orDie),
-  ).pipe(Layer.provide(NodeServices.layer));
   return ProviderAdapterRegistry.layerFromDrivers({
     drivers: [PiAdapterV2Driver],
     configMap: {
@@ -430,7 +386,13 @@ export function layer<E, R>(input: {
     },
   }).pipe(
     Layer.provide(input.spawner),
-    Layer.provide(Layer.mergeAll(layerServerConfig, NodeServices.layer, IdAllocator.layer)),
+    Layer.provide(
+      Layer.mergeAll(
+        TestProviderHost.layer().pipe(Layer.provide(NodeServices.layer)),
+        NodeServices.layer,
+        IdAllocator.layer,
+      ),
+    ),
   );
 }
 
@@ -472,13 +434,6 @@ export const PiOrchestratorReplayHarness: OrchestratorV2ProviderReplayHarness<
     }),
 };
 
-// ── recording ─────────────────────────────────────────────────
-
-/**
- * Wraps a live spawner and tees every Pi process's stdin and stdout records
- * into `entries` in the order the adapter observed them: writes as the adapter
- * makes them, reads as the adapter pulls them.
- */
 export function makePiRecordingSpawner(
   live: ChildProcessSpawner.ChildProcessSpawner["Service"],
   entries: Array<ProviderReplayEntryType>,

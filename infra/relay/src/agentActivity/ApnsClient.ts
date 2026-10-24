@@ -18,9 +18,7 @@ const LIVE_ACTIVITY_NAME = "AgentActivity";
 // Bound sending and reading separately so neither stage can hold a batch open.
 const APNS_HTTP_STAGE_TIMEOUT = "10 seconds";
 // Updates only flow on domain events, so a healthy agent can be silent for
-// minutes (long tool calls, pending approvals). Two minutes made iOS dim
-// perfectly healthy activities; ten minutes still bounds how long a dead
-// environment can look alive.
+// minutes (long tool calls, pending approvals).
 const STALE_AFTER_SECONDS = 10 * 60;
 const DISMISS_AFTER_SECONDS = 5 * 60;
 // An end without a final content-state leaves whatever the card last showed
@@ -142,8 +140,6 @@ function makeLiveActivityRequest(input: MakeLiveActivityRequestInput): ApnsLiveA
   return {
     token: input.token,
     event: input.event,
-    // Alerting updates must land immediately; routine redraws stay at the
-    // budget-friendly low priority.
     priority: input.event === "update" && !input.alert ? "5" : "10",
     payload: {
       aps: {
@@ -188,13 +184,14 @@ function makePushNotificationRequest(input: {
           body: input.notification.body,
         },
         sound: "default",
-        // Notification Center stacks alerts by thread so a chatty thread does
-        // not bury the others; a grouped alert for several threads stays alone.
         "thread-id": notificationThreadId(input.notification),
       },
-      environmentId: input.notification.environmentId,
-      threadId: input.notification.threadId,
-      deepLink: input.notification.deepLink,
+      // Expo iOS exposes userInfo.body as notification.content.data for remote pushes.
+      body: {
+        environmentId: input.notification.environmentId,
+        threadId: input.notification.threadId,
+        deepLink: input.notification.deepLink,
+      },
     },
   };
 }

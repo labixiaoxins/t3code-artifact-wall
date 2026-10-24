@@ -1,4 +1,4 @@
-import type { ProviderAdapterV2HistoricalContext } from "./ProviderAdapter.ts";
+import type * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
 import { assert, describe, it } from "@effect/vitest";
 import {
   ContextHandoffId,
@@ -23,13 +23,11 @@ import {
   historyResponseItems,
   selectHistory,
   historicalMessage,
-} from "./ContextHandoffBudget.ts";
+} from "@t3tools/provider-core/server/handoffBudget";
 import { projectContextHandoffForWire } from "./WireProjection.ts";
 import { deliverContextHandoffs } from "./ContextHandoffDelivery.ts";
-
 const encodeJson = Schema.encodeEffect(Schema.fromJsonString(Schema.Unknown));
 const decodeHandoff = Schema.decodeUnknownSync(OrchestrationV2ContextHandoff);
-
 const now = DateTime.makeUnsafe("2026-09-17T00:00:00Z");
 const threadId = ThreadId.make("thread:handoff");
 const providerThread: OrchestrationV2ProviderThread = {
@@ -91,7 +89,6 @@ const handoff: OrchestrationV2ContextHandoff = {
   createdAt: now,
   updatedAt: now,
 };
-
 describe("handoff budget", () => {
   it("keeps old preview handoffs readable and delivery history off the wire", () => {
     const projected = projectContextHandoffForWire({
@@ -146,10 +143,69 @@ describe("handoff budget", () => {
       }),
     );
     assert.equal(historyResponseItems([command!], "Activity")[1]?.type, "message");
+    const tool = historicalMessage({
+      ...base,
+      type: "dynamic_tool",
+      toolName: "publish_asset",
+      input: { token: "never-copy-this-secret" },
+      output: { image: "large-payload" },
+    });
+    assert.include(tool!.text, "publish_asset");
+    assert.include(tool!.text, "outcome is uncertain");
+    assert.include(tool!.text, base.id);
+    assert.notInclude(tool!.text, "never-copy-this-secret");
+    assert.notInclude(tool!.text, "large-payload");
   });
-
+  it.each(
+    ["code", "visual", "slides", "research", "mock-publication"].flatMap((task) =>
+      [4000, 8000, 16000].map((budget) => ({ task, budget })),
+    ),
+  )("keeps user corrections ahead of noisy logs: $task, $budget bytes", ({ task, budget }) => {
+    const original = message(
+      `${task}:original`,
+      "user",
+      "Keep the original files and preserve existing authorization scope.",
+    );
+    const correction = message(
+      `${task}:correction`,
+      "user",
+      "Use final-v3; do not publish. The previous v2 is obsolete.",
+    );
+    const latest = message(`${task}:latest`, "user", "Continue the remaining work.");
+    const file = {
+      ...message(`${task}:file`, "assistant", `File change: /fixture/${task}/final-v3.pdf`),
+      kind: "file_change",
+    };
+    const candidates = [
+      original,
+      correction,
+      {
+        ...message(`${task}:log`, "assistant", "irrelevant log ".repeat(20000)),
+        kind: "command_execution",
+        status: "completed",
+      },
+      file,
+      latest,
+      message(`${task}:answer`, "assistant", "Partial progress. ".repeat(500)),
+    ];
+    const selected = selectHistory({
+      messages: candidates,
+      coverage: "Read source items before retrying uncertain operations",
+      budget,
+    });
+    assert.deepEqual(
+      selected.messages.filter((m) => m.role === "user"),
+      [original, correction, latest],
+    );
+    assert.include(
+      selected.messages.map((m) => m.itemId),
+      file.itemId,
+    );
+    assert.include(selected.omittedItemIds, `${task}:log`);
+    assert.isAtMost(historyCost(selected.messages, selected.context), budget);
+  });
   it("retains short conversations verbatim in role and order", () => {
-    const selected = selectHistory({ messages, coverage: "History", budget: 16_000 });
+    const selected = selectHistory({ messages, coverage: "History", budget: 16000 });
     assert.deepEqual(selected.messages, messages);
     const items = historyResponseItems(selected.messages, selected.context);
     assert.deepEqual(
@@ -160,29 +216,27 @@ describe("handoff budget", () => {
     assert.include(items[2]!.content[0]!.text, messages[1]!.text);
     assert.equal(selected.omittedItems, 0);
   });
-
   it("omits oversized multilingual items whole, preserves original constraints and recent work", () => {
     const candidates = [
       messages[0]!,
-      message("huge", "assistant", "界🧪".repeat(20_000)),
-      message("old", "assistant", "a".repeat(4_000)),
+      message("huge", "assistant", "界🧪".repeat(20000)),
+      message("old", "assistant", "a".repeat(4000)),
       messages[1]!,
     ];
     const selected = selectHistory({
       messages: candidates,
       coverage: "thread:handoff runs 1-4",
-      budget: 3_000,
+      budget: 3000,
     });
     assert.deepEqual(selected.messages, messages);
     assert.equal(selected.omittedItems, 2);
-    assert.isAtMost(historyCost(selected.messages, selected.context), 3_000);
+    assert.isAtMost(historyCost(selected.messages, selected.context), 3000);
   });
-
   it("counts JSON escaping and UTF-8 bytes across many messages", () => {
     const candidates = Array.from({ length: 500 }, (_, i) =>
       message(`item:${i}`, i % 2 ? "assistant" : "user", '\u0000\\"🧪界'.repeat(15)),
     );
-    for (const budget of [1_024, 4_000, 16_000]) {
+    for (const budget of [1024, 4000, 16000]) {
       const selected = selectHistory({
         messages: candidates,
         coverage: "Retrieve omitted history",
@@ -192,12 +246,11 @@ describe("handoff budget", () => {
       assert.isAbove(selected.omittedItems, 0);
     }
   });
-
   it("fits the final envelope at intermediate selected/omitted digit boundaries", () => {
     const candidates = Array.from({ length: 20 }, (_, index) =>
       message(`boundary:${index}`, "user", "Short request"),
     );
-    for (let budget = 4_000; budget <= 9_000; budget++) {
+    for (let budget = 4000; budget <= 9000; budget++) {
       const selected = selectHistory({
         messages: candidates,
         coverage: "Recover history",
@@ -207,30 +260,29 @@ describe("handoff budget", () => {
       assert.isAtMost(historyCost(selected.messages, selected.context), budget);
     }
   });
-
   it("subtracts native usage, input, attachments, instructions and space for work", () => {
     const base = {
-      tokenCap: 16_000,
+      tokenCap: 16000,
       userText: "Continue",
       attachments: [],
       providerThread,
       nativeContextEstimate: 0,
-      modelContextWindow: 32_000,
+      modelContextWindow: 32000,
     };
-    assert.isBelow(handoffBudget(base), 16_000);
-    assert.isBelow(handoffBudget({ ...base, nativeContextEstimate: 8_000 }), handoffBudget(base));
-    assert.equal(handoffBudget({ ...base, userText: "界".repeat(30_000) }), 0);
+    assert.isBelow(handoffBudget(base), 16000);
+    assert.isBelow(handoffBudget({ ...base, nativeContextEstimate: 8000 }), handoffBudget(base));
+    assert.equal(handoffBudget({ ...base, userText: "界".repeat(30000) }), 0);
     assert.equal(
       handoffBudget({
         ...base,
         providerThread: {
           ...providerThread,
-          contextUsage: { usedTokens: 23_000, maxTokens: 24_000 },
+          contextUsage: { usedTokens: 23000, maxTokens: 24000 },
         },
       }),
       0,
     );
-    for (const sizeBytes of [100_000, 10 * 1024 * 1024]) {
+    for (const sizeBytes of [100000, 10 * 1024 * 1024]) {
       const attachments = [
         {
           type: "image",
@@ -241,33 +293,31 @@ describe("handoff budget", () => {
         },
       ];
       const withImage = handoffBudget({ ...base, attachments });
-      assert.isAbove(withImage, 4_000);
+      assert.isAbove(withImage, 4000);
       assert.isBelow(withImage, handoffBudget(base));
       assert.equal(handoffBudget({ ...base, attachments: [...attachments, ...attachments] }), 0);
       assert.equal(
         handoffBudget({
           ...base,
-          tokenCap: 64_000,
-          modelContextWindow: 1_000_000,
-          // The history byte cap is independent of both current text and image payloads.
-          userText: "x".repeat(70_000),
+          tokenCap: 64000,
+          modelContextWindow: 1000000,
+          userText: "x".repeat(70000),
           attachments,
           providerThread: {
             ...providerThread,
-            contextUsage: { usedTokens: 0, maxTokens: 1_000_000 },
+            contextUsage: { usedTokens: 0, maxTokens: 1000000 },
           },
         }),
-        64_000,
+        64000,
       );
     }
-    assert.equal(handoffBudget({ ...base, tokenCap: 2_000 }), 2_000);
+    assert.equal(handoffBudget({ ...base, tokenCap: 2000 }), 2000);
   });
-
   it("keeps measured occupancy across a model change", () => {
     const previous = {
-      usedTokens: 37_321,
-      maxTokens: 258_400,
-      autoCompactThreshold: 32_000,
+      usedTokens: 37321,
+      maxTokens: 258400,
+      autoCompactThreshold: 32000,
     };
     assert.isNull(
       contextUsageForHandoff({
@@ -293,7 +343,7 @@ describe("handoff budget", () => {
         reuseTelemetry: true,
         previousUsage: previous,
       }),
-      { usedTokens: 37_321, maxTokens: 258_400 },
+      { usedTokens: 37321, maxTokens: 258400 },
     );
     assert.deepEqual(
       contextUsageForHandoff({
@@ -302,19 +352,18 @@ describe("handoff budget", () => {
         reuseTelemetry: false,
         previousUsage: previous,
       }),
-      { usedTokens: 37_321, maxTokens: 258_400 },
+      { usedTokens: 37321, maxTokens: 258400 },
     );
     assert.deepEqual(
       contextUsageForHandoff({
         sameNativeThread: true,
         sameSelection: false,
         reuseTelemetry: false,
-        previousUsage: { usedTokens: 30_000, maxTokens: 32_000, autoCompactThreshold: 31_000 },
-        knownModelWindow: 1_000_000,
+        previousUsage: { usedTokens: 30000, maxTokens: 32000, autoCompactThreshold: 31000 },
+        knownModelWindow: 1000000,
       }),
-      { usedTokens: 30_000, maxTokens: 1_000_000 },
+      { usedTokens: 30000, maxTokens: 1000000 },
     );
-
     const preserved = contextUsageForHandoff({
       sameNativeThread: true,
       sameSelection: false,
@@ -323,7 +372,7 @@ describe("handoff budget", () => {
     });
     assert.equal(
       handoffBudget({
-        tokenCap: 16_000,
+        tokenCap: 16000,
         userText: "Continue work",
         attachments: [
           {
@@ -331,38 +380,38 @@ describe("handoff budget", () => {
             id: "screenshot-a",
             name: "a.png",
             mimeType: "image/png",
-            sizeBytes: 100_000,
+            sizeBytes: 100000,
           },
           {
             type: "image",
             id: "screenshot-b",
             name: "b.png",
             mimeType: "image/png",
-            sizeBytes: 100_000,
+            sizeBytes: 100000,
           },
         ],
         providerThread: { ...providerThread, contextUsage: preserved },
         nativeContextEstimate: 0,
         modelContextWindow: preserved?.maxTokens,
       }),
-      16_000,
+      16000,
     );
     assert.equal(
       handoffBudget({
-        tokenCap: 16_000,
+        tokenCap: 16000,
         userText: "Continue work",
         attachments: [],
         providerThread,
-        nativeContextEstimate: 120_000,
+        nativeContextEstimate: 120000,
       }),
       0,
     );
   });
   it("reserves context for image batches up to the attachment limit, honoring smaller known windows", () => {
-    let previousBudget = 16_000;
+    let previousBudget = 16000;
     for (let count = 1; count <= PROVIDER_SEND_TURN_MAX_ATTACHMENTS; count++) {
       const input = {
-        tokenCap: 16_000,
+        tokenCap: 16000,
         userText: "Compare these screenshots",
         providerThread,
         nativeContextEstimate: 0,
@@ -371,39 +420,39 @@ describe("handoff budget", () => {
           id: `image-${index}`,
           name: "image.png",
           mimeType: "image/png",
-          sizeBytes: 100_000,
+          sizeBytes: 100000,
         })),
       };
       const budget = handoffBudget(input);
       assert.isAtLeast(budget, 0);
       assert.isAtMost(budget, previousBudget);
       previousBudget = budget;
-      if (count <= 8) assert.equal(budget, 16_000);
+      if (count <= 8) assert.equal(budget, 16000);
       if (count === 10) {
         assert.isAbove(budget, 0);
-        assert.isBelow(budget, 16_000);
+        assert.isBelow(budget, 16000);
       }
       if (count === PROVIDER_SEND_TURN_MAX_ATTACHMENTS) assert.equal(budget, 0);
       if (budget > 0) {
         const selected = selectHistory({ messages, coverage: "Recover omitted history", budget });
         assert.isAtMost(historyCost(selected.messages, selected.context), budget);
       }
-      assert.equal(handoffBudget({ ...input, modelContextWindow: 2_000_000 }), 16_000);
-      assert.equal(handoffBudget({ ...input, modelContextWindow: 20_000 }), 0);
+      assert.equal(handoffBudget({ ...input, modelContextWindow: 2000000 }), 16000);
+      assert.equal(handoffBudget({ ...input, modelContextWindow: 20000 }), 0);
       assert.equal(
         handoffBudget({
           ...input,
-          providerThread: { ...providerThread, contextUsage: { usedTokens: 0, maxTokens: 20_000 } },
+          providerThread: { ...providerThread, contextUsage: { usedTokens: 0, maxTokens: 20000 } },
         }),
         0,
       );
       assert.equal(
         handoffBudget({
           ...input,
-          modelContextWindow: 1_000_000,
+          modelContextWindow: 1000000,
           providerThread: {
             ...providerThread,
-            contextUsage: { usedTokens: 0, maxTokens: 1_000_000, autoCompactThreshold: 20_000 },
+            contextUsage: { usedTokens: 0, maxTokens: 1000000, autoCompactThreshold: 20000 },
           },
         }),
         0,
@@ -411,7 +460,6 @@ describe("handoff budget", () => {
     }
   });
 });
-
 describe("handoff delivery", () => {
   it.effect.each([
     { native: true, label: "injected" },
@@ -419,7 +467,7 @@ describe("handoff delivery", () => {
   ])("records omitted recovery coverage separately from $label text", ({ native }) =>
     Effect.gen(function* () {
       const omittedBeforeDelivery = TurnItemId.make("item:omitted-during-preparation");
-      const oversized = message("item:oversized", "user", "x".repeat(20_000));
+      const oversized = message("item:oversized", "user", "x".repeat(20000));
       let durable: OrchestrationV2ContextHandoff = {
         ...handoff,
         history: {
@@ -432,7 +480,7 @@ describe("handoff delivery", () => {
       const result = yield* deliverContextHandoffs({
         handoffs: [durable],
         providerThread,
-        budget: 16_000,
+        budget: 16000,
         alreadyDeliveredItemIds: new Set(),
         inject: (value) => {
           assert.include(value.context, "omitted 2 items");
@@ -465,7 +513,7 @@ describe("handoff delivery", () => {
         providerThread,
         budget: Effect.sync(() => {
           reads++;
-          return 16_000;
+          return 16000;
         }),
         alreadyDeliveredItemIds: new Set<string>(),
         persist: () => Effect.void,
@@ -491,7 +539,6 @@ describe("handoff delivery", () => {
       assert.include(result.context, messages[0]!.text);
     }),
   );
-
   it.effect("persists successful injection before turn start and skips it on retry", () =>
     Effect.gen(function* () {
       let durable = handoff;
@@ -499,9 +546,9 @@ describe("handoff delivery", () => {
       const statuses: string[] = [];
       const input = {
         providerThread,
-        budget: 16_000,
+        budget: 16000,
         alreadyDeliveredItemIds: new Set<string>(),
-        inject: (value: ProviderAdapterV2HistoricalContext) =>
+        inject: (value: ProviderAdapter.ProviderAdapterV2HistoricalContext) =>
           Effect.sync(() => {
             history.push(...historyResponseItems(value.messages, value.context));
             return true;
@@ -516,13 +563,11 @@ describe("handoff delivery", () => {
       assert.equal(first.context, "");
       assert.deepEqual(statuses, ["pending", "injected"]);
       assert.lengthOf(history, 3);
-      // No turn has started. Reconstruct from the durable projection as a retry would.
       const second = yield* deliverContextHandoffs({ ...input, handoffs: [durable] });
       assert.equal(second.context, "");
       assert.lengthOf(history, 3);
     }),
   );
-
   it.effect(
     "uses the same selection on explicit native fallback, marking only accepted input",
     () =>
@@ -531,7 +576,7 @@ describe("handoff delivery", () => {
         const result = yield* deliverContextHandoffs({
           handoffs: [handoff],
           providerThread,
-          budget: 16_000,
+          budget: 16000,
           alreadyDeliveredItemIds: new Set(),
           inject: () => Effect.succeed(false),
           persist: (value) =>
@@ -546,7 +591,6 @@ describe("handoff delivery", () => {
         assert.equal(durable.delivery?.status, "inline");
       }),
   );
-
   it.effect(
     "defers unsupported compaction history until a normal turn without marking delivery uncertain",
     () =>
@@ -559,7 +603,7 @@ describe("handoff delivery", () => {
         const compact = yield* deliverContextHandoffs({
           handoffs: [durable],
           providerThread,
-          budget: 16_000,
+          budget: 16000,
           alreadyDeliveredItemIds: new Set(),
           deferInline: true,
           inject: () => Effect.succeed(false),
@@ -571,7 +615,7 @@ describe("handoff delivery", () => {
         const next = yield* deliverContextHandoffs({
           handoffs: [durable],
           providerThread,
-          budget: 16_000,
+          budget: 16000,
           alreadyDeliveredItemIds: new Set(),
           inject: () => Effect.succeed(false),
           persist,
@@ -581,18 +625,17 @@ describe("handoff delivery", () => {
         assert.equal(durable.delivery?.status, "inline");
       }),
   );
-
   it.effect("bounds accumulated recovery markers while keeping omitted history discoverable", () =>
     Effect.gen(function* () {
       const many = Array.from({ length: 100 }, (_, index) => ({
         ...handoff,
         id: ContextHandoffId.make(`handoff:retry:${index}`),
       }));
-      let captured: ProviderAdapterV2HistoricalContext | undefined;
+      let captured: ProviderAdapter.ProviderAdapterV2HistoricalContext | undefined;
       const result = yield* deliverContextHandoffs({
         handoffs: many,
         providerThread,
-        budget: 2_500,
+        budget: 2500,
         alreadyDeliveredItemIds: new Set(),
         inject: (history) =>
           Effect.sync(() => {
@@ -606,18 +649,17 @@ describe("handoff delivery", () => {
       assert.include(captured.context, "detailed coverage references omitted");
       assert.include(captured.context, "t3_thread_read");
       assert.include(captured.context, threadId);
-      assert.isAtMost(historyCost(captured.messages, captured.context), 2_500);
+      assert.isAtMost(historyCost(captured.messages, captured.context), 2500);
       assert.isAbove(captured.messages.length, 0);
     }),
   );
-
   it.effect("does not redeliver after ambiguous injection failure", () =>
     Effect.gen(function* () {
       let durable = handoff;
       let calls = 0;
       const input = {
         providerThread,
-        budget: 16_000,
+        budget: 16000,
         alreadyDeliveredItemIds: new Set<string>(),
         inject: () =>
           Effect.sync(() => {
@@ -637,7 +679,6 @@ describe("handoff delivery", () => {
       assert.equal(calls, 1);
     }),
   );
-
   it.effect("budgets multiple handoffs together and skips previously delivered items", () =>
     Effect.gen(function* () {
       const extra = {
@@ -652,7 +693,7 @@ describe("handoff delivery", () => {
       yield* deliverContextHandoffs({
         handoffs: [handoff, extra],
         providerThread,
-        budget: 2_500,
+        budget: 2500,
         alreadyDeliveredItemIds: new Set(["item:one"]),
         inject: (value) =>
           Effect.sync(() => {
@@ -662,13 +703,12 @@ describe("handoff delivery", () => {
         persist: () => Effect.void,
       });
       const serialized = yield* encodeJson(delivered);
-      assert.isAtMost(Buffer.byteLength(serialized), 2_500);
+      assert.isAtMost(Buffer.byteLength(serialized), 2500);
       assert.notInclude(serialized, "Preserve every line");
       assert.equal(serialized.split("Partial work").length - 1, 1);
       assert.include(serialized, "Latest result");
     }),
   );
-
   it.effect("fails before delivery when even the coverage marker cannot fit", () =>
     Effect.gen(function* () {
       let calls = 0;

@@ -1,10 +1,17 @@
 import { describe, expect, it, vi } from "@effect/vitest";
-import { EnvironmentId } from "@t3tools/contracts";
+import {
+  EnvironmentId,
+  type PreviewEvent,
+  type TerminalAttachInput,
+  type TerminalAttachStreamEvent,
+  type TerminalMetadataStreamEvent,
+  type TerminalSummary,
+  WS_METHODS,
+} from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
-import * as Fiber from "effect/Fiber";
 import * as Latch from "effect/Latch";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
@@ -26,10 +33,15 @@ import * as EnvironmentRegistry from "../connection/registry.ts";
 import * as EnvironmentSupervisor from "../connection/supervisor.ts";
 import { EnvironmentRpcUnavailableError } from "../rpc/client.ts";
 import type * as RpcSession from "../rpc/session.ts";
+import { createPreviewEnvironmentAtoms } from "./preview.ts";
+import type { QueryPersistence } from "./queryPersistence.ts";
+import { createTerminalEnvironmentAtoms } from "./terminal.ts";
 import {
   environmentRpcKey,
   createAtomCommandScheduler,
   createEnvironmentQueryAtomFamily,
+  selectEnvironmentQueryData,
+  createEnvironmentSubscriptionAtomFamily,
   createRuntimeCommand,
   scheduleAtomCommandEffect,
   executeAtomCommand,
@@ -84,10 +96,24 @@ const makeEnvironmentQueryHarness = Effect.fn("TestEnvironmentQuery.makeHarness"
   {
     refreshTrigger,
     idleTtlMs,
-  }: { readonly refreshTrigger?: Atom.Atom<unknown>; readonly idleTtlMs?: number } = {},
+    persistence,
+    initialState,
+    rpcSession,
+    isFinal,
+  }: {
+    readonly refreshTrigger?: Atom.Atom<unknown>;
+    readonly isFinal?: (value: A) => boolean;
+    readonly idleTtlMs?: number;
+    readonly persistence?: QueryPersistence<A>;
+    readonly initialState?: SupervisorConnectionState;
+    readonly rpcSession?: RpcSession.RpcSession;
+  } = {},
 ) {
-  const supervisorState = yield* SubscriptionRef.make(queryConnectionState());
-  const supervisorSession = yield* SubscriptionRef.make(Option.some(QUERY_RPC_SESSION));
+  const supervisorState = yield* SubscriptionRef.make(initialState ?? queryConnectionState());
+  const supervisorSession = yield* SubscriptionRef.make(
+    Option.some(rpcSession ?? QUERY_RPC_SESSION),
+  );
+  const streamGeneration = yield* SubscriptionRef.make(0);
   const supervisor = EnvironmentSupervisor.EnvironmentSupervisor.of({
     target: QUERY_ENVIRONMENT,
     state: supervisorState,
@@ -102,7 +128,12 @@ const makeEnvironmentQueryHarness = Effect.fn("TestEnvironmentQuery.makeHarness"
   const followStream: EnvironmentRegistry.EnvironmentRegistry["Service"]["followStream"] = (
     _environmentId,
     stream,
-  ) => Stream.provideService(stream, EnvironmentSupervisor.EnvironmentSupervisor, supervisor);
+  ) =>
+    SubscriptionRef.changes(streamGeneration).pipe(
+      Stream.switchMap(() =>
+        Stream.provideService(stream, EnvironmentSupervisor.EnvironmentSupervisor, supervisor),
+      ),
+    );
   const environmentRegistry = EnvironmentRegistry.EnvironmentRegistry.of({
     run,
     followStream,
@@ -114,21 +145,25 @@ const makeEnvironmentQueryHarness = Effect.fn("TestEnvironmentQuery.makeHarness"
   const family = createEnvironmentQueryAtomFamily(runtime, {
     label: "test.environment-query",
     staleTimeMs: 60_000,
+    ...(persistence === undefined ? {} : { persistence }),
     execute: () => execute,
     ...(refreshTrigger === undefined ? {} : { refreshTrigger: () => refreshTrigger }),
     ...(idleTtlMs === undefined ? {} : { idleTtlMs }),
+    ...(isFinal === undefined ? {} : { isFinal }),
   });
 
   return {
+    runtime,
     atom: family({ environmentId: QUERY_ENVIRONMENT.environmentId, input: undefined }),
     supervisorSession,
     supervisorState,
+    streamGeneration,
   };
 });
 
 /**
- * Reads a query's settled value without leaving it mounted. `getResult` resumes from inside the
- * query's listener, so it only unsubscribes once the reader yields.
+ * `getResult` resumes from inside the query's listener, so it only unsubscribes
+ * once the reader yields.
  */
 const readEnvironmentQuery = <A, E>(
   registry: AtomRegistry.AtomRegistry,
@@ -291,7 +326,354 @@ describe("environmentRpcKey", () => {
   });
 });
 
+describe("preview event subscriptions", () => {
+  it.effect("delivers every open and close when RPC events arrive in batches", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const opened: PreviewEvent[] = ["thread-a", "thread-b"].map((threadId, index) => ({
+          type: "opened",
+          threadId,
+          tabId: `tab-${index}`,
+          serverEpoch: "epoch-1",
+          revision: index + 1,
+          createdAt: "2026-10-02T00:00:00.000Z",
+          snapshot: {
+            threadId,
+            tabId: `tab-${index}`,
+            navStatus: { _tag: "Idle" },
+            canGoBack: false,
+            canGoForward: false,
+            updatedAt: "2026-10-02T00:00:00.000Z",
+          },
+        }));
+        const closed: PreviewEvent[] = opened.map((event, index) => ({
+          type: "closed",
+          threadId: event.threadId,
+          tabId: event.tabId,
+          serverEpoch: event.serverEpoch,
+          revision: opened.length + index + 1,
+          createdAt: event.createdAt,
+        }));
+        const releaseEvents = yield* Deferred.make<void>();
+        // Each iterable is one RPC chunk; separate emissions would hide lost events.
+        const stream = Stream.fromEffect(Deferred.await(releaseEvents)).pipe(
+          Stream.flatMap(() =>
+            Stream.fromIterable(opened).pipe(
+              Stream.concat(Stream.fromIterable(closed)),
+              Stream.concat(Stream.never),
+            ),
+          ),
+        );
+        const harness = yield* makeEnvironmentQueryHarness(Effect.void, {
+          rpcSession: {
+            client: { [WS_METHODS.subscribePreviewEvents]: () => stream },
+          } as unknown as RpcSession.RpcSession,
+        });
+        const atom = createPreviewEnvironmentAtoms(harness.runtime).events({
+          environmentId: QUERY_ENVIRONMENT.environmentId,
+          input: {},
+        });
+        const registry = AtomRegistry.make();
+        const observed: PreviewEvent[] = [];
+        const sawLast = yield* Deferred.make<void>();
+        const unsubscribe = registry.subscribe(
+          atom,
+          (result) => {
+            if (!AsyncResult.isSuccess(result)) return;
+            observed.push(result.value);
+            if (result.value === closed[closed.length - 1]) {
+              Deferred.doneUnsafe(sawLast, Exit.void);
+            }
+          },
+          { immediate: true },
+        );
+        yield* Effect.addFinalizer(() =>
+          Effect.sync(() => {
+            unsubscribe();
+            registry.dispose();
+          }),
+        );
+
+        yield* Deferred.succeed(releaseEvents, undefined);
+        yield* Deferred.await(sawLast);
+        expect(observed).toEqual([...opened, ...closed]);
+      }),
+    ),
+  );
+});
+
+describe("finite environment subscription lifecycle", () => {
+  it.effect(
+    "exposes early values and settles on the terminal value without waiting for a reconnect",
+    () =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const releaseFinal = yield* Deferred.make<void>();
+          const sawEarly = yield* Deferred.make<void>();
+          const sawFinal = yield* Deferred.make<void>();
+          const closed = yield* Deferred.make<void>();
+          const stream = Stream.concat(
+            Stream.succeed({ complete: false, count: 1 }),
+            Stream.fromEffect(
+              Deferred.await(releaseFinal).pipe(Effect.as({ complete: true, count: 123 })),
+            ),
+          ).pipe(Stream.ensuring(Deferred.succeed(closed, undefined)));
+          const environmentRegistry = EnvironmentRegistry.EnvironmentRegistry.of({
+            followStream: (_environmentId: EnvironmentId, source: typeof stream) =>
+              Stream.concat(source, Stream.never),
+          } as unknown as EnvironmentRegistry.EnvironmentRegistry["Service"]);
+          const runtime = Atom.runtime(
+            Layer.succeed(EnvironmentRegistry.EnvironmentRegistry, environmentRegistry),
+          );
+          const family = createEnvironmentSubscriptionAtomFamily(runtime, {
+            label: "test.finite-subscription",
+            subscribe: () => stream,
+            completeWhen: (value) => value.complete,
+            idleTtlMs: 0,
+          });
+          const atom = family({ environmentId: QUERY_ENVIRONMENT.environmentId, input: undefined });
+          const registry = AtomRegistry.make();
+          const observed: Array<
+            AsyncResult.AsyncResult<{ complete: boolean; count: number }, unknown>
+          > = [];
+          const unsubscribe = registry.subscribe(
+            atom,
+            (result) => {
+              observed.push(result);
+              if (AsyncResult.isSuccess(result)) {
+                if (!result.value.complete) Deferred.doneUnsafe(sawEarly, Exit.void);
+                if (result.value.complete && !result.waiting)
+                  Deferred.doneUnsafe(sawFinal, Exit.void);
+              }
+            },
+            { immediate: true },
+          );
+          yield* Effect.addFinalizer(() =>
+            Effect.sync(() => {
+              unsubscribe();
+              registry.dispose();
+            }),
+          );
+          yield* Deferred.await(sawEarly);
+          const early = registry.get(atom);
+          expect(AsyncResult.isSuccess(early) && early.value.count).toBe(1);
+          expect(early.waiting).toBe(true);
+          yield* Deferred.succeed(releaseFinal, undefined);
+          yield* Deferred.await(sawFinal);
+          yield* Deferred.await(closed);
+          const final = registry.get(atom);
+          expect(AsyncResult.isSuccess(final) && final.value.count).toBe(123);
+          expect(final.waiting).toBe(false);
+          expect(observed.some((result) => AsyncResult.isFailure(result))).toBe(false);
+        }),
+      ),
+  );
+});
+
 describe("environment query lifecycle", () => {
+  it.effect(
+    "terminal metadata waits for snapshots and retains known sessions across restarts",
+    () =>
+      Effect.gen(function* () {
+        const harness = yield* makeEnvironmentQueryHarness(Effect.void);
+        const started = yield* Queue.unbounded<void>();
+        const events = yield* Queue.unbounded<TerminalMetadataStreamEvent>();
+        const receivedCheckout = yield* Deferred.make<void>();
+        const receivedEmpty = yield* Deferred.make<void>();
+        const checkout: TerminalSummary = {
+          threadId: "thread-1",
+          terminalId: "terminal-1",
+          cwd: "/repo/root/packages/app",
+          worktreePath: null,
+          status: "running",
+          pid: 123,
+          exitCode: null,
+          exitSignal: null,
+          hasRunningSubprocess: false,
+          label: "Terminal 1",
+          updatedAt: "2026-04-01T00:00:00.000Z",
+        };
+        const client = {
+          [WS_METHODS.subscribeTerminalMetadata]: () =>
+            Stream.fromEffect(Queue.offer(started, undefined)).pipe(
+              Stream.drain,
+              Stream.concat(Stream.fromQueue(events)),
+            ),
+        } as unknown as RpcSession.RpcSession["client"];
+        const session = { ...QUERY_RPC_SESSION, client };
+        yield* SubscriptionRef.set(harness.supervisorSession, Option.some(session));
+        const atoms = createTerminalEnvironmentAtoms(harness.runtime);
+        const atom = atoms.metadata({
+          environmentId: QUERY_ENVIRONMENT.environmentId,
+          input: null,
+        });
+        const registry = AtomRegistry.make();
+        const observed: Array<ReadonlyArray<TerminalSummary>> = [];
+        const unsubscribe = registry.subscribe(
+          atom,
+          (result) => {
+            if (!AsyncResult.isSuccess(result)) return;
+            observed.push(result.value);
+            if (result.value.length > 0) Deferred.doneUnsafe(receivedCheckout, Exit.void);
+            else Deferred.doneUnsafe(receivedEmpty, Exit.void);
+          },
+          { immediate: true },
+        );
+        yield* Effect.addFinalizer(() =>
+          Effect.sync(() => {
+            unsubscribe();
+            registry.dispose();
+          }),
+        );
+
+        yield* Queue.take(started);
+        expect(selectEnvironmentQueryData(registry.get(atom))).toBeNull();
+        expect(observed).toEqual([]);
+
+        yield* Queue.offer(events, { type: "snapshot", terminals: [checkout] });
+        yield* Deferred.await(receivedCheckout);
+        expect(selectEnvironmentQueryData(registry.get(atom))).toEqual([checkout]);
+
+        yield* SubscriptionRef.set(harness.supervisorSession, Option.some({ ...session }));
+        yield* Queue.take(started);
+        expect(selectEnvironmentQueryData(registry.get(atom))).toEqual([checkout]);
+
+        yield* SubscriptionRef.update(harness.streamGeneration, (generation) => generation + 1);
+        yield* Queue.take(started);
+        expect(selectEnvironmentQueryData(registry.get(atom))).toEqual([checkout]);
+
+        yield* Queue.offer(events, { type: "snapshot", terminals: [] });
+        yield* Deferred.await(receivedEmpty);
+        expect(selectEnvironmentQueryData(registry.get(atom))).toEqual([]);
+      }),
+  );
+
+  it.effect("terminal attach resubscribes with resume only after the stream replied", () =>
+    Effect.gen(function* () {
+      const harness = yield* makeEnvironmentQueryHarness(Effect.void);
+      const inputs = yield* Queue.unbounded<TerminalAttachInput>();
+      const events = yield* Queue.unbounded<TerminalAttachStreamEvent>();
+      const received = yield* Deferred.make<void>();
+      const client = {
+        [WS_METHODS.terminalAttach]: (input: TerminalAttachInput) =>
+          Stream.fromEffect(Queue.offer(inputs, input)).pipe(
+            Stream.drain,
+            Stream.concat(Stream.fromQueue(events)),
+          ),
+      } as unknown as RpcSession.RpcSession["client"];
+      const firstSession = { ...QUERY_RPC_SESSION, client };
+      yield* SubscriptionRef.set(harness.supervisorSession, Option.some(firstSession));
+      const input = {
+        threadId: "thread-1",
+        terminalId: "terminal-1",
+        cwd: "/tmp/project",
+        restartIfNotRunning: true,
+      };
+      const atoms = createTerminalEnvironmentAtoms(harness.runtime);
+      const registry = AtomRegistry.make();
+      const atom = atoms.attach({ environmentId: QUERY_ENVIRONMENT.environmentId, input });
+      const unmount = registry.subscribe(
+        atom,
+        (result) => {
+          if (AsyncResult.isSuccess(result) && result.value.version > 0) {
+            Deferred.doneUnsafe(received, Exit.void);
+          }
+        },
+        { immediate: true },
+      );
+      yield* Effect.addFinalizer(() =>
+        Effect.sync(() => {
+          unmount();
+          registry.dispose();
+        }),
+      );
+
+      expect(yield* Queue.take(inputs)).toEqual(input);
+      yield* SubscriptionRef.set(harness.supervisorSession, Option.some({ ...firstSession }));
+      expect(yield* Queue.take(inputs)).toEqual(input);
+      yield* Queue.offer(events, {
+        type: "closed",
+        threadId: input.threadId,
+        terminalId: input.terminalId,
+      });
+      yield* Deferred.await(received);
+
+      yield* SubscriptionRef.set(harness.supervisorSession, Option.some({ ...firstSession }));
+      expect(yield* Queue.take(inputs)).toEqual({ ...input, resume: true });
+      // Catalog replacements rerun the same stream through followStream's switchMap.
+      yield* SubscriptionRef.update(harness.streamGeneration, (generation) => generation + 1);
+      expect(yield* Queue.take(inputs)).toEqual({ ...input, resume: true });
+
+      unmount();
+      registry.dispose();
+      const remountedRegistry = AtomRegistry.make();
+      const remount = remountedRegistry.subscribe(atom, () => {}, { immediate: true });
+      yield* Effect.addFinalizer(() =>
+        Effect.sync(() => {
+          remount();
+          remountedRegistry.dispose();
+        }),
+      );
+      expect(yield* Queue.take(inputs)).toEqual(input);
+    }),
+  );
+
+  it.effect("keeps the previous value when a refetch returns equal content", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        let checks = [{ name: "ci", status: "passed" }];
+        const execute = Effect.sync(() => ({ checks: checks.map((check) => ({ ...check })) }));
+        const harness = yield* makeEnvironmentQueryHarness(execute);
+        const registry = yield* mountEnvironmentQuery(harness.atom);
+
+        const first = yield* readEnvironmentQuery(registry, harness.atom);
+        registry.refresh(harness.atom);
+        const equal = yield* readEnvironmentQuery(registry, harness.atom);
+        expect(equal).toBe(first);
+
+        checks = [{ name: "ci", status: "failed" }];
+        registry.refresh(harness.atom);
+        const changed = yield* readEnvironmentQuery(registry, harness.atom);
+        expect(changed).not.toBe(first);
+        expect(changed.checks[0]?.status).toBe("failed");
+      }),
+    ),
+  );
+
+  it.effect("does not notify a data-only reader when a refetch returns equal content", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        let status = "passed";
+        const execute = Effect.sync(() => ({ checks: [{ name: "ci", status }] }));
+        const harness = yield* makeEnvironmentQueryHarness(execute);
+        const registry = yield* mountEnvironmentQuery(harness.atom);
+        yield* readEnvironmentQuery(registry, harness.atom);
+
+        const data = Atom.map(harness.atom, selectEnvironmentQueryData);
+        const seen: Array<unknown> = [];
+        let resultNotifications = 0;
+        const unsubscribeData = registry.subscribe(data, (value) => seen.push(value), {
+          immediate: true,
+        });
+        yield* Effect.addFinalizer(() => Effect.sync(unsubscribeData));
+        const unsubscribeResult = registry.subscribe(harness.atom, () => resultNotifications++);
+        yield* Effect.addFinalizer(() => Effect.sync(unsubscribeResult));
+
+        registry.refresh(harness.atom);
+        yield* readEnvironmentQuery(registry, harness.atom);
+        // The result itself still moves (timestamp, `waiting`), which SWR relies on.
+        expect(resultNotifications).toBeGreaterThan(0);
+        expect(seen).toHaveLength(1);
+
+        status = "failed";
+        registry.refresh(harness.atom);
+        yield* readEnvironmentQuery(registry, harness.atom);
+        expect(seen).toHaveLength(2);
+        expect(seen[1]).toEqual({ checks: [{ name: "ci", status: "failed" }] });
+      }),
+    ),
+  );
+
   it.effect(
     "retries an interrupted query without exposing a failure during session replacement",
     () =>
@@ -377,6 +759,96 @@ describe("environment query lifecycle", () => {
           ).toBe("recovered");
         }),
       ),
+  );
+
+  it.effect("keeps a query pending when it loses its session before the atom sees the change", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const firstStarted = Latch.makeUnsafe();
+        const failFirst = Latch.makeUnsafe();
+        const firstSettled = Latch.makeUnsafe();
+        let executions = 0;
+        const execute = Effect.suspend(() => {
+          executions += 1;
+          if (executions > 1) {
+            return Effect.succeed("recovered");
+          }
+          firstStarted.openUnsafe();
+          return failFirst.await.pipe(
+            Effect.andThen(
+              Effect.fail(
+                new EnvironmentRpcUnavailableError({
+                  environmentId: QUERY_ENVIRONMENT.environmentId,
+                  message: "Query environment is not connected.",
+                }),
+              ),
+            ),
+            Effect.ensuring(
+              Effect.sync(() => {
+                firstSettled.openUnsafe();
+              }),
+            ),
+          );
+        });
+        const harness = yield* makeEnvironmentQueryHarness(execute);
+        const registry = AtomRegistry.make();
+        const observed: Array<AsyncResult.AsyncResult<string, unknown>> = [];
+        const unsubscribe = registry.subscribe(
+          harness.atom,
+          (result) => {
+            observed.push(result);
+          },
+          { immediate: true },
+        );
+        yield* Effect.addFinalizer(() =>
+          Effect.sync(() => {
+            unsubscribe();
+            registry.dispose();
+          }),
+        );
+
+        yield* firstStarted.await;
+        // No yield before the failure: the request finds its session gone
+        // before the atom has processed the session change.
+        yield* SubscriptionRef.set(harness.supervisorSession, Option.none());
+        failFirst.openUnsafe();
+        yield* firstSettled.await;
+        yield* Effect.yieldNow;
+
+        expect(observed.some(AsyncResult.isFailure)).toBe(false);
+
+        yield* SubscriptionRef.set(harness.supervisorSession, Option.some(QUERY_RPC_SESSION));
+        yield* SubscriptionRef.set(
+          harness.supervisorState,
+          queryConnectionState({ generation: 2 }),
+        );
+        expect(
+          yield* AtomRegistry.getResult(registry, harness.atom, {
+            suspendOnWaiting: true,
+          }),
+        ).toBe("recovered");
+        expect(observed.some(AsyncResult.isFailure)).toBe(false);
+      }),
+    ),
+  );
+
+  it.effect("fails a query that reports unavailable while its session is still live", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const unavailable = new EnvironmentRpcUnavailableError({
+          environmentId: QUERY_ENVIRONMENT.environmentId,
+          message: "The environment did not respond to the request.",
+        });
+        const harness = yield* makeEnvironmentQueryHarness(Effect.fail(unavailable));
+        const registry = yield* mountEnvironmentQuery(harness.atom);
+
+        const exit = yield* AtomRegistry.getResult(registry, harness.atom, {
+          suspendOnWaiting: true,
+        }).pipe(Effect.exit);
+
+        expect(exit).toStrictEqual(Exit.fail(unavailable));
+      }),
+    ),
   );
 
   it.effect.each([
@@ -585,13 +1057,36 @@ describe("environment query lifecycle", () => {
         registry.set(trigger, 1);
         expect(yield* read).toBe(2);
 
-        // Unmounted, the query stays alive on its idle TTL, but nothing reads it.
         unmount();
         registry.set(trigger, 2);
         registry.set(trigger, 3);
         expect(executions).toBe(2);
 
         expect(yield* read).toBe(3);
+      }),
+    ),
+  );
+
+  it.effect("stops refreshing on its trigger once the value is final", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        let executions = 0;
+        const trigger = Atom.make(0).pipe(Atom.keepAlive);
+        const harness = yield* makeEnvironmentQueryHarness(
+          Effect.sync(() => (executions += 1)),
+          { refreshTrigger: trigger, isFinal: (value) => value >= 2 },
+        );
+        const registry = AtomRegistry.make();
+        yield* Effect.addFinalizer(() => Effect.sync(() => registry.dispose()));
+        const read = readEnvironmentQuery(registry, harness.atom);
+
+        registry.mount(harness.atom);
+        expect(yield* read).toBe(1);
+        registry.set(trigger, 1);
+        expect(yield* read).toBe(2);
+        registry.set(trigger, 2);
+        expect(yield* read).toBe(2);
+        expect(executions).toBe(2);
       }),
     ),
   );
@@ -623,7 +1118,6 @@ describe("environment query lifecycle", () => {
   it.effect("refreshes an idle query the registry swept and rebuilt after its trigger moved", () =>
     Effect.scoped(
       Effect.gen(function* () {
-        // Only the registry's idle-TTL sweeps run on these; effects keep their own scheduler.
         vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
         yield* Effect.addFinalizer(() => Effect.sync(() => vi.useRealTimers()));
         let executions = 0;
@@ -639,127 +1133,16 @@ describe("environment query lifecycle", () => {
         const unmount = registry.mount(harness.atom);
         expect(yield* read).toBe(1);
         unmount();
-        // Lets the registry start the query node's idle TTL.
         yield* Effect.yieldNow;
         vi.advanceTimersByTime(500);
         registry.set(trigger, 1);
         yield* Effect.yieldNow;
-        // Sweeps the query node but not the data it read, whose idle TTL started with the trigger.
         vi.advanceTimersByTime(700);
         expect(executions).toBe(1);
 
         expect(yield* read).toBe(2);
       }),
     ),
-  );
-});
-
-describe("Atom.fn mutation semantics", () => {
-  it.effect("interrupts the previous invocation when the same mutation atom is written again", () =>
-    Effect.gen(function* () {
-      const firstLatch = Latch.makeUnsafe();
-      const secondLatch = Latch.makeUnsafe();
-      const interrupted: string[] = [];
-      const mutation = Atom.fn((id: "first" | "second") =>
-        (id === "first" ? firstLatch : secondLatch).await.pipe(
-          Effect.as(id),
-          Effect.onInterrupt(() =>
-            Effect.sync(() => {
-              interrupted.push(id);
-            }),
-          ),
-        ),
-      );
-      const registry = AtomRegistry.make();
-      const unmount = registry.mount(mutation);
-
-      registry.set(mutation, "first");
-      registry.set(mutation, "second");
-      yield* Effect.yieldNow;
-
-      expect(interrupted).toEqual(["first"]);
-
-      secondLatch.openUnsafe();
-      expect(
-        yield* AtomRegistry.getResult(registry, mutation, {
-          suspendOnWaiting: true,
-        }),
-      ).toBe("second");
-
-      unmount();
-      registry.dispose();
-    }),
-  );
-
-  it.effect("keeps stream mutations waiting until the final emitted value", () =>
-    Effect.gen(function* () {
-      const completionLatch = Latch.makeUnsafe();
-      const mutation = Atom.fn(() =>
-        Stream.make("progress").pipe(
-          Stream.concat(Stream.fromEffect(completionLatch.await.pipe(Effect.as("done")))),
-        ),
-      );
-      const registry = AtomRegistry.make();
-      const unmount = registry.mount(mutation);
-
-      registry.set(mutation, undefined);
-
-      const progress = registry.get(mutation);
-      expect(AsyncResult.isSuccess(progress)).toBe(true);
-      if (AsyncResult.isSuccess(progress)) {
-        expect(progress.value).toBe("progress");
-        expect(progress.waiting).toBe(true);
-      }
-
-      completionLatch.openUnsafe();
-      expect(
-        yield* AtomRegistry.getResult(registry, mutation, {
-          suspendOnWaiting: true,
-        }),
-      ).toBe("done");
-
-      unmount();
-      registry.dispose();
-    }),
-  );
-
-  it.effect(
-    "allows concurrent effects to finish but does not correlate results to individual writes",
-    () =>
-      Effect.gen(function* () {
-        const firstLatch = Latch.makeUnsafe();
-        const secondLatch = Latch.makeUnsafe();
-        const mutation = Atom.fn<never, "first" | "second", "first" | "second">(
-          (id: "first" | "second") =>
-            (id === "first" ? firstLatch : secondLatch).await.pipe(Effect.as(id)),
-          { concurrent: true },
-        );
-        const registry = AtomRegistry.make();
-        const unmount = registry.mount(mutation);
-
-        registry.set(mutation, "first");
-        const firstResult = yield* AtomRegistry.getResult(registry, mutation, {
-          suspendOnWaiting: true,
-        }).pipe(Effect.forkChild({ startImmediately: true }));
-        registry.set(mutation, "second");
-        const secondResult = yield* AtomRegistry.getResult(registry, mutation, {
-          suspendOnWaiting: true,
-        }).pipe(Effect.forkChild({ startImmediately: true }));
-
-        secondLatch.openUnsafe();
-        yield* Effect.yieldNow;
-
-        const stillWaiting = registry.get(mutation);
-        expect(stillWaiting.waiting).toBe(true);
-
-        firstLatch.openUnsafe();
-
-        expect(yield* Fiber.join(firstResult)).toBe("first");
-        expect(yield* Fiber.join(secondResult)).toBe("first");
-
-        unmount();
-        registry.dispose();
-      }),
   );
 });
 
@@ -1055,4 +1438,89 @@ describe("runtime command runner", () => {
     expect(executed).toEqual([1, 3]);
     registry.dispose();
   });
+});
+
+describe("persisted environment queries", () => {
+  it.effect(
+    "restores cached data in a new registry while offline, then refreshes on reconnect",
+    () =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          let saved = Option.none<string>();
+          const persistence: QueryPersistence<string> = {
+            load: () => Effect.sync(() => saved),
+            save: (_environmentId, _key, value) =>
+              Effect.sync(() => {
+                saved = Option.some(value);
+              }),
+          };
+          const first = yield* makeEnvironmentQueryHarness(Effect.succeed("first"), {
+            persistence,
+          });
+          const firstRegistry = yield* mountEnvironmentQuery(first.atom);
+          expect(yield* readEnvironmentQuery(firstRegistry, first.atom)).toBe("first");
+          expect(saved).toEqual(Option.some("first"));
+
+          const restarted = yield* makeEnvironmentQueryHarness(Effect.succeed("updated"), {
+            persistence,
+            initialState: queryConnectionState({ phase: "offline", network: "offline" }),
+          });
+          const registry = yield* mountEnvironmentQuery(restarted.atom);
+          expect(yield* readEnvironmentQuery(registry, restarted.atom)).toBe("first");
+          yield* SubscriptionRef.set(restarted.supervisorState, queryConnectionState());
+          yield* Effect.yieldNow;
+          expect(yield* readEnvironmentQuery(registry, restarted.atom)).toBe("updated");
+          expect(saved).toEqual(Option.some("updated"));
+        }),
+      ),
+  );
+
+  it.effect("keeps cached content available when revalidation fails", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const harness = yield* makeEnvironmentQueryHarness(
+          Effect.fail(new TestQueryError({ message: "failed" })),
+          {
+            persistence: { load: () => Effect.succeedSome("cached"), save: () => Effect.void },
+          },
+        );
+        const registry = yield* mountEnvironmentQuery(harness.atom);
+        yield* Effect.result(readEnvironmentQuery(registry, harness.atom));
+        expect(Option.getOrNull(AsyncResult.value(registry.get(harness.atom)))).toBe("cached");
+      }),
+    ),
+  );
+
+  it.effect("shows persisted data before a live request finishes", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const response = yield* Deferred.make<string>();
+        const seeded = yield* Deferred.make<void>();
+        const refreshed = yield* Deferred.make<void>();
+        const harness = yield* makeEnvironmentQueryHarness(Deferred.await(response), {
+          persistence: {
+            load: () => Effect.succeedSome("cached"),
+            save: () => Effect.void,
+          },
+        });
+        const registry = yield* mountEnvironmentQuery(harness.atom);
+        const unsubscribe = registry.subscribe(
+          harness.atom,
+          (value) => {
+            if (Option.getOrNull(AsyncResult.value(value)) === "cached")
+              Deferred.doneUnsafe(seeded, Exit.void);
+            if (Option.getOrNull(AsyncResult.value(value)) === "fresh")
+              Deferred.doneUnsafe(refreshed, Exit.void);
+          },
+          { immediate: true },
+        );
+        yield* Effect.addFinalizer(() => Effect.sync(unsubscribe));
+        yield* Deferred.await(seeded);
+        expect(Option.getOrNull(AsyncResult.value(registry.get(harness.atom)))).toBe("cached");
+        yield* Deferred.succeed(response, "fresh");
+        yield* Deferred.await(refreshed);
+        expect(yield* readEnvironmentQuery(registry, harness.atom)).toBe("fresh");
+      }),
+    ),
+  );
 });

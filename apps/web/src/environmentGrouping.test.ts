@@ -1,6 +1,5 @@
 import { EnvironmentId, ProjectId, ProviderInstanceId } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
-
 import {
   deriveLogicalProjectKey,
   deriveLogicalProjectKeyFromSettings,
@@ -9,15 +8,21 @@ import {
   resolveProjectGroupingMode,
 } from "./logicalProject";
 import {
-  buildPhysicalToLogicalProjectKeyMap,
+  buildPhysicalToLogicalProjectKeyMap as buildPhysicalMapping,
   buildSidebarProjectPickerEntries,
-  buildSidebarProjectSnapshots,
+  buildSidebarProjectSnapshots as buildSnapshots,
   projectGroupsSpanEnvironments,
+  resolveSidebarProjectScopeKey,
+  getSidebarProjectSettingsKey,
 } from "./sidebarProjectGrouping";
 import { orderItemsByPreferredIds } from "./components/Sidebar.logic";
 import { legacyProjectCwdPreferenceKey } from "./uiStateStore";
 import type { Project } from "./types";
-
+// This suite covers repository grouping. The customized collection view has its own suite.
+const buildSidebarProjectSnapshots = (input: Parameters<typeof buildSnapshots>[0]) =>
+  buildSnapshots({ ...input, workspaceCollections: false });
+const buildPhysicalToLogicalProjectKeyMap = (input: Parameters<typeof buildPhysicalMapping>[0]) =>
+  buildPhysicalMapping({ ...input, workspaceCollections: false });
 const primaryEnvironmentId = EnvironmentId.make("env-primary");
 const remoteEnvironmentId = EnvironmentId.make("env-remote");
 const repositoryIdentity = {
@@ -32,7 +37,6 @@ const defaultGroupingSettings = {
   sidebarProjectGroupingMode: "repository" as const,
   sidebarProjectGroupingOverrides: {},
 };
-
 function makeProject(overrides: Partial<Project> = {}): Project {
   return {
     id: ProjectId.make("project-1"),
@@ -50,8 +54,141 @@ function makeProject(overrides: Partial<Project> = {}): Project {
     ...overrides,
   };
 }
-
 describe("environment grouping", () => {
+  it("opens physical scratch settings from the merged filter, including a remote thread target", () => {
+    const local = makeProject({
+      title: "No project",
+      workspaceRoot: "/local/scratch",
+      isScratch: true,
+    });
+    const remote = makeProject({
+      title: "No project",
+      id: ProjectId.make("remote-scratch"),
+      environmentId: remoteEnvironmentId,
+      workspaceRoot: "/remote/scratch",
+      isScratch: true,
+    });
+    const input = {
+      projects: [local, remote],
+      settings: defaultGroupingSettings,
+      primaryEnvironmentId,
+      resolveEnvironmentLabel: () => null,
+    };
+    const filters = buildSidebarProjectSnapshots({ ...input, groupScratchProjects: true });
+    const settingsGroups = buildSidebarProjectSnapshots(input);
+    expect(filters).toHaveLength(1);
+    expect(settingsGroups).toHaveLength(2);
+    expect(settingsGroups.map((group) => group.memberProjectRefs)).toEqual([
+      [{ environmentId: local.environmentId, projectId: local.id }],
+      [{ environmentId: remote.environmentId, projectId: remote.id }],
+    ]);
+    expect(getSidebarProjectSettingsKey(filters[0]!, defaultGroupingSettings, input.projects)).toBe(
+      settingsGroups[0]?.projectKey,
+    );
+    expect(
+      getSidebarProjectSettingsKey(filters[0]!, defaultGroupingSettings, input.projects, {
+        environmentId: remote.environmentId,
+        projectId: remote.id,
+      }),
+    ).toBe(settingsGroups[1]?.projectKey);
+  });
+  it.each(["repository", "repository_path"] as const)(
+    "migrates a scratch scope selected before config in %s mode",
+    (mode) => {
+      const project = makeProject({
+        workspaceRoot: "/repo/scratch",
+        repositoryIdentity: { ...repositoryIdentity, rootPath: "/repo" },
+      });
+      const settings = { ...defaultGroupingSettings, sidebarProjectGroupingMode: mode };
+      const key = deriveLogicalProjectKeyFromSettings(project, settings);
+      const groups = buildSidebarProjectSnapshots({
+        projects: [{ ...project, isScratch: true }],
+        groupScratchProjects: true,
+        settings,
+        primaryEnvironmentId,
+        resolveEnvironmentLabel: () => null,
+      });
+      expect(
+        resolveSidebarProjectScopeKey({ groups, key, settings, canClearMissingScope: true }),
+      ).toBe(groups[0]?.projectKey);
+    },
+  );
+  it("prefers an existing ordinary repository scope over a scratch alias", () => {
+    const scratch = makeProject({ isScratch: true, repositoryIdentity });
+    const ordinary = makeProject({
+      id: ProjectId.make("ordinary"),
+      workspaceRoot: "/ordinary",
+      repositoryIdentity,
+    });
+    const groups = buildSidebarProjectSnapshots({
+      projects: [scratch, ordinary],
+      groupScratchProjects: true,
+      settings: defaultGroupingSettings,
+      primaryEnvironmentId,
+      resolveEnvironmentLabel: () => null,
+    });
+    const key = deriveLogicalProjectKeyFromSettings(ordinary, defaultGroupingSettings);
+    expect(resolveSidebarProjectScopeKey({ groups, key, canClearMissingScope: true })).toBe(key);
+  });
+  it("keeps both scratch hosts in one filter and migrates a physical scope after config loads", () => {
+    const projects = [
+      makeProject({ title: "No project", workspaceRoot: "/local/scratch" }),
+      makeProject({
+        id: ProjectId.make("scratch-remote"),
+        environmentId: remoteEnvironmentId,
+        title: "No project",
+        workspaceRoot: "/remote/scratch",
+      }),
+    ];
+    const build = (scratch: boolean) =>
+      buildSidebarProjectSnapshots({
+        projects: projects.map((project) => ({
+          ...project,
+          ...(scratch ? { isScratch: true as const } : {}),
+        })),
+        groupScratchProjects: true,
+        settings: defaultGroupingSettings,
+        primaryEnvironmentId,
+        resolveEnvironmentLabel: (id) => id,
+      });
+    const oldKey = derivePhysicalProjectKey(projects[1]!);
+    const unloaded = build(false);
+    const groups = build(true);
+    const scratchKey = groups[0]!.projectKey;
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.displayName).toBe("No project");
+    expect(groups[0]?.memberProjects).toHaveLength(2);
+    expect(groups[0]?.memberProjectRefs).toEqual(
+      projects.map((project) => ({ environmentId: project.environmentId, projectId: project.id })),
+    );
+    expect(resolveSidebarProjectScopeKey({ groups: unloaded, key: oldKey })).toBe(oldKey);
+    expect(resolveSidebarProjectScopeKey({ groups, key: oldKey, canClearMissingScope: true })).toBe(
+      scratchKey,
+    );
+    expect(resolveSidebarProjectScopeKey({ groups: unloaded, key: scratchKey })).toBe(scratchKey);
+    expect(
+      resolveSidebarProjectScopeKey({ groups, key: scratchKey, canClearMissingScope: true }),
+    ).toBe(scratchKey);
+    expect(
+      resolveSidebarProjectScopeKey({ groups, key: "removed", canClearMissingScope: true }),
+    ).toBeNull();
+  });
+  it("does not migrate an ordinary physical filter into a repository group", () => {
+    const project = makeProject({ repositoryIdentity, title: "No project" });
+    const groups = buildSidebarProjectSnapshots({
+      projects: [project],
+      settings: defaultGroupingSettings,
+      primaryEnvironmentId,
+      resolveEnvironmentLabel: () => null,
+    });
+    expect(
+      resolveSidebarProjectScopeKey({
+        groups,
+        key: derivePhysicalProjectKey(project),
+        canClearMissingScope: true,
+      }),
+    ).toBeNull();
+  });
   it("groups matching repository identities across environments", () => {
     const primary = makeProject({ repositoryIdentity });
     const remote = makeProject({
@@ -59,11 +196,9 @@ describe("environment grouping", () => {
       environmentId: remoteEnvironmentId,
       repositoryIdentity,
     });
-
     expect(deriveLogicalProjectKey(primary)).toBe(repositoryIdentity.canonicalKey);
     expect(deriveLogicalProjectKey(remote)).toBe(repositoryIdentity.canonicalKey);
   });
-
   it("counts cross-environment copies as one new-thread project choice", () => {
     const primary = makeProject({ repositoryIdentity });
     const remote = makeProject({
@@ -71,7 +206,6 @@ describe("environment grouping", () => {
       environmentId: remoteEnvironmentId,
       repositoryIdentity,
     });
-
     const projectGroupCount = buildSidebarProjectSnapshots({
       workspaceCollections: false,
       projects: [primary, remote],
@@ -79,10 +213,8 @@ describe("environment grouping", () => {
       primaryEnvironmentId,
       resolveEnvironmentLabel: () => null,
     }).length;
-
     expect(projectGroupCount).toBe(1);
   });
-
   it("reports whether the project groups span more than one environment", () => {
     const grouped = makeProject({ repositoryIdentity });
     const groupedRemote = makeProject({
@@ -110,29 +242,24 @@ describe("environment grouping", () => {
         resolveEnvironmentLabel: (environmentId) =>
           environmentId === remoteEnvironmentId ? "Mac mini" : "Primary",
       });
-
     const groups = build([groupedRemote, grouped, separateLocal, separateRemote]);
     expect(groups).toHaveLength(3);
     expect(projectGroupsSpanEnvironments(groups)).toBe(true);
     expect(projectGroupsSpanEnvironments(build([grouped, separateLocal]))).toBe(false);
     expect(projectGroupsSpanEnvironments(build([separateRemote]))).toBe(false);
   });
-
   it("keeps projects without repository identity physically scoped", () => {
     const primary = makeProject();
     const remote = makeProject({
       id: ProjectId.make("project-remote"),
       environmentId: remoteEnvironmentId,
     });
-
     expect(deriveLogicalProjectKey(primary)).toBe(derivePhysicalProjectKey(primary));
     expect(deriveLogicalProjectKey(remote)).toBe(derivePhysicalProjectKey(remote));
     expect(deriveLogicalProjectKey(primary)).not.toBe(deriveLogicalProjectKey(remote));
   });
-
   it("uses the physical key when repository grouping is disabled", () => {
     const project = makeProject({ repositoryIdentity });
-
     expect(
       deriveLogicalProjectKeyFromSettings(project, {
         sidebarProjectGroupingMode: "separate",
@@ -140,11 +267,9 @@ describe("environment grouping", () => {
       }),
     ).toBe(derivePhysicalProjectKey(project));
   });
-
   it("allows a per-project override to separate an otherwise grouped repository", () => {
     const project = makeProject({ repositoryIdentity });
     const physicalKey = derivePhysicalProjectKey(project);
-
     expect(
       deriveLogicalProjectKeyFromSettings(project, {
         ...defaultGroupingSettings,
@@ -154,10 +279,8 @@ describe("environment grouping", () => {
       }),
     ).toBe(physicalKey);
   });
-
   it("allows a per-project override to group a repository while the global mode is separate", () => {
     const project = makeProject({ repositoryIdentity });
-
     expect(
       deriveLogicalProjectKeyFromSettings(project, {
         sidebarProjectGroupingMode: "separate",
@@ -167,11 +290,9 @@ describe("environment grouping", () => {
       }),
     ).toBe(repositoryIdentity.canonicalKey);
   });
-
   it("reports the effective grouping mode after applying an override", () => {
     const project = makeProject({ repositoryIdentity });
     const physicalKey = derivePhysicalProjectKey(project);
-
     expect(resolveProjectGroupingMode(project, defaultGroupingSettings)).toBe("repository");
     expect(
       resolveProjectGroupingMode(project, {
@@ -182,7 +303,6 @@ describe("environment grouping", () => {
       }),
     ).toBe("separate");
   });
-
   it("dedupes stale project rows with the same environment and workspace path", () => {
     const duplicate = makeProject({
       id: ProjectId.make("project-duplicate"),
@@ -201,7 +321,6 @@ describe("environment grouping", () => {
       workspaceRoot: "/tmp/shared-repo",
       repositoryIdentity,
     });
-
     const snapshots = buildSidebarProjectSnapshots({
       workspaceCollections: false,
       projects: [primary, duplicate, remote],
@@ -210,7 +329,6 @@ describe("environment grouping", () => {
       resolveEnvironmentLabel: (environmentId) =>
         environmentId === remoteEnvironmentId ? "remote" : "primary",
     });
-
     expect(snapshots).toHaveLength(1);
     expect(snapshots[0]?.groupedProjectCount).toBe(2);
     expect(snapshots[0]?.memberProjects.map((project) => project.id)).toEqual([
@@ -218,7 +336,6 @@ describe("environment grouping", () => {
       remote.id,
     ]);
   });
-
   it("prefers the fresher project row when duplicate stale rows are ordered first", () => {
     const staleDuplicate = makeProject({
       id: ProjectId.make("project-stale"),
@@ -232,7 +349,6 @@ describe("environment grouping", () => {
       repositoryIdentity,
       updatedAt: "2026-01-02T00:00:00.000Z",
     });
-
     const snapshots = buildSidebarProjectSnapshots({
       workspaceCollections: false,
       projects: [staleDuplicate, canonical],
@@ -240,12 +356,10 @@ describe("environment grouping", () => {
       primaryEnvironmentId,
       resolveEnvironmentLabel: () => "primary",
     });
-
     expect(snapshots).toHaveLength(1);
     expect(snapshots[0]?.memberProjects.map((project) => project.id)).toEqual([canonical.id]);
     expect(snapshots[0]?.id).toBe(canonical.id);
   });
-
   it("dedupes stale project rows before logical grouping", () => {
     const staleWithoutRepositoryIdentity = makeProject({
       id: ProjectId.make("project-stale"),
@@ -262,7 +376,6 @@ describe("environment grouping", () => {
       environmentId: remoteEnvironmentId,
       repositoryIdentity,
     });
-
     const snapshots = buildSidebarProjectSnapshots({
       workspaceCollections: false,
       projects: [staleWithoutRepositoryIdentity, canonical, remote],
@@ -271,7 +384,6 @@ describe("environment grouping", () => {
       resolveEnvironmentLabel: (environmentId) =>
         environmentId === remoteEnvironmentId ? "remote" : "primary",
     });
-
     expect(snapshots).toHaveLength(1);
     expect(snapshots[0]?.projectKey).toBe(repositoryIdentity.canonicalKey);
     expect(snapshots[0]?.memberProjects.map((project) => project.id)).toEqual([
@@ -286,7 +398,6 @@ describe("environment grouping", () => {
       { environmentId: primaryEnvironmentId, projectId: canonical.id },
       { environmentId: remoteEnvironmentId, projectId: remote.id },
     ]);
-
     const [pickerEntry] = buildSidebarProjectPickerEntries({
       groups: snapshots,
       preferredProjectRef: {
@@ -297,7 +408,6 @@ describe("environment grouping", () => {
     expect(pickerEntry?.isPreferred).toBe(true);
     expect(pickerEntry?.targetProject.id).toBe(canonical.id);
   });
-
   it("routes duplicate physical project keys to the winning logical group", () => {
     const staleWithoutRepositoryIdentity = makeProject({
       id: ProjectId.make("project-stale"),
@@ -309,24 +419,19 @@ describe("environment grouping", () => {
       repositoryIdentity,
       updatedAt: "2026-01-02T00:00:00.000Z",
     });
-
     const physicalToLogicalKey = buildPhysicalToLogicalProjectKeyMap({
       workspaceCollections: false,
       projects: [staleWithoutRepositoryIdentity, canonical],
       settings: defaultGroupingSettings,
       primaryEnvironmentId,
     });
-
     expect(physicalToLogicalKey.get(derivePhysicalProjectKey(staleWithoutRepositoryIdentity))).toBe(
       repositoryIdentity.canonicalKey,
     );
-    // Deriving from the stale project alone misses the identity its sibling
-    // carries, so consumers must go through the map to match the sidebar.
     expect(
       deriveLogicalProjectKeyFromSettings(staleWithoutRepositoryIdentity, defaultGroupingSettings),
     ).not.toBe(repositoryIdentity.canonicalKey);
   });
-
   it("builds one picker entry per logical project and targets the preferred environment", () => {
     const primary = makeProject({ repositoryIdentity });
     const remote = makeProject({
@@ -346,7 +451,6 @@ describe("environment grouping", () => {
       primaryEnvironmentId,
       resolveEnvironmentLabel: () => null,
     });
-
     const entries = buildSidebarProjectPickerEntries({
       groups,
       preferredProjectRef: {
@@ -354,7 +458,6 @@ describe("environment grouping", () => {
         projectId: remote.id,
       },
     });
-
     expect(entries).toHaveLength(2);
     expect(entries[0]?.group.projectKey).toBe(repositoryIdentity.canonicalKey);
     expect(entries[0]?.targetProject).toMatchObject({
@@ -364,7 +467,6 @@ describe("environment grouping", () => {
     expect(entries[0]?.isPreferred).toBe(true);
     expect(entries[1]?.group.displayName).toBe("separate");
   });
-
   it("keeps the current environment when available and falls back otherwise", () => {
     const currentPrimary = makeProject({ repositoryIdentity });
     const currentRemote = makeProject({
@@ -411,7 +513,6 @@ describe("environment grouping", () => {
       primaryEnvironmentId,
       resolveEnvironmentLabel: () => null,
     });
-
     const entries = buildSidebarProjectPickerEntries({
       groups,
       preferredProjectRef: {
@@ -423,7 +524,6 @@ describe("environment grouping", () => {
       (entry) => entry.group.projectKey === destinationRepositoryIdentity.canonicalKey,
     );
     const fallback = entries.find((entry) => entry.group.displayName === "fallback");
-
     expect(destination?.targetProject).toMatchObject({
       environmentId: remoteEnvironmentId,
       id: destinationRemote.id,
@@ -433,7 +533,6 @@ describe("environment grouping", () => {
       id: fallbackPrimary.id,
     });
   });
-
   it("keeps manual project order when building grouped sidebar entries", () => {
     const primary = makeProject({ repositoryIdentity });
     const remote = makeProject({
@@ -455,7 +554,6 @@ describe("environment grouping", () => {
         legacyProjectCwdPreferenceKey(project.workspaceRoot),
       ],
     });
-
     const groups = buildSidebarProjectSnapshots({
       workspaceCollections: false,
       projects: orderedProjects,
@@ -463,7 +561,6 @@ describe("environment grouping", () => {
       primaryEnvironmentId,
       resolveEnvironmentLabel: () => null,
     });
-
     expect(groups.map((group) => group.displayName)).toEqual(["separate", "shared-repo"]);
   });
 });

@@ -1,13 +1,57 @@
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import {
+  applyTerminalAttachStreamEvent,
+  combineTerminalSessionState,
+  EMPTY_TERMINAL_BUFFER_STATE,
+  INITIAL_TERMINAL_OUTPUT_CURSOR,
+  nextTerminalAttachSeedState,
+} from "@t3tools/client-runtime/state/terminal";
 
 import {
+  clampDrawerHeight,
+  resolveTerminalDrawerMaxHeight,
   shouldClearTerminalSelectionAction,
   shouldHandleTerminalExit,
   terminalContextMenuItems,
+  synchronizeTerminalOutput,
   terminalSelectionLineRange,
   terminalSelectionMenuItems,
   terminalThemeFromApp,
 } from "./ThreadTerminalDrawer";
+
+describe("terminal drawer height", () => {
+  it("shrinks to fit beside the header and composer while the phone keyboard is open, then restores the preferred height", () => {
+    const controls = { headerHeight: 52, composerHeight: 108 };
+    const keyboardOpenMax = resolveTerminalDrawerMaxHeight({
+      ...controls,
+      viewportHeight: 400,
+      chatColumnHeight: 360,
+    });
+    const keyboardClosedMax = resolveTerminalDrawerMaxHeight({
+      ...controls,
+      viewportHeight: 800,
+      chatColumnHeight: 760,
+    });
+
+    // 360 - 52 - 108 leaves 200px, so the drawer stops short of its 280px preference.
+    expect(clampDrawerHeight(280, keyboardOpenMax)).toBe(200);
+    expect(clampDrawerHeight(280, keyboardClosedMax)).toBe(280);
+  });
+
+  it("keeps the window cap for panel terminals and collapses to zero when the controls fill the column", () => {
+    expect(clampDrawerHeight(900, resolveTerminalDrawerMaxHeight({ viewportHeight: 800 }))).toBe(
+      600,
+    );
+
+    const crowdedMax = resolveTerminalDrawerMaxHeight({
+      viewportHeight: 200,
+      chatColumnHeight: 160,
+      headerHeight: 52,
+      composerHeight: 120,
+    });
+    expect(clampDrawerHeight(280, crowdedMax)).toBe(0);
+  });
+});
 
 describe("terminal selection menus", () => {
   it("omits Add to chat when the terminal has no chat target", () => {
@@ -16,6 +60,8 @@ describe("terminal selection menus", () => {
       "add-to-chat",
       "copy",
       "paste",
+      "select-all",
+      "scroll-to-bottom",
     ]);
 
     expect(terminalSelectionMenuItems({ canAddToChat: false }).map(({ id }) => id)).toEqual([
@@ -23,7 +69,20 @@ describe("terminal selection menus", () => {
     ]);
     expect(
       terminalContextMenuItems({ hasSelection: true, canAddToChat: false }).map(({ id }) => id),
-    ).toEqual(["copy", "paste"]);
+    ).toEqual(["copy", "paste", "select-all", "scroll-to-bottom"]);
+  });
+
+  it("keeps local viewing actions available to a read-only observer", () => {
+    const items = terminalContextMenuItems({ hasSelection: false, readOnly: true });
+    expect(items.filter((item) => item.disabled).map((item) => item.id)).toEqual([
+      "add-to-chat",
+      "copy",
+      "paste",
+    ]);
+    expect(items.filter((item) => !item.disabled).map((item) => item.id)).toEqual([
+      "select-all",
+      "scroll-to-bottom",
+    ]);
   });
 });
 
@@ -138,8 +197,63 @@ describe("terminal selection actions", () => {
   });
 
   it("handles an exit that lands while the terminal surface is still loading", () => {
-    expect(shouldHandleTerminalExit("exited", "running", false)).toBe(true);
-    expect(shouldHandleTerminalExit("exited", "exited", false)).toBe(false);
-    expect(shouldHandleTerminalExit("closed", "running", true)).toBe(false);
+    expect(shouldHandleTerminalExit("exited", "running", false, 1)).toBe(true);
+    expect(shouldHandleTerminalExit("exited", "exited", false, 1)).toBe(false);
+    expect(shouldHandleTerminalExit("closed", "running", true, 1)).toBe(false);
   });
+
+  it.each(["closed", "exited"] as const)("ignores an unsynchronized %s seed", (status) => {
+    expect(shouldHandleTerminalExit(status, "running", false, 0)).toBe(false);
+    expect(shouldHandleTerminalExit(status, "running", false, 1)).toBe(true);
+  });
+});
+
+it("retains visible output and selection until a replacement subscription receives its snapshot", () => {
+  const terminal = { resetAndWrite: vi.fn(), write: vi.fn(), clearSelection: vi.fn() };
+  const snapshot = {
+    threadId: "thread",
+    terminalId: "term-1",
+    cwd: "/repo",
+    worktreePath: null,
+    status: "running" as const,
+    pid: 123,
+    history: "host output",
+    exitCode: null,
+    exitSignal: null,
+    label: "Terminal 1",
+    updatedAt: "2026-09-05T00:00:00.000Z",
+  };
+  const attached = applyTerminalAttachStreamEvent(nextTerminalAttachSeedState(), {
+    type: "snapshot",
+    snapshot,
+  });
+  const cursor = synchronizeTerminalOutput(terminal, attached, INITIAL_TERMINAL_OUTPUT_CURSOR);
+  expect(terminal.resetAndWrite).toHaveBeenLastCalledWith("host output");
+  terminal.resetAndWrite.mockClear();
+  terminal.clearSelection.mockClear();
+
+  const pending = combineTerminalSessionState(
+    { ...snapshot, hasRunningSubprocess: false },
+    EMPTY_TERMINAL_BUFFER_STATE,
+  );
+  expect(pending.status).toBe("running");
+  expect(synchronizeTerminalOutput(terminal, pending, cursor)).toBe(cursor);
+  expect(terminal.resetAndWrite).not.toHaveBeenCalled();
+  expect(terminal.write).not.toHaveBeenCalled();
+  expect(terminal.clearSelection).not.toHaveBeenCalled();
+
+  const observed = applyTerminalAttachStreamEvent(nextTerminalAttachSeedState(), {
+    type: "snapshot",
+    snapshot: { ...snapshot, history: "host output\nobserved output" },
+  });
+  const observedCursor = synchronizeTerminalOutput(terminal, observed, cursor);
+  expect(terminal.resetAndWrite).toHaveBeenLastCalledWith("host output\nobserved output");
+
+  const cleared = applyTerminalAttachStreamEvent(observed, {
+    type: "cleared",
+    threadId: "thread",
+    terminalId: "term-1",
+  });
+  synchronizeTerminalOutput(terminal, cleared, observedCursor);
+  expect(terminal.resetAndWrite).toHaveBeenLastCalledWith("");
 });

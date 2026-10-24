@@ -1,7 +1,6 @@
 import { parsePatchFiles } from "@pierre/diffs/utils/parsePatchFiles";
 import { parseDiffFromFile } from "@pierre/diffs";
 import type { FileDiffMetadata } from "@pierre/diffs/types";
-import { unquoteGitPatchPath } from "@t3tools/shared/gitPatchPath";
 
 const DIFF_THEME_NAMES = {
   light: "pierre-light",
@@ -201,31 +200,20 @@ export function getRenderablePatch(
 }
 
 /**
- * What the patch called the file, as the file's own name. Git writes a name holding a tab, a
- * newline, a quote or a backslash quoted and escaped, and the parser hands one of those back still
- * escaped. A viewed mark, a review comment and a file's contents are all asked for by this path,
- * and the host knows the file only under the name it really has.
+ * The file's own name. Git quotes and escapes a name holding a tab, a newline, a quote or a
+ * backslash, and the parser decodes it, so this is the name the host knows the file by.
  */
-function fileDiffPath(raw: string): string {
-  return unquoteGitPatchPath(raw);
-}
-
 export function resolveFileDiffPath(fileDiff: FileDiffMetadata): string {
-  return fileDiffPath(fileDiff.name ?? fileDiff.prevName ?? "");
+  return fileDiff.name ?? fileDiff.prevName ?? "";
 }
 
-/**
- * What the file was called before the change. Only a rename makes it differ from the current
- * path, and the hosts that resolve a diff position against both sides need both names.
- */
 export function resolveFileDiffPreviousPath(fileDiff: FileDiffMetadata): string {
-  return fileDiffPath(fileDiff.prevName ?? fileDiff.name ?? "");
+  return fileDiff.prevName ?? fileDiff.name ?? "";
 }
 
 /**
- * Stable across re-renders of the same file, distinct for every block in a
- * patch. A type change (regular file to symlink) arrives as a deletion and an
- * addition of the same path, so the change type is part of the identity.
+ * A type change (regular file to symlink) arrives as a deletion and an addition
+ * of the same path, so the change type is part of the identity.
  */
 export function buildFileDiffIdentityKey(fileDiff: FileDiffMetadata): string {
   return `${resolveFileDiffPreviousPath(fileDiff)}\u0000${resolveFileDiffPath(fileDiff)}\u0000${fileDiff.type}`;
@@ -245,8 +233,8 @@ function hashFileDiffPart(hash: number, value: string | number | boolean | undef
 }
 
 /**
- * Content-only version for CodeView reconciliation. Pierre's cache key includes
- * the whole patch, so using it here would repaint every file when one changes.
+ * Pierre's cache key includes the whole patch, so using it here would repaint
+ * every file when one changes.
  */
 export function buildFileDiffContentVersion(fileDiff: FileDiffMetadata): number {
   let hash = FNV_OFFSET_BASIS_32;
@@ -313,12 +301,6 @@ export function getDiffCollapseIconClassName(fileDiff: FileDiffMetadata): string
   }
 }
 
-/**
- * Maps every diff/file surface the @pierre/diffs renderer paints onto the
- * app's code tokens, so themed palettes reach the code body, gutter, and
- * row tints instead of the renderer's bundled colors. Shared by the diff
- * panel and the file preview.
- */
 export const DIFF_SURFACE_THEME_UNSAFE_CSS = `
 [data-diffs-header],
 [data-diff],

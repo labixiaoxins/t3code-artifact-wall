@@ -4,7 +4,10 @@ import { buildWorkspaceCollections } from "./workspaceCollections";
 import {
   buildSidebarProjectSnapshots,
   buildPhysicalToLogicalProjectKeyMap,
+  getSidebarProjectSettingsKey,
+  resolveSidebarProjectScopeKey,
 } from "./sidebarProjectGrouping";
+import { derivePhysicalProjectKey, deriveLogicalProjectKeyFromSettings } from "./logicalProject";
 import { groupSidebarByProvider } from "./sidebarProviderGrouping";
 import { recentProjectRecords } from "./recentProjectRecords";
 import type { Project, SidebarThreadSummary } from "./types";
@@ -38,6 +41,77 @@ const thread = (id: string, projectId: string, date: string, title = id): Sideba
   }) as SidebarThreadSummary;
 
 describe("workspace collections and recent projects", () => {
+  it("migrates saved physical filters and opens settings for the selected workspace", () => {
+    const projects = [
+      project("root", "/Users/a/Documents/Codex"),
+      project("dated", "/Users/a/Documents/Codex/2026-10-12/task"),
+    ];
+    const groups = buildSidebarProjectSnapshots({
+      projects,
+      settings,
+      primaryEnvironmentId: env,
+      resolveEnvironmentLabel: () => null,
+    });
+    const key = derivePhysicalProjectKey(projects[1]!);
+    expect(
+      resolveSidebarProjectScopeKey({ groups, key, settings, canClearMissingScope: true }),
+    ).toBe(groups[0]?.projectKey);
+    expect(
+      getSidebarProjectSettingsKey(groups[0]!, settings, projects, {
+        environmentId: env,
+        projectId: projects[1]!.id,
+      }),
+    ).toBe(key);
+    const scratchGroups = buildSidebarProjectSnapshots({
+      projects: projects.map((p) => ({ ...p, isScratch: true })),
+      settings,
+      primaryEnvironmentId: env,
+      resolveEnvironmentLabel: () => null,
+    });
+    expect(
+      resolveSidebarProjectScopeKey({
+        groups: scratchGroups,
+        key: "removed",
+        canClearMissingScope: true,
+      }),
+    ).toBeNull();
+  });
+  it("does not choose a machine when an old repository filter matches two collections", () => {
+    const repositoryIdentity = {
+      canonicalKey: "github.com/example/shared",
+      locator: {
+        source: "git-remote" as const,
+        remoteName: "origin",
+        remoteUrl: "https://github.com/example/shared.git",
+      },
+    };
+    const projects = [
+      { ...project("local", "/Users/a/Documents/Codex"), repositoryIdentity },
+      {
+        ...project("remote", "/Users/b/Documents/Codex", EnvironmentId.make("remote")),
+        repositoryIdentity,
+      },
+    ];
+    const physicalSettings = { ...settings, sidebarProjectGroupingMode: "separate" as const };
+    const groups = buildSidebarProjectSnapshots({
+      projects,
+      settings: physicalSettings,
+      primaryEnvironmentId: env,
+      resolveEnvironmentLabel: () => null,
+    });
+    const key = deriveLogicalProjectKeyFromSettings(projects[0]!, settings);
+    expect(groups).toHaveLength(2);
+    expect(
+      resolveSidebarProjectScopeKey({ groups, key, settings, canClearMissingScope: true }),
+    ).toBeNull();
+    expect(
+      resolveSidebarProjectScopeKey({
+        groups,
+        key: derivePhysicalProjectKey(projects[1]!),
+        settings,
+      }),
+    ).toBe(groups[1]?.projectKey);
+  });
   it("keeps every workspace identity while collecting dated folders and preserving machine boundaries", () => {
     const projects = [
       project("root", "/Users/a/Documents/Codex"),

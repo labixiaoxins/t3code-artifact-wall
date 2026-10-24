@@ -32,6 +32,13 @@ describe("artifact wall presentation", () => {
     expect(groups.map((g) => g.label)).toEqual(["今天", "昨天"]);
     expect(groups[0]?.artifacts[0]?.id).toBe("new");
   });
+  it("surfaces a revised old deliverable before an untouched newer reference", () => {
+    const revised = { ...a("old", "2026-10-05T01:00:00Z"), modifiedAt: "2026-10-07T10:00:00Z" };
+    const other = { ...a("other", "2026-10-06T10:00:00Z"), modifiedAt: "2026-10-06T10:00:00Z" };
+    const groups = groupArtifacts([other, revised], new Date("2026-10-07T12:00:00Z"));
+    expect(groups[0]?.artifacts[0]?.id).toBe("old");
+    expect(previousArtifactImage(revised, [other, revised])?.id).toBe("other");
+  });
   it("counts each kind including video as document", () => {
     expect(artifactCounts([a("a", "1"), a("b", "2", "page"), a("c", "3", "document")])).toEqual({
       all: 3,

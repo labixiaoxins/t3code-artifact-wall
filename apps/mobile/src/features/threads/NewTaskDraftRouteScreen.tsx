@@ -1,16 +1,18 @@
+import * as Dialog from "../../components/ui/Dialog";
 import { useNavigation, usePreventRemove, type StaticScreenProps } from "@react-navigation/native";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, View } from "react-native";
+import { View } from "react-native";
 import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
-import { AppText as Text } from "../../components/AppText";
+import { AppText as Text } from "../../components/ui/AppText";
 import { useProjects } from "../../state/entities";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useWorkspaceState } from "../../state/workspace";
 import { vcsEnvironment } from "../../state/vcs";
 import { checkoutNewTaskBranch } from "./checkout-new-task-branch";
+import { resolveNewTaskBranchWorktreePath } from "./new-task-context-presentation";
 import { NativeStackScreenOptions } from "../../native/StackHeader";
 
 import { NewTaskDraftScreen } from "./NewTaskDraftScreen";
@@ -21,7 +23,6 @@ type NewTaskDraftRouteParams = {
   readonly branch?: string | null;
   readonly worktreePath?: string | null;
   readonly title?: string | string[];
-  /** Set by Add Project when this draft opens while the project's clone runs. */
   readonly cloning?: string | string[];
   readonly pendingTaskId?: string | string[];
   readonly draftId?: string | string[];
@@ -37,11 +38,9 @@ export function NewTaskDraftRouteScreen({ route }: StaticScreenProps<NewTaskDraf
   const projects = useProjects();
   const { state: catalogState } = useWorkspaceState();
   const navigation = useNavigation();
+  const readRefs = useAtomCommand(vcsEnvironment.readRefs, { reportFailure: false });
   const switchRef = useAtomCommand(vcsEnvironment.switchRef, { reportFailure: false });
 
-  // Keyed on the params object so a fresh navigation to this (already
-  // mounted) screen produces a new reference, letting the draft screen
-  // re-apply the requested project.
   const initialProjectRef = useMemo(
     () => ({
       environmentId: Array.isArray(params.environmentId)
@@ -90,8 +89,6 @@ export function NewTaskDraftRouteScreen({ route }: StaticScreenProps<NewTaskDraf
         return;
       }
       const result = await checkoutNewTaskBranch({
-        // A thread's branch is historical; only switchRef can establish that
-        // the shared project checkout now matches it.
         branch: {
           name: branchName,
           current: false,
@@ -100,6 +97,7 @@ export function NewTaskDraftRouteScreen({ route }: StaticScreenProps<NewTaskDraf
         },
         project: environmentId && workspaceRoot ? { environmentId, workspaceRoot } : null,
         workspaceMode: "local",
+        readRefs,
         switchRef,
       });
       setPendingCheckouts((count) => count - 1);
@@ -113,6 +111,7 @@ export function NewTaskDraftRouteScreen({ route }: StaticScreenProps<NewTaskDraf
     workspaceRoot,
     initialProjectRef,
     needsPreparation,
+    readRefs,
     switchRef,
     waitingForProject,
   ]);
@@ -129,7 +128,7 @@ export function NewTaskDraftRouteScreen({ route }: StaticScreenProps<NewTaskDraf
     if (checkoutPending || result?._tag !== "Failure") return;
     if (!isAtomCommandInterrupted(result)) {
       const error = squashAtomCommandFailure(result);
-      Alert.alert(
+      Dialog.alert(
         "Could not switch branch",
         error instanceof Error ? error.message : "The branch could not be checked out.",
       );
@@ -139,12 +138,19 @@ export function NewTaskDraftRouteScreen({ route }: StaticScreenProps<NewTaskDraf
 
   const preparedProjectRef = useMemo(
     () =>
-      result?._tag === "Success"
-        ? { ...initialProjectRef, branch: result.value.name }
+      result?._tag === "Success" && workspaceRoot
+        ? {
+            ...initialProjectRef,
+            branch: result.value.name,
+            worktreePath: resolveNewTaskBranchWorktreePath({
+              workspaceMode: "local",
+              projectCwd: workspaceRoot,
+              branchWorktreePath: result.value.worktreePath,
+            }),
+          }
         : initialProjectRef,
-    [initialProjectRef, result],
+    [initialProjectRef, result, workspaceRoot],
   );
-  // Send/queue remain unavailable on failure while the unlocked route closes.
   const preparingBranch = checkoutPending || (needsPreparation && result?._tag !== "Success");
 
   return (

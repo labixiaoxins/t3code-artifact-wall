@@ -19,13 +19,15 @@ import type { ReviewInlineComment } from "./reviewCommentSelection";
 
 const NATIVE_REVIEW_MAX_WORD_DIFF_RANGE_COUNT = 4;
 const NATIVE_REVIEW_MAX_WORD_DIFF_COVERAGE = 0.45;
+// Bound the rows serialized to the native heap before mapping and word matching.
+const NATIVE_REVIEW_MAX_FILE_ROWS = 2_000;
+const TRUNCATED_FILE_NOTICE = "This diff is too large to show in full.";
 const NATIVE_HEX_COLOR = /^#([\da-f]{2})([\da-f]{2})([\da-f]{2})([\da-f]{2})?$/i;
 const NATIVE_RGBA_COLOR =
   /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)$/;
 
 export const NATIVE_REVIEW_DIFF_CONTENT_WIDTH = 2_800;
 
-/** Render headerless selections without guessing file line numbers from selection indices. */
 export function buildNativeReviewSnippetRows(
   comment: Pick<ReviewInlineComment, "id" | "diff" | "fenceLanguage">,
 ): NativeReviewDiffRow[] {
@@ -63,7 +65,6 @@ function opaqueNativeHexColor(color: string, background: string): string {
   return `#${channels.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
 }
 
-/** `wordWrap` wraps line rows at the view width instead of panning them horizontally. */
 export function createNativeReviewDiffStyle(
   codeSurface: ResolvedMobileCodeSurface,
   wordWrap: boolean,
@@ -133,6 +134,7 @@ interface PreparedNativeReviewFileRows {
   readonly fileId: string;
   readonly filePath: string;
   readonly lineCount: number;
+  readonly truncated: boolean;
   readonly rows: ReadonlyArray<NativeReviewDiffRow>;
   readonly commentTargetsByRowId: ReadonlyMap<string, NativeReviewDiffCommentTarget>;
   readonly rowIdByCommentLineId: ReadonlyMap<string, string>;
@@ -187,7 +189,6 @@ export function createNativeReviewDiffTheme(
 
   if (scheme === "dark") {
     return {
-      // Code surfaces share the desktop palette rather than the sheet behind them.
       background,
       text: nativeColor(appTheme["--color-md-code-text"]),
       mutedText: nativeColor(appTheme["--color-foreground-muted"]),
@@ -438,9 +439,13 @@ function prepareFileRows(file: ReviewRenderableFile): PreparedNativeReviewFileRo
     },
   ];
 
-  const lineRows = file.rows.filter((row): row is ReviewRenderableLineRow => row.kind === "line");
+  const sourceRows =
+    file.rows.length > NATIVE_REVIEW_MAX_FILE_ROWS
+      ? file.rows.slice(0, NATIVE_REVIEW_MAX_FILE_ROWS)
+      : file.rows;
+  const lineRows = sourceRows.filter((row): row is ReviewRenderableLineRow => row.kind === "line");
   let lineIndex = 0;
-  file.rows.forEach((row, rowIndex) => {
+  sourceRows.forEach((row, rowIndex) => {
     if (row.kind === "hunk") {
       rows.push({
         kind: "hunk",
@@ -462,11 +467,15 @@ function prepareFileRows(file: ReviewRenderableFile): PreparedNativeReviewFileRo
     lineIndex += 1;
   });
 
+  if (sourceRows !== file.rows) {
+    rows.push(createNoticeRow(file.id, "truncated", TRUNCATED_FILE_NOTICE));
+  }
   rows.push(...noticeRowsForFile(file));
   const prepared: PreparedNativeReviewFileRows = {
     fileId: file.id,
     filePath: file.path,
     lineCount: lineRows.length,
+    truncated: sourceRows !== file.rows,
     // Comments must not split the source deletion/addition runs used for word matching.
     rows: addNativeWordDiffRanges(rows),
     commentTargetsByRowId,
@@ -492,6 +501,7 @@ function insertFileComments(
 
   const commentsByEndIndex = new Map<number, ReviewInlineComment[]>();
   for (const comment of comments) {
+    if (file.truncated && comment.startIndex >= file.lineCount) continue;
     const endIndex = Math.min(comment.endIndex, file.lineCount - 1);
     if (endIndex < 0) continue;
     const existing = commentsByEndIndex.get(endIndex);
@@ -601,11 +611,6 @@ export function buildNativeReviewDiffData(
   return buildCommentedNativeReviewDiffData(prepareNativeReviewDiffData(parsedDiff), comments);
 }
 
-/**
- * Prepares source rows once per parsed diff, including its section-specific IDs.
- * Comment edits reuse those rows, word ranges, and targets. Each file retains
- * only its latest comment overlay, and the weak key releases old parsed diffs.
- */
 export function getCachedNativeReviewDiffData(
   input: BuildNativeReviewDiffDataInput,
 ): NativeReviewDiffData {

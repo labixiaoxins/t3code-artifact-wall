@@ -2,14 +2,17 @@ import { describe, expect, it } from "vite-plus/test";
 import * as Schema from "effect/Schema";
 
 import {
+  GitCommandError,
   VcsCreateWorktreeInput,
   GitPreparePullRequestThreadInput,
   GitPreparePullRequestThreadResult,
   GitRunStackedActionResult,
   GitRunStackedActionInput,
   GitResolvePullRequestResult,
+  VcsStatusLocalResult,
 } from "./git.ts";
 
+const decodeGitCommandError = Schema.decodeUnknownSync(Schema.toCodecJson(GitCommandError));
 const decodeCreateWorktreeInput = Schema.decodeUnknownSync(VcsCreateWorktreeInput);
 const decodePreparePullRequestThreadInput = Schema.decodeUnknownSync(
   GitPreparePullRequestThreadInput,
@@ -20,6 +23,25 @@ const decodePreparePullRequestThreadResult = Schema.decodeUnknownSync(
 const decodeRunStackedActionInput = Schema.decodeUnknownSync(GitRunStackedActionInput);
 const decodeRunStackedActionResult = Schema.decodeUnknownSync(GitRunStackedActionResult);
 const decodeResolvePullRequestResult = Schema.decodeUnknownSync(GitResolvePullRequestResult);
+const decodeVcsStatusLocalResult = Schema.decodeUnknownSync(VcsStatusLocalResult);
+
+describe("GitCommandError", () => {
+  it("decodes an unknown failure reason as absent", () => {
+    const error = decodeGitCommandError({
+      _tag: "GitCommandError",
+      operation: "GitVcsDriver.createWorktree",
+      command: "git",
+      cwd: "/repo",
+      detail: "git worktree add failed",
+      reason: "added_by_a_newer_server",
+    });
+
+    expect(error.reason).toBeUndefined();
+    expect(error.message).toBe(
+      "Git command failed in GitVcsDriver.createWorktree (/repo): git worktree add failed",
+    );
+  });
+});
 
 describe("VcsCreateWorktreeInput", () => {
   it("accepts omitted newRefName for existing-refName worktrees", () => {
@@ -124,6 +146,70 @@ describe("GitRunStackedActionInput", () => {
 
     expect(parsed.actionId).toBe("action-1");
     expect(parsed.action).toBe("create_pr");
+  });
+
+  it("preserves leading and trailing whitespace in file paths", () => {
+    const parsed = decodeRunStackedActionInput({
+      actionId: "action-1",
+      cwd: "/repo",
+      action: "commit",
+      filePaths: [" leading.txt", "trailing.txt "],
+    });
+
+    expect(parsed.filePaths).toEqual([" leading.txt", "trailing.txt "]);
+  });
+
+  it("rejects an empty file path", () => {
+    expect(() =>
+      decodeRunStackedActionInput({
+        actionId: "action-1",
+        cwd: "/repo",
+        action: "commit",
+        filePaths: [""],
+      }),
+    ).toThrow();
+  });
+});
+
+describe("VcsStatusLocalResult", () => {
+  it("preserves leading and trailing whitespace in working-tree paths", () => {
+    const parsed = decodeVcsStatusLocalResult({
+      isRepo: true,
+      hasPrimaryRemote: true,
+      isDefaultRef: false,
+      refName: "main",
+      hasWorkingTreeChanges: true,
+      workingTree: {
+        files: [
+          { path: " leading.txt", insertions: 1, deletions: 0 },
+          { path: "trailing.txt ", insertions: 0, deletions: 1 },
+        ],
+        insertions: 1,
+        deletions: 1,
+      },
+    });
+
+    expect(parsed.workingTree.files.map((file) => file.path)).toEqual([
+      " leading.txt",
+      "trailing.txt ",
+    ]);
+  });
+
+  it("rejects an empty working-tree path", () => {
+    expect(() =>
+      decodeVcsStatusLocalResult({
+        isRepo: true,
+        hasPrimaryRemote: true,
+        isDefaultRef: false,
+        refName: "main",
+        hasWorkingTreeChanges: true,
+        workingTree: {
+          files: [{ path: "", insertions: 0, deletions: 0 }],
+          insertions: 0,
+          deletions: 0,
+        },
+      }),
+    ).toThrow();
   });
 });
 

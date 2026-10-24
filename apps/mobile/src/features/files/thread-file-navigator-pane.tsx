@@ -1,6 +1,8 @@
+import { resolveFilesystemReadAccess } from "@t3tools/client-runtime/state/filesystem";
+import { environmentSession } from "../../state/session";
 import type { EnvironmentId } from "@t3tools/contracts";
-import { SymbolView } from "../../components/AppSymbol";
-import { MaterialScreenContent } from "../../components/MaterialScreenContent";
+import { SymbolView } from "../../components/ui/AppSymbol";
+import { ScreenContent } from "../../components/ui/ScreenContent";
 import { useCallback, useMemo, useState, type ComponentProps } from "react";
 import { Platform, Pressable, View, type NativeSyntheticEvent } from "react-native";
 import {
@@ -11,10 +13,12 @@ import {
   SearchBar,
 } from "react-native-screens";
 
-import { AppText as Text, AppTextInput as TextInput } from "../../components/AppText";
-import { MaterialFilesHeader } from "./MaterialFilesHeader";
+import { AppText as Text, AppTextInput as TextInput } from "../../components/ui/AppText";
+import { FilesHeader } from "./FilesHeader";
 import { nativeHeaderScrollEdgeEffects } from "../../native/StackHeader";
 import { useUniwindTheme } from "../../lib/useUniwindTheme";
+import { useEnvironmentQuery } from "../../state/query";
+import { useEnvironmentPresentation } from "../../state/presentation";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { FileTreeBrowser } from "./FileTreeBrowser";
 import { useFileTreeEntries } from "./useFileTreeEntries";
@@ -36,9 +40,20 @@ export function ThreadFileNavigatorPane(props: {
   const foregroundColor = theme["--color-foreground"];
   const sheetColor = theme["--color-sheet"];
   const headerScrollEdgeEffects = nativeHeaderScrollEdgeEffects(Platform.OS, Platform.Version);
+  const fileAccessSession = useEnvironmentQuery(
+    environmentSession.sessionStateAtom(props.environmentId),
+  );
+  const fileEnvironment = useEnvironmentPresentation(props.environmentId);
+  const fileAccess = resolveFilesystemReadAccess({
+    isCatalogReady: fileEnvironment.isReady,
+    connection: fileEnvironment.presentation?.connection ?? null,
+    session: fileAccessSession.data,
+    sessionError: fileAccessSession.error,
+  });
+  const { canReadFiles } = fileAccess;
   const entriesQuery = useFileTreeEntries({
     environmentId: props.environmentId,
-    cwd: props.cwd,
+    cwd: canReadFiles ? props.cwd : null,
     searchQuery,
   });
   const handlePreviewFile = useCallback(
@@ -63,7 +78,6 @@ export function ThreadFileNavigatorPane(props: {
           sharesBackground: false,
           tintColor: foregroundColor,
           type: "button" as const,
-          width: 44,
         },
       ] as ComponentProps<typeof ScreenStackHeaderConfig>["headerRightBarButtonItems"],
     [foregroundColor, toggleAuxiliaryPane],
@@ -73,11 +87,19 @@ export function ThreadFileNavigatorPane(props: {
     <FileTreeBrowser
       key={JSON.stringify([props.environmentId, props.cwd])}
       entries={entriesQuery.entries}
-      loadedDirectories={entriesQuery.loadedDirectories}
+      loadingDirectories={entriesQuery.loadingDirectories}
       onLoadDirectory={entriesQuery.loadDirectory}
-      error={entriesQuery.error}
-      isPending={entriesQuery.isPending}
+      error={
+        canReadFiles
+          ? entriesQuery.error
+          : fileAccess.isPending
+            ? null
+            : (fileAccess.error ?? "This connection cannot read host files.")
+      }
+      isPending={fileAccess.isPending || entriesQuery.isPending}
+      isRefreshing={entriesQuery.isRefreshing}
       searchQuery={searchQuery}
+      searchResultPaths={entriesQuery.searchResultPaths}
       searchTruncated={entriesQuery.searchTruncated}
       selectedPath={props.selectedPath}
       onPreviewFile={handlePreviewFile}
@@ -151,7 +173,7 @@ export function ThreadFileNavigatorPane(props: {
         style={{ paddingTop: Platform.OS === "android" ? 0 : props.headerInset }}
       >
         {Platform.OS === "android" ? (
-          <MaterialFilesHeader
+          <FilesHeader
             projectName={props.projectName}
             searchQuery={searchQuery}
             onSearchQueryChange={setSearchQuery}
@@ -202,7 +224,7 @@ export function ThreadFileNavigatorPane(props: {
           </View>
         ) : null}
       </View>
-      <MaterialScreenContent insetHorizontal>{fileTree}</MaterialScreenContent>
+      <ScreenContent insetHorizontal>{fileTree}</ScreenContent>
     </View>
   );
 }

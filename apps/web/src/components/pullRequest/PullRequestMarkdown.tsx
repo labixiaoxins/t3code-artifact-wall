@@ -1,8 +1,9 @@
+import { uiText } from "~/i18n";
 import { ExternalLinkIcon, PaperclipIcon } from "lucide-react";
 import { markdownImageSourceFragment } from "@t3tools/client-runtime/markdown-images";
 import { githubMediaFetchUrl } from "@t3tools/shared/githubMedia";
 import type { AssetResource, EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext } from "react";
 import type { Options as ReactMarkdownOptions } from "react-markdown";
 
 import { useAssetUrlRefresh, useAssetUrlState } from "~/assets/assetUrls";
@@ -18,11 +19,6 @@ export const PullRequestMarkdownContext = createContext<{
   threadRef: ScopedThreadRef | null;
 } | null>(null);
 
-/**
- * A video GitHub hosts for the repository. It plays through a signed asset URL the server
- * fetches with the repository's GitHub credential, which is what a private repository's
- * uploads need; the URL is re-signed on retry, so a stale one recovers without a reload.
- */
 function PullRequestGitHubVideo({
   environmentId,
   cwd,
@@ -31,26 +27,19 @@ function PullRequestGitHubVideo({
 }: {
   environmentId: EnvironmentId;
   cwd: string;
-  /** What the body authored, which is what "Open original" should reach. */
   url: string;
-  /** The canonical GitHub media URL: a `blob` link addresses the page, not the bytes. */
   fetchUrl: string;
 }) {
-  const resource = useMemo<AssetResource>(
-    () => ({ _tag: "github-media", cwd, url: fetchUrl }),
-    [cwd, fetchUrl],
-  );
+  const resource: AssetResource = { _tag: "github-media", cwd, url: fetchUrl };
   const assetUrl = useAssetUrlState(environmentId, resource);
   const refreshAssetUrl = useAssetUrlRefresh(environmentId, resource);
-  // A server too old to sign this resource, or one with no route to GitHub, still leaves a
-  // public repository's video playing exactly as it did before.
   const src =
     assetUrl._tag === "Success" ? assetUrl.url : assetUrl._tag === "Failure" ? fetchUrl : null;
   return (
     <MediaVideoPlayer
       src={src === null ? null : src + markdownImageSourceFragment(url)}
       originalUrl={url}
-      label="Pull request video"
+      label={uiText("Pull request video")}
       className="w-full"
       videoClassName="rounded-lg border border-border/60"
       onRetry={refreshAssetUrl}
@@ -58,7 +47,6 @@ function PullRequestGitHubVideo({
   );
 }
 
-/** Renders PR uploads inline, with retry and an original link when video playback fails. */
 export function PullRequestMarkdown({
   text,
   cwd,
@@ -69,7 +57,6 @@ export function PullRequestMarkdown({
   text: string;
   cwd: string;
   environmentId: EnvironmentId;
-  /** Thread the body is shown beside, so its links can open in that thread's in-app browser. */
   threadRef?: ScopedThreadRef | null;
   className?: string;
 }) {
@@ -77,10 +64,9 @@ export function PullRequestMarkdown({
   const context = useContext(PullRequestMarkdownContext);
   const repositoryUrl = context?.repositoryUrl;
   const resolvedThreadRef = threadRef ?? context?.threadRef ?? undefined;
-  const extraRemarkPlugins = useMemo<NonNullable<ReactMarkdownOptions["remarkPlugins"]>>(
-    () => (repositoryUrl ? [[remarkPullRequestAutolinks, { repositoryUrl }]] : []),
-    [repositoryUrl],
-  );
+  const extraRemarkPlugins: NonNullable<ReactMarkdownOptions["remarkPlugins"]> = repositoryUrl
+    ? [[remarkPullRequestAutolinks, { repositoryUrl }]]
+    : [];
   return (
     <div
       className={cn(
@@ -90,11 +76,11 @@ export function PullRequestMarkdown({
       data-image-gallery
     >
       {segments.map((segment) => {
-        if (segment.kind === "markdown") {
+        if (segment.kind === "markdown" || segment.media === "image") {
           return (
             <ChatMarkdown
               key={segment.id}
-              text={segment.text}
+              text={segment.kind === "markdown" ? segment.text : `![](<${segment.url}>)`}
               cwd={cwd}
               threadRef={resolvedThreadRef}
               pullRequestPanelRef={resolvedThreadRef ?? PULL_REQUESTS_PANEL_REF}
@@ -122,7 +108,7 @@ export function PullRequestMarkdown({
               key={`${segment.id}:${segment.url}`}
               src={segment.url}
               originalUrl={segment.url}
-              label="Pull request video"
+              label={uiText("Pull request video")}
               className="w-full"
               videoClassName="rounded-lg border border-border/60"
             />
@@ -140,7 +126,7 @@ export function PullRequestMarkdown({
             className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-sm hover:bg-muted/60"
           >
             <PaperclipIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 flex-1 truncate">Open attachment on GitHub</span>
+            <span className="min-w-0 flex-1 truncate">{uiText("Open attachment on GitHub")}</span>
             <ExternalLinkIcon aria-hidden className="size-3 shrink-0 text-muted-foreground" />
           </a>
         );

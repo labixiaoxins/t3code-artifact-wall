@@ -5,7 +5,8 @@ import * as NodeURL from "node:url";
 import * as NodeFS from "node:fs";
 
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -17,7 +18,7 @@ import * as TestClock from "effect/testing/TestClock";
 import * as Stream from "effect/Stream";
 import { describe, expect } from "vite-plus/test";
 
-import * as AcpSessionRuntime from "./AcpSessionRuntime.ts";
+import * as AcpSessionRuntime from "@t3tools/provider-acp/server/AcpSessionRuntime";
 import type * as EffectAcpProtocol from "effect-acp/protocol";
 import * as EffectAcpErrors from "effect-acp/errors";
 
@@ -376,7 +377,19 @@ describe("AcpSessionRuntime", () => {
     }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
   );
 
-  it.effect("attaches child stderr when the ACP process exits before initialize", () =>
+  it.effect.each([
+    { name: "exit code", terminate: "process.exit(1)", code: 1, signal: undefined },
+    ...(HostProcess.Platform.defaultValue() === "win32"
+      ? []
+      : [
+          {
+            name: "signal",
+            terminate: "process.kill(process.pid, 'SIGTERM')",
+            code: undefined,
+            signal: "SIGTERM",
+          },
+        ]),
+  ])("retains the $name and sanitized stderr when ACP exits before initialize", (testCase) =>
     Effect.gen(function* () {
       const runtime = yield* AcpSessionRuntime.make({
         ...mockRuntimeOptions,
@@ -384,15 +397,31 @@ describe("AcpSessionRuntime", () => {
           command: process.execPath,
           args: [
             "-e",
-            "process.stderr.write(\"Invalid project config at /tmp/project/.cursor/cli.json: schema validation failed. Unrecognized key(s): 'approvalMode', 'sandbox'\\n\"); process.exit(1);",
+            `process.stderr.write("Invalid project config: Unrecognized key in cli.json\\nAuthorization: Bearer secret-token-value\\n", () => { ${testCase.terminate}; });`,
           ],
         },
       });
       const error = yield* runtime.start().pipe(Effect.flip);
-      expect(error._tag).toBe("AcpProcessExitedError");
-      expect(error.message).toContain("cli.json");
-      expect(error.message).toContain("Unrecognized key");
-      expect(error.message).not.toContain("ACP process exited with code 1\nACP process exited");
+      assert.instanceOf(error, EffectAcpErrors.AcpProcessExitedError);
+      expect(error.code).toBe(testCase.code);
+      expect(error.signal).toBe(testCase.signal);
+      expect(error).toMatchObject({
+        pid: expect.any(Number),
+        stderr:
+          "Invalid project config: Unrecognized key in cli.json\nAuthorization: Bearer [redacted]",
+      });
+      expect(error.message).toBe(
+        `${testCase.signal ? "ACP process exited after signal SIGTERM" : "ACP process exited with code 1"}\nInvalid project config: Unrecognized key in cli.json\nAuthorization: Bearer [redacted]`,
+      );
+      if (testCase.signal) {
+        expect(error.cause).toMatchObject({
+          reason: {
+            module: "ChildProcess",
+            method: "exitCode",
+            cause: new Error("Process interrupted due to receipt of signal: 'SIGTERM'"),
+          },
+        });
+      }
     }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
   );
 
@@ -1118,8 +1147,6 @@ describe("AcpSessionRuntime", () => {
       yield* runtime.prompt({ prompt: [{ type: "text", text: "hi" }] });
 
       const notes = Array.from(yield* Stream.runCollect(Stream.take(runtime.getEvents(), 9)));
-      // The coalesced progress tick emits nothing, and neither the completion
-      // nor a repeated one splits the markdown table across items.
       expect(notes.map((note) => note._tag)).toEqual([
         "ToolCallUpdated",
         "AssistantItemStarted",
@@ -1745,6 +1772,43 @@ describe("AcpSessionRuntime", () => {
           },
           cwd: process.cwd(),
           clientInfo: { name: "t3-test", version: "0.0.0" },
+        }),
+      ),
+      Effect.scoped,
+      Effect.provide(NodeServices.layer),
+      Effect.ensuring(Effect.sync(() => NodeFS.rmSync(tempDir, { recursive: true, force: true }))),
+    );
+  });
+
+  it.effect("sends configured custom models the agent does not advertise", () => {
+    const tempDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "acp-runtime-"));
+    const requestLogPath = NodePath.join(tempDir, "requests.ndjson");
+    return Effect.gen(function* () {
+      const runtime = yield* AcpSessionRuntime.AcpSessionRuntime;
+      yield* runtime.start();
+
+      yield* runtime.setModel("cline-free/custom-model");
+      const error = yield* runtime.setModel("unconfigured/model").pipe(Effect.flip);
+      expect(error._tag).toBe("AcpRequestError");
+
+      const sentModels = NodeFS.readFileSync(requestLogPath, "utf8")
+        .trim()
+        .split("\n")
+        .filter((line) => line.length > 0)
+        .map((line) => JSON.parse(line) as { method?: string; params?: { value?: unknown } })
+        .filter((message) => message.method === "session/set_config_option")
+        .map((message) => message.params?.value);
+      expect(sentModels).toEqual(["cline-free/custom-model"]);
+    }).pipe(
+      Effect.provide(
+        AcpSessionRuntime.layer({
+          ...mockRuntimeOptions,
+          spawn: {
+            command: mockAgentCommand,
+            args: mockAgentArgs,
+            env: { T3_ACP_REQUEST_LOG_PATH: requestLogPath },
+          },
+          customModels: ["cline-free/custom-model"],
         }),
       ),
       Effect.scoped,

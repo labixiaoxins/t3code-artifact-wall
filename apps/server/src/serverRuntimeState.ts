@@ -4,26 +4,23 @@ import * as FileSystem from "effect/FileSystem";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 
-import { writeFileStringAtomically } from "./atomicWrite.ts";
+import { writeFileStringAtomically } from "@t3tools/shared/atomicWrite";
+import packageJson from "../package.json" with { type: "json" };
 import type * as ServerConfig from "./config.ts";
 import { formatHostForUrl, isWildcardHost } from "./startupAccess.ts";
 
 export const PersistedServerRuntimeState = Schema.Struct({
   version: Schema.Literal(1),
   pid: Schema.Int,
+  ownerId: Schema.optional(Schema.String),
   host: Schema.optional(Schema.String),
   port: Schema.Int,
   origin: Schema.String,
-  // Present when the server fronts a dev web server (VITE_DEV_SERVER_URL).
   // Dev is single-origin: browsers must pair through this URL, not `origin`.
   devUrl: Schema.optional(Schema.String),
   startedAt: Schema.String,
-  /**
-   * Set when the boot-service launcher supervises this server. Lets a CLI
-   * tell a service-managed server apart from one started by hand, which is
-   * the difference between "restart the service" and "stop your terminal".
-   */
   serviceManaged: Schema.optional(Schema.Boolean),
+  serverVersion: Schema.optional(Schema.String),
 });
 export type PersistedServerRuntimeState = typeof PersistedServerRuntimeState.Type;
 
@@ -67,6 +64,7 @@ export const makePersistedServerRuntimeState = (input: {
     ...(input.config.devUrl ? { devUrl: input.config.devUrl.toString() } : {}),
     startedAt: DateTime.formatIso(now),
     ...(input.serviceManaged ? { serviceManaged: true } : {}),
+    serverVersion: packageJson.version,
   }));
 
 export const persistServerRuntimeState = (input: {
@@ -87,38 +85,38 @@ export const persistServerRuntimeState = (input: {
     ),
   );
 
-export const clearPersistedServerRuntimeState = (path: string) =>
-  Effect.gen(function* () {
-    const fs = yield* FileSystem.FileSystem;
-    yield* fs.remove(path, { force: true }).pipe(
-      Effect.mapError(
-        (cause) =>
-          new ServerRuntimeStateError({
-            operation: "clear",
-            statePath: path,
-            cause,
+export const clearPersistedServerRuntimeState = Effect.fn(
+  "serverRuntimeState.clearPersistedServerRuntimeState",
+)(function* (path: string) {
+  const fs = yield* FileSystem.FileSystem;
+  yield* fs.remove(path, { force: true }).pipe(
+    Effect.mapError(
+      (cause) =>
+        new ServerRuntimeStateError({
+          operation: "clear",
+          statePath: path,
+          cause,
+        }),
+    ),
+    Effect.catchTags({
+      ServerRuntimeStateError: (error) =>
+        Effect.logWarning(error.message).pipe(
+          Effect.annotateLogs({
+            operation: error.operation,
+            statePath: error.statePath,
+            cause: error,
           }),
-      ),
-      Effect.catchTags({
-        ServerRuntimeStateError: (error) =>
-          Effect.logWarning(error.message).pipe(
-            Effect.annotateLogs({
-              operation: error.operation,
-              statePath: error.statePath,
-              cause: error,
-            }),
-          ),
-      }),
-    );
-  });
+        ),
+    }),
+  );
+});
 
 /**
- * Report whether the pid recorded in a persisted runtime state is still
- * running. Signal 0 delivers nothing; it only reports whether the pid exists.
- * EPERM means it exists but belongs to another user, which still counts as
- * alive.
+ * Signal 0 delivers nothing; it only reports whether the pid exists. EPERM
+ * means it exists but belongs to another user, which still counts as alive.
  */
 export const isProcessAlive = (pid: number): boolean => {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
   try {
     process.kill(pid, 0);
     return true;
@@ -127,8 +125,10 @@ export const isProcessAlive = (pid: number): boolean => {
   }
 };
 
-export const readPersistedServerRuntimeState = (path: string) =>
-  Effect.gen(function* () {
+export const readPersistedServerRuntimeState = Effect.fn(
+  "serverRuntimeState.readPersistedServerRuntimeState",
+)(
+  function* (path: string) {
     const fs = yield* FileSystem.FileSystem;
     const raw = yield* fs.readFileString(path).pipe(
       Effect.matchEffect({
@@ -165,16 +165,16 @@ export const readPersistedServerRuntimeState = (path: string) =>
           }),
       ),
     );
-  }).pipe(
-    Effect.catchTags({
-      ServerRuntimeStateError: (error) =>
-        Effect.logWarning(error.message).pipe(
-          Effect.annotateLogs({
-            operation: error.operation,
-            statePath: error.statePath,
-            cause: error,
-          }),
-          Effect.as(Option.none<PersistedServerRuntimeState>()),
-        ),
-    }),
-  );
+  },
+  Effect.catchTags({
+    ServerRuntimeStateError: (error) =>
+      Effect.logWarning(error.message).pipe(
+        Effect.annotateLogs({
+          operation: error.operation,
+          statePath: error.statePath,
+          cause: error,
+        }),
+        Effect.as(Option.none<PersistedServerRuntimeState>()),
+      ),
+  }),
+);

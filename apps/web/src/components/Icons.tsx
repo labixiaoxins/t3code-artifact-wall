@@ -364,27 +364,15 @@ export const CursorIcon: Icon = ({ className, ...props }) => (
   </svg>
 );
 
-export const GrokIcon: Icon = ({ className, ...props }) => (
-  <svg
-    {...props}
-    viewBox="0 0 24 24"
-    fill="none"
-    className={cn("fill-[#0F0F0F] dark:fill-[#F5F5F5]", className)}
-  >
-    <path d="M9.26905 15.284L17.2479 9.36086C17.6391 9.07047 18.1981 9.18374 18.3845 9.63478C19.3655 12.0135 18.9272 14.8721 16.9755 16.8349C15.0238 18.7976 12.3082 19.228 9.8261 18.2477L7.1146 19.5102C11.0037 22.1834 15.7263 21.5223 18.6774 18.5525C21.0182 16.1985 21.7432 12.9897 21.0653 10.0961L21.0714 10.1023C20.0884 5.85143 21.3131 4.15233 23.8218 0.677913C23.8812 0.595532 23.9406 0.513151 24 0.428711L20.6987 3.74866V3.73836L9.267 15.2861" />
-    <path d="M7.62249 16.7237C4.83113 14.0422 5.3124 9.89222 7.69417 7.49905C9.45541 5.72786 12.341 5.00497 14.86 6.06768L17.5653 4.81138C17.0779 4.45714 16.4533 4.07613 15.7365 3.80839C12.4966 2.46764 8.6178 3.13492 5.98413 5.78141C3.45081 8.32904 2.65415 12.2463 4.02219 15.5889C5.04412 18.0871 3.36889 19.8541 1.68137 21.6377C1.08337 22.2699 0.483318 22.9022 0 23.5716L7.62045 16.7257" />
-  </svg>
-);
-
 export const TraeIcon: Icon = (props) => (
   <svg {...props} viewBox="0 0 24 24" fill="currentColor">
-    {/* Back rectangle: left strip + bottom strip drawn separately — empty bottom-left corner is the gap between them */}
+    {}
     <rect x="1" y="4" width="3" height="14" />
     <rect x="4" y="18" width="18" height="3" />
-    {/* Front frame: top bar + right bar only — left and bottom are replaced by the back strips above */}
+    {}
     <rect x="4" y="4" width="18" height="3" />
     <rect x="19" y="7" width="3" height="11" />
-    {/* Two diamonds, offset slightly to the right within the open area */}
+    {}
     <path d="M11 10L13 12L11 14L9 12Z" />
     <path d="M16 10L18 12L16 14L14 12Z" />
   </svg>
@@ -681,32 +669,6 @@ export const AntigravityIcon: Icon = (props) => (
   </svg>
 );
 
-export const OpenCodeIcon: Icon = (props) => (
-  <svg {...props} viewBox="0 0 32 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <g clipPath="url(#opencode__clip0_1311_94969)">
-      <path
-        data-opencode-hole="true"
-        className="dark:hidden"
-        d="M24 32H8V16H24V32Z"
-        fill="#CFCECD"
-      />
-      <path className="dark:hidden" d="M24 8H8V32H24V8ZM32 40H0V0H32V40Z" fill="#211E1E" />
-      <path
-        data-opencode-hole="true"
-        className="hidden dark:block"
-        d="M24 32H8V16H24V32Z"
-        fill="#4B4646"
-      />
-      <path className="hidden dark:block" d="M24 8H8V32H24V8ZM32 40H0V0H32V40Z" fill="#F1ECEC" />
-    </g>
-    <defs>
-      <clipPath id="opencode__clip0_1311_94969">
-        <rect width="32" height="40" fill="white" />
-      </clipPath>
-    </defs>
-  </svg>
-);
-
 export const ACPRegistryIcon: Icon = ({ className, ...props }) => (
   <svg
     {...props}
@@ -718,22 +680,6 @@ export const ACPRegistryIcon: Icon = ({ className, ...props }) => (
   </svg>
 );
 
-export const PiAgentIcon: Icon = ({ className, ...props }) => (
-  <svg
-    {...props}
-    viewBox="165.29 165.29 469.43 469.43"
-    fill="none"
-    className={cn("fill-[#0F0F0F] dark:fill-[#F5F5F5]", className)}
-  >
-    <path
-      fillRule="evenodd"
-      d="M165.29 165.29H517.36V400H400V517.36H282.65V634.72H165.29ZM282.65 282.65V400H400V282.65Z"
-    />
-    <path d="M517.36 400H634.72V634.72H517.36Z" />
-  </svg>
-);
-
-// Official two-color mark from https://forgejo.org/favicon.svg.
 export const ForgejoIcon: Icon = (props) => (
   <svg viewBox="0 0 212 212" aria-hidden="true" {...props}>
     <g transform="translate(6 6)" fill="none">
@@ -746,8 +692,12 @@ export const ForgejoIcon: Icon = (props) => (
   </svg>
 );
 
-// macOS System Settings > Privacy & Security pane marks, so the SnapShot setup
-// step points at the same icon the user is about to look for.
+export const GitCafeIcon: Icon = (props) => (
+  <svg viewBox="0 0 64 64" aria-hidden="true" {...props}>
+    <rect x="4.8" y="4.8" width="54.4" height="54.4" fill="#a78bfa" />
+  </svg>
+);
+
 export const MacScreenRecordingIcon: Icon = (props) => {
   const gradientId = useId();
   return (
@@ -800,31 +750,6 @@ export const MacAccessibilityIcon: Icon = (props) => {
         stroke="#fff"
         strokeWidth="1.6"
         strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-};
-
-// Codex's Computer Use app mark, shown on computer-use rows in the work log.
-export const ComputerUseAppIcon: Icon = (props) => {
-  const gradientId = `${useId().replaceAll(":", "")}-computer-use-app-gradient`;
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
-      <defs>
-        <linearGradient id={gradientId} x1="2" y1="2" x2="22" y2="22">
-          <stop offset="0" stopColor="#00dff0" />
-          <stop offset="0.42" stopColor="#3b9cff" />
-          <stop offset="0.72" stopColor="#b044f5" />
-          <stop offset="1" stopColor="#ff78b6" />
-        </linearGradient>
-      </defs>
-      <rect x="1" y="1" width="22" height="22" rx="5" fill={`url(#${gradientId})`} />
-      <path
-        d="m7.2 6.2 10.5 4.1-4.2 2.1-2 4.7z"
-        fill="white"
-        stroke="#315cff"
-        strokeWidth="1.1"
         strokeLinejoin="round"
       />
     </svg>

@@ -1,124 +1,70 @@
-# Community fork: artifact wall and "needs me" workflow
+# 安装与使用小新定制版
 
-[中文说明](README.zh-CN.md)
+当前推荐 C11，基于官方 T3 Code v0.1.1。统一下载入口：[Latest Release](https://github.com/labixiaoxins/t3code-artifact-wall/releases/latest)。普通用户下载 ZIP，无需克隆源码仓库。
 
-An unofficial, independently maintained fork of [pingdotgg/t3code](https://github.com/pingdotgg/t3code), MIT licensed like upstream. It is not affiliated with or endorsed by T3 Tools.
+## 新用户安装
 
-Base: upstream nightly `0.0.46-nightly.20261006.2752` (commit `d8d037eae`). Changes are on the `community/artifact-wall-2752` branch as a few small commits on top of that base, so the diff is easy to review. The older `community/artifact-wall-main` branch is based on upstream `9bd1d8009` and does not include keep-awake.
+1. 确认是 Apple 芯片 Mac，下载 `T3-Code-Xiaoxin-C11-macOS-arm64.zip`，解压到本机磁盘，将 `T3 Code (Alpha).app` 拖入“应用程序”，不要长期在下载目录或移动硬盘中运行。
+2. 首次打开如被 macOS 阻止，在“系统设置 → 隐私与安全性”核对本应用提示和来源后点“仍要打开”。这是未公证的社区临时签名包，不需要关闭 Gatekeeper 或全局防护。
+3. 在“设置 → 模型通道”安装/连接需要的提供方，登录自己的账号。没有附带小新的账号、私人 API 地址、套餐或技能库。模型能力和用量以自己的账号及平台规则为准。
 
-## Why this fork exists
+如果只需要原版，请从 [T3 官方](https://github.com/pingdotgg/t3code) 获取。
 
-Upstream T3 Code is a strong control surface for agents. Its sidebar and thread view are organised around **conversations**, which fits coding work well. If you run many projects in parallel and mix code with visual or content work (images, pages, documents), three questions come up all day, and chat history answers none of them quickly:
+## 已有 T3 如何升级
 
-1. **What is waiting for me right now?**
-2. **What did the agents actually produce, and where is it?**
-3. **Where do I continue from this result?**
+此包沿用 T3 应用身份和数据目录，不是自动隔离的第二套账号。不要同时运行官方版与本包。
 
-This fork adds a small, connected workflow for those three questions: _find the thread that needs me → open it → look at what was produced → continue from the product_.
+1. 等所有任务完成，从应用菜单正常退出 T3，确认旧版不再运行。
+2. **先备份应用和数据**：将原 `T3 Code (Alpha).app` / `T3 Code (Beta).app` 移到标记清楚的备份目录。通过 Finder“前往文件夹”打开 `~/.t3`，在应用退出时复制该目录到自己的备份盘；使用了其他数据目录时也要备份。登录与数据备份只留在自己的设备，不上传 GitHub。
+3. 将新应用放进“应用程序”，只运行选定的一份。核对项目、聊天、设置和模型登录后再清理普通下载包，不要删除唯一数据备份。
 
-> All screenshots below were taken in a sandbox with **fictional data** (light theme, 1280 px wide). The UI text is currently Chinese; the logic is language-independent.
+v0.1.1 沿用上游数据库迁移和内部事件压缩逻辑。回退旧应用不等于回退数据库；需要恢复时，先退出，使用**同一次备份的应用和数据**，不要让旧版本盲写新版本数据，也不要覆盖升级后新增聊天。本 ZIP 不带自动替换、强制退出、迁移或清理脚本。
 
-## Overview
+## 额度常显
 
-![Sidebar with "needs me", a parent thread with three folded subtasks expanded, and the artifact wall on the right](images/artifact-filtered-light-1280.png)
+从聊天顶部额度入口打开“常显设置”，选择账号、额度窗口及顺序。默认最多 3 项，可常显最多 4 项，也可调整软件名称显示。偏好在使用者自己的应用内保存。
 
-Left to right, what you see here:
+剩余百分比复用已有接口和共享快照，不额外创建高频轮询，不通过发模型消息测试余额。无数据、过期和失败分别展示状态，不把“不可读”写成 0 或自动补成 100%。订阅额度与按 token 估算的费用是不同指标。
 
-- **待我处理 (Needs me)** at the top of the sidebar: one row, because exactly one thing is waiting for a human. The second line says why: "子任务 · 待授权" (a subtask is waiting for approval).
-- **A parent thread with `⑂ 3`**: its three subagent threads are folded under it and shown indented only when expanded. Each keeps its own status (blue dot = needs me, green "有新结果" = new result, plain = done).
-- **产物 (Artifacts) panel** on the right: everything this thread produced, grouped by day, with filters (全部 / 图片) and a switch between "本会话" (this thread) and "本项目" (this project).
+Antigravity 可能显示 Claude/GPT 共享周窗口，不承诺 Gemini 专属余额；APIyi、WorkBuddy、豆包暂无通用余额接口。各平台可调整接口和政策，本分支不提供“防封”或任意转接订阅的保证。
 
-## Features
+## 其他入口
 
-### 1. Needs me: one place for everything waiting on a human
+- **正在进行**：侧栏顶部看运行任务及子任务，没有任务时为空，不为展示生成任务。
+- **更多 / 最近访问与留待继续**：查找不常用的恢复入口。
+- **历史与归档**：查找旧会话；项目工具中的“常驻项目”用于常用工作区。
+- **成果**：按会话或项目看收集到的文件及检查信息。未收集或失效路径不等于内容已恢复或验证。
+- **续聊历史**：只读回看关联的早期会话，回看不等于重新发送给模型。
 
-![A subagent thread waiting on an approval, with the "needs me" entry pointing to it](images/inbox-permission-light-1280.png)
+## 验证范围
 
-- Collects approvals, questions, new results and failures across all projects into one sidebar entry, with per-group badges. `⌘⇧I` jumps to the next one.
-- A subagent's **approval or question** still reaches you, shown with the parent's title and "子任务 · 待授权", and clicking it opens the subtask thread directly (as above, with a "Subagent of …" marker and the parent in the Lineage section).
-- A subagent's **new result or failure does not** reach you. The parent model consumes those, so they would only be noise.
+功能代码与 2026-10-24 本机正式运行、已验收的 C11 相同。此前针对 C11 通过 9 项额度数据测试、5 项真实组件浏览器交互、204 项时间线/面板/侧栏回归，以及 1440/390 宽浅深色隔离页面、右面板打开时多次切会话等检查。正式应用另行检查过顶部额度入口、面板与常显设置。
 
-Upstream at the base commit has no dedicated "needs me" entry; you find waiting threads by scanning the thread list.
+本次发布另核对 ASAR 与正式 C11 一致、分享副本签名、空数据目录启动及 HTTP 前端匹配，并扫描本地身份字符串、常见令牌格式和不应打包的文件。上游自带测试夹具中的示例密钥/证书模式不属于个人账号资料。
 
-### 2. Subtask folding
+这些检查不等于已在接收者电脑上完成安装、账号登录、所有模型生成、远程连接、移动端或 Windows/Intel/Linux 验收。接收者仍需用自己的账号和项目检查后再决定用于重要工作。
 
-![Sidebar with the parent thread collapsed to "⑂ 3"](images/sidebar-collapsed-light-1280.png)
+## 从源码运行
 
-- Subagent threads no longer appear as separate sidebar rows. The parent row shows `⑂ N`; click to expand or collapse.
-- If the parent is missing (deleted, or outside the visible list), its subtasks are shown with their normal grouping, so nothing disappears.
-- Archiving a parent also archives its **idle** subtasks. Running ones are skipped and the failure is shown, never silent. Un-archiving a parent does **not** auto-restore subtasks; use "恢复子任务" in the `⑂` menu.
-- ⌘K search still finds subtasks.
+官方源码基线 v0.1.1，提交 `fe27e8e3dc12dcbb108e9a28fd9b8cb65f34ae92`，叠加本仓库定制。保留上游功能源码和锁文件；本次沿用仓库原有 GitHub Actions 配置，不发布上游 CI/自动发行流程变更。不提交 `node_modules`、编译输出或个人 `.env`。
 
-### 3. Artifact wall
+安装符合根目录 `package.json` 要求的 Node.js 和 [Vite+](https://viteplus.dev)，然后：
 
-![Artifact panel listing a generated image with filters and project/thread scope](images/artifact-filtered-light-1280.png)
-
-- A per-thread and per-project panel collecting **generated images, rendered pages, files written by the thread, and attachments**, with thumbnails, file name, time and size, filters, and day grouping.
-- Image preview and side-by-side comparison, and **re-attach an artifact to the composer** to ask for a change. These interactions exist in the code and tests; they are **not shown in the screenshots**.
-- Files that were only _mentioned_ in a thread (for example an old file whose path appears in command output) are ignored unless they were modified after the thread was created (5-minute tolerance). Attachments, rendered HTML and file changes are always kept. This avoids a wall full of old files.
-
-Upstream at the base commit has no panel that collects the files a thread or project produced; they stay inside the chat transcript.
-
-### 4. One-click new thread with a visible working directory
-
-![⌥-click picker: recent workspaces first, older dated folders grouped in a submenu](images/alt-menu-light-1280.png)
-
-![The composer shows which directory the new thread will run in, with a "change" link](images/new-thread-workspace-light-1280.png)
-
-- The category's "new thread" button starts a thread **immediately** in the remembered default workspace (last used for that category; otherwise the most recently active member).
-- `⌥`-click opens a short picker: recent first, `~/` paths, and `~/Documents/Codex/YYYY-MM-DD/...` folders grouped under "更早的历史目录（N）".
-- Before the first message, the composer shows "在 ~/… 中运行 · 更换" (run in this directory · change), so you never start a thread in the wrong place by accident.
-
-### 5. Sidebar grouping and history scan
-
-- Model (Codex / Claude / …) → category → thread, both levels collapsible; recent projects at the top; an archived entry; a history sync button.
-- `AgentSessionScanner` scans all time ranges including archived sessions, under a memory budget, and keeps native session identity.
-
-### 6. Keep awake while working (macOS)
-
-- Setting: **Settings → General → Behavior → Keep awake while working** with three options: **Mac and screen** (default), **Mac only**, **Off**.
-- The server holds a `caffeinate` assertion while any run is preparing, starting or running, and releases it as soon as none are left. Runs that only wait on a person (approval, input) or sit in the queue do **not** count, so a thread waiting overnight does not keep your Mac awake.
-- It is tied to the server process (`caffeinate -w <pid>`), so a crashed or killed server cannot leave the machine awake. Run rows older than 24 hours are ignored.
-- It lives in the server, so it also works for a headless Mac host and when the window is closed. Other platforms are unchanged.
-- Closing the lid still sleeps a laptop that has no external display; that is a macOS limit.
-
-## Opinionated defaults you will want to edit
-
-- Category names and folder rules live in one file: [`apps/web/src/workspaceCollections.ts`](../../apps/web/src/workspaceCollections.ts). The defaults assume `~/Documents/<category>` folders (自媒体, 公司管理, 交易, …). Replace them with your own layout. The old behaviour is kept behind `workspaceCollections: false`.
-- Automation-thread title filter: `isAutomationThread` in `apps/web/src/sidebarProviderGrouping.ts`.
-- Dated-folder grouping assumes Codex's `~/Documents/Codex/YYYY-MM-DD/<name>` scratch layout.
-
-## Build
-
-Requires Node `^24.13.1` and pnpm `11.10.0`, same as upstream.
-
-```bash
-pnpm install --frozen-lockfile
-pnpm typecheck
-pnpm test        # or run the targeted suites listed below
-pnpm build
+```sh
+git clone https://github.com/labixiaoxins/t3code-artifact-wall.git
+cd t3code-artifact-wall
+vp i
+vp run dev
 ```
 
-Targeted suites for this fork: `apps/server/src/artifacts/*.test.ts`, `apps/server/src/project/AgentSessionScanner.test.ts`, and in `apps/web/src`: `artifactWall`, `workbenchInbox`, `sidebarInboxPresentation`, `sidebarSubtasks`, `projectMemberSelection`, `workspaceCollections`, `sidebarProviderGrouping`, `sidebarThreadPlacement`.
+不要让测试服务使用生产 `~/.t3/userdata`。桌面构建入口是 `vp run build:desktop`，发行参数见根目录 `package.json` 和上游脚本。开发模式、自行构建与预编译包是不同路径，尚未承诺他机逐字节可重复构建或所有系统发行构建成功。
 
-## What is and is not verified
+## 校验下载
 
-- Verified: typecheck, the full web test suite and the full server suite on top of the base commit, plus manual checks in a sandbox with fictional data, in light and dark themes at 1280 and 1024 px. Keep-awake was also checked end to end against a packaged build (assertion starts, switches mode, releases, and dies with the server).
-- Known upstream issues, not caused by this fork: 6 server tests fail on a clean upstream checkout in the maintainer's environment (entrypoint symlink, install ownership, Antigravity paths); they fail identically with and without this fork.
-- Used daily by the maintainer on macOS for a few days. **No long-term stability data**, no Windows/Linux testing, no testing against large artifact folders, remote access or multiple devices.
-- The phone apps are not modified. Cloud login and passkeys are not tested with this fork.
-- The desktop packaging scripts the maintainer uses are not part of this branch; build from source or package it yourself.
+Release 同时提供 `SHA256SUMS.txt` 和 `release-manifest.json`。将它们与 ZIP 放到同一目录，运行：
 
-## Using it next to the official app
+```sh
+shasum -a 256 -c SHA256SUMS.txt
+```
 
-Do not point two different builds at the same data directory at the same time. If you package this fork as an app, give it its own name and data directory.
-
-## Upstreaming
-
-Upstream asks for a discussion before new features. If you want one of these changes upstream, open an Ideas discussion first; the artifact wall and subtask folding are the most self-contained.
-
-Other community forks cover related ground (for example cross-project agent boards and standalone inbox clients). The "needs me" idea is a shared need, not unique to this fork; the part this fork focuses on is the **artifact-centred loop** above.
-
-## Credits
-
-All of T3 Code is by the T3 Tools team and contributors. This fork only adds the diff on this branch.
+校验通过表示下载与发布清单一致，不代表 Apple 公证或模型平台认可。保留 [MIT License](../../LICENSE) 和应用内第三方许可。

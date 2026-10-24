@@ -1,3 +1,5 @@
+// @effect-diagnostics nodeBuiltinImport:off - loopback-only HTTP integration fixture.
+import * as NodeHttp from "node:http";
 import * as Orchestrator from "../../../orchestration-v2/Orchestrator.ts";
 import * as ProjectionStore from "../../../orchestration-v2/ProjectionStore.ts";
 import * as DeviceService from "../../../device/DeviceService.ts";
@@ -6,28 +8,37 @@ import { expect, it } from "@effect/vitest";
 import { NodeHttpServer } from "@effect/platform-node";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { ProviderInstanceId, ThreadId } from "@t3tools/contracts";
+import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Schema from "effect/Schema";
-import { HttpBody, HttpClient, HttpRouter } from "effect/http";
-
+import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
+import { FetchHttpClient, HttpBody, HttpClient, HttpRouter, HttpServer } from "effect/http";
 import * as ServerEnvironment from "../../../environment/ServerEnvironment.ts";
 import * as GitWorkflowService from "../../../git/GitWorkflowService.ts";
 import * as ProviderAdapterRegistry from "../../../orchestration-v2/ProviderAdapterRegistry.ts";
 import * as ThreadManagementService from "../../../orchestration-v2/ThreadManagementService.ts";
 import * as ProjectService from "../../../project/ProjectService.ts";
+import * as PullRequestReviewGuideService from "../../../pullRequest/PullRequestReviewGuideService.ts";
 import * as ProjectSetupScriptRunner from "../../../project/ProjectSetupScriptRunner.ts";
 import * as ProviderRegistry from "../../../provider/ProviderRegistry.ts";
 import * as ScheduledTaskService from "../../../scheduledTasks/ScheduledTaskService.ts";
 import * as SecretRequests from "../../../secrets/SecretRequests.ts";
 import * as ServerSettings from "../../../serverSettings.ts";
 import * as VcsStatusBroadcaster from "../../../vcs/VcsStatusBroadcaster.ts";
+import * as ServerSecretStore from "../../../auth/ServerSecretStore.ts";
+import * as ManagedProjectFolders from "../../../project/ManagedProjectFolders.ts";
+import * as ThreadLaunchService from "../../../orchestration-v2/ThreadLaunchService.ts";
+import * as ThreadSearch from "../../../orchestration-v2/ThreadSearch.ts";
+import * as PreviewManager from "../../../preview/Manager.ts";
+import * as SourceControlRepositoryService from "../../../sourceControl/SourceControlRepositoryService.ts";
+import * as GitVcsDriver from "../../../vcs/GitVcsDriver.ts";
 import * as McpHttpServer from "../../McpHttpServer.ts";
 import * as McpSessionRegistry from "../../McpSessionRegistry.ts";
 import * as PreviewAutomationBroker from "../../PreviewAutomationBroker.ts";
 import * as PreviewBrowser from "../../../preview/PreviewBrowser.ts";
-
 const layerStubServices = Layer.mergeAll(
+  NodeSqliteClient.layer({ filename: ":memory:" }),
   Layer.mock(Orchestrator.OrchestratorV2)({}),
   Layer.mock(ProjectionStore.ProjectionStoreV2)({}),
   Layer.mock(DeviceService.DeviceService)({}),
@@ -37,12 +48,20 @@ const layerStubServices = Layer.mergeAll(
   Layer.mock(ScheduledTaskService.ScheduledTaskService)({}),
   Layer.mock(SecretRequests.SecretRequests)({}),
   Layer.mock(ProjectService.ProjectService)({}),
+  Layer.mock(PullRequestReviewGuideService.PullRequestReviewGuideService)({}),
   ServerSettings.layerTest({}),
   Layer.mock(GitWorkflowService.GitWorkflowService)({}),
   Layer.mock(ProjectSetupScriptRunner.ProjectSetupScriptRunner)({}),
   Layer.mock(VcsStatusBroadcaster.VcsStatusBroadcaster)({}),
+  Layer.mock(GitVcsDriver.GitVcsDriver)({}),
+  Layer.mock(ManagedProjectFolders.ManagedProjectFolders)({ namedProjectsRoot: "/unused" }),
+  Layer.mock(PreviewManager.PreviewManager)({}),
+  Layer.mock(ServerSecretStore.ServerSecretStore)({}),
+  Layer.mock(SourceControlRepositoryService.SourceControlRepositoryService)({}),
+  Layer.mock(ThreadLaunchService.ThreadLaunchService)({}),
+  Layer.mock(ThreadSearch.ThreadSearch)({}),
+  McpProviderSessions.layer,
 );
-
 const ToolsListPayload = Schema.fromJsonString(
   Schema.Struct({
     result: Schema.Struct({
@@ -63,7 +82,6 @@ const ToolsListPayload = Schema.fromJsonString(
   }),
 );
 const decodeToolsListPayload = Schema.decodeUnknownEffect(ToolsListPayload);
-
 it.effect("production mcp layer lists worktree tools over http", () =>
   Effect.scoped(
     Effect.gen(function* () {
@@ -82,14 +100,12 @@ it.effect("production mcp layer lists worktree tools over http", () =>
         Layer.provide(layerStubServices),
         Layer.build,
       );
-
       const registry = McpSessionRegistry.issueActiveMcpCredential({
         threadId: ThreadId.make("thread-scratch"),
         providerInstanceId: ProviderInstanceId.make("claudeAgent"),
       });
       const credential = yield* registry;
       expect(credential).toBeDefined();
-
       const httpClient = yield* HttpClient.HttpClient;
       const auth = credential!.config.authorizationHeader;
       const initResponse = yield* httpClient.post("/mcp", {
@@ -104,7 +120,6 @@ it.effect("production mcp layer lists worktree tools over http", () =>
       });
       expect(initResponse.status).toBe(200);
       const sessionId = initResponse.headers["mcp-session-id"];
-
       const listResponse = yield* httpClient.post("/mcp", {
         headers: {
           accept: "application/json, text/event-stream",
@@ -123,14 +138,10 @@ it.effect("production mcp layer lists worktree tools over http", () =>
       const toolNames = tools.map((tool) => tool.name);
       expect(toolNames).toContain("t3_worktree_handoff");
       expect(toolNames).toContain("t3_worktree_status");
-      // The worktree registration merges alongside the other toolkits rather
-      // than replacing them.
       expect(toolNames).toContain("preview_status");
       expect(toolNames).toContain("delegate_task");
-
-      // The handoff tool mutates thread state, reaches the network (origin
-      // fetch), and runs project setup scripts, so its MCP hints must not
-      // promise a read-only, closed-world, non-destructive tool.
+      expect(toolNames).toContain("artifact_list");
+      expect(toolNames).toContain("artifact_record_check");
       const handoff = tools.find((tool) => tool.name === "t3_worktree_handoff");
       expect(handoff?.annotations?.readOnlyHint).toBe(false);
       expect(handoff?.annotations?.destructiveHint).toBe(true);
@@ -138,7 +149,6 @@ it.effect("production mcp layer lists worktree tools over http", () =>
       const status = tools.find((tool) => tool.name === "t3_worktree_status");
       expect(status?.annotations?.readOnlyHint).toBe(true);
       expect(status?.annotations?.destructiveHint).toBe(false);
-
       // MCP requires every tool input schema to be a top-level object schema.
       // A non-object schema (e.g. the anyOf produced by an empty
       // Schema.Struct({})) makes clients reject the entire server.
@@ -149,7 +159,16 @@ it.effect("production mcp layer lists worktree tools over http", () =>
   ).pipe(
     Effect.provide(
       Layer.mergeAll(
-        NodeHttpServer.layerTest,
+        HttpServer.layerTestClient.pipe(
+          Layer.provide(
+            FetchHttpClient.layer.pipe(
+              Layer.provide(Layer.succeed(FetchHttpClient.RequestInit)({ keepalive: false })),
+            ),
+          ),
+          Layer.provideMerge(
+            NodeHttpServer.layer(NodeHttp.createServer, { host: "127.0.0.1", port: 0 }),
+          ),
+        ),
         ServerConfig.layerTest(process.cwd(), { prefix: "t3-worktree-mcp-" }).pipe(
           Layer.provide(NodeServices.layer),
         ),

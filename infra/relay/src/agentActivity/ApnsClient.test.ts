@@ -18,6 +18,7 @@ import * as HttpClientResponse from "effect/http/HttpClientResponse";
 
 import type { ApnsCredentials } from "../Config.ts";
 import * as ApnsClient from "./ApnsClient.ts";
+import { sanitizeApnsNotificationPayload } from "./agentActivityPayloads.ts";
 import * as ApnsProviderTokens from "./ApnsProviderTokens.ts";
 
 const isApnsJwtSigningError = Schema.is(ApnsClient.ApnsJwtSigningError);
@@ -148,8 +149,6 @@ describe("ApnsClient", () => {
         },
       });
 
-      // Without final content the card would freeze on its previous state;
-      // contentless ends dismiss quickly instead.
       const contentless = apns.makeLiveActivityRequest({
         event: "end",
         token: "token",
@@ -166,7 +165,7 @@ describe("ApnsClient", () => {
     }).pipe(Effect.provide(layerTest)),
   );
 
-  it.effect("builds a standard APNs alert payload with routing metadata", () =>
+  it.effect("puts remote routing metadata only in Expo's body field", () =>
     Effect.gen(function* () {
       const apns = yield* ApnsClient.ApnsClient;
       const request = apns.makePushNotificationRequest({
@@ -181,7 +180,7 @@ describe("ApnsClient", () => {
       });
 
       expect(request.priority).toBe("10");
-      expect(request.payload).toMatchObject({
+      expect(request.payload).toEqual({
         aps: {
           alert: {
             title: "Thread",
@@ -190,9 +189,38 @@ describe("ApnsClient", () => {
           sound: "default",
           "thread-id": "env/thread",
         },
-        environmentId: "env",
-        threadId: "thread",
-        deepLink: "/threads/env/thread",
+        body: {
+          environmentId: "env",
+          threadId: "thread",
+          deepLink: "/threads/env/thread",
+        },
+      });
+    }).pipe(Effect.provide(layerTest)),
+  );
+
+  it.effect("fits long routing metadata and multibyte alerts within the APNs 4096-byte limit", () =>
+    Effect.gen(function* () {
+      const apns = yield* ApnsClient.ApnsClient;
+      const environmentId = "é".repeat(191);
+      const threadId = "t".repeat(512);
+      const notification = sanitizeApnsNotificationPayload({
+        title: "界".repeat(120),
+        body: "界".repeat(120),
+        environmentId,
+        threadId,
+        deepLink: `/threads/${encodeURIComponent(environmentId)}/${threadId}`,
+      });
+      const request = apns.makePushNotificationRequest({ token: "push-token", notification });
+
+      expect(
+        new TextEncoder().encode(JSON.stringify(request.payload)).byteLength,
+      ).toBeLessThanOrEqual(4096);
+      expect(request.payload).toMatchObject({
+        body: {
+          environmentId,
+          threadId,
+          deepLink: notification.deepLink,
+        },
       });
     }).pipe(Effect.provide(layerTest)),
   );
@@ -231,9 +259,6 @@ describe("ApnsClient", () => {
       expect(error).toMatchObject({
         teamId: "team-1",
         keyId: "key-1",
-        // The provider-token service quantizes iat to the reuse window, so
-        // the signing context carries the window start rather than the raw
-        // request time.
         issuedAtUnixSeconds: 0,
         cause: expect.any(Error),
         message: "Failed to sign APNs JWT for key key-1.",

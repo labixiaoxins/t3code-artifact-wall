@@ -11,9 +11,10 @@ import * as Stream from "effect/Stream";
 import * as ServerConfig from "../config.ts";
 import * as ModelManifest from "./ModelManifest.ts";
 import * as ProviderRegistry from "./ProviderRegistry.ts";
+import * as ProviderLatestVersions from "@t3tools/provider-core/server/ProviderLatestVersions";
 import * as ProviderInstanceRegistry from "./ProviderInstanceRegistry.ts";
-import type { ProviderInstance } from "./ProviderDriver.ts";
-import { makeManualOnlyProviderMaintenanceCapabilities } from "./providerMaintenance.ts";
+import type { ProviderInstance } from "@t3tools/provider-core/server/driver";
+import { makeManualOnlyProviderMaintenanceCapabilities } from "@t3tools/provider-core/server/maintenanceResolver";
 import { BUILT_IN_DRIVERS } from "./builtInDrivers.ts";
 import * as Schema from "effect/Schema";
 import {
@@ -25,7 +26,7 @@ import {
 const driver = ProviderDriverKind.make("codex");
 const policy: ProviderCompatibilityPolicy = {
   driver,
-  t3CodeRange: ">=0.0.42 <0.1.0",
+  t3CodeRange: ">=0.0.0",
   recommendedVersion: "2.0.0",
   recommendedRange: ">=2.0.0 <3.0.0",
   ranges: [
@@ -50,13 +51,66 @@ const provider: ServerProvider = {
   slashCommands: [],
 };
 
-// The first release that runs the V2 orchestrator.
 const V2_RELEASE = "0.0.46";
 
 describe("provider compatibility", () => {
+  it("offers Homebrew metadata recovery only while installed and latest versions are incompatible", () => {
+    const versionAdvisory = {
+      status: "current",
+      currentVersion: "1.0.0",
+      latestVersion: "1.0.0",
+      canUpdate: true,
+      updateCommand: "brew upgrade --cask codex",
+      checkedAt: provider.checkedAt,
+      message: null,
+    } as const;
+    for (const [version, command] of [
+      ["1.0.0", "brew upgrade --cask codex"],
+      ["0.9.0", "brew upgrade codex"],
+    ] as const) {
+      const stale = {
+        ...provider,
+        version,
+        versionAdvisory: {
+          ...versionAdvisory,
+          currentVersion: version,
+          latestVersion: version,
+          updateCommand: command,
+        },
+      };
+      const result = applyProviderCompatibility(stale, [policy], []);
+      assert.include(result.compatibilityAdvisory?.message ?? "", `brew update && ${command}`);
+      assert.include(result.compatibilityAdvisory?.message ?? "", "environment's host");
+      assert.include(result.compatibilityAdvisory?.message ?? "", "refresh provider status");
+      assert.strictEqual(result.message, provider.message);
+      assert.deepStrictEqual(result.versionAdvisory, stale.versionAdvisory);
+
+      const refreshed = applyProviderCompatibility(
+        { ...result, versionAdvisory: { ...stale.versionAdvisory, latestVersion: "2.0.0" } },
+        [policy],
+        [],
+      );
+      assert.strictEqual(refreshed.compatibilityAdvisory?.latestVersionStatus, "supported");
+      assert.notInclude(refreshed.compatibilityAdvisory?.message ?? "", "brew update");
+    }
+
+    for (const advisory of [
+      { ...versionAdvisory, updateCommand: "npm install -g @openai/codex@latest" },
+      { ...versionAdvisory, updateCommand: null, canUpdate: false },
+      { ...versionAdvisory, latestVersion: null },
+      { ...versionAdvisory, latestVersion: "9.0.0" },
+    ]) {
+      const result = applyProviderCompatibility(
+        { ...provider, versionAdvisory: advisory },
+        [policy],
+        [],
+      );
+      assert.notInclude(result.compatibilityAdvisory?.message ?? "", "brew update");
+    }
+  });
+
   it("bundles a compatibility policy for every built-in harness", () => {
     for (const builtIn of BUILT_IN_DRIVERS) {
-      // Registry entries are arbitrary external ACP agents, not one versioned harness.
       if (builtIn.driverKind === "acpRegistry") continue;
       assert.isDefined(
         resolveProviderCompatibility(
@@ -88,7 +142,6 @@ describe("provider compatibility", () => {
       assert.strictEqual(advisory?.status, expected, `OpenCode ${version} on 0.0.45`);
       assert.strictEqual(advisory?.recommendedVersion, "1.14.19");
     }
-    // Pi has no driver before V2.
     assert.isUndefined(
       resolveProviderCompatibility(
         ModelManifest.BUNDLED_MODEL_MANIFEST.compatibility,
@@ -104,7 +157,6 @@ describe("provider compatibility", () => {
     for (const [version, expected] of [
       ["2.0.18", "supported"],
       ["2.1.0", "supported"],
-      // Early OpenCode 2 releases predate the API the adapter was built against.
       ["2.0.17", "unsupported"],
       ["2.0.0", "unsupported"],
       ["1.99.0", "graceful"],
@@ -122,7 +174,6 @@ describe("provider compatibility", () => {
         assert.strictEqual(advisory?.recommendedRange, ">=2.0.18");
       }
     }
-    // The advisory rides beside the probe: a ready 1.x instance stays ready and selectable.
     const ready = applyProviderCompatibility(
       { ...provider, driver: opencode, version: "1.18.33", status: "ready", message: undefined },
       undefined,
@@ -167,6 +218,26 @@ describe("provider compatibility", () => {
     );
   });
 
+  it("compares Muse versions by their release, ignoring the revision suffix", () => {
+    const muse = ProviderDriverKind.make("muse");
+    for (const [version, expected] of [
+      ["1.4.3-R5018.1", "supported"],
+      ["1.4.2-R4684", "supported"],
+      ["1.4.1-R4100.2", "unknown"],
+      ["1.4.3-beta.1", "unknown"],
+    ] as const) {
+      assert.strictEqual(
+        resolveProviderCompatibility(
+          ModelManifest.BUNDLED_MODEL_MANIFEST.compatibility,
+          muse,
+          version,
+          V2_RELEASE,
+        )?.status,
+        expected,
+      );
+    }
+  });
+
   it("recognizes Antigravity semver release tags while keeping dated candidates unknown", () => {
     const antigravity = ProviderDriverKind.make("antigravity");
     const taggedPolicy = {
@@ -202,7 +273,19 @@ describe("provider compatibility", () => {
     ] as const) {
       assert.strictEqual(resolveProviderCompatibility([policy], driver, version)?.status, expected);
     }
-    assert.isUndefined(resolveProviderCompatibility([policy], driver, "0.9.0", "0.1.0"));
+  });
+
+  it("applies policies only within their T3 Code version range", () => {
+    const scopedPolicy = { ...policy, t3CodeRange: ">=0.0.42 <0.1.0" };
+    for (const version of ["0.0.42", "0.0.45"]) {
+      assert.strictEqual(
+        resolveProviderCompatibility([scopedPolicy], driver, "0.9.0", version)?.status,
+        "broken",
+      );
+    }
+    for (const version of ["0.0.41", "0.1.0"]) {
+      assert.isUndefined(resolveProviderCompatibility([scopedPolicy], driver, "0.9.0", version));
+    }
   });
 
   it("supports every driver without inventing policies for uncovered adapters", () => {
@@ -233,7 +316,7 @@ describe("provider compatibility", () => {
     assert.strictEqual(supported.status, "error");
     assert.strictEqual(supported.message, "Authentication failed");
     assert.strictEqual(
-      applyProviderCompatibility(supported, [{ ...policy, t3CodeRange: ">=9.0.0" }], [policy])
+      applyProviderCompatibility(supported, [{ ...policy, t3CodeRange: "<0.0.0" }], [policy])
         .compatibilityAdvisory?.status,
       "broken",
     );
@@ -260,11 +343,11 @@ describe("provider compatibility", () => {
       ranges: [{ range: ">=v2.0 <v3", status: "supported" }],
     });
     assert.strictEqual(
-      resolveProviderCompatibility([prefixed], driver, "2.0.0")?.status,
+      resolveProviderCompatibility([prefixed], driver, "2.0.0", "0.0.45")?.status,
       "supported",
     );
     assert.strictEqual(
-      resolveProviderCompatibility([prefixed], driver, "3.0.0")?.status,
+      resolveProviderCompatibility([prefixed], driver, "3.0.0", "0.0.45")?.status,
       "unknown",
     );
     for (const invalid of [
@@ -323,6 +406,7 @@ it.effect("a remote policy refresh preserves a newer health result on the regist
       ),
     );
     const layerDependencies = Layer.mergeAll(
+      ProviderLatestVersions.layer,
       Layer.succeed(ModelManifest.ModelManifest, {
         current: Ref.get(manifest),
         refresh,

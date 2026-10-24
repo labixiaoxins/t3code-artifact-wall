@@ -15,16 +15,16 @@ import {
   ThreadId,
 } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
-
+import * as Effect from "effect/Effect";
 import {
   makeSubagentChildThread,
   delegatedTaskProgress,
   subagentResultForRun,
   makeSubagentConversationArtifacts,
-} from "./SubagentProjection.ts";
-
+  endOrphanedNativeSubagent,
+  endRunlessRootTurns,
+} from "@t3tools/provider-core/server/subagentProjection";
 import { emptyProjection } from "./ProjectionStore.ts";
-
 const parentThreadId = ThreadId.make("thread:subagent-snoozed-parent");
 const childThreadId = ThreadId.make("thread:subagent-awake-child");
 const parentProviderInstanceId = ProviderInstanceId.make("codex");
@@ -41,7 +41,6 @@ const parentCreatedAt = DateTime.makeUnsafe("2026-07-24T09:00:00.000Z");
 const snoozedAt = DateTime.makeUnsafe("2026-07-24T09:05:00.000Z");
 const snoozedUntil = DateTime.makeUnsafe("2026-07-25T09:00:00.000Z");
 const childCreatedAt = DateTime.makeUnsafe("2026-07-24T09:10:00.000Z");
-
 function makeParentThread(): OrchestrationV2AppThread {
   return {
     createdBy: "user",
@@ -74,9 +73,12 @@ function makeParentThread(): OrchestrationV2AppThread {
     historyOrigin: "v1_import",
   };
 }
-
 it("keeps a subagent child awake when its parent thread is snoozed", () => {
-  const parentThread = makeParentThread();
+  // A parent that is itself a handoff continuation must not pass the link to its child.
+  const parentThread = {
+    ...makeParentThread(),
+    continuedFromThreadId: ThreadId.make("thread:handoff-source"),
+  };
   const childProviderThreadId = ProviderThreadId.make("provider-thread:subagent-awake-child");
   const parentNodeId = NodeId.make("node:subagent-parent");
   const childThread = makeSubagentChildThread({
@@ -91,7 +93,6 @@ it("keeps a subagent child awake when its parent thread is snoozed", () => {
     createdBy: "agent",
     creationSource: "provider",
   });
-
   assert.isNull(childThread.snoozedUntil);
   assert.isNull(childThread.snoozedAt);
   assert.equal(childThread.projectId, parentThread.projectId);
@@ -103,6 +104,7 @@ it("keeps a subagent child awake when its parent thread is snoozed", () => {
   assert.deepEqual(childThread.modelSelection, childModelSelection);
   assert.equal(childThread.activeProviderThreadId, childProviderThreadId);
   assert.isUndefined(childThread.historyOrigin);
+  assert.isUndefined(childThread.continuedFromThreadId);
   assert.deepEqual(childThread.lineage, {
     parentThreadId,
     relationshipToParent: "subagent",
@@ -113,7 +115,6 @@ it("keeps a subagent child awake when its parent thread is snoozed", () => {
     nodeId: parentNodeId,
   });
 });
-
 it("attributes native subagent prompts to their parent thread", () => {
   for (const role of ["user", "assistant"] as const) {
     const artifacts = makeSubagentConversationArtifacts({
@@ -137,7 +138,6 @@ it("attributes native subagent prompts to their parent thread", () => {
     }
   }
 });
-
 function taskFixture() {
   const projection = emptyProjection({
     type: "thread.created",
@@ -165,10 +165,8 @@ function taskFixture() {
   };
   return { projection: { ...projection, runs: [run] }, run };
 }
-
 it("reports the run that ended last, not the highest ordinal", () => {
   const { projection, run } = taskFixture();
-  // A restart continuation (ordinal 4) ran ahead of held queued runs 2 and 3.
   const ended = (ordinal: number, completedAt: string): OrchestrationV2Run => ({
     ...run,
     id: RunId.make(`run:${ordinal}`),
@@ -187,7 +185,6 @@ it("reports the run that ended last, not the highest ordinal", () => {
   assert.equal(progress.state, "result_available");
   assert.equal(progress.resultRun?.ordinal, 3);
 });
-
 it("waits for nested work and retains the report across monitor acknowledgements", () => {
   const { projection, run } = taskFixture();
   assert.equal(
@@ -203,6 +200,13 @@ it("waits for nested work and retains the report across monitor acknowledgements
     "result_available",
   );
   for (const state of ["pending", "claimed"] as const) {
+    assert.equal(
+      delegatedTaskProgress({
+        ...projection,
+        subagents: [{ status: "idle", completionDelivery: { state, observedByRunId: null } }],
+      }).state,
+      "result_available",
+    );
     assert.equal(
       delegatedTaskProgress({
         ...projection,
@@ -237,6 +241,13 @@ it("waits for nested work and retains the report across monitor acknowledgements
     startedAt: null,
   };
   assert.equal(delegatedTaskProgress({ ...projection, runs: [run, pending] }).state, "working");
+  const cancelled = { ...run, status: "cancelled" as const };
+  const held = delegatedTaskProgress({
+    ...projection,
+    runs: [cancelled, { ...pending, queueHeld: true }],
+  });
+  assert.equal(held.state, "result_available");
+  assert.equal(held.resultRun?.id, cancelled.id);
   const report = { ...pending, status: "completed" as const, startedAt: parentCreatedAt };
   const monitor = { ...report, id: RunId.make("monitor"), ordinal: 3 };
   const artifacts = makeSubagentConversationArtifacts({
@@ -270,7 +281,6 @@ it("waits for nested work and retains the report across monitor acknowledgements
   assert.equal(progress.state, "result_available");
   assert.equal(progress.resultRun?.id, report.id);
 });
-
 it("exposes the provider failure rather than a progress message from the failed run", () => {
   const { projection, run } = taskFixture();
   const failedRun = { ...run, status: "failed" as const };
@@ -306,3 +316,134 @@ it("exposes the provider failure rather than a progress message from the failed 
   assert.equal(result.turnItemId, artifacts.turnItem.id);
   assert.isNull(result.messageId);
 });
+it("reports the last assistant message when the provider finalizes them together", () => {
+  const { projection, run } = taskFixture();
+  // OpenCode stamps every assistant message of a turn with the turn's end time.
+  const finalizedAt = DateTime.makeUnsafe("2026-07-24T10:05:00.000Z");
+  const message = (id: string, text: string, ordinal: number, createdAt: string) => {
+    const artifacts = makeSubagentConversationArtifacts({
+      messageId: MessageId.make(id),
+      turnItemId: TurnItemId.make(id),
+      threadId: parentThreadId,
+      rootNodeId: NodeId.make("root"),
+      providerThreadId: null,
+      providerTurnId: null,
+      nativeItemRef: null,
+      role: "assistant",
+      text,
+      ordinal,
+      now: DateTime.makeUnsafe(createdAt),
+    });
+    return {
+      message: { ...artifacts.message, runId: run.id, updatedAt: finalizedAt },
+      turnItem: { ...artifacts.turnItem, runId: run.id },
+    };
+  };
+  const progress = message("progress", "Starting step 0.", 1, "2026-07-24T10:00:00.000Z");
+  const report = message("report", "All steps passed.", 2, "2026-07-24T10:04:00.000Z");
+  const result = subagentResultForRun(
+    {
+      ...projection,
+      messages: [progress.message, report.message],
+      turnItems: [progress.turnItem, report.turnItem],
+    },
+    run,
+  );
+  assert.equal(result.text, "All steps passed.");
+  assert.equal(result.messageId, report.message.id);
+});
+it("orders a task's assistant messages by turn item, not by timestamps", () => {
+  const { projection, run } = taskFixture();
+  const at = DateTime.makeUnsafe("2026-07-24T10:05:00.000Z");
+  const message = (id: string, text: string, ordinal: number) => {
+    const artifacts = makeSubagentConversationArtifacts({
+      messageId: MessageId.make(id),
+      turnItemId: TurnItemId.make(id),
+      threadId: parentThreadId,
+      rootNodeId: NodeId.make("root"),
+      providerThreadId: null,
+      providerTurnId: null,
+      nativeItemRef: null,
+      role: "assistant",
+      text,
+      ordinal,
+      now: at,
+    });
+    return {
+      message: { ...artifacts.message, runId: run.id },
+      turnItem: { ...artifacts.turnItem, runId: run.id },
+    };
+  };
+  const progress = message("progress", "Starting step 0.", 1);
+  const report = message("report", "All steps passed.", 2);
+  const result = subagentResultForRun(
+    {
+      ...projection,
+      messages: [progress.message, report.message],
+      turnItems: [report.turnItem, progress.turnItem],
+    },
+    run,
+  );
+  assert.equal(result.text, "All steps passed.");
+  assert.equal(result.messageId, report.message.id);
+  assert.equal(result.turnItemId, report.turnItem.id);
+});
+it.effect("ends an orphaned native subagent's node when only its record already ended", () =>
+  Effect.gen(function* () {
+    const id = NodeId.make("node:orphaned-native-subagent");
+    const subagent = { id, origin: "provider_native", status: "running", runId: null };
+    const events = yield* endOrphanedNativeSubagent({
+      projection: {
+        subagents: [subagent],
+        nodes: [{ id, status: "running", runId: null }],
+        turnItems: [],
+      } as never,
+      subagentId: id,
+      status: "cancelled",
+      now: yield* DateTime.now,
+      emitted: [
+        { type: "subagent.updated", payload: { ...subagent, status: "cancelled" } },
+      ] as never,
+      allocateEventId: () => Effect.succeed(EventId.make("event:orphaned-native-subagent")),
+    });
+    assert.deepEqual(
+      events.map((event) => [event.type, event.type === "node.updated" && event.payload.status]),
+      [["node.updated", "cancelled"]],
+    );
+  }),
+);
+it.effect("ends a runless root turn's items when its node already ended", () =>
+  Effect.gen(function* () {
+    const root = {
+      id: NodeId.make("node:runless-root"),
+      kind: "root_turn",
+      status: "running",
+      runId: null,
+    };
+    const item = (id: string) => ({ id, nodeId: root.id, runId: null, status: "running" });
+    const events = yield* endRunlessRootTurns({
+      threadId: childThreadId,
+      providerInstanceId: parentProviderInstanceId,
+      projection: {
+        nodes: [root],
+        turnItems: [item("turn-item:command"), item("turn-item:reasoning")],
+      } as never,
+      status: "cancelled",
+      now: yield* DateTime.now,
+      emitted: [
+        {
+          type: "turn-item.updated",
+          payload: { ...item("turn-item:command"), status: "cancelled" },
+        },
+        { type: "node.updated", payload: { ...root, status: "cancelled" } },
+      ] as never,
+      allocateEventId: () => Effect.succeed(EventId.make("event:runless-root")),
+    });
+    assert.deepEqual(
+      events.map(
+        (event) => `${event.type} ${event.type === "turn-item.updated" && event.payload.id}`,
+      ),
+      ["turn-item.updated turn-item:reasoning"],
+    );
+  }),
+);

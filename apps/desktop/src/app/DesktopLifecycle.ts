@@ -4,9 +4,7 @@ import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
 import * as Schema from "effect/Schema";
 import * as Scope from "effect/Scope";
-
 import type * as Electron from "electron";
-
 import * as DesktopEnvironment from "./DesktopEnvironment.ts";
 import { makeComponentLogger } from "./DesktopObservability.ts";
 import * as DesktopShutdown from "./DesktopShutdown.ts";
@@ -15,7 +13,6 @@ import * as ElectronTheme from "../electron/ElectronTheme.ts";
 import * as ElectronWindow from "../electron/ElectronWindow.ts";
 import * as DesktopState from "./DesktopState.ts";
 import * as DesktopWindow from "../window/DesktopWindow.ts";
-
 export class DesktopLifecycleRelaunchError extends Schema.TaggedError<DesktopLifecycleRelaunchError>()(
   "DesktopLifecycleRelaunchError",
   {
@@ -27,7 +24,6 @@ export class DesktopLifecycleRelaunchError extends Schema.TaggedError<DesktopLif
     return `Desktop relaunch failed for reason "${this.reason}".`;
   }
 }
-
 export type DesktopLifecycleRuntimeServices =
   | DesktopEnvironment.DesktopEnvironment
   | DesktopShutdown.DesktopShutdown
@@ -35,11 +31,9 @@ export type DesktopLifecycleRuntimeServices =
   | DesktopWindow.DesktopWindow
   | ElectronApp.ElectronApp
   | ElectronTheme.ElectronTheme;
-
 type DesktopLifecycleRegistrationServices =
   | DesktopLifecycleRuntimeServices
   | ElectronWindow.ElectronWindow;
-
 /**
  * @effect-expect-leaking DesktopEnvironment | DesktopShutdown | DesktopState | DesktopWindow | ElectronApp | ElectronTheme | ElectronWindow
  */
@@ -56,10 +50,8 @@ export class DesktopLifecycle extends Context.Service<
     >;
   }
 >()("@t3tools/desktop/app/DesktopLifecycle") {}
-
 const { logInfo: logLifecycleInfo, logError: logLifecycleError } =
   makeComponentLogger("desktop-lifecycle");
-
 function addScopedListener<Args extends ReadonlyArray<unknown>>(
   target: unknown,
   eventName: string,
@@ -80,7 +72,6 @@ function addScopedListener<Args extends ReadonlyArray<unknown>>(
       }),
   ).pipe(Effect.asVoid);
 }
-
 const requestDesktopShutdownAndWait = Effect.fn("desktop.lifecycle.requestShutdownAndWait")(
   function* (
     afterBoundsFlush: Effect.Effect<void> = Effect.void,
@@ -93,7 +84,6 @@ const requestDesktopShutdownAndWait = Effect.fn("desktop.lifecycle.requestShutdo
     yield* shutdown.awaitComplete;
   },
 );
-
 function handleBeforeQuit(
   event: Electron.Event,
   runEffect: <A, E>(
@@ -101,6 +91,8 @@ function handleBeforeQuit(
   ) => Promise<A>,
   allowQuit: () => boolean,
   markQuitAllowed: () => void,
+  claimQuit: () => boolean,
+  releaseQuit: () => void,
 ): void {
   if (allowQuit()) {
     void runEffect(
@@ -112,33 +104,53 @@ function handleBeforeQuit(
     );
     return;
   }
-
   event.preventDefault();
+  if (!claimQuit()) return;
   void runEffect(
     Effect.gen(function* () {
       const state = yield* DesktopState.DesktopState;
-      const electronWindow = yield* ElectronWindow.ElectronWindow;
       yield* Ref.set(state.quitting, true);
+      const desktopWindow = yield* DesktopWindow.DesktopWindow;
+      const electronWindow = yield* ElectronWindow.ElectronWindow;
+      if (!(yield* desktopWindow.prepareForShutdown)) {
+        yield* Ref.set(state.quitting, false);
+        yield* logLifecycleInfo("quit cancelled because drafts are not saved");
+        return false;
+      }
       yield* logLifecycleInfo("before-quit received");
-      yield* requestDesktopShutdownAndWait(
-        electronWindow.destroyAll.pipe(
-          Effect.catchCause((cause) =>
-            logLifecycleError("failed to destroy windows before shutdown", { cause }),
-          ),
+      yield* requestDesktopShutdownAndWait();
+      yield* electronWindow.destroyAll.pipe(
+        Effect.catchCause((cause) =>
+          logLifecycleError("failed to destroy windows after shutdown", { cause }),
         ),
       );
+      return true;
     }).pipe(Effect.withSpan("desktop.lifecycle.beforeQuit")),
-  ).finally(() => {
-    markQuitAllowed();
-    void runEffect(
-      Effect.gen(function* () {
-        const electronApp = yield* ElectronApp.ElectronApp;
-        yield* electronApp.quit;
-      }).pipe(Effect.withSpan("desktop.lifecycle.quitAfterShutdown")),
-    );
-  });
+  )
+    .then((completed) => {
+      if (!completed) {
+        releaseQuit();
+        return;
+      }
+      markQuitAllowed();
+      return runEffect(
+        Effect.gen(function* () {
+          const electronApp = yield* ElectronApp.ElectronApp;
+          yield* electronApp.quit;
+        }).pipe(Effect.withSpan("desktop.lifecycle.quitAfterShutdown")),
+      );
+    })
+    .catch(() => {
+      releaseQuit();
+      void runEffect(
+        Effect.gen(function* () {
+          const state = yield* DesktopState.DesktopState;
+          yield* Ref.set(state.quitting, false);
+          yield* logLifecycleError("quit preparation failed; application kept open");
+        }),
+      );
+    });
 }
-
 function quitFromSignal(
   signal: "SIGINT" | "SIGTERM",
   runEffect: <A, E>(
@@ -158,7 +170,6 @@ function quitFromSignal(
     }).pipe(Effect.withSpan("desktop.lifecycle.processSignal")),
   );
 }
-
 /** @public Service construction is part of the canonical Effect module API. */
 export const make = DesktopLifecycle.of({
   relaunch: Effect.fn("desktop.lifecycle.relaunch")(function* (reason) {
@@ -197,6 +208,7 @@ export const make = DesktopLifecycle.of({
     const context = yield* Effect.context<DesktopLifecycleRegistrationServices>();
     const runEffect = Effect.runPromiseWith(context);
     let quitAllowed = false;
+    let quitInFlight = false;
     let updaterQuitAllowed = false;
     yield* electronTheme.onUpdated(() => {
       void runEffect(
@@ -230,6 +242,14 @@ export const make = DesktopLifecycle.of({
         () => {
           quitAllowed = true;
         },
+        () => {
+          if (quitInFlight) return false;
+          quitInFlight = true;
+          return true;
+        },
+        () => {
+          quitInFlight = false;
+        },
       );
     });
     yield* electronApp.on("activate", () => {
@@ -252,7 +272,6 @@ export const make = DesktopLifecycle.of({
         }).pipe(Effect.withSpan("desktop.lifecycle.windowAllClosed")),
       );
     });
-
     if (environment.platform !== "win32") {
       yield* addScopedListener(process, "SIGINT", () => {
         quitFromSignal("SIGINT", runEffect);
@@ -263,5 +282,4 @@ export const make = DesktopLifecycle.of({
     }
   }).pipe(Effect.withSpan("desktop.lifecycle.register")),
 });
-
 export const layer = Layer.succeed(DesktopLifecycle, make);

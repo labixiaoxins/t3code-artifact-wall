@@ -1,0 +1,301 @@
+// @effect-diagnostics nodeBuiltinImport:off -- the fake CLI and its leftover child are real processes.
+import * as ClaudeSdk from "@anthropic-ai/claude-agent-sdk";
+import * as NodeChildProcess from "node:child_process";
+import * as NodeFS from "node:fs";
+import * as NodeOS from "node:os";
+import * as NodePath from "node:path";
+import * as NodeServices from "@effect/platform-node/NodeServices";
+import { assert, describe, it } from "@effect/vitest";
+import { ProviderSessionId, ThreadId } from "@t3tools/contracts";
+import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
+import * as FileSystem from "effect/FileSystem";
+import * as Layer from "effect/Layer";
+import * as Path from "effect/Path";
+import { vi } from "vite-plus/test";
+
+import * as HostProcess from "@t3tools/shared/HostProcess";
+import { ProviderEventLoggers } from "@t3tools/provider-core/server/ProviderEventLoggers";
+import {
+  CLAUDE_AGENT_SDK_QUERY_PROTOCOL,
+  ClaudeAgentSdkQueryRunner,
+  layerQueryRunner,
+} from "./ClaudeAdapterV2.ts";
+
+vi.mock("@anthropic-ai/claude-agent-sdk", { spy: true });
+
+it.effect("logs successful task stops for replay and omits failed stops", () =>
+  Effect.gen(function* () {
+    const writes: unknown[] = [];
+    const stopTask = vi.fn(async (_taskId: string) => {});
+    const query = vi.spyOn(ClaudeSdk, "query").mockReturnValue({
+      stopTask,
+    } as unknown as ClaudeSdk.Query);
+    yield* Effect.addFinalizer(() => Effect.sync(() => query.mockRestore()));
+    const threadId = ThreadId.make("thread-stop");
+    const providerSessionId = ProviderSessionId.make("session-stop");
+    yield* Effect.gen(function* () {
+      const runner = yield* ClaudeAgentSdkQueryRunner;
+      const session = yield* runner.open({
+        threadId,
+        providerSessionId,
+        options: {
+          sessionId: "native-session-stop",
+          model: "claude-sonnet-4-6",
+          tools: [],
+          permissionMode: "default",
+        },
+      });
+      writes.length = 0;
+      yield* session.stopTask("workflow-task");
+      assert.deepEqual(stopTask.mock.calls, [["workflow-task"]]);
+      assert.deepEqual(writes, [
+        {
+          provider: "claudeAgent",
+          protocol: CLAUDE_AGENT_SDK_QUERY_PROTOCOL,
+          kind: "protocol",
+          providerSessionId,
+          event: {
+            direction: "outgoing",
+            stage: "decoded",
+            payload: { type: "query.stop_task", taskId: "workflow-task" },
+          },
+        },
+      ]);
+      stopTask.mockRejectedValueOnce(new Error("Stop failed"));
+      assert.isTrue(Exit.isFailure(yield* Effect.exit(session.stopTask("failed-task"))));
+      assert.equal(writes.length, 1);
+    }).pipe(
+      Effect.provide(
+        layerQueryRunner.pipe(
+          Layer.provide(
+            Layer.succeed(ProviderEventLoggers, {
+              native: {
+                filePath: "/tmp/events.log",
+                write: (event) =>
+                  Effect.sync(() => {
+                    writes.push(event);
+                  }),
+                close: () => Effect.void,
+              },
+              canonical: undefined,
+            }),
+          ),
+        ),
+      ),
+    );
+  }).pipe(Effect.provide(NodeServices.layer)),
+);
+
+const FORK_SESSION_ID = "11111111-1111-4111-8111-111111111111";
+
+const writeClaudeSession = Effect.fnUntraced(function* (configDir: string) {
+  const fileSystem = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const projectDir = path.join(configDir, "projects", "-repo");
+  const entry = (uuid: string, parentUuid: string | null, message: unknown) => ({
+    type: parentUuid === null ? "user" : "assistant",
+    uuid,
+    parentUuid,
+    sessionId: FORK_SESSION_ID,
+    cwd: "/repo",
+    isSidechain: false,
+    timestamp: "2026-10-01T00:00:00.000Z",
+    message,
+  });
+  yield* fileSystem.makeDirectory(projectDir, { recursive: true });
+  yield* fileSystem.writeFileString(
+    path.join(projectDir, `${FORK_SESSION_ID}.jsonl`),
+    [
+      entry("aaaaaaaa-0000-4000-8000-000000000001", null, { role: "user", content: "hello" }),
+      entry("aaaaaaaa-0000-4000-8000-000000000002", "aaaaaaaa-0000-4000-8000-000000000001", {
+        role: "assistant",
+        content: [{ type: "text", text: "hi" }],
+      }),
+    ]
+      .map((line) => JSON.stringify(line))
+      .join("\n"),
+  );
+  return projectDir;
+});
+
+const forkRunnerLayer = layerQueryRunner.pipe(
+  Layer.provide(Layer.succeed(ProviderEventLoggers, { native: undefined, canonical: undefined })),
+);
+
+it.effect("forks a session stored under the instance's own CLAUDE_CONFIG_DIR", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const fileSystem = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const configDir = yield* fileSystem.makeTempDirectoryScoped({
+        prefix: "t3-claude-fork-config-",
+      });
+      const projectDir = yield* writeClaudeSession(configDir);
+      const hostConfigDir = process.env.CLAUDE_CONFIG_DIR;
+      const inProcessFork = vi.spyOn(ClaudeSdk, "forkSession");
+      yield* Effect.addFinalizer(() => Effect.sync(() => inProcessFork.mockRestore()));
+
+      const runner = yield* ClaudeAgentSdkQueryRunner;
+      const forked = yield* runner.forkSession({
+        sessionId: FORK_SESSION_ID,
+        options: { dir: "/repo" },
+        environment: { ...process.env, CLAUDE_CONFIG_DIR: configDir },
+        threadId: ThreadId.make("thread-fork-config-dir"),
+        providerSessionId: ProviderSessionId.make("session-fork-config-dir"),
+      });
+
+      assert.notEqual(forked.sessionId, FORK_SESSION_ID);
+      const transcript = yield* fileSystem.readFileString(
+        path.join(projectDir, `${forked.sessionId}.jsonl`),
+      );
+      assert.include(transcript, '"content":"hello"');
+      assert.include(transcript, '"text":"hi"');
+      const inheritedHead = transcript
+        .trim()
+        .split("\n")
+        .findLast((line) => line.includes('"type":"assistant"'))
+        ?.match(/"uuid"\s*:\s*"([^"]+)"/)?.[1];
+      assert.isString(inheritedHead);
+      assert.equal(forked.headMessageId, inheritedHead);
+      assert.equal(process.env.CLAUDE_CONFIG_DIR, hostConfigDir);
+      assert.equal(inProcessFork.mock.calls.length, 0);
+    }).pipe(Effect.provide(forkRunnerLayer)),
+  ).pipe(Effect.provide(NodeServices.layer)),
+);
+
+it.effect("forks in-process when the instance shares the server's config dir", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const inProcessFork = vi
+        .spyOn(ClaudeSdk, "forkSession")
+        .mockResolvedValue({ sessionId: "forked-in-process" });
+      yield* Effect.addFinalizer(() => Effect.sync(() => inProcessFork.mockRestore()));
+      const runner = yield* ClaudeAgentSdkQueryRunner;
+      const forked = yield* runner.forkSession({
+        sessionId: FORK_SESSION_ID,
+        options: { dir: "/repo" },
+        environment: { ...process.env },
+        threadId: ThreadId.make("thread-fork-shared-config-dir"),
+        providerSessionId: ProviderSessionId.make("session-fork-shared-config-dir"),
+      });
+
+      assert.equal(forked.sessionId, "forked-in-process");
+    }).pipe(Effect.provide(forkRunnerLayer)),
+  ).pipe(Effect.provide(NodeServices.layer)),
+);
+const realQueryRunner = layerQueryRunner.pipe(
+  Layer.provide(
+    Layer.succeed(ProviderEventLoggers, {
+      native: undefined,
+      canonical: undefined,
+    }),
+  ),
+  Layer.provide(NodeServices.layer),
+);
+
+it.effect.each(["readable", "unreadable"] as const)(
+  "forks with a %s transcript, retaining the inherited head when available",
+  (transcript) =>
+    Effect.gen(function* () {
+      let forkCompleted = false;
+      const fork = vi.spyOn(ClaudeSdk, "forkSession").mockImplementation(async () => {
+        forkCompleted = true;
+        return { sessionId: "forked-session" };
+      });
+      const read = vi.spyOn(ClaudeSdk, "getSessionMessages").mockImplementation(async () => {
+        assert.isTrue(forkCompleted);
+        if (transcript === "unreadable") throw new Error("transcript unreadable");
+        return ["remapped-user", "remapped-assistant"].map((uuid) => ({
+          type: "assistant" as const,
+          uuid,
+          session_id: "forked-session",
+          message: { role: "assistant", content: uuid },
+          parent_tool_use_id: null,
+          parent_agent_id: null,
+        }));
+      });
+      yield* Effect.addFinalizer(() =>
+        Effect.sync(() => {
+          fork.mockRestore();
+          read.mockRestore();
+        }),
+      );
+      const runner = yield* ClaudeAgentSdkQueryRunner;
+      const forked = yield* runner.forkSession({
+        sessionId: "source-session",
+        options: { dir: "/workspace", upToMessageId: "source-assistant" },
+        environment: process.env,
+        threadId: ThreadId.make("thread-fork-head"),
+        providerSessionId: ProviderSessionId.make("session-fork-head"),
+      });
+      assert.deepEqual(forked, {
+        sessionId: "forked-session",
+        ...(transcript === "readable" ? { headMessageId: "remapped-assistant" } : {}),
+      });
+      assert.deepEqual(fork.mock.calls, [
+        ["source-session", { dir: "/workspace", upToMessageId: "source-assistant" }],
+      ]);
+      assert.deepEqual(read.mock.calls, [["forked-session", { dir: "/workspace" }]]);
+    }).pipe(Effect.provide(realQueryRunner)),
+);
+
+function fakeClaudeCli(script: string): string {
+  const dir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-claude-cli-"));
+  const cli = NodePath.join(dir, "claude");
+  NodeFS.writeFileSync(cli, `#!/bin/sh\n${script}\n`, { mode: 0o755 });
+  return cli;
+}
+
+const openFakeCli = (cli: string) =>
+  Effect.gen(function* () {
+    const runner = yield* ClaudeAgentSdkQueryRunner;
+    return yield* runner.open({
+      threadId: ThreadId.make("thread-fake-cli"),
+      providerSessionId: ProviderSessionId.make("session-fake-cli"),
+      options: {
+        sessionId: "native-session-fake-cli",
+        model: "claude-sonnet-4-6",
+        tools: [],
+        permissionMode: "default",
+        pathToClaudeCodeExecutable: cli,
+      },
+    });
+  });
+
+describe.skipIf(HostProcess.Platform.defaultValue() === "win32")("Claude CLI process", () => {
+  // The CLI stops the MCP servers it started, but not their children: a
+  // plugin's `bun server.ts` outlives its `bun run` wrapper (#3089). The child
+  // holds a FIFO open, so its death reads as end-of-file here, with no polling.
+  it.effect("stops what the CLI left running when the session closes", () =>
+    Effect.gen(function* () {
+      const cli = fakeClaudeCli(
+        [
+          'dir=$(dirname "$0")',
+          'sleep 600 > "$dir/alive" &',
+          'echo $! > "$dir/leftover.pid"',
+          "cat > /dev/null",
+        ].join("\n"),
+      );
+      const dir = NodePath.dirname(cli);
+      NodeChildProcess.execFileSync("mkfifo", [NodePath.join(dir, "alive")]);
+      yield* Effect.addFinalizer(() =>
+        Effect.sync(() => {
+          try {
+            process.kill(Number(NodeFS.readFileSync(NodePath.join(dir, "leftover.pid"), "utf8")));
+          } catch {}
+          NodeFS.rmSync(dir, { recursive: true, force: true });
+        }),
+      );
+      const alive = NodeFS.createReadStream(NodePath.join(dir, "alive"));
+      const leftoverStarted = new Promise<void>((resolve) => alive.once("open", () => resolve()));
+      const leftoverStopped = new Promise<void>((resolve) => alive.once("close", () => resolve()));
+      alive.resume();
+
+      const session = yield* openFakeCli(cli);
+      yield* Effect.promise(() => leftoverStarted);
+      yield* session.close;
+      yield* Effect.promise(() => leftoverStopped);
+    }).pipe(Effect.provide(realQueryRunner)),
+  );
+});

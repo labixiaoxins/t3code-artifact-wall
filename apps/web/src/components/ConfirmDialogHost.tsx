@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useEffect, useSyncExternalStore } from "react";
 
 import {
@@ -46,7 +47,7 @@ function resolveConfirmDialogCopy(message: string): ConfirmationCopy {
   }
 
   return {
-    title: "Confirm action",
+    title: uiText("Confirm action"),
     description: normalizedMessage || "This action requires your confirmation.",
   };
 }
@@ -85,10 +86,9 @@ export function ConfirmDialogHost() {
           ) : null}
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogClose render={<Button variant="outline" />}>Cancel</AlertDialogClose>
+          <AlertDialogClose render={<Button variant="outline" />}>{uiText("Cancel")}</AlertDialogClose>
           <Button variant={confirmVariant} onClick={onConfirm}>
-            Confirm
-          </Button>
+            {uiText("Confirm")}</Button>
         </AlertDialogFooter>
       </AlertDialogPopup>
     </AlertDialog>

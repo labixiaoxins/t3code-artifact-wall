@@ -1,11 +1,9 @@
+import { uiText } from "~/i18n";
 import type { EnvironmentMachineKind } from "@t3tools/contracts";
 import { CloudIcon, LaptopIcon, MonitorIcon, ServerIcon, type LucideProps } from "lucide-react";
 import type { FunctionComponent, SVGProps } from "react";
 import { LinuxIcon } from "./Icons";
 
-// Lucide has no Apple desktops, so these two are drawn to its grammar (24
-// unit grid, 2 unit stroke, round joins) and share its prop surface so callers
-// can swap freely.
 function LucideLike(props: SVGProps<SVGSVGElement>) {
   return (
     <svg
@@ -23,7 +21,6 @@ function LucideLike(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-/** A Mac mini: squat rounded slab with a front-edge LED. */
 function MacMiniIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <LucideLike {...props}>
@@ -33,7 +30,6 @@ function MacMiniIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-/** A Mac Studio: the same slab twice as tall, ports along the front foot. */
 function MacStudioIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <LucideLike {...props}>
@@ -54,13 +50,13 @@ const ICON_BY_KIND: Record<EnvironmentMachineKind, FunctionComponent<LucideProps
 };
 
 export const ENVIRONMENT_MACHINE_KIND_LABELS: Record<EnvironmentMachineKind, string> = {
-  server: "Server",
-  cloud: "Cloud VM",
+  server: uiText("Server"),
+  cloud: uiText("Cloud VM"),
   linux: "Linux/WSL",
-  desktop: "Desktop",
-  laptop: "Laptop",
-  "mac-mini": "Mini PC",
-  "mac-studio": "Workstation",
+  desktop: uiText("Desktop"),
+  laptop: uiText("Laptop"),
+  "mac-mini": uiText("Mini PC"),
+  "mac-studio": uiText("Workstation"),
 };
 
 export function environmentMachineIcon(

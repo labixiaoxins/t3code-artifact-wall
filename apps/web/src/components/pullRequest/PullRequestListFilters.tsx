@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { Spinner } from "~/components/ui/spinner";
 import type {
   EnvironmentId,
@@ -54,10 +55,8 @@ import { PullRequestGlyph } from "./pullRequestIcons";
 export interface PullRequestFilterOption<Value extends string> {
   readonly value: Value;
   readonly label: string;
-  /** Uses the option's native icon tone. */
   readonly Icon: ElementType<{ className?: string }>;
   readonly project?: ProjectFaviconProject;
-  /** Why it cannot be chosen, carried onto the item as its title. */
   readonly unavailable?: string | undefined;
 }
 
@@ -78,12 +77,6 @@ export interface PullRequestExpectedHost {
   readonly kind: SourceControlProviderKind;
 }
 
-/**
- * What to call a host in the row. The provider's own name reads best — "GitHub" over
- * "github.com" — but it stops naming anything once a workspace has two hosts of one kind, so
- * those wear the host itself instead. Only the ambiguous ones: a lone GitLab beside two GitHub
- * installs is still "GitLab".
- */
 export function pullRequestHostLabel(
   entries: ReadonlyArray<{ readonly host: string; readonly kind: SourceControlProviderKind }>,
   entry: { readonly host: string; readonly kind: SourceControlProviderKind },
@@ -100,10 +93,10 @@ export function PullRequestSearchInput({
   onChange,
 }: {
   value: string;
-  /** A search is on its way to the hosts, said where the typing is rather than over the list. */
   busy?: boolean;
   onChange: (value: string) => void;
 }) {
+  const [draft, setDraft] = useState<string | null>(null);
   return (
     <InputGroup className="min-w-0 flex-1 **:[input]:h-9 sm:**:[input]:h-8">
       <InputGroupAddon>
@@ -111,25 +104,24 @@ export function PullRequestSearchInput({
       </InputGroupAddon>
       <InputGroupInput
         type="search"
-        value={value}
-        onChange={(event) => onChange(event.currentTarget.value)}
-        placeholder="Search pull requests, or label:bug"
-        aria-label="Search pull requests"
+        value={draft ?? value}
+        onFocus={() => setDraft(value)}
+        onBlur={() => setDraft(null)}
+        onChange={(event) => {
+          setDraft(event.currentTarget.value);
+          onChange(event.currentTarget.value);
+        }}
+        placeholder={uiText("Search pull requests, or label:bug")}
+        aria-label={uiText("Search pull requests")}
       />
     </InputGroup>
   );
 }
 
-/**
- * List narrowings live behind one filter control, separate from sorting. The trigger carries a
- * count whenever any filter is off its default, so a narrowed list is never a mystery.
- */
 const ALL_PROJECTS_VALUE = "all";
 /** MenuRadioGroup wants a string, so "every host" wears the one value no host can be. */
 const ALL_HOSTS_VALUE = "";
-/** The same trick for the servers, which are named by an id no empty string can collide with. */
 const ALL_SERVERS_VALUE = "";
-/** The unset value of each narrowing group, which no filter of theirs is named after. */
 const UNFILTERED_VALUE = "all";
 /**
  * A project's own radio value, carrying the server along with the id: the id alone is only
@@ -141,23 +133,23 @@ export const pullRequestProjectKey = (project: {
 }) => JSON.stringify([project.environmentId, project.id]);
 
 const DRAFT_OPTIONS = [
-  { value: UNFILTERED_VALUE, label: "All", Icon: LayersIcon },
-  { value: "only", label: "Drafts only", Icon: PullRequestGlyph.draft },
-  { value: "hide", label: "Hide drafts", Icon: EyeOffIcon },
+  { value: UNFILTERED_VALUE, label: uiText("All"), Icon: LayersIcon },
+  { value: "only", label: uiText("Drafts only"), Icon: PullRequestGlyph.draft },
+  { value: "hide", label: uiText("Hide drafts"), Icon: EyeOffIcon },
 ] as const satisfies ReadonlyArray<PullRequestFilterOption<string>>;
 
 const REVIEW_OPTIONS = [
-  { value: UNFILTERED_VALUE, label: "All", Icon: LayersIcon },
-  { value: "approved", label: "Approved", Icon: CircleCheckIcon },
-  { value: "changes-requested", label: "Changes requested", Icon: CircleXIcon },
-  { value: "review-required", label: "Review required", Icon: CircleDashedIcon },
-  { value: "none", label: "No reviews", Icon: CircleSlashIcon },
+  { value: UNFILTERED_VALUE, label: uiText("All"), Icon: LayersIcon },
+  { value: "approved", label: uiText("Approved"), Icon: CircleCheckIcon },
+  { value: "changes-requested", label: uiText("Changes requested"), Icon: CircleXIcon },
+  { value: "review-required", label: uiText("Review required"), Icon: CircleDashedIcon },
+  { value: "none", label: uiText("No reviews"), Icon: CircleSlashIcon },
 ] as const satisfies ReadonlyArray<PullRequestFilterOption<string>>;
 
 const CHECKS_OPTIONS = [
-  { value: UNFILTERED_VALUE, label: "All", Icon: LayersIcon },
-  { value: "passing", label: "Passing", Icon: CircleCheckIcon },
-  { value: "failing", label: "Failing", Icon: CircleXIcon },
+  { value: UNFILTERED_VALUE, label: uiText("All"), Icon: LayersIcon },
+  { value: "passing", label: uiText("Passing"), Icon: CircleCheckIcon },
+  { value: "failing", label: uiText("Failing"), Icon: CircleXIcon },
 ] as const satisfies ReadonlyArray<PullRequestFilterOption<string>>;
 
 function PullRequestFilterRadioGroup<Value extends string>({
@@ -180,8 +172,6 @@ function PullRequestFilterRadioGroup<Value extends string>({
     >
       <MenuGroupLabel>{label}</MenuGroupLabel>
       {options.map((option) => {
-        // A host the server has already said it cannot read is not a choice here: offering
-        // it would answer the press by replacing a working list with that failure.
         const item = (
           <MenuRadioItem
             key={option.value}
@@ -192,7 +182,7 @@ function PullRequestFilterRadioGroup<Value extends string>({
             <span className="flex min-w-0 items-center gap-2">
               <PullRequestFilterOptionIcon option={option} />
               <span className="min-w-0 flex-1 truncate">{option.label}</span>
-              {option.unavailable ? <span className="shrink-0">· Unavailable</span> : null}
+              {option.unavailable ? <span className="shrink-0">{uiText("· Unavailable")}</span> : null}
               <MenuRadioItemIndicator />
             </span>
           </MenuRadioItem>
@@ -271,9 +261,9 @@ function PullRequestAuthorFilter({
     <MenuSub>
       <MenuSubTrigger>
         <UserRoundIcon aria-hidden className="size-3.5" />
-        <span className="flex-1">Author</span>
+        <span className="flex-1">{uiText("Author")}</span>
         <span className="min-w-0 max-w-32 truncate text-xs text-muted-foreground">
-          {value ?? "Anyone"}
+          {value ?? uiText("Anyone")}
         </span>
       </MenuSubTrigger>
       <MenuSubPopup>
@@ -290,8 +280,8 @@ function PullRequestAuthorFilter({
               onKeyDown={(event) => {
                 if (event.key !== "ArrowDown" && event.key !== "Escape") event.stopPropagation();
               }}
-              placeholder="Search authors"
-              aria-label="Search authors"
+              placeholder={uiText("Search authors")}
+              aria-label={uiText("Search authors")}
             />
           </InputGroup>
         </div>
@@ -299,8 +289,7 @@ function PullRequestAuthorFilter({
           <MenuRadioItem value="">
             <span className="flex min-w-0 items-center gap-2">
               <LayersIcon aria-hidden className="size-3.5" />
-              Anyone
-            </span>
+              {uiText("Anyone") + " "}</span>
           </MenuRadioItem>
           {visible.map((option) => (
             <MenuRadioItem key={option.actor.login.toLowerCase()} value={option.actor.login}>
@@ -308,12 +297,11 @@ function PullRequestAuthorFilter({
                 <PullRequestActorAvatar actor={option.actor} />
                 <span className="min-w-0 flex-1 truncate">{option.actor.login}</span>
                 <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                  {option.mergedCount} merges loaded
-                </span>
+                  {option.mergedCount} {uiText("merges loaded") + " "}</span>
               </span>
             </MenuRadioItem>
           ))}
-          {visible.length === 0 ? <MenuItem disabled>No authors found</MenuItem> : null}
+          {visible.length === 0 ? <MenuItem disabled>{uiText("No authors found")}</MenuItem> : null}
         </MenuRadioGroup>
       </MenuSubPopup>
     </MenuSub>
@@ -340,14 +328,14 @@ function PullRequestLabelFilter({
     <MenuSub>
       <MenuSubTrigger>
         <TagIcon aria-hidden className="size-3.5" />
-        <span className="flex-1">Labels</span>
+        <span className="flex-1">{uiText("Labels")}</span>
         <span className="text-xs text-muted-foreground">
-          {value.length === 0 ? "Any" : `${value.length} selected`}
+          {value.length === 0 ? uiText("Any") : uiText("{0} selected", {"0": value.length})}
         </span>
       </MenuSubTrigger>
       <MenuSubPopup>
         {visible.length === 0 ? (
-          <MenuItem disabled>No labels in this view</MenuItem>
+          <MenuItem disabled>{uiText("No labels in this view")}</MenuItem>
         ) : (
           visible.map((option) => {
             const key = option.name.toLowerCase();
@@ -416,40 +404,20 @@ export function PullRequestFiltersMenu({
   involvement: PullRequestInvolvement;
   involvementOptions: ReadonlyArray<PullRequestFilterOption<PullRequestInvolvement>>;
   onInvolvement: (involvement: PullRequestInvolvement) => void;
-  /** The narrowings beyond state and involvement; an absent field is that group unfiltered. */
   filters: PullRequestListFilters;
   onFilters: (filters: PullRequestListFilters) => void;
   authorOptions?: ReadonlyArray<PullRequestAuthorFacet>;
   labelOptions?: ReadonlyArray<PullRequestLabelFacet>;
   host: string | undefined;
-  /**
-   * Includes the "all hosts" entry, whose value is the empty string. With fewer than two real
-   * hosts there is nothing to switch between, so the whole group stays out of the menu.
-   */
   hostOptions: ReadonlyArray<PullRequestFilterOption<string>>;
   onHost: (host: string | undefined) => void;
   server: EnvironmentId | undefined;
-  /**
-   * Includes the "all servers" entry, whose value is the empty string. With one server there is
-   * nothing to switch between, so the whole group stays out of the menu.
-   */
   serverOptions: ReadonlyArray<PullRequestFilterOption<string>>;
   onServer: (server: EnvironmentId | undefined) => void;
-  /** The projects of every connected environment, each carrying the one its favicon is read from. */
   projects: ReadonlyArray<ProjectFaviconProject & { readonly id: ProjectId }>;
   projectId: ProjectId | undefined;
-  /**
-   * The server the selected project belongs to. A project id is only unique within its own
-   * server, so without this two rows sharing an id would both read as checked here.
-   */
   projectEnvironmentId: EnvironmentId | undefined;
-  /**
-   * Projects whose repository could not be read this time round. They are named here, where
-   * the reader is already choosing between projects, rather than as a count above the list
-   * that says something is missing without saying which.
-   */
   unavailable: ReadonlyMap<string, string>;
-  /** The environment comes with the project id, since picking a row picks a specific server's copy of it. */
   onProject: (projectId: ProjectId | undefined, environmentId: EnvironmentId | undefined) => void;
 }) {
   const selectedLabels = (filters.labels ?? []).flatMap((group) => group);
@@ -480,7 +448,7 @@ export function PullRequestFiltersMenu({
       ? ALL_PROJECTS_VALUE
       : pullRequestProjectKey({ id: projectId, environmentId: projectEnvironmentId });
   const projectOptions: ReadonlyArray<PullRequestFilterOption<string>> = [
-    { value: ALL_PROJECTS_VALUE, label: "All projects", Icon: LayersIcon },
+    { value: ALL_PROJECTS_VALUE, label: uiText("All projects"), Icon: LayersIcon },
     ...projects
       .toSorted(
         (left, right) =>
@@ -501,7 +469,7 @@ export function PullRequestFiltersMenu({
     <Menu onOpenChange={onOpenChange}>
       <MenuTrigger render={<Button variant="outline" />}>
         <ListFilterIcon className="size-4" />
-        <span>Filters</span>
+        <span>{uiText("Filters")}</span>
         {filterCount > 0 ? (
           <span className="rounded-full bg-muted px-1.5 text-xs text-muted-foreground tabular-nums">
             {filterCount}
@@ -510,13 +478,13 @@ export function PullRequestFiltersMenu({
       </MenuTrigger>
       <MenuPopup align="end" side="bottom">
         <PullRequestFilterRadioSubmenu
-          label="State"
+          label={uiText("State")}
           value={state}
           options={stateOptions}
           onChange={onState}
         />
         <PullRequestFilterRadioSubmenu
-          label="Involvement"
+          label={uiText("Involvement")}
           value={involvement}
           options={involvementOptions}
           onChange={onInvolvement}
@@ -537,19 +505,19 @@ export function PullRequestFiltersMenu({
           }
         />
         <PullRequestFilterRadioSubmenu
-          label="Draft"
+          label={uiText("Draft")}
           value={filters.draft ?? UNFILTERED_VALUE}
           options={DRAFT_OPTIONS}
           onChange={(draft) => updateFilter("draft", draft)}
         />
         <PullRequestFilterRadioSubmenu
-          label="Review"
+          label={uiText("Review")}
           value={filters.review ?? UNFILTERED_VALUE}
           options={REVIEW_OPTIONS}
           onChange={(review) => updateFilter("review", review)}
         />
         <PullRequestFilterRadioSubmenu
-          label="Checks"
+          label={uiText("Checks")}
           value={filters.checks ?? UNFILTERED_VALUE}
           options={CHECKS_OPTIONS}
           onChange={(checks) => updateFilter("checks", checks)}
@@ -558,7 +526,7 @@ export function PullRequestFiltersMenu({
           <>
             <MenuSeparator />
             <PullRequestFilterRadioSubmenu
-              label="Host"
+              label={uiText("Host")}
               value={host ?? ALL_HOSTS_VALUE}
               options={hostOptions}
               onChange={(next) => onHost(next === ALL_HOSTS_VALUE ? undefined : next)}
@@ -569,7 +537,7 @@ export function PullRequestFiltersMenu({
           <>
             <MenuSeparator />
             <PullRequestFilterRadioSubmenu
-              label="Server"
+              label={uiText("Server")}
               value={server ?? ALL_SERVERS_VALUE}
               options={serverOptions}
               onChange={(next) =>
@@ -580,7 +548,7 @@ export function PullRequestFiltersMenu({
         ) : null}
         <MenuSeparator />
         <PullRequestFilterRadioSubmenu
-          label="Project"
+          label={uiText("Project")}
           value={projectValue}
           options={projectOptions}
           onChange={(next) => {

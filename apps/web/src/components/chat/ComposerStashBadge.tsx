@@ -1,17 +1,10 @@
+import { uiText } from "~/i18n";
 import { BookmarkIcon } from "lucide-react";
 import { memo } from "react";
 
 import { cn } from "~/lib/utils";
 import { ComposerBanner } from "./ComposerBanner";
 
-/**
- * Bookmark tab that shows the stash count beside the composer's other attachments
- * and opens the stash menu.
- *
- * On save the badge gives one quiet acknowledgement: it lifts to full
- * opacity and the count ticks over. `pulseKey` changes per stash, remounting
- * the count so the transition replays without a continuous animation.
- */
 export const ComposerStashBadge = memo(function ComposerStashBadge(props: {
   count: number;
   menuOpen: boolean;
@@ -43,7 +36,7 @@ export const ComposerStashBadge = memo(function ComposerStashBadge(props: {
       <ComposerBanner.Row
         render={<button type="button" />}
         data-prompt-stash-badge="true"
-        aria-label={`Stashed prompts: ${props.count}. Open stash.`}
+        aria-label={uiText("Stashed prompts: {0}. Open stash.", {"0": props.count})}
         aria-expanded={props.menuOpen}
         className={cn(
           "transition-colors duration-200",
@@ -58,7 +51,7 @@ export const ComposerStashBadge = memo(function ComposerStashBadge(props: {
         <ComposerBanner.Icon>
           <BookmarkIcon />
         </ComposerBanner.Icon>
-        <ComposerBanner.Content>Stash</ComposerBanner.Content>
+        <ComposerBanner.Content>{uiText("Stash")}</ComposerBanner.Content>
         <ComposerBanner.Actions>{count}</ComposerBanner.Actions>
       </ComposerBanner.Row>
     </ComposerBanner.Root>

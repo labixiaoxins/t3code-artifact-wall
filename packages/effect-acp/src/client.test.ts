@@ -52,9 +52,7 @@ const PermissionRequest = jsonRpcRequest(
 const PermissionResponse = jsonRpcResponse(AcpSchema.RequestPermissionResponse);
 const ElicitationRequest = jsonRpcRequest("elicitation/create", AcpSchema.CreateElicitationRequest);
 const ElicitationResponse = jsonRpcResponse(AcpSchema.CreateElicitationResponse);
-/** A JSON-RPC error response; only its id and the presence of an error matter here. */
 const ErrorResponse = Schema.Struct({ id: Schema.String, error: Schema.Unknown });
-/** A response whose cause is a handler's defect, as RpcServer encodes it. */
 const DieResponse = Schema.Struct({
   id: Schema.String,
   error: Schema.Struct({
@@ -267,6 +265,42 @@ it.layer(NodeServices.layer)("effect-acp client", (it) => {
         params: normalized,
       });
       assert.equal(transformCalls, 1);
+    }),
+  );
+
+  it.effect("keeps the JSON-RPC error of a failed v2 idle", () =>
+    Effect.gen(function* () {
+      const { stdio, input } = yield* makeInMemoryStdio();
+      const delivered = yield* Deferred.make<AcpCompat.SessionNotification>();
+      const acp = yield* AcpClient.make(stdio);
+      yield* acp.handleSessionUpdate((notification) =>
+        Deferred.succeed(delivered, notification).pipe(Effect.asVoid),
+      );
+      const error = { code: -32000, message: "Please sign in to Claude", data: { retry: false } };
+      const idle = {
+        sessionUpdate: "state_update",
+        state: "idle",
+        stopReason: "error",
+        error,
+      } as const;
+
+      yield* Queue.offer(
+        input,
+        yield* encodeJsonl(SessionUpdateNotification, {
+          jsonrpc: "2.0",
+          method: "session/update",
+          params: {
+            sessionId: "session-1",
+            update: idle,
+          },
+        }),
+      );
+
+      const { update } = yield* Deferred.await(delivered);
+      assert.deepEqual(
+        update.sessionUpdate === "state_update" && update.state === "idle" ? update : undefined,
+        idle,
+      );
     }),
   );
 
@@ -755,7 +789,7 @@ it.layer(NodeServices.layer)("effect-acp client", (it) => {
     }),
   );
 
-  it.effect("uses distinct ids for RPC calls and extension requests", () =>
+  it.effect("keeps RPC ids within int32 and apart from extension ids", () =>
     Effect.gen(function* () {
       const { stdio, input, output } = yield* makeInMemoryStdio();
       const scope = yield* Scope.make();
@@ -796,6 +830,11 @@ it.layer(NodeServices.layer)("effect-acp client", (it) => {
         : yield* decodedExt(firstOutbound);
 
       assert.notEqual(initializeRequest.id, extRequest.id);
+      // Keep locally generated ids compatible with SDKs that decode signed int32.
+      assert.typeOf(initializeRequest.id, "number");
+      assert.equal(initializeRequest.id, 2 ** 30);
+      assert.isAtMost(Number(initializeRequest.id), 2 ** 31 - 1);
+      assert.equal(extRequest.id, 1);
 
       yield* Queue.offer(
         input,
@@ -823,6 +862,23 @@ it.layer(NodeServices.layer)("effect-acp client", (it) => {
 
       yield* Fiber.join(initializeFiber);
       assert.deepEqual(yield* Fiber.join(extFiber), { ok: true });
+
+      const sessionFiber = yield* acp.agent
+        .createSession({ cwd: "/tmp", mcpServers: [] })
+        .pipe(Effect.forkScoped);
+      const sessionRequest = yield* Schema.decodeEffect(
+        Schema.fromJsonString(jsonRpcRequest("session/new", AcpSchema.NewSessionRequest)),
+      )(yield* Queue.take(output));
+      assert.equal(sessionRequest.id, 2 ** 30 + 1);
+      yield* Queue.offer(
+        input,
+        yield* encodeJsonl(jsonRpcResponse(AcpSchema.NewSessionResponse), {
+          jsonrpc: "2.0",
+          id: sessionRequest.id,
+          result: { sessionId: "session-1" },
+        }),
+      );
+      assert.equal((yield* Fiber.join(sessionFiber)).sessionId, "session-1");
       yield* Scope.close(scope, Exit.void);
     }),
   );
@@ -1169,7 +1225,6 @@ it.layer(NodeServices.layer)("effect-acp client", (it) => {
       const send = <E>(line: Effect.Effect<Uint8Array, E>) =>
         Effect.flatMap(line, (bytes) => Queue.offer(input, bytes));
       const decodeDie = Schema.decodeEffect(Schema.fromJsonString(DieResponse));
-      // A stopped reader leaves these waiting; fail instead of hanging.
       const next = <A>(queue: Queue.Dequeue<A>) =>
         TestClock.withLive(Queue.take(queue).pipe(Effect.timeout("2 seconds")));
 
@@ -1224,10 +1279,8 @@ it.layer(NodeServices.layer)("effect-acp client", (it) => {
         }),
       );
 
-      // The next session handler still ran.
       assert.equal(yield* next(updates), "session-1");
 
-      // The reader survived all three: a later request is still answered.
       yield* send(
         encodeJsonl(ExtRequest, {
           jsonrpc: "2.0",
@@ -1242,7 +1295,6 @@ it.layer(NodeServices.layer)("effect-acp client", (it) => {
       );
       assert.deepEqual([answered.id, answered.result], ["ext-b", { ok: true }]);
 
-      // Every defect was logged at Error, once.
       assert.deepEqual((yield* Queue.clear(errorLogs)).toSorted(), [
         "ACP extension request handler failed for 'x/dies'",
         "ACP notification handler failed",

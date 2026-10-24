@@ -57,11 +57,6 @@ export function normalizeProjectPathForComparison(value: string): string {
 // Windows refuses these as file names, with or without an extension.
 const WINDOWS_RESERVED_NAME = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/;
 
-/**
- * Folder name for a project started from just a name ("Pinball Stats" becomes
- * "pinball-stats"). The server uses it for `projects.createNew`, and clients
- * use it to show the path before the server makes it.
- */
 export function newProjectFolderName(name: string): string {
   const slug = name
     .normalize("NFKD")
@@ -73,4 +68,52 @@ export function newProjectFolderName(name: string): string {
     .replace(/-+$/, "");
   if (slug.length === 0) return "project";
   return WINDOWS_RESERVED_NAME.test(slug) ? `${slug}-project` : slug;
+}
+
+const SLASH_PREFIXED_WINDOWS_DRIVE_PATTERN = /^\/[A-Za-z]:[\\/]/;
+
+/** Browser URL parsers write `C:/foo` as `/C:/foo` for file URLs. */
+export function stripSlashPrefixedWindowsDrive(path: string): string {
+  return SLASH_PREFIXED_WINDOWS_DRIVE_PATTERN.test(path) ? path.slice(1) : path;
+}
+
+export function fileBasename(path: string): string {
+  const trimmed = path.replace(/[/\\]+$/, "");
+  if (trimmed.length === 0) return path;
+  const separatorIndex = Math.max(trimmed.lastIndexOf("/"), trimmed.lastIndexOf("\\"));
+  return separatorIndex >= 0 ? trimmed.slice(separatorIndex + 1) : trimmed;
+}
+
+export function workspaceRelativeFilePath(
+  path: string,
+  workspaceRoot: string | null | undefined,
+): string | null {
+  if (!workspaceRoot) return null;
+  const normalizedPath = stripSlashPrefixedWindowsDrive(path.replaceAll("\\", "/"));
+  const normalizedRoot = stripSlashPrefixedWindowsDrive(
+    workspaceRoot.replaceAll("\\", "/"),
+  ).replace(/\/+$/, "");
+  const caseInsensitive = isWindowsAbsolutePath(stripSlashPrefixedWindowsDrive(workspaceRoot));
+  const pathForCompare = caseInsensitive ? normalizedPath.toLowerCase() : normalizedPath;
+  const rootForCompare = caseInsensitive ? normalizedRoot.toLowerCase() : normalizedRoot;
+  if (pathForCompare.replace(/\/+$/, "") === rootForCompare) return ".";
+  if (!pathForCompare.startsWith(`${rootForCompare}/`)) return null;
+  return normalizedPath.slice(normalizedRoot.length + 1);
+}
+
+export function isAbsolutePath(value: string): boolean {
+  return value.startsWith("/") || isWindowsAbsolutePath(value);
+}
+
+/** Home-relative host paths are expanded by the destination server. */
+export function isHostPath(value: string): boolean {
+  return isAbsolutePath(value) || value.startsWith("~/");
+}
+
+export function resolveWorkspaceFilePath(path: string, workspaceRoot: string): string {
+  if (isAbsolutePath(path) || path.startsWith("~/") || path.startsWith("~\\")) return path;
+  const base = workspaceRoot.replace(/[/\\]+$/, "");
+  return isWindowsAbsolutePath(workspaceRoot)
+    ? `${base}\\${path.replaceAll("/", "\\")}`
+    : `${base}/${path}`;
 }
