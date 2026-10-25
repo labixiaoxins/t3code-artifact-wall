@@ -348,3 +348,118 @@
     transition: none !important;
   }
 }
+
+/* One material capsule, with independent accessible account buttons inside. */
+.quota-topbar {
+  gap: 4px;
+  padding: 2px 5px 2px 12px;
+  border-radius: 999px;
+  background: var(--liquid-material, var(--popover));
+  box-shadow:
+    inset 0 0 0 0.5px var(--liquid-highlight, var(--border)),
+    0 0 0 0.5px var(--liquid-edge, var(--border)),
+    var(--liquid-shadow, 0 2px 8px rgb(0 0 0 / 5%));
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+}
+.quota-summary {
+  flex: none;
+  padding: 4px 0;
+  margin-right: 3px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.quota-summary:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.quota-chip {
+  padding: 3px 5px;
+  gap: 5px;
+  min-height: 28px;
+  border-radius: 999px;
+}
+.quota-ring[data-compact] {
+  width: 15px;
+  height: 15px;
+  padding: 2px;
+}
+.quota-ring[data-compact] > span {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  background: var(--popover);
+}
+.quota-chip-value {
+  font-size: 12px;
+}
+.quota-topbar > button {
+  border-radius: 999px;
+}
+@container quota-header (max-width: 1000px) {
+  .quota-chip-name {
+    display: inline;
+  }
+  .quota-chip:nth-child(n + 3) {
+    display: flex;
+  }
+  .quota-chip-status {
+    display: none;
+  }
+}
+@container quota-header (max-width: 540px) {
+  .quota-chip-name {
+    display: none;
+  }
+}
+@container quota-header (max-width: 740px) {
+  .quota-chips {
+    display: flex;
+  }
+  .quota-chip:nth-child(n + 3) {
+    display: none;
+  }
+}
+@container quota-header (max-width: 420px) {
+  .quota-chips {
+    display: none;
+  }
+  .quota-topbar {
+    padding-left: 9px;
+    gap: 0;
+  }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .quota-topbar {
+    background: var(--liquid-material, var(--popover));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+.quota-ring[data-compact] {
+  background: conic-gradient(
+    from -90deg,
+    var(--quota-ring-color, var(--foreground)) var(--quota-progress),
+    var(--border) 0
+  );
+}
+.quota-ring[data-compact][data-driver="codex"] {
+  --quota-ring-color: #0a84ff;
+}
+.quota-ring[data-compact][data-driver="claudeAgent"] {
+  --quota-ring-color: #b07855;
+}
+
+/* Hollow the compact ring with a mask so it sits on any capsule material. */
+.quota-ring[data-compact] {
+  padding: 0;
+  -webkit-mask: radial-gradient(circle, transparent 4.4px, #000 5px);
+  mask: radial-gradient(circle, transparent 4.4px, #000 5px);
+}
+.quota-ring[data-compact] > span {
+  display: none;
+}

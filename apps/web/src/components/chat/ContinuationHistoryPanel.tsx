@@ -31,6 +31,8 @@ export function ContinuationHistoryPanel(props: {
   thread: EnvironmentThreadShell;
   projection: OrchestrationV2ThreadProjection | null;
   onQuote: (text: string) => boolean;
+  /** Shown instead of nothing when this thread has no earlier or later segments. */
+  emptyLabel?: string;
 }) {
   const shells = useThreadShells();
   const environmentIds = useMemo(() => [props.environmentId], [props.environmentId]);
@@ -66,7 +68,9 @@ export function ContinuationHistoryPanel(props: {
     !isContinuationSegment(props.thread) ||
     (!props.thread.continuedFromThreadId && children.length === 0)
   )
-    return null;
+    return props.emptyLabel ? (
+      <p className="px-3 py-3 text-xs text-muted-foreground">{props.emptyLabel}</p>
+    ) : null;
   return (
     <>
       <section aria-label="续聊段序" className="min-w-0 px-3 pt-3 pb-2" data-continuation-history>

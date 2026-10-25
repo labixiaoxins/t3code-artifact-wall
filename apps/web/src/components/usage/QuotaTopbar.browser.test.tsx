@@ -86,6 +86,49 @@ function Persisted() {
   );
 }
 describe("quota topbar interactions", () => {
+  it("uses one remaining label and preserves actual names for mixed windows", async () => {
+    await page.viewport(1440, 900);
+    await using screen = await render(<Harness />);
+    await expect
+      .element(screen.getByRole("button", { name: "Weekly remaining", exact: true }))
+      .toBeVisible();
+    expect(screen.container.querySelectorAll("[data-quota-id] [data-compact]").length).toBe(3);
+    await screen.getByRole("button", { name: "View quotas" }).click();
+    await page.getByRole("button", { name: "Customize", exact: true }).click();
+    await page
+      .getByRole("combobox", { name: "Quota window Codex · 1" })
+      .selectOptions("session:short");
+    await expect
+      .element(screen.getByRole("button", { name: "Remaining quota", exact: true }))
+      .toBeVisible();
+    expect(screen.container.querySelector('[data-quota-id="0"]')?.textContent).toContain("5h");
+    expect(screen.container.querySelector('[data-quota-id="1"]')?.textContent).toContain("wk");
+  });
+  it("keeps unavailable distinct from zero and shows cached values with their read time", async () => {
+    await page.viewport(1440, 900);
+    const fresh = accounts.map((account, index) =>
+      index === 0
+        ? { ...account, connected: false }
+        : index === 1
+          ? { ...account, limits: undefined }
+          : account,
+    );
+    await using screen = await render(<Harness fresh={fresh} />);
+    const cached = screen.container.querySelector('[data-quota-id="0"]');
+    expect(cached?.textContent).toContain("62%");
+    expect(cached?.textContent).not.toMatch(/\d{2}:\d{2}/);
+    expect(cached?.hasAttribute("data-stale")).toBe(true);
+    expect(cached?.getAttribute("aria-label")).toMatch(/Cached \d{1,2}:\d{2}.* 62%/);
+    await screen.getByRole("button", { name: "View quotas" }).click();
+    await page.getByRole("button", { name: "All 5 sources" }).click();
+    await expect
+      .element(page.getByRole("button", { name: "Claude · 1 quota details" }))
+      .toMatchTextContent(/Unavailable/);
+    await expect
+      .element(page.getByRole("button", { name: "Claude · 1 quota details" }))
+      .not.toMatchTextContent(/0%/);
+  });
+
   it("chooses windows, orders pins, enforces four items, and retains a usable empty entry", async () => {
     await page.viewport(1440, 900);
     await using screen = await render(<Harness />);

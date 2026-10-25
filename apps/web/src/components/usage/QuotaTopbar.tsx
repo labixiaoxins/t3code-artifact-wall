@@ -83,23 +83,32 @@ function QuotaIcon({
   account,
   remaining,
   dim = false,
+  compact = false,
 }: {
   readonly account: QuotaAccount;
   readonly remaining: number | null;
   readonly dim?: boolean;
+  readonly compact?: boolean;
 }) {
   return (
     <span
       className={styles["quota-ring"]}
       data-dim={dim || undefined}
+      data-compact={compact || undefined}
+      data-driver={account.driver}
+      aria-hidden={compact || undefined}
       style={{ "--quota-progress": `${remaining ?? 0}%` } as CSSProperties}
     >
-      <ProviderInstanceIcon
-        driverKind={account.driver}
-        displayName={account.label}
-        className="size-5"
-        iconClassName="size-3.5"
-      />
+      {!compact ? (
+        <ProviderInstanceIcon
+          driverKind={account.driver}
+          displayName={account.label}
+          className="size-5"
+          iconClassName="size-3.5"
+        />
+      ) : (
+        <span />
+      )}
     </span>
   );
 }
@@ -152,13 +161,29 @@ export function QuotaTopbarView({
   };
   const title = text("额度", "Quotas");
   const displayAccounts = view === "all" ? accounts : selected;
+  const selectedWindows = selected.map((account) => quotaWindow(account, preferences));
+  const windowLabels = [
+    ...new Set(selectedWindows.flatMap((window) => (window ? [windowName(window)] : []))),
+  ];
+  const sharedWindow = windowLabels.length === 1 ? windowLabels[0] : null;
+  const remainingLabel = sharedWindow
+    ? text(`${sharedWindow}剩余`, `${sharedWindow} remaining`)
+    : text("剩余额度", "Remaining quota");
   return (
     <div className={styles["quota-topbar"]} data-quota-topbar="" data-names={preferences.showNames}>
+      <button type="button" className={styles["quota-summary"]} onClick={() => show(null)}>
+        {remainingLabel}
+      </button>
       <div className={styles["quota-chips"]}>
         {selected.map((account) => {
           const window = quotaWindow(account, preferences),
             status = quotaState(account, window, now);
-          const label = `${account.label} · ${account.alias} · ${window ? windowName(window) : ""} · ${stateLabel(status.state)} ${status.remaining === null ? "—" : `${status.remaining}%`}`;
+          const checkedAt = Date.parse(account.limits?.checkedAt ?? "");
+          const readTime =
+            status.state === "stale" && Number.isFinite(checkedAt)
+              ? ` ${new Date(checkedAt).toLocaleTimeString(readUiLocale(), { hour: "2-digit", minute: "2-digit" })}`
+              : "";
+          const label = `${account.label} · ${account.alias} · ${window ? windowName(window) : ""} · ${stateLabel(status.state)}${readTime} ${status.remaining === null ? "—" : `${status.remaining}%`}`;
           return (
             <Tooltip key={account.id}>
               <TooltipTrigger
@@ -181,6 +206,7 @@ export function QuotaTopbarView({
                   account={account}
                   remaining={status.remaining}
                   dim={status.state !== "current"}
+                  compact
                 />
                 {preferences.showNames ? (
                   <span className={styles["quota-chip-name"]} data-quota-name="">
@@ -190,10 +216,11 @@ export function QuotaTopbarView({
                 <span className={styles["quota-chip-value"]}>
                   {status.remaining === null ? "—" : `${status.remaining}%`}
                 </span>
-                <span className={styles["quota-chip-window"]}>
-                  {window ? windowName(window, true) : ""}
-                </span>
-                {status.state !== "current" ? (
+                {!sharedWindow && window ? (
+                  <span className={styles["quota-chip-window"]}>{windowName(window, true)}</span>
+                ) : null}
+                {/* A cached reading is only dimmed here; its read time lives in the tooltip and panel. */}
+                {status.state === "unknown" || status.state === "reset" ? (
                   <span className={styles["quota-chip-status"]}>{stateLabel(status.state)}</span>
                 ) : null}
               </TooltipTrigger>
@@ -224,7 +251,14 @@ export function QuotaTopbarView({
         >
           {pins.length ? <ChevronDownIcon /> : <GaugeIcon />}
         </PopoverTrigger>
-        <PopoverPopup align="end" width="lg" padding="default" keepMounted touchBackdrop>
+        <PopoverPopup
+          data-liquid-quota-popup=""
+          align="end"
+          width="lg"
+          padding="default"
+          keepMounted
+          touchBackdrop
+        >
           <div className={styles["quota-panel"]}>
             <div className={styles["quota-panel-heading"]}>
               {view !== "overview" ? (
@@ -438,9 +472,10 @@ export function QuotaTopbarView({
                             <strong>
                               {status.remaining === null
                                 ? stateLabel(status.state)
-                                : `${status.state === "stale" ? stateLabel(status.state) + " " : ""}${status.remaining}%`}
+                                : `${status.remaining}%`}
                             </strong>
                             <small>
+                              {status.state === "stale" ? text("上次读数 · ", "Cached · ") : ""}
                               {status.state === "reset"
                                 ? stateLabel(status.state)
                                 : window

@@ -14,7 +14,7 @@ export const WallArtifact = Schema.Struct({
   path: Schema.String,
   name: Schema.String,
   extension: Schema.String,
-  kind: Schema.Literals(["image", "page", "document"]),
+  kind: Schema.Literals(["image", "video", "page", "document"]),
   source: Schema.Literals(["attachment", "html", "file_change", "path_reference"]),
   createdAt: Schema.String,
   sizeBytes: Schema.Number,

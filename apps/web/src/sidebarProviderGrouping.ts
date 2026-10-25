@@ -192,3 +192,13 @@ export function prioritizeUserThreads<T extends { modelSelection: ModelSelection
       Number(b.modelSelection.model === "codex-auto-review"),
   );
 }
+
+export function threadProviderLabel(
+  configs: ReadonlyMap<EnvironmentId, Pick<ServerConfig, "settings">>,
+  thread: Pick<SidebarThreadSummary, "environmentId" | "modelSelection">,
+): string {
+  const instanceId = thread.modelSelection.instanceId;
+  return sidebarProviderLabel(
+    configs.get(thread.environmentId)?.settings.providerInstances[instanceId]?.driver ?? instanceId,
+  );
+}

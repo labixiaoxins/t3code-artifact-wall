@@ -729,6 +729,40 @@ describe("chat/editor shortcuts", () => {
       );
     }
   });
+  it("opens and closes the thread details panel with mod+alt+i", () => {
+    for (const platform of ["MacIntel", "Win32"]) {
+      const input = event({
+        key: "i",
+        ...(platform === "MacIntel" ? { metaKey: true } : { ctrlKey: true }),
+        altKey: true,
+      });
+      assert.strictEqual(
+        resolveShortcutCommand(input, DEFAULT_RESOLVED_KEYBINDINGS, {
+          platform,
+          context: { terminalFocus: false },
+        }),
+        "threadPanel.toggle",
+      );
+    }
+    // On macOS, Option+I types "ˆ"; the physical key still matches.
+    assert.strictEqual(
+      resolveShortcutCommand(
+        event({ key: "ˆ", code: "KeyI", metaKey: true, altKey: true }),
+        DEFAULT_RESOLVED_KEYBINDINGS,
+        { platform: "MacIntel", context: { terminalFocus: false } },
+      ),
+      "threadPanel.toggle",
+    );
+    // mod+shift+i stays the inbox shortcut; the new chord does not shadow it.
+    assert.strictEqual(
+      resolveShortcutCommand(
+        event({ key: "i", metaKey: true, shiftKey: true }),
+        DEFAULT_RESOLVED_KEYBINDINGS,
+        { platform: "MacIntel", context: { terminalFocus: false } },
+      ),
+      "inbox.next",
+    );
+  });
   it("preserves a user-configured thread panel shortcut instead of its default", () => {
     const bindings = mergeWithDefaultKeybindings(
       compile([

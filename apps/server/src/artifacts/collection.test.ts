@@ -5,7 +5,9 @@ import * as NodePath from "node:path";
 import { afterAll, describe, expect, it } from "vite-plus/test";
 import {
   collectArtifactCandidates,
+  artifactKind,
   artifactReferenceIsFresh,
+  artifactVideoMimeType,
   resolveArtifactCandidates,
   commandDirectories,
   artifactParentRoots,
@@ -162,6 +164,22 @@ describe("artifact collection", () => {
       referencedPaths("[说明](./交付说明.md) `./合同.docx` ./数据.xlsx ./结果.csv ./备注.txt"),
     ).toEqual(["./交付说明.md", "./合同.docx", "./数据.xlsx", "./结果.csv", "./备注.txt"]);
     expect(referencedPaths("`./main.ts` `./settings.json` `./run.exe`")).toEqual([]);
+  });
+  it("collects mp4, mov, m4v and webm references as video artifacts", () => {
+    expect(referencedPaths("`./a.mp4` ./b.mov [c](./c.m4v) ./d.webm ./e.avi")).toEqual([
+      "./a.mp4",
+      "./b.mov",
+      "./c.m4v",
+      "./d.webm",
+    ]);
+    for (const extension of ["mp4", "mov", "m4v", "webm"]) {
+      expect(artifactKind(extension)).toBe("video");
+      expect(artifactVideoMimeType(extension)).toMatch(/^video\//);
+    }
+    expect(artifactKind("png")).toBe("image");
+    expect(artifactKind("html")).toBe("page");
+    expect(artifactKind("pdf")).toBe("document");
+    expect(artifactVideoMimeType("pdf")).toBeUndefined();
   });
   it("dedupes canonical paths, retains first occurrence and structured source, sorts newest first", () => {
     const one = {

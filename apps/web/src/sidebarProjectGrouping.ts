@@ -7,7 +7,7 @@ import {
   type ProjectGroupingSettings,
 } from "./logicalProject";
 import { resolveScratchProjectScopeKey } from "@t3tools/client-runtime/state/project-grouping";
-import { buildWorkspaceCollections } from "./workspaceCollections";
+import { buildWorkspaceCollections, isWorkspaceCollectionKey } from "./workspaceCollections";
 import type { Project } from "./types";
 export type EnvironmentPresence = "local-only" | "remote-only" | "mixed";
 export interface SidebarProjectGroupMember extends Project {
@@ -78,7 +78,7 @@ export function resolveSidebarProjectScopeKey(input: {
   const exact = input.groups.find((candidate) => candidate.projectKey === input.key);
   if (exact) return exact.projectKey;
   const matches = input.groups.filter((candidate) => {
-    if (!candidate.projectKey.startsWith('["workspace-collection",')) {
+    if (!isWorkspaceCollectionKey(candidate.projectKey)) {
       return (
         candidate.isScratch &&
         resolveScratchProjectScopeKey(input.key, candidate.memberProjects, input.settings) ===

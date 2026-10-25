@@ -60,6 +60,7 @@ import { useLocation, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeftIcon,
   ChartNoAxesColumnIcon,
+  PanelRightIcon,
   CheckIcon,
   ChevronRightIcon,
   CornerLeftUpIcon,
@@ -156,7 +157,7 @@ import {
   selectActiveRightPanel,
   useRightPanelStore,
 } from "../rightPanelStore";
-import { getLatestThreadForProject, sortThreads } from "../lib/threadSort";
+import { getLatestThreadForProject, getThreadSortTimestamp, sortThreads } from "../lib/threadSort";
 import {
   cn,
   getLocalFileManagerName,
@@ -205,6 +206,15 @@ import {
 import { orderItemsByPreferredIds, sortLogicalProjectsForSidebar } from "./Sidebar.logic";
 import { resolveEnvironmentOptionLabel } from "./BranchToolbar.logic";
 import { CommandPaletteContent } from "./CommandPaletteContent";
+import { compactWorkspacePath } from "../projectMemberSelection";
+import { requestToggleThreadPanel } from "../threadPanelBus";
+import { isWorkspaceCollectionKey } from "../workspaceCollections";
+import {
+  hasCjk,
+  loadProjectPinyinConverter,
+  type ProjectPinyinConverter,
+  rankProjectSearchItems,
+} from "./CommandPalette.projectSearch";
 import {
   CommandPaletteTitleIcon,
   CommandPaletteVirtualizedResults,
@@ -875,6 +885,25 @@ function OpenCommandPaletteDialog(props: {
       group,
     ]),
   );
+  const needsProjectPinyin = projectPickerEntries.some(({ group, targetProject }) =>
+    [group.displayName, targetProject.title, ...group.memberProjects.map((m) => m.title)].some(
+      hasCjk,
+    ),
+  );
+  const [projectPinyin, setProjectPinyin] = useState<ProjectPinyinConverter | null>(null);
+  useEffect(() => {
+    if (!needsProjectPinyin) return;
+    let cancelled = false;
+    loadProjectPinyinConverter().then(
+      (converter) => {
+        if (!cancelled) setProjectPinyin(() => converter);
+      },
+      () => undefined,
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [needsProjectPinyin]);
   const addProjectEnvironmentOptions = (() => {
     const options = environments
       .filter((environment) => canCreateProjectInEnvironment(environment.connection.phase))
@@ -1080,6 +1109,8 @@ function OpenCommandPaletteDialog(props: {
           project.id,
           clientSettings.sidebarThreadSortOrder,
         );
+    // Jumping to a project also narrows the sidebar to it, like picking it in the sidebar filter.
+    if (group) useUiStateStore.getState().setSidebarProjectScopeKey(group.projectKey);
     if (latestThread) {
       await navigate({
         to: "/$environmentId/$threadId",
@@ -1088,6 +1119,25 @@ function OpenCommandPaletteDialog(props: {
       return;
     }
     await handleNewThread(scopeProjectRef(project.environmentId, project.id));
+  };
+  const openMemberProject = async (
+    group: (typeof projectPickerEntries)[number]["group"],
+    member: Project,
+  ) => {
+    const latestThread = getLatestThreadForProject(
+      threads.filter((thread) => thread.environmentId === member.environmentId),
+      member.id,
+      clientSettings.sidebarThreadSortOrder,
+    );
+    useUiStateStore.getState().setSidebarProjectScopeKey(group.projectKey);
+    if (latestThread) {
+      await navigate({
+        to: "/$environmentId/$threadId",
+        params: buildThreadRouteParams(scopeThreadRef(latestThread.environmentId, latestThread.id)),
+      });
+      return;
+    }
+    await handleNewThread(scopeProjectRef(member.environmentId, member.id));
   };
   const projectSearchItems = buildProjectActionItems({
     projects: pickerProjects,
@@ -1123,6 +1173,71 @@ function OpenCommandPaletteDialog(props: {
     },
     icon: projectFaviconIcon,
     runProject: openProjectFromSearch,
+  });
+  const latestActivityOf = (memberKeys: ReadonlySet<string>) => {
+    let recency = 0;
+    for (const thread of threads) {
+      if (
+        thread.archivedAt === null &&
+        memberKeys.has(`${thread.environmentId}:${thread.projectId}`)
+      ) {
+        recency = Math.max(recency, getThreadSortTimestamp(thread, "updated_at"));
+      }
+    }
+    return recency;
+  };
+  // A workspace collection (e.g. "AI 工作台") holds many real projects; search matches each of them.
+  const topProjectCandidates = projectSearchItems.flatMap((item, index) => {
+    const project = pickerProjects[index]!;
+    const group = projectGroupByTargetKey.get(`${project.environmentId}:${project.id}`);
+    const groupKeys = new Set(
+      (group?.memberProjectRefs ?? [scopeProjectRef(project.environmentId, project.id)]).map(
+        (ref) => `${ref.environmentId}:${ref.projectId}`,
+      ),
+    );
+    if (!group || !isWorkspaceCollectionKey(group.projectKey)) {
+      return [
+        {
+          item,
+          title: project.title,
+          displayName: project.displayName,
+          workspaceRoot: project.workspaceRoot,
+          recency: latestActivityOf(groupKeys),
+        },
+      ];
+    }
+    const memberItems = buildProjectActionItems({
+      projects: group.memberProjects.map((member) => ({ ...member, displayName: member.title })),
+      valuePrefix: "project-member",
+      icon: projectFaviconIcon,
+      renderDescription: (member) =>
+        `${group.displayName} · ${compactWorkspacePath(member.workspaceRoot)}`,
+      runProject: (member) => openMemberProject(group, member),
+    });
+    return [
+      {
+        item,
+        title: group.displayName,
+        displayName: group.displayName,
+        workspaceRoot: "",
+        recency: latestActivityOf(groupKeys),
+      },
+      ...memberItems.map((memberItem, memberIndex) => {
+        const member = group.memberProjects[memberIndex]!;
+        return {
+          item: memberItem,
+          title: member.title,
+          displayName: member.title,
+          workspaceRoot: member.workspaceRoot,
+          recency: latestActivityOf(new Set([`${member.environmentId}:${member.id}`])),
+        };
+      }),
+    ];
+  });
+  const topProjectItems = rankProjectSearchItems({
+    candidates: topProjectCandidates,
+    query: deferredQuery.startsWith(">") ? "" : deferredQuery,
+    toPinyin: projectPinyin,
   });
   const projectThreadItems = (() => {
     const isScratch = (project: CommandPaletteProject) =>
@@ -1406,7 +1521,8 @@ function OpenCommandPaletteDialog(props: {
               }
             />
             <TooltipPopup align={"end"} side={"left"}>
-              {disabledHint ?? uiText("Open Settings -> Source Control to configure this provider.")}
+              {disabledHint ??
+                uiText("Open Settings -> Source Control to configure this provider.")}
             </TooltipPopup>
           </Tooltip>
         </span>
@@ -1524,16 +1640,19 @@ function OpenCommandPaletteDialog(props: {
     const firstOption = newProjectEnvironmentOptions[0];
     if (firstOption) startNewProject(firstOption.environmentId, null);
   };
-  const actionItems: Array<CommandPaletteActionItem | CommandPaletteSubmenuItem> = legacySidebarEnabled && !pathname.startsWith("/settings") ? [
-    {
-      kind: "action",
-      value: "action:recent-work",
-      title: "最近访问与留待继续",
-      searchTerms: ["最近", "访问", "继续上次", "留待继续", "recent", "resume", "bookmark"],
-      icon: <RotateCcwIcon className={ITEM_ICON_CLASS} />,
-      run: async () => openRecentWork(),
-    },
-  ] : [];
+  const actionItems: Array<CommandPaletteActionItem | CommandPaletteSubmenuItem> =
+    legacySidebarEnabled && !pathname.startsWith("/settings")
+      ? [
+          {
+            kind: "action",
+            value: "action:recent-work",
+            title: "最近访问与留待继续",
+            searchTerms: ["最近", "访问", "继续上次", "留待继续", "recent", "resume", "bookmark"],
+            icon: <RotateCcwIcon className={ITEM_ICON_CLASS} />,
+            run: async () => openRecentWork(),
+          },
+        ]
+      : [];
   if (projects.length > 0) {
     const activeProjectTitle =
       projectPickerEntries.find((entry) => entry.isPreferred)?.group.displayName ??
@@ -1950,6 +2069,17 @@ function OpenCommandPaletteDialog(props: {
       },
     });
   }
+  if (activeThread) {
+    actionItems.push({
+      kind: "action",
+      value: "action:toggle-thread-panel",
+      searchTerms: ["检查器", "详情", "产物", "续聊", "项目", "inspector", "details", "artifacts"],
+      title: "切换检查器（产物 / 续聊 / 项目）",
+      icon: <PanelRightIcon className={ITEM_ICON_CLASS} />,
+      shortcutCommand: "threadPanel.toggle",
+      run: async () => requestToggleThreadPanel(),
+    });
+  }
   actionItems.push({
     kind: "action",
     value: "action:usage",
@@ -2016,7 +2146,7 @@ function OpenCommandPaletteDialog(props: {
     value: `setting:${item.id}`,
     searchTerms: [item.title, SETTINGS_SECTION_LABELS[item.to], ...(item.searchTerms ?? [])],
     title: item.title,
-    description: uiText("Settings · {0}", {"0": SETTINGS_SECTION_LABELS[item.to]}),
+    description: uiText("Settings · {0}", { "0": SETTINGS_SECTION_LABELS[item.to] }),
     ...(item.secondary ? { secondary: true } : {}),
     icon: <SettingsIcon className={ITEM_ICON_CLASS} />,
     run: async () => {
@@ -2048,6 +2178,7 @@ function OpenCommandPaletteDialog(props: {
     query: deferredQuery,
     isInSubmenu: currentView !== null,
     projectSearchItems: projectSearchItems,
+    topProjectItems,
     settingsSearchItems,
     threadSearchItems:
       linkedThreadSearch?.linkedThreads && deferredQuery === linkedThreadSearch.query
@@ -3011,7 +3142,7 @@ function OpenCommandPaletteDialog(props: {
               size={"xs"}
               tabIndex={-1}
               className={"absolute inset-e-2.5 top-1/2 -translate-y-1/2"}
-              aria-label={uiText("Create ({0})", {"0": createShortcutLabel})}
+              aria-label={uiText("Create ({0})", { "0": createShortcutLabel })}
               disabled={!canSubmitNewProject}
               onMouseDown={(event) => {
                 event.preventDefault();
@@ -3027,7 +3158,9 @@ function OpenCommandPaletteDialog(props: {
             <Kbd>{createShortcutLabel}</Kbd>
           </KbdGroup>
         </TooltipTrigger>
-        <TooltipPopup side={"top"}>{uiText("Create ({0})", {"0": createShortcutLabel})}</TooltipPopup>
+        <TooltipPopup side={"top"}>
+          {uiText("Create ({0})", { "0": createShortcutLabel })}
+        </TooltipPopup>
       </Tooltip>
     ) : addProjectCloneFlow?.step === "repository" ? (
       <Tooltip>
@@ -3038,7 +3171,7 @@ function OpenCommandPaletteDialog(props: {
               size={"xs"}
               tabIndex={-1}
               className={"absolute inset-e-2.5 top-1/2 -translate-y-1/2"}
-              aria-label={uiText("{0} (Enter)", {"0": remoteProjectButtonLabel ?? "Continue"})}
+              aria-label={uiText("{0} (Enter)", { "0": remoteProjectButtonLabel ?? "Continue" })}
               disabled={!canSubmitRemoteProjectFlow}
               onMouseDown={(event) => {
                 event.preventDefault();
@@ -3092,10 +3225,16 @@ function OpenCommandPaletteDialog(props: {
           }
         >
           <span>
-            {isCloneDestinationStep && isRemoteProjectPending ? uiText("Cloning") : submitActionLabel}
+            {isCloneDestinationStep && isRemoteProjectPending
+              ? uiText("Cloning")
+              : submitActionLabel}
           </span>
           <KbdGroup className={"pointer-events-none -me-0.5"}>
-            <Kbd>{hasHighlightedBrowseItem ? uiText("{0} Enter", {"0": submitModifierLabel}) : "Enter"}</Kbd>
+            <Kbd>
+              {hasHighlightedBrowseItem
+                ? uiText("{0} Enter", { "0": submitModifierLabel })
+                : "Enter"}
+            </Kbd>
           </KbdGroup>
         </TooltipTrigger>
         <TooltipPopup side={"top"}>
@@ -3125,7 +3264,9 @@ function OpenCommandPaletteDialog(props: {
       onClick={() => {
         void handleOpenProjectFromFileManager();
       }}
-    >{uiText("Open in {0}", {"0": fileManagerName})}</CommandFooterAction>
+    >
+      {uiText("Open in {0}", { "0": fileManagerName })}
+    </CommandFooterAction>
   ) : null;
   return (
     <CommandPaletteContent
@@ -3193,9 +3334,11 @@ function OpenCommandPaletteDialog(props: {
               </span>
               <span className={"truncate text-muted-foreground/85 text-xs"}>
                 {newProjectName.length > 0
-                  ? uiText("Creates {0}", {"0": newProjectPathPreview})
-                  : uiText("Goes in {0}", {"0": newProjectsRoot})}
-                {newProjectEnvironmentLabel === null ? null : uiText(" on {0}", {"0": newProjectEnvironmentLabel})}
+                  ? uiText("Creates {0}", { "0": newProjectPathPreview })
+                  : uiText("Goes in {0}", { "0": newProjectsRoot })}
+                {newProjectEnvironmentLabel === null
+                  ? null
+                  : uiText(" on {0}", { "0": newProjectEnvironmentLabel })}
               </span>
             </span>
           </div>

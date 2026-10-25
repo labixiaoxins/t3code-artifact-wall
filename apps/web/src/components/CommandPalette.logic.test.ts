@@ -487,8 +487,9 @@ describe("buildThreadActionItems", () => {
     expect(groups[0]?.items.map((item) => item.value)).toEqual([
       "thread:recent-title",
       "thread:old-prefix",
-      "thread:recent-content",
     ]);
+    expect(groups[1]?.value).toBe("thread-messages-search");
+    expect(groups[1]?.items.map((item) => item.value)).toEqual(["thread:recent-content"]);
   });
 
   it("preserves thread project-name matches when there is no stronger title match", () => {

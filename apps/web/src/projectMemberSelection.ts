@@ -12,6 +12,13 @@ export const memberPreferenceKey = (categoryKey: string) =>
 export function compactWorkspacePath(path: string) {
   return path.replace(/^\/(?:Users|home)\/[^/]+(?=\/|$)/, "~");
 }
+export function workspaceFolderName(path: string) {
+  const name = path
+    .replace(/[\\/]+$/, "")
+    .split(/[\\/]/)
+    .at(-1);
+  return name ? name : path;
+}
 export function isDatedCodexWorkspace(path: string) {
   return /^~\/Documents\/Codex\/\d{4}-\d{2}-\d{2}(?:\/|$)/.test(compactWorkspacePath(path));
 }

@@ -6,6 +6,7 @@ import { AuthOrchestrationReadScope } from "@t3tools/contracts";
 import * as ServerConfig from "../config.ts";
 import { assetFileResponse, authenticateRawRouteWithScope, isLoopbackHostname } from "../http.ts";
 import * as ArtifactWall from "./ArtifactWall.ts";
+import { artifactVideoMimeType } from "./collection.ts";
 
 const localRequest = Effect.gen(function* () {
   const config = yield* ServerConfig.ServerConfig;
@@ -62,7 +63,9 @@ export const layer = Layer.mergeAll(
           path: opened.artifact.path,
           file: opened.file,
           fileName: opened.artifact.name,
-          ...(opened.artifact.extension === "mp4" ? { mimeType: "video/mp4" } : {}),
+          ...(artifactVideoMimeType(opened.artifact.extension)
+            ? { mimeType: artifactVideoMimeType(opened.artifact.extension)! }
+            : {}),
         },
         request.headers.range,
       );

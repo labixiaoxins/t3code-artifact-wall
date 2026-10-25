@@ -18,7 +18,7 @@ function artifactTime(artifact: WallArtifact) {
 }
 
 export function artifactCounts(artifacts: readonly WallArtifact[]) {
-  const counts = { all: artifacts.length, image: 0, page: 0, document: 0 };
+  const counts = { all: artifacts.length, image: 0, video: 0, page: 0, document: 0 };
   for (const a of artifacts) counts[a.kind]++;
   return counts;
 }
@@ -60,8 +60,8 @@ export function previousArtifactImage(selected: WallArtifact, artifacts: readonl
 }
 export const ARTIFACT_DRAG_TYPE = "application/x-t3-artifact";
 
-export function isArtifactVideo(artifact: Pick<WallArtifact, "extension">) {
-  return artifact.extension === "mp4";
+export function isArtifactVideo(artifact: Pick<WallArtifact, "kind">) {
+  return artifact.kind === "video";
 }
 export function artifactVideoDuration(seconds: number) {
   if (!Number.isFinite(seconds) || seconds < 0) return null;

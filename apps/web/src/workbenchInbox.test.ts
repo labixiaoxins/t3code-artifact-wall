@@ -5,6 +5,7 @@ import {
   inboxThreadKey,
   resumableThreads,
   resumeVisits,
+  shouldShowInboxRow,
   type InboxThread,
 } from "./workbenchInbox";
 const thread = (patch: Partial<InboxThread> = {}): InboxThread => ({
@@ -119,5 +120,11 @@ describe("workbench attention and resume", () => {
     const visits = { [inboxThreadKey(child)]: "2026-10-06" };
     expect(resumableThreads([child], visits, {})).toEqual([]);
     expect(resumableThreads([child], visits, visits)).toEqual([child]);
+  });
+  it("hides the inbox row only when nothing is counted and nothing is listed", () => {
+    expect(shouldShowInboxRow(0, 0)).toBe(false);
+    expect(shouldShowInboxRow(2, 2)).toBe(true);
+    // "New result" entries are listed but do not add to the count.
+    expect(shouldShowInboxRow(0, 1)).toBe(true);
   });
 });

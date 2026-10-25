@@ -7,15 +7,18 @@ import { QuotaTopbar } from "./usage/QuotaTopbar";
 export function WorkspacePageHeader({
   electron = false,
   reserveNativeControls = electron,
+  showQuota = true,
   className,
   children,
   ...props
 }: ComponentPropsWithoutRef<"header"> & {
   readonly electron?: boolean;
   readonly reserveNativeControls?: boolean;
+  readonly showQuota?: boolean;
 }) {
   return (
     <header
+      data-liquid-workspace-header=""
       className={cn(
         "@container/quota-header flex h-[var(--workspace-topbar-height)]! min-h-[var(--workspace-topbar-height)]! max-h-[var(--workspace-topbar-height)]! shrink-0 items-center gap-3 pl-(--workspace-gutter-start) pr-(--workspace-gutter-end) [[data-panel-animations=true]_&]:motion-safe:transition-[padding-left,padding-right] [[data-panel-animations=true]_&]:motion-safe:duration-(--panel-animation-duration) [[data-panel-animations=true]_&]:motion-safe:ease-out",
         electron && "drag-region",
@@ -26,7 +29,7 @@ export function WorkspacePageHeader({
       {...props}
     >
       {children}
-      <QuotaTopbar />
+      {showQuota ? <QuotaTopbar /> : null}
     </header>
   );
 }

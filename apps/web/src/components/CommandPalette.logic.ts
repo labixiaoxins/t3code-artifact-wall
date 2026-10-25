@@ -480,6 +480,8 @@ export function filterCommandPaletteGroups(input: {
   query: string;
   isInSubmenu: boolean;
   projectSearchItems: ReadonlyArray<CommandPaletteActionItem>;
+  /** Already filtered and ranked; shown as the first group, ahead of actions. */
+  topProjectItems?: ReadonlyArray<CommandPaletteActionItem>;
   settingsSearchItems?: ReadonlyArray<CommandPaletteActionItem>;
   threadSearchItems: ReadonlyArray<CommandPaletteActionItem>;
 }): CommandPaletteGroup[] {
@@ -502,9 +504,19 @@ export function filterCommandPaletteGroups(input: {
     baseGroups = baseGroups.filter((group) => group.value !== "recent-threads");
   }
 
-  const searchableGroups = [...baseGroups];
+  const searchableGroups: CommandPaletteGroup[] = [];
+  const showTopProjects =
+    !input.isInSubmenu && !isActionsFilter && input.topProjectItems !== undefined;
+  if (showTopProjects && input.topProjectItems!.length > 0) {
+    searchableGroups.push({
+      value: "projects-top",
+      label: uiText("Projects"),
+      items: input.topProjectItems!,
+    });
+  }
+  searchableGroups.push(...baseGroups);
   if (!input.isInSubmenu && !isActionsFilter) {
-    if (input.projectSearchItems.length > 0) {
+    if (!showTopProjects && input.projectSearchItems.length > 0) {
       searchableGroups.push({
         value: "projects-search",
         label: uiText("Projects"),
@@ -527,7 +539,9 @@ export function filterCommandPaletteGroups(input: {
     }
   }
 
-  return searchableGroups.flatMap((group) => {
+  const isTopGroup = (group: CommandPaletteGroup) => group.value === "projects-top";
+  const matchedGroups = searchableGroups.flatMap((group) => {
+    if (isTopGroup(group)) return [group];
     const items = Arr.filterMap(group.items, (item, index) => {
       const haystack = normalizeSearchText(item.searchTerms.join(" "));
       if (!queryTokens.every((token) => haystack.includes(token))) {
@@ -555,6 +569,37 @@ export function filterCommandPaletteGroups(input: {
 
     return [{ value: group.value, label: group.label, items }];
   });
+
+  // A thread that only matches inside its messages is shown last, below every title match.
+  const messageGroups: CommandPaletteGroup[] = [];
+  const result: CommandPaletteGroup[] = [];
+  for (const group of matchedGroups) {
+    if (group.value !== "threads-search") {
+      result.push(group);
+      continue;
+    }
+    const titleItems: Array<CommandPaletteActionItem | CommandPaletteSubmenuItem> = [];
+    const messageItems: Array<CommandPaletteActionItem | CommandPaletteSubmenuItem> = [];
+    for (const item of group.items) {
+      const snippet = item.threadContentMatch?.snippet;
+      const metadataHaystack = normalizeSearchText(
+        item.searchTerms.filter((term) => term !== snippet).join(" "),
+      );
+      (snippet !== undefined && !queryTokens.every((token) => metadataHaystack.includes(token))
+        ? messageItems
+        : titleItems
+      ).push(item);
+    }
+    if (titleItems.length > 0) result.push({ ...group, items: titleItems });
+    if (messageItems.length > 0) {
+      messageGroups.push({
+        value: "thread-messages-search",
+        label: uiText("Message matches"),
+        items: messageItems,
+      });
+    }
+  }
+  return [...result, ...messageGroups];
 }
 
 export function buildBrowseGroups(input: {

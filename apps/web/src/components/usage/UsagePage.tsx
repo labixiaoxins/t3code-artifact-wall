@@ -494,14 +494,20 @@ export function UsagePage() {
   return (
     <SidebarInset className={"h-dvh min-h-0 overflow-hidden overscroll-y-none isolate"}>
       <div className={"flex min-h-0 min-w-0 flex-1 flex-col bg-background text-foreground"}>
-        <WorkspacePageHeader electron={isElectron}>{topbarContent}</WorkspacePageHeader>
+        <WorkspacePageHeader electron={isElectron} showQuota={false}>
+          {topbarContent}
+        </WorkspacePageHeader>
         <ScrollArea className={"min-h-0 flex-1"}>
           <WorkspacePageContainer width={"wide"}>
             {selectedEnvironments.length === 0 ? (
               <p className={"text-sm text-muted-foreground"}>
                 {environments.length === 0
-                  ? uiText("Connect an environment to see {0}.", {"0": showingLimits ? "limits" : "usage"})
-                  : uiText("Select an environment to see {0}.", {"0": showingLimits ? "limits" : "usage"})}
+                  ? uiText("Connect an environment to see {0}.", {
+                      "0": showingLimits ? "limits" : "usage",
+                    })
+                  : uiText("Select an environment to see {0}.", {
+                      "0": showingLimits ? "limits" : "usage",
+                    })}
               </p>
             ) : showingLimits ? (
               <UsageLimitsSection
@@ -799,8 +805,14 @@ function UsageOverview({
                   )}
                 >
                   {metric === "cost"
-                    ? uiText("{0} of cost · {1} tokens", {"0": formatPercent(share), "1": formatTokens(totals?.totalTokens ?? 0)})
-                    : uiText("{0} of tokens · {1}", {"0": formatPercent(share), "1": formatUsd(totals?.costUsd ?? 0)})}
+                    ? uiText("{0} of cost · {1} tokens", {
+                        "0": formatPercent(share),
+                        "1": formatTokens(totals?.totalTokens ?? 0),
+                      })
+                    : uiText("{0} of tokens · {1}", {
+                        "0": formatPercent(share),
+                        "1": formatUsd(totals?.costUsd ?? 0),
+                      })}
                 </span>
               </div>
             );
@@ -808,7 +820,8 @@ function UsageOverview({
         </div>
         <div className={"flex min-w-0 flex-col gap-3"}>
           <h2 className={"text-sm font-medium text-foreground"}>
-            {shownHourly ? uiText("Hourly") : uiText("Daily")} {metric === "tokens" ? uiText("processed tokens") : uiText("cost")}
+            {shownHourly ? uiText("Hourly") : uiText("Daily")}{" "}
+            {metric === "tokens" ? uiText("processed tokens") : uiText("cost")}
           </h2>
           <UsageProviderChart
             providers={activeProviders}
@@ -999,7 +1012,9 @@ function UsageOverview({
               </colgroup>
               <thead>
                 <tr className={"border-b border-border text-left text-xs text-muted-foreground"}>
-                  <th className={"py-2 font-normal"}>{shownHourly ? uiText("Hour") : uiText("Day")}</th>
+                  <th className={"py-2 font-normal"}>
+                    {shownHourly ? uiText("Hour") : uiText("Day")}
+                  </th>
                   {activeProviders.map((provider) => (
                     <th key={provider} className={"py-2 pl-4 text-right font-normal"}>
                       {PROVIDER_PRESENTATION[provider].label}
@@ -1099,7 +1114,7 @@ function CursorEnableButton({
     <InlineButton
       disabled={pending}
       aria-busy={pending}
-      aria-label={uiText("Enable Cursor usage from {0}", {"0": label})}
+      aria-label={uiText("Enable Cursor usage from {0}", { "0": label })}
       onClick={() => void enable()}
     >
       {buttonText}
@@ -1110,7 +1125,7 @@ function CursorEnableButton({
       variant={"outline"}
       disabled={pending}
       aria-busy={pending}
-      aria-label={uiText("Enable Cursor usage from {0}", {"0": label})}
+      aria-label={uiText("Enable Cursor usage from {0}", { "0": label })}
       onClick={() => void enable()}
     >
       {buttonText}

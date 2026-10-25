@@ -66,7 +66,7 @@ export const SidebarChromeHeader = memo(function SidebarChromeHeader({
           aria-label={uiText("Toggle main sidebar")}
         />
       </div>
-      <div className="relative z-10 flex h-8 min-w-0 flex-1 flex-wrap content-start items-center gap-x-2 overflow-hidden py-0.5">
+      <div className="relative top-[calc(-1*var(--liquid-sidebar-inset,0px))] z-10 flex h-8 min-w-0 flex-1 flex-wrap content-start items-center gap-x-2 overflow-hidden py-0.5">
         <SidebarBrand onBackdrop={backdropVariant !== null} />
         {pillLabel ? (
           <div className="ml-1 flex h-7 items-center">
@@ -97,7 +97,7 @@ export function SidebarBrandWidthProbe({
       className="pointer-events-none invisible fixed top-0 left-0 flex w-max border-r border-transparent pr-3"
       ref={observeWidth}
     >
-      <div className="ml-[var(--workspace-titlebar-content-left)] flex">
+      <div className="ml-[calc(var(--workspace-titlebar-content-left)-var(--liquid-sidebar-inset,0px)+1px)] flex">
         <SidebarBrandMark onBackdrop={false} />
       </div>
     </div>
@@ -109,7 +109,7 @@ function SidebarBrand({ onBackdrop }: { onBackdrop: boolean }) {
     <Link
       aria-label={uiText("Go to threads")}
       className={cn(
-        "relative z-10 ml-[var(--workspace-titlebar-content-left)] hidden h-7 w-fit min-w-0 shrink-0 items-center overflow-hidden rounded-md outline-hidden ring-ring focus-visible:ring-2 focus-visible:ring-inset md:flex",
+        "relative z-10 ml-[calc(var(--workspace-titlebar-content-left)-var(--liquid-sidebar-inset,0px)+1px)] hidden h-7 w-fit min-w-0 shrink-0 items-center overflow-hidden rounded-md outline-hidden ring-ring focus-visible:ring-2 focus-visible:ring-inset md:flex",
         onBackdrop ? "text-white" : "text-foreground",
       )}
       to="/"
@@ -215,7 +215,13 @@ export const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
             label={uiText("Settings")}
             onClick={handleSettingsClick}
           />
-          {!legacySidebarEnabled && pullRequestsSupported ? <SidebarUtilityItem icon={<PullRequestGlyph.pullRequest />} label={uiText("Pull Requests")} onClick={handlePullRequestsClick} /> : null}
+          {!legacySidebarEnabled && pullRequestsSupported ? (
+            <SidebarUtilityItem
+              icon={<PullRequestGlyph.pullRequest />}
+              label={uiText("Pull Requests")}
+              onClick={handlePullRequestsClick}
+            />
+          ) : null}
           <SidebarUtilityItem
             icon={<ChartNoAxesColumnIcon />}
             label={uiText("Usage")}
@@ -224,33 +230,50 @@ export const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
         </>
       )}
       {legacySidebarEnabled ? (
-      <SidebarMenuItem className="shrink-0">
-        <Popover open={moreOpen} onOpenChange={setMoreOpen}>
-          <PopoverTrigger render={<SidebarMenuButton aria-label="更多功能" size="icon" />}>
-            <EllipsisIcon />
-          </PopoverTrigger>
-          <PopoverPopup side="top" align="start" width="sm" padding="compact">
-            <PopoverTitle>更多功能</PopoverTitle>
-            <div className="mt-2 flex flex-col items-start gap-1">
-              <Button size="sm" variant="ghost" onClick={() => { setMoreOpen(false); openRecentWork(); }}>
-                最近访问与留待继续
-              </Button>
-              {pullRequestsSupported ? (
-                <Button size="sm" variant="ghost" onClick={() => { setMoreOpen(false); handlePullRequestsClick(); }}>
-                  {uiText("Pull Requests")}
+        <SidebarMenuItem className="shrink-0">
+          <Popover open={moreOpen} onOpenChange={setMoreOpen}>
+            <PopoverTrigger render={<SidebarMenuButton aria-label="更多功能" size="icon" />}>
+              <EllipsisIcon />
+            </PopoverTrigger>
+            <PopoverPopup side="top" align="start" width="sm" padding="compact">
+              <PopoverTitle>更多功能</PopoverTitle>
+              <div className="mt-2 flex flex-col items-start gap-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setMoreOpen(false);
+                    openRecentWork();
+                  }}
+                >
+                  最近访问与留待继续
                 </Button>
-              ) : null}
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => { setMoreOpen(false); void navigate({ to: "/settings/providers" }); }}
-              >
-                模型通道与更新
-              </Button>
-            </div>
-          </PopoverPopup>
-        </Popover>
-      </SidebarMenuItem>
+                {pullRequestsSupported ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setMoreOpen(false);
+                      handlePullRequestsClick();
+                    }}
+                  >
+                    {uiText("Pull Requests")}
+                  </Button>
+                ) : null}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setMoreOpen(false);
+                    void navigate({ to: "/settings/providers" });
+                  }}
+                >
+                  模型通道与更新
+                </Button>
+              </div>
+            </PopoverPopup>
+          </Popover>
+        </SidebarMenuItem>
       ) : null}
       <SidebarUpdatePill />
     </SidebarMenu>

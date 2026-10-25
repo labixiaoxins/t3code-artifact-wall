@@ -15,7 +15,9 @@ import {
 import { artifactFileUrl, fileFromArtifact, loadWallArtifacts } from "../../lib/artifactWallClient";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { shellEnvironment } from "../../state/shell";
+import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
+import { cn } from "~/lib/utils";
 import { Dialog, DialogPopup, DialogTitle } from "../ui/dialog";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 
@@ -23,10 +25,15 @@ export function ArtifactWall({
   environmentId,
   threadId,
   onAttach,
+  active = true,
+  onCount,
 }: {
   environmentId: EnvironmentId;
   threadId: ThreadId;
   onAttach: (files: File[]) => void;
+  /** An inactive wall keeps loading (for the tab count) but renders nothing, so no thumbnails load. */
+  active?: boolean;
+  onCount?: (count: number) => void;
 }) {
   const preparedConnection = usePreparedConnection(environmentId);
   const [scope, setScope] = useState<"thread" | "project">("thread");
@@ -100,6 +107,9 @@ export function ArtifactWall({
     [artifacts, filter],
   );
   const counts = artifactCounts(artifacts);
+  useEffect(() => {
+    onCount?.(counts.all);
+  }, [counts.all, onCount]);
   const groups = groupArtifacts(filtered.slice(0, visible));
   const images = useMemo(() => artifacts.filter((a) => a.kind === "image"), [artifacts]);
   useEffect(() => {
@@ -143,6 +153,28 @@ export function ArtifactWall({
     },
     [environmentId, onAttach],
   );
+  const openPage = (a: WallArtifact) =>
+    window.open(artifactFileUrl(environmentId, a.id) ?? "", "_blank", "noopener,noreferrer");
+  const dragArtifact = (event: React.DragEvent, a: WallArtifact) => {
+    event.dataTransfer.setData(ARTIFACT_DRAG_TYPE, JSON.stringify({ environmentId, artifact: a }));
+    event.dataTransfer.effectAllowed = "copy";
+  };
+  // Check status and size are detail: they live in the hover text, not in the layout.
+  const artifactTooltip = (a: WallArtifact) => (
+    <span className="flex max-w-64 flex-col gap-0.5">
+      <span className="break-all">{a.name}</span>
+      <span className="text-muted-foreground">
+        {a.width && a.height ? `${a.width}×${a.height}` : `${Math.ceil(a.sizeBytes / 1024)} KB`}
+        {" · "}
+        {artifactCheckLabel(a)}
+      </span>
+      <span className="text-muted-foreground">
+        {a.verification?.label
+          ? `${a.verification.label} · ${a.verification.checkedAt ?? ""}。此项为检查命令记录，不代表用户验收或已部署。`
+          : "文件存在不代表检查通过。完成检查后，由 Agent 关联相应执行记录。"}
+      </span>
+    </span>
+  );
   const thumb = (a: WallArtifact, className: string) =>
     a.kind === "image" ? (
       <img
@@ -175,10 +207,10 @@ export function ArtifactWall({
         {a.kind === "page" ? <GlobeIcon className="size-6" /> : <FileIcon className="size-6" />}
       </div>
     );
+  if (!active) return null;
   return (
-    <section aria-label="产物" className="min-w-0 px-3 pt-3 pb-2" data-artifact-wall>
-      <div className="mb-2 flex min-w-0 items-center justify-between gap-1">
-        <h3 className="text-xs font-medium">产物</h3>
+    <section aria-label="产物" className="min-w-0 px-3 pt-2 pb-2" data-artifact-wall>
+      <div className="mb-2 flex min-w-0 items-center justify-end gap-1">
         <div className="flex gap-1" aria-label="产物范围">
           {(
             [
@@ -202,11 +234,12 @@ export function ArtifactWall({
         </div>
       </div>
       {!(state.key === key && state.error && artifacts.length === 0) && (
-        <div className="mb-2 flex flex-wrap gap-1" aria-label="产物类型">
+        <div className="mb-2 flex flex-nowrap gap-0.5" aria-label="产物类型">
           {(
             [
               ["all", "全部"],
               ["image", "图片"],
+              ["video", "视频"],
               ["page", "页面"],
               ["document", "文档"],
             ] as const
@@ -214,7 +247,7 @@ export function ArtifactWall({
             .filter(([value]) => value === "all" || counts[value] > 0)
             .map(([value, label]) => (
               <Button
-                size="xs"
+                size="micro"
                 variant={filter === value ? "secondary" : "ghost"}
                 key={value}
                 aria-pressed={filter === value}
@@ -255,120 +288,122 @@ export function ArtifactWall({
                 : "这个项目还没有产物"}
           </p>
         ) : null}
-        {groups.map((group) => (
-          <div key={group.label}>
-            <p className="my-2 text-2xs text-muted-foreground">{group.label}</p>
-            <div className="grid grid-cols-2 gap-2">
-              {group.artifacts.map((a) => (
-                <div
-                  key={a.id}
-                  className="group min-w-0"
-                  draggable
-                  onDragStart={(event) => {
-                    event.dataTransfer.setData(
-                      ARTIFACT_DRAG_TYPE,
-                      JSON.stringify({ environmentId, artifact: a }),
-                    );
-                    event.dataTransfer.effectAllowed = "copy";
-                  }}
-                  data-artifact-id={a.id}
-                >
-                  <div className="relative aspect-square overflow-hidden rounded-lg border border-border bg-muted">
-                    <button
-                      type="button"
-                      aria-label={
-                        isArtifactVideo(a)
-                          ? `播放 ${a.name}`
-                          : a.kind === "image"
-                            ? `对比 ${a.name}`
-                            : `打开 ${a.name}`
-                      }
-                      className="block size-full cursor-pointer"
-                      onClick={() =>
-                        a.kind === "image" || isArtifactVideo(a)
-                          ? compare(a)
-                          : a.kind === "page"
-                            ? window.open(
-                                artifactFileUrl(environmentId, a.id) ?? "",
-                                "_blank",
-                                "noopener,noreferrer",
-                              )
-                            : void reveal(a)
-                      }
+        {groups.map((group) => {
+          const isMedia = (a: WallArtifact) => a.kind === "image" || isArtifactVideo(a);
+          const media = group.artifacts.filter(isMedia);
+          const files = group.artifacts.filter((a) => !isMedia(a));
+          return (
+            <div key={group.label}>
+              <p className="my-2 text-2xs text-muted-foreground">{group.label}</p>
+              {media.length > 0 ? (
+                <div className="grid grid-cols-3 gap-1.5">
+                  {media.map((a) => (
+                    <div
+                      key={a.id}
+                      className="group min-w-0"
+                      draggable
+                      onDragStart={(event) => dragArtifact(event, a)}
+                      data-artifact-id={a.id}
                     >
-                      {thumb(a, "size-full object-cover")}
-                    </button>
-                    <span className="pointer-events-none absolute top-1 left-1 rounded-sm bg-background/90 px-1 text-2xs text-foreground">
-                      {a.extension.toUpperCase()}
-                      {isArtifactVideo(a) && durations[a.id] !== undefined
-                        ? ` · ${artifactVideoDuration(durations[a.id]!)}`
-                        : null}
-                    </span>
-                    <div className="absolute right-0 bottom-0 left-0 flex flex-wrap justify-end gap-1 bg-background/90 p-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100">
-                      {a.kind === "image" ? (
-                        <Button size="xs" variant="ghost" onClick={() => compare(a)}>
-                          对比
-                        </Button>
-                      ) : null}
-                      {a.kind !== "page" ? (
-                        <Button
-                          size="xs"
-                          variant="ghost"
-                          onClick={() => void reveal(a)}
-                          aria-label={uiText("在 Finder 中显示 {0}", {"0": a.name})}
-                        >
-                          Finder
-                        </Button>
-                      ) : (
-                        <Button
-                          size="xs"
-                          variant="ghost"
-                          onClick={() =>
-                            window.open(
-                              artifactFileUrl(environmentId, a.id) ?? "",
-                              "_blank",
-                              "noopener,noreferrer",
-                            )
+                      <div className="relative aspect-square overflow-hidden rounded-md border border-border bg-muted">
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <button
+                                type="button"
+                                aria-label={
+                                  isArtifactVideo(a) ? `播放 ${a.name}` : `对比 ${a.name}`
+                                }
+                                className="block size-full cursor-pointer"
+                                onClick={() => compare(a)}
+                              />
+                            }
+                          >
+                            {thumb(a, "size-full object-cover")}
+                          </TooltipTrigger>
+                          <TooltipPopup>{artifactTooltip(a)}</TooltipPopup>
+                        </Tooltip>
+                        <span className="pointer-events-none absolute top-0.5 left-0.5 rounded-sm bg-background/90 px-1 text-2xs text-foreground">
+                          {a.extension.toUpperCase()}
+                          {isArtifactVideo(a) && durations[a.id] !== undefined
+                            ? ` · ${artifactVideoDuration(durations[a.id]!)}`
+                            : null}
+                        </span>
+                        <div className="absolute right-0 bottom-0 left-0 flex flex-wrap justify-end gap-0.5 bg-background/90 p-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100">
+                          {a.kind === "image" ? (
+                            <Button size="xs" variant="ghost" onClick={() => compare(a)}>
+                              对比
+                            </Button>
+                          ) : null}
+                          <Button
+                            size="xs"
+                            variant="ghost"
+                            onClick={() => void reveal(a)}
+                            aria-label={uiText("在 Finder 中显示 {0}", { "0": a.name })}
+                          >
+                            Finder
+                          </Button>
+                        </div>
+                      </div>
+                      <p className="mt-0.5 truncate text-2xs">{a.name}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {files.length > 0 ? (
+                <ul className={cn("flex flex-col", media.length > 0 && "mt-1.5")}>
+                  {files.map((a) => (
+                    <li
+                      key={a.id}
+                      className="group flex min-w-0 items-center gap-1 rounded-md px-1 hover:bg-accent/50 focus-within:bg-accent/50"
+                      draggable
+                      onDragStart={(event) => dragArtifact(event, a)}
+                      data-artifact-id={a.id}
+                    >
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <button
+                              type="button"
+                              aria-label={`打开 ${a.name}`}
+                              className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 py-1 text-left outline-hidden focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
+                              onClick={() => (a.kind === "page" ? openPage(a) : void reveal(a))}
+                            />
                           }
                         >
-                          打开
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  <Tooltip>
-                    <TooltipTrigger render={<p className="mt-1 truncate text-2xs" />}>
-                      {a.name}
-                    </TooltipTrigger>
-                    <TooltipPopup>{a.name}</TooltipPopup>
-                  </Tooltip>
-                  <p className="truncate text-2xs text-muted-foreground">
-                    {a.modifiedAt ? "更新 " : ""}
-                    {new Date(a.modifiedAt ?? a.createdAt).toLocaleTimeString("zh-CN", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                    {a.width && a.height
-                      ? ` · ${a.width}×${a.height}`
-                      : uiText(" · {0} KB", {"0": Math.ceil(a.sizeBytes / 1024)})}
-                  </p>
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={<p className="mt-0.5 text-2xs text-muted-foreground" />}
-                    >
-                      {artifactCheckLabel(a)}
-                    </TooltipTrigger>
-                    <TooltipPopup>
-                      {a.verification?.label
-                        ? `${a.verification.label} · ${a.verification.checkedAt ?? ""}。此项为检查命令记录，不代表用户验收或已部署。`
-                        : "文件存在不代表检查通过。完成检查后，由 Agent 关联相应执行记录。"}
-                    </TooltipPopup>
-                  </Tooltip>
-                </div>
-              ))}
+                          <Badge size="sm" variant="secondary">
+                            {a.extension.toUpperCase()}
+                          </Badge>
+                          <span className="min-w-0 flex-1 truncate text-xs">{a.name}</span>
+                          <span className="shrink-0 text-2xs text-muted-foreground group-hover:hidden group-focus-within:hidden">
+                            {new Date(a.modifiedAt ?? a.createdAt).toLocaleTimeString("zh-CN", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipPopup>{artifactTooltip(a)}</TooltipPopup>
+                      </Tooltip>
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        className="hidden shrink-0 group-hover:inline-flex group-focus-within:inline-flex"
+                        onClick={() => (a.kind === "page" ? openPage(a) : void reveal(a))}
+                        aria-label={
+                          a.kind === "page"
+                            ? `打开 ${a.name}`
+                            : uiText("在 Finder 中显示 {0}", { "0": a.name })
+                        }
+                      >
+                        {a.kind === "page" ? "打开" : "Finder"}
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
-          </div>
-        ))}
+          );
+        })}
         {visible < filtered.length ? (
           <div ref={loadMore} className="py-2">
             <Button size="xs" variant="ghost" onClick={() => setVisible((n) => n + 40)}>

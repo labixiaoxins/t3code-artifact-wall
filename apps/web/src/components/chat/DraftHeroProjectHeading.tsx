@@ -29,6 +29,10 @@ export function DraftHeroProjectHeading({
     return observeResize([container, inline], update);
   }, []);
 
+  // The project name sits between a lead and a trail ("What should we build in" + name + "?"), so
+  // each locale translates both halves; zh-CN reads "在 {项目} 里做点什么？".
+  const inlineTrail = uiText("?");
+
   return (
     <div ref={containerRef} className="group/draft-hero relative w-full" data-inline={fitsInline}>
       <span
@@ -41,19 +45,25 @@ export function DraftHeroProjectHeading({
         >
           <span>{uiText("What should we build in")}</span>
           <span>
-            <span className="font-medium">{projectName}</span>?
+            <span className="font-medium">{projectName}</span>
+            {inlineTrail}
           </span>
         </span>
       </span>
       <h1 className="flex w-full flex-col items-center justify-center gap-2 text-center font-normal text-2xl text-foreground tracking-tight sm:text-3xl lg:group-data-[inline=true]/draft-hero:flex-row">
         <span className="max-w-full lg:group-data-[inline=true]/draft-hero:shrink-0">
-          What should we build
-          <span className="lg:group-data-[inline=true]/draft-hero:hidden">?</span>
-          <span className="hidden lg:group-data-[inline=true]/draft-hero:inline"> in</span>
+          <span className="lg:group-data-[inline=true]/draft-hero:hidden">
+            {uiText("What should we build?")}
+          </span>
+          <span className="hidden lg:group-data-[inline=true]/draft-hero:inline">
+            {uiText("What should we build in")}
+          </span>
         </span>
         <span className="flex min-w-0 max-w-full items-baseline justify-center text-base tracking-normal lg:group-data-[inline=true]/draft-hero:text-3xl lg:group-data-[inline=true]/draft-hero:tracking-tight">
           <span className="min-w-0">{children}</span>
-          <span className="hidden shrink-0 lg:group-data-[inline=true]/draft-hero:inline">?</span>
+          <span className="hidden shrink-0 lg:group-data-[inline=true]/draft-hero:inline">
+            {inlineTrail}
+          </span>
         </span>
       </h1>
     </div>

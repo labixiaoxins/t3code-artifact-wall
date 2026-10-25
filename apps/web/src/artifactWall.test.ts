@@ -39,10 +39,18 @@ describe("artifact wall presentation", () => {
     expect(groups[0]?.artifacts[0]?.id).toBe("old");
     expect(previousArtifactImage(revised, [other, revised])?.id).toBe("other");
   });
-  it("counts each kind including video as document", () => {
-    expect(artifactCounts([a("a", "1"), a("b", "2", "page"), a("c", "3", "document")])).toEqual({
-      all: 3,
+  it("counts each kind including video", () => {
+    expect(
+      artifactCounts([
+        a("a", "1"),
+        a("b", "2", "page"),
+        a("c", "3", "document"),
+        a("d", "4", "video"),
+      ]),
+    ).toEqual({
+      all: 4,
       image: 1,
+      video: 1,
       page: 1,
       document: 1,
     });
@@ -64,9 +72,9 @@ describe("artifact wall presentation", () => {
 });
 
 describe("video presentation", () => {
-  it("identifies only the existing mp4 whitelist format", () => {
-    expect(isArtifactVideo({ extension: "mp4" })).toBe(true);
-    expect(isArtifactVideo({ extension: "pdf" })).toBe(false);
+  it("identifies only video-kind artifacts", () => {
+    expect(isArtifactVideo({ kind: "video" })).toBe(true);
+    expect(isArtifactVideo({ kind: "document" })).toBe(false);
   });
   it("formats metadata duration and handles unknown/non-finite media", () => {
     expect(artifactVideoDuration(65.9)).toBe("1:05");

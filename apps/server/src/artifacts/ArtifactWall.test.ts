@@ -53,6 +53,7 @@ const fixture = Effect.gen(function* () {
     await NodeFSP.writeFile(NodePath.join(cwd, "node_modules/skip.png"), "skip");
   });
   yield* put("two", "two.pdf", "./two.pdf");
+  yield* put("two", "clip.mov", "./clip.mov");
   yield* put("archived", "archived.pdf", "./archived.pdf");
   yield* put("deleted", "deleted.pdf", "./deleted.pdf");
   yield* put("other", "other.pdf", "./other.pdf");
@@ -200,9 +201,13 @@ describe("ArtifactWall service", () => {
         const wall = yield* ArtifactWall.ArtifactWall;
         expect((yield* wall.list("one", "thread")).map((a) => a.name)).toEqual(["one.pdf"]);
         expect((yield* wall.list("one", "project")).map((a) => a.name).sort()).toEqual([
+          "clip.mov",
           "one.pdf",
           "two.pdf",
         ]);
+        expect(
+          (yield* wall.list("two", "thread")).find((a) => a.name === "clip.mov"),
+        ).toMatchObject({ kind: "video", extension: "mov" });
         expect(yield* wall.list("missing", "project")).toEqual([]);
       }).pipe(Effect.provide(layer)),
   );

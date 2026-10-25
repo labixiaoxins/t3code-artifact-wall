@@ -31,18 +31,32 @@ const EXTENSIONS = new Set([
   "pdf",
   "pptx",
   "mp4",
+  "mov",
+  "m4v",
+  "webm",
   "md",
   "docx",
   "xlsx",
   "csv",
   "txt",
 ]);
+const VIDEO_MIME_TYPES: Readonly<Record<string, string>> = {
+  mp4: "video/mp4",
+  m4v: "video/x-m4v",
+  mov: "video/quicktime",
+  webm: "video/webm",
+};
+export function artifactVideoMimeType(extension: string): string | undefined {
+  return VIDEO_MIME_TYPES[extension];
+}
 export function artifactKind(extension: string): WallArtifact["kind"] {
   return ["png", "jpg", "jpeg", "webp", "gif"].includes(extension)
     ? "image"
-    : extension === "html"
-      ? "page"
-      : "document";
+    : extension in VIDEO_MIME_TYPES
+      ? "video"
+      : extension === "html"
+        ? "page"
+        : "document";
 }
 export function excludedArtifactPath(path: string, extraRoots: readonly string[] = []): boolean {
   return (
@@ -84,7 +98,7 @@ export function referencedPaths(value: unknown): string[] {
         }
       }
       const pattern =
-        /\]\(<?([^\n]*?\.(?:png|jpe?g|webp|gif|html|pdf|pptx|mp4|md|docx|xlsx|csv|txt))(?:\:\d+)?>?\)|[`"']([^\n`"']*?\.(?:png|jpe?g|webp|gif|html|pdf|pptx|mp4|md|docx|xlsx|csv|txt))[`"']|(?:^|[\s=(])((?:\/|\.\.?\/)?[^\s<>`"'()[\]{}:,;]+\.(?:png|jpe?g|webp|gif|html|pdf|pptx|mp4|md|docx|xlsx|csv|txt))(?=$|[\s)\],;:.])/gim;
+        /\]\(<?([^\n]*?\.(?:png|jpe?g|webp|gif|html|pdf|pptx|mp4|mov|m4v|webm|md|docx|xlsx|csv|txt))(?:\:\d+)?>?\)|[`"']([^\n`"']*?\.(?:png|jpe?g|webp|gif|html|pdf|pptx|mp4|mov|m4v|webm|md|docx|xlsx|csv|txt))[`"']|(?:^|[\s=(])((?:\/|\.\.?\/)?[^\s<>`"'()[\]{}:,;]+\.(?:png|jpe?g|webp|gif|html|pdf|pptx|mp4|mov|m4v|webm|md|docx|xlsx|csv|txt))(?=$|[\s)\],;:.])/gim;
       for (const match of item.matchAll(pattern)) {
         const path = (match[1] ?? match[2] ?? match[3])?.replace(/^<|>$/g, "");
         if (path) paths.push(path);

@@ -32,6 +32,10 @@ export function workspaceCollection(path: string): (typeof COLLECTION_ORDER)[num
   return "其他项目";
 }
 
+export function isWorkspaceCollectionKey(projectKey: string): boolean {
+  return projectKey.startsWith('["workspace-collection",');
+}
+
 export function buildWorkspaceCollections(input: {
   projects: readonly Project[];
   settings: ProjectGroupingSettings;

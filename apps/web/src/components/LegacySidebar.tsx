@@ -30,7 +30,16 @@ import { EnvironmentMachineIcon } from "./EnvironmentMachineIcon";
 import { ProjectFavicon } from "./ProjectFavicon";
 import { useAtomValue } from "@effect/atom-react";
 import { autoAnimate } from "@formkit/auto-animate";
-import React, { useCallback, useContext, useEffect, memo, useMemo, useRef, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  memo,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { cn } from "~/lib/utils";
 import { useShallow } from "zustand/react/shallow";
 import {
@@ -210,13 +219,30 @@ import {
   useThreadJumpHintVisibility,
   ThreadStatusPill,
 } from "./Sidebar.logic";
-import { sortThreads } from "../lib/threadSort";
+import { getThreadSortTimestamp, sortThreads } from "../lib/threadSort";
 import { SidebarChromeFooter, SidebarChromeHeader } from "./sidebar/SidebarChrome";
 import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
 import { useIsMobile } from "~/hooks/useMediaQuery";
 import { CommandDialogTrigger } from "./ui/command";
 import { useClientSettings, updateClientSettings } from "~/hooks/useSettings";
-import { providerExpansionKey, prioritizeUserThreads } from "../sidebarProviderGrouping";
+import {
+  providerExpansionKey,
+  prioritizeUserThreads,
+  threadProviderLabel,
+} from "../sidebarProviderGrouping";
+import {
+  getPinnedProjects,
+  isProjectFirst,
+  mergeSnapshotsByProject,
+  partitionProjects,
+  projectPinKey,
+  setSidebarGrouping,
+  togglePinnedProjectKey,
+  usePinnedProjects,
+  useSidebarGrouping,
+  type ProjectSections,
+  type SidebarGrouping,
+} from "../sidebarProjectFirst";
 import { environmentServerConfigsAtom, primaryServerKeybindingsAtom } from "../state/server";
 import {
   derivePhysicalProjectKey,
@@ -230,6 +256,7 @@ import {
   buildSidebarProjectSnapshots,
   type SidebarProjectGroupMember,
   type SidebarProjectSnapshot,
+  resolveSidebarProjectScopeKey,
 } from "../sidebarProjectGrouping";
 import { presentThreadShell } from "@t3tools/client-runtime/state/shell";
 import { useArchivedThreadSnapshots } from "../lib/archivedThreadsState";
@@ -409,6 +436,9 @@ function checkTaskPermission(environmentId: EnvironmentId): boolean {
   );
   return false;
 }
+/** Thread key -> model label; only provided in the project-first view, where rows show a model chip. */
+const ThreadProviderLabelContext = createContext<ReadonlyMap<string, string> | null>(null);
+const MORE_PROJECTS_EXPANSION_KEY = "project-first:more";
 const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowProps) {
   const {
     orderedProjectThreadKeys,
@@ -441,6 +471,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
   const canOperatePreview = useEnvironmentScope(thread.environmentId, AuthPreviewOperateScope);
   const threadRef = scopeThreadRef(thread.environmentId, thread.id);
   const threadKey = scopedThreadKey(threadRef);
+  const providerChipLabel = useContext(ThreadProviderLabelContext)?.get(threadKey);
   const movedTo = useThreadPlacementStore((state) => state.placements[threadKey]);
   const originalWorkspace = useThreadMove().workspacePath(threadKey);
   const [isFileDragOver, setIsFileDragOver] = useState(false);
@@ -852,7 +883,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
               onPointerDown={(event) => event.stopPropagation()}
               onClick={handlePrClick}
               className={"text-muted-foreground"}
-              aria-label={uiText("PR #{0}, status pending", {"0": currentLinkedPr.number})}
+              aria-label={uiText("PR #{0}, status pending", { "0": currentLinkedPr.number })}
             >
               <PullRequestGlyph.pullRequest className={"size-3"} />
             </a>
@@ -891,6 +922,16 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
               <TooltipPopup side={"top"}>{thread.title}</TooltipPopup>
             </Tooltip>
           )}
+          {providerChipLabel ? (
+            <span
+              // Real 10px: text-3xs resolves to 8.75px against the 14px root font size.
+              // oxlint-disable-next-line shadcn/no-arbitrary-values
+              className={"shrink-0 text-[10px] text-muted-foreground"}
+              data-testid={`thread-provider-${thread.id}`}
+            >
+              {providerChipLabel}
+            </span>
+          ) : null}
         </div>
         <div className={"ml-auto flex shrink-0 items-center gap-1.5"}>
           {canOperatePreview && discoveredPorts.length > 0 && (
@@ -948,7 +989,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                 type={"button"}
                 data-thread-selection-safe
                 data-testid={`thread-archive-confirm-${thread.id}`}
-                aria-label={uiText("Confirm archive {0}", {"0": thread.title})}
+                aria-label={uiText("Confirm archive {0}", { "0": thread.title })}
                 className={
                   "absolute top-1/2 right-1 inline-flex h-5 -translate-y-1/2 cursor-pointer items-center rounded-md bg-destructive/12 px-2 text-3xs font-medium text-destructive transition-colors hover:bg-destructive/18 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-destructive/40"
                 }
@@ -968,7 +1009,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                     type={"button"}
                     data-thread-selection-safe
                     data-testid={`thread-archive-${thread.id}`}
-                    aria-label={uiText("Archive {0}", {"0": thread.title})}
+                    aria-label={uiText("Archive {0}", { "0": thread.title })}
                     className={SIDEBAR_ICON_ACTION_BUTTON_CLASS}
                     onPointerDown={stopPropagationOnPointerDown}
                     onClick={handleStartArchiveConfirmation}
@@ -989,7 +1030,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                           type={"button"}
                           data-thread-selection-safe
                           data-testid={`thread-archive-${thread.id}`}
-                          aria-label={uiText("Archive {0}", {"0": thread.title})}
+                          aria-label={uiText("Archive {0}", { "0": thread.title })}
                           className={SIDEBAR_ICON_ACTION_BUTTON_CLASS}
                           onPointerDown={stopPropagationOnPointerDown}
                           onClick={handleArchiveImmediateClick}
@@ -2039,6 +2080,9 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
             ),
           };
         };
+        const pinKey = projectPinKey(project);
+        const isPinned = getPinnedProjects().some((entry) => entry.key === pinKey);
+        actionHandlers.set("toggle-pinned", () => togglePinnedProjectKey(pinKey));
         const stickyIdentities = useStickyProjectsStore.getState().identities;
         const isSticky = isProjectSticky(stickyIdentities, project);
         actionHandlers.set("toggle-sticky", () => {
@@ -2052,6 +2096,9 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
         });
         const clicked = await api.contextMenu.show(
           [
+            ...(isProjectFirst(project)
+              ? [{ id: "toggle-pinned", label: isPinned ? "取消置顶" : "置顶" }]
+              : []),
             {
               id: "toggle-sticky",
               label: isSticky ? "取消常驻项目" : "设为常驻项目",
@@ -2086,8 +2133,7 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       openProjectGroupingDialog,
       openMemberSettings,
       openProjectRenameDialog,
-      project.groupedProjectCount,
-      project.memberProjects,
+      project,
       suppressProjectClickForContextMenuRef,
     ],
   );
@@ -2918,13 +2964,15 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
             <DialogTitle>{uiText("Rename project")}</DialogTitle>
             <DialogDescription>
               {projectRenameTarget
-                ? uiText("Update the title for {0}.", {"0": projectRenameTarget.workspaceRoot})
+                ? uiText("Update the title for {0}.", { "0": projectRenameTarget.workspaceRoot })
                 : uiText("Update the project title.")}
             </DialogDescription>
           </DialogHeader>
           <DialogPanel>
             <div className={"grid gap-1.5"}>
-              <span className={"text-xs font-medium text-foreground"}>{uiText("Project title")}</span>
+              <span className={"text-xs font-medium text-foreground"}>
+                {uiText("Project title")}
+              </span>
               <Input
                 aria-label={uiText("Project title")}
                 disabled={!canRenameProject}
@@ -2982,7 +3030,9 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
           </DialogHeader>
           <DialogPanel>
             <div className={"grid gap-1.5"}>
-              <span className={"text-xs font-medium text-foreground"}>{uiText("Grouping rule")}</span>
+              <span className={"text-xs font-medium text-foreground"}>
+                {uiText("Grouping rule")}
+              </span>
               <Select
                 value={projectGroupingSelection}
                 onValueChange={(value) => {
@@ -3125,6 +3175,8 @@ type SortableProjectHandleProps = Pick<
   "attributes" | "listeners" | "setActivatorNodeRef"
 >;
 function ProjectSortMenu({
+  grouping,
+  onGroupingChange,
   projectSortOrder,
   threadSortOrder,
   threadPreviewCount,
@@ -3132,6 +3184,8 @@ function ProjectSortMenu({
   onThreadSortOrderChange,
   onThreadPreviewCountChange,
 }: {
+  grouping: SidebarGrouping;
+  onGroupingChange: (grouping: SidebarGrouping) => void;
   projectSortOrder: SidebarProjectSortOrder;
   threadSortOrder: SidebarThreadSortOrder;
   threadPreviewCount: SidebarThreadPreviewCount;
@@ -3158,7 +3212,11 @@ function ProjectSortMenu({
           render={
             <MenuTrigger
               render={
-                <Button size={"icon-xs"} variant={"ghost-muted"} aria-label={uiText("Sidebar options")} />
+                <Button
+                  size={"icon-xs"}
+                  variant={"ghost-muted"}
+                  aria-label={uiText("Sidebar options")}
+                />
               }
             />
           }
@@ -3170,6 +3228,18 @@ function ProjectSortMenu({
       <MenuPopup align={"end"} side={"bottom"}>
         <MenuGroup>
           <div className={"px-2 py-1 sm:text-xs font-medium text-muted-foreground"}>
+            {"分组方式"}
+          </div>
+          <MenuRadioGroup
+            value={grouping}
+            onValueChange={(value) => onGroupingChange(value as SidebarGrouping)}
+          >
+            <MenuRadioItem value={"project"}>{"按项目"}</MenuRadioItem>
+            <MenuRadioItem value={"model"}>{"按模型"}</MenuRadioItem>
+          </MenuRadioGroup>
+        </MenuGroup>
+        <MenuGroup>
+          <div className={"px-2 pt-2 pb-1 sm:text-xs font-medium text-muted-foreground"}>
             {uiText("Sort projects")}
           </div>
           <MenuRadioGroup
@@ -3304,6 +3374,8 @@ interface SidebarProjectsContentProps {
   deleteThread: ReturnType<typeof useThreadActions>["deleteThread"];
   markThreadUnread: ReturnType<typeof useThreadActions>["markThreadUnread"];
   sortedProjects: readonly SidebarProjectSnapshot[];
+  projectSections: ProjectSections | null;
+  sidebarGrouping: SidebarGrouping;
   expandedThreadListsByProject: ReadonlySet<string>;
   routeThreadKey: string | null;
   openPullRequestsInRightPanel: boolean;
@@ -3368,6 +3440,60 @@ function ProviderProjectSection({
     </section>
   );
 }
+function ProjectListSection({
+  label,
+  projects,
+  children,
+}: {
+  label: string;
+  projects: readonly SidebarProjectSnapshot[];
+  children: React.ReactNode;
+}) {
+  return (
+    <section className={"mb-2"} aria-label={label}>
+      <div className={"px-2 py-1 text-xs font-medium text-sidebar-muted-foreground/80"}>
+        {label}
+      </div>
+      {children}
+      {projects.length === 0 ? (
+        <p className={"px-3 py-2 text-xs text-muted-foreground"}>{"暂无项目"}</p>
+      ) : null}
+    </section>
+  );
+}
+function MoreProjectsSection({
+  projects,
+  routeThreadKey,
+  children,
+}: {
+  projects: readonly SidebarProjectSnapshot[];
+  routeThreadKey: string | null;
+  children: React.ReactNode;
+}) {
+  const stored = useUiStateStore((state) => state.projectExpandedById[MORE_PROJECTS_EXPANSION_KEY]);
+  const setExpanded = useUiStateStore((state) => state.setProjectExpanded);
+  // A thread opened from search or a link must not hide inside a collapsed section.
+  const holdsActiveThread =
+    routeThreadKey !== null &&
+    projects.some((project) => project.providerThreadKeys?.has(routeThreadKey));
+  const expanded = stored ?? holdsActiveThread;
+  return (
+    <section className={"mb-2"} aria-label={"更多项目"}>
+      <button
+        type={"button"}
+        className={
+          "flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-sidebar-muted-foreground hover:bg-accent"
+        }
+        aria-expanded={expanded}
+        onClick={() => setExpanded([MORE_PROJECTS_EXPANSION_KEY], !expanded)}
+      >
+        <ChevronRightIcon className={cn("size-3.5", expanded && "rotate-90")} />
+        <span>{`更多项目 ${projects.length}`}</span>
+      </button>
+      {expanded ? children : null}
+    </section>
+  );
+}
 const SidebarProjectsContent = memo(function SidebarProjectsContent(
   props: SidebarProjectsContentProps,
 ) {
@@ -3396,6 +3522,8 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
     deleteThread,
     markThreadUnread,
     sortedProjects,
+    projectSections,
+    sidebarGrouping,
     expandedThreadListsByProject,
     routeThreadKey,
     openPullRequestsInRightPanel,
@@ -3435,6 +3563,38 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
     },
     [updateSettings],
   );
+  const renderProjectItem = (project: SidebarProjectSnapshot, dragDisabled: boolean) => (
+    <SortableProjectItem
+      key={project.projectKey}
+      projectId={project.projectKey}
+      disabled={dragDisabled || !isManualProjectSorting}
+    >
+      {(dragHandleProps) => (
+        <SidebarProjectItem
+          project={project}
+          isThreadListExpanded={expandedThreadListsByProject.has(project.projectKey)}
+          activeRouteThreadKey={
+            project.providerThreadKeys?.has(routeThreadKey ?? "") ? routeThreadKey : null
+          }
+          openPullRequestsInRightPanel={openPullRequestsInRightPanel}
+          newThreadShortcutLabel={newThreadShortcutLabel}
+          handleNewThread={handleNewThread}
+          archiveThread={archiveThread}
+          deleteThread={deleteThread}
+          markThreadUnread={markThreadUnread}
+          threadJumpLabelByKey={threadJumpLabelByKey}
+          attachThreadListAutoAnimateRef={attachThreadListAutoAnimateRef}
+          expandThreadListForProject={expandThreadListForProject}
+          collapseThreadListForProject={collapseThreadListForProject}
+          dragInProgressRef={dragInProgressRef}
+          suppressProjectClickAfterDragRef={suppressProjectClickAfterDragRef}
+          suppressProjectClickForContextMenuRef={suppressProjectClickForContextMenuRef}
+          isManualProjectSorting={isManualProjectSorting}
+          dragHandleProps={!dragDisabled && isManualProjectSorting ? dragHandleProps : null}
+        />
+      )}
+    </SortableProjectItem>
+  );
   return (
     <SidebarContent
       fixedHeader={
@@ -3447,10 +3607,14 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
                 render={<SidebarMenuButton data-testid={"command-palette-trigger"} />}
               >
                 <SearchIcon />
-                <span className={"flex-1 truncate"}>{"\u641C\u7D22"}</span>
+                <span className={"flex-1 truncate"}>{"搜索项目、会话…"}</span>
                 {commandPaletteShortcutLabel ? <Kbd>{commandPaletteShortcutLabel}</Kbd> : null}
               </CommandDialogTrigger>
-              <SidebarMenuButton size="icon" aria-label="新建任务" onClick={() => openCommandPalette({ open: "new-thread-in" })}>
+              <SidebarMenuButton
+                size="icon"
+                aria-label="新建任务"
+                onClick={() => openCommandPalette({ open: "new-thread-in" })}
+              >
                 <SquarePenIcon />
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -3486,10 +3650,12 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
       <SidebarGroup>
         <div className={"mb-1 flex items-center justify-between pl-2 pr-1.5"}>
           <span className={"text-xs font-medium text-sidebar-muted-foreground/80"}>
-            {"\u6A21\u578B / \u9879\u76EE"}
+            {sidebarGrouping === "project" ? "项目" : "\u6A21\u578B / \u9879\u76EE"}
           </span>
           <div className={"flex items-center gap-0.5"}>
             <ProjectSortMenu
+              grouping={sidebarGrouping}
+              onGroupingChange={setSidebarGrouping}
               projectSortOrder={projectSortOrder}
               threadSortOrder={threadSortOrder}
               threadPreviewCount={threadPreviewCount}
@@ -3536,75 +3702,67 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
           onDragEnd={handleProjectDragEnd}
           onDragCancel={handleProjectDragCancel}
         >
-          {[
-            ...new Set([
-              "Codex",
-              "Claude",
-              ...sortedProjects.map((project) => project.providerLabel ?? "其他"),
-            ]),
-          ].map((provider) => {
-            const providerProjects = sortedProjects.filter(
-              (project) => project.providerLabel === provider,
-            );
-            return (
-              <ProviderProjectSection
-                key={provider}
-                provider={provider}
-                projectCount={providerProjects.length}
-                threadKeys={
-                  new Set(
-                    providerProjects.flatMap((project) => [...(project.providerThreadKeys ?? [])]),
-                  )
-                }
-              >
+          {projectSections ? (
+            <>
+              {projectSections.pinned.length > 0 ? (
+                <ProjectListSection label={"置顶"} projects={projectSections.pinned}>
+                  <SidebarMenu ref={attachProjectListAutoAnimateRef}>
+                    {projectSections.pinned.map((project) => renderProjectItem(project, true))}
+                  </SidebarMenu>
+                </ProjectListSection>
+              ) : null}
+              <ProjectListSection label={"最近"} projects={projectSections.recent}>
                 <SidebarMenu ref={attachProjectListAutoAnimateRef}>
-                  <SortableContext
-                    items={providerProjects.map((project) => project.projectKey)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {providerProjects.map((project) => (
-                      <SortableProjectItem
-                        key={project.projectKey}
-                        projectId={project.projectKey}
-                        disabled={!isManualProjectSorting}
-                      >
-                        {(dragHandleProps) => (
-                          <SidebarProjectItem
-                            project={project}
-                            isThreadListExpanded={expandedThreadListsByProject.has(
-                              project.projectKey,
-                            )}
-                            activeRouteThreadKey={
-                              project.providerThreadKeys?.has(routeThreadKey ?? "")
-                                ? routeThreadKey
-                                : null
-                            }
-                            openPullRequestsInRightPanel={openPullRequestsInRightPanel}
-                            newThreadShortcutLabel={newThreadShortcutLabel}
-                            handleNewThread={handleNewThread}
-                            archiveThread={archiveThread}
-                            deleteThread={deleteThread}
-                            markThreadUnread={markThreadUnread}
-                            threadJumpLabelByKey={threadJumpLabelByKey}
-                            attachThreadListAutoAnimateRef={attachThreadListAutoAnimateRef}
-                            expandThreadListForProject={expandThreadListForProject}
-                            collapseThreadListForProject={collapseThreadListForProject}
-                            dragInProgressRef={dragInProgressRef}
-                            suppressProjectClickAfterDragRef={suppressProjectClickAfterDragRef}
-                            suppressProjectClickForContextMenuRef={
-                              suppressProjectClickForContextMenuRef
-                            }
-                            isManualProjectSorting={isManualProjectSorting}
-                            dragHandleProps={isManualProjectSorting ? dragHandleProps : null}
-                          />
-                        )}
-                      </SortableProjectItem>
-                    ))}
-                  </SortableContext>
+                  {projectSections.recent.map((project) => renderProjectItem(project, true))}
                 </SidebarMenu>
-              </ProviderProjectSection>
-            );
-          })}
+              </ProjectListSection>
+              {projectSections.more.length > 0 ? (
+                <MoreProjectsSection
+                  projects={projectSections.more}
+                  routeThreadKey={routeThreadKey}
+                >
+                  <SidebarMenu>
+                    {projectSections.more.map((project) => renderProjectItem(project, true))}
+                  </SidebarMenu>
+                </MoreProjectsSection>
+              ) : null}
+            </>
+          ) : (
+            [
+              ...new Set([
+                "Codex",
+                "Claude",
+                ...sortedProjects.map((project) => project.providerLabel ?? "其他"),
+              ]),
+            ].map((provider) => {
+              const providerProjects = sortedProjects.filter(
+                (project) => project.providerLabel === provider,
+              );
+              return (
+                <ProviderProjectSection
+                  key={provider}
+                  provider={provider}
+                  projectCount={providerProjects.length}
+                  threadKeys={
+                    new Set(
+                      providerProjects.flatMap((project) => [
+                        ...(project.providerThreadKeys ?? []),
+                      ]),
+                    )
+                  }
+                >
+                  <SidebarMenu ref={attachProjectListAutoAnimateRef}>
+                    <SortableContext
+                      items={providerProjects.map((project) => project.projectKey)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {providerProjects.map((project) => renderProjectItem(project, false))}
+                    </SortableContext>
+                  </SidebarMenu>
+                </ProviderProjectSection>
+              );
+            })
+          )}
         </DndContext>
         {projectsLength === 0 && (
           <div className={"px-2 pt-4 text-center text-secondary-label text-xs"}>
@@ -3948,7 +4106,7 @@ export default function LegacySidebar() {
   }, [navigate]);
   const providerConfigs = useAtomValue(environmentServerConfigsAtom);
   const placements = useThreadPlacementStore((state) => state.placements);
-  const sortedProjects = useMemo(
+  const providerSortedProjects = useMemo(
     () =>
       groupSidebarWithSubtasks(
         ungroupedSortedProjects,
@@ -3958,13 +4116,65 @@ export default function LegacySidebar() {
       ),
     [ungroupedSortedProjects, sidebarThreads, providerConfigs, placements],
   );
+  const sidebarGrouping = useSidebarGrouping();
+  const pinnedProjects = usePinnedProjects();
   const isManualProjectSorting = sidebarProjectSortOrder === "manual";
+  // Project rows only age out by the clock, so a slow tick is enough to move one into "more".
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 10 * 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const projectSections: ProjectSections | null = (() => {
+    if (sidebarGrouping !== "project") return null;
+    const merged = mergeSnapshotsByProject(providerSortedProjects);
+    const activityByThreadKey = new Map<string, number>();
+    // The same clock the thread rows show ("20天"): the latest user message.
+    for (const thread of sidebarThreads) {
+      const timestamp = getThreadSortTimestamp(thread, "updated_at");
+      if (Number.isFinite(timestamp))
+        activityByThreadKey.set(
+          scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)),
+          timestamp,
+        );
+    }
+    const lastActivityByKey = new Map(
+      merged.map((project) => {
+        let latest = 0;
+        for (const key of project.providerThreadKeys ?? [])
+          latest = Math.max(latest, activityByThreadKey.get(key) ?? 0);
+        return [project.projectKey, latest] as const;
+      }),
+    );
+    return partitionProjects({
+      projects: merged,
+      pinned: pinnedProjects,
+      lastActivityByKey,
+      now,
+      sortByActivity: !isManualProjectSorting,
+    });
+  })();
+  const sortedProjects = projectSections
+    ? [...projectSections.pinned, ...projectSections.recent, ...projectSections.more]
+    : providerSortedProjects;
+  const threadProviderLabels = projectSections
+    ? new Map(
+        sidebarThreads.map(
+          (thread) =>
+            [
+              scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)),
+              threadProviderLabel(providerConfigs, thread),
+            ] as const,
+        ),
+      )
+    : null;
   const acknowledgedErrors = useWorkbenchInboxStore((state) => state.acknowledgedErrors);
   const visibleSidebarThreadKeys = useMemo(
     () =>
       sortedProjects.flatMap((project) => {
         if (
           project.providerLabel &&
+          !isProjectFirst(project) &&
           !(
             projectExpandedById[providerExpansionKey(project.providerLabel)] ??
             ["Codex", "Claude"].includes(project.providerLabel)
@@ -4298,6 +4508,51 @@ export default function LegacySidebar() {
     );
     return project?.projectKey ?? null;
   }, [routeThreadRef, sidebarThreads, sidebarProjects]);
+  // Jumping to a project from search (or elsewhere) asks the sidebar to show it: open its row, and
+  // the "more projects" section when it sits there. The request is consumed so a repeat works too.
+  const requestedScopeKey = useUiStateStore((state) => state.sidebarProjectScopeKey);
+  const setSidebarProjectScopeKey = useUiStateStore((state) => state.setSidebarProjectScopeKey);
+  useEffect(() => {
+    if (requestedScopeKey === null) return;
+    const resolvedKey = resolveSidebarProjectScopeKey({
+      groups: sidebarProjects,
+      key: requestedScopeKey,
+      settings: projectGroupingSettings,
+    });
+    const targets = sortedProjects.filter(
+      (project) => (project.sourceProjectKey ?? project.projectKey) === resolvedKey,
+    );
+    if (targets.length > 0) {
+      setProjectExpanded(
+        [
+          ...(projectSections?.more.some((project) => targets.includes(project))
+            ? [MORE_PROJECTS_EXPANSION_KEY]
+            : []),
+          ...targets.flatMap((project) => [
+            project.projectKey,
+            ...(project.providerLabel && !isProjectFirst(project)
+              ? [providerExpansionKey(project.providerLabel)]
+              : []),
+          ]),
+        ],
+        true,
+      );
+      setTimeout(() => {
+        document
+          .querySelector(`[data-project-item="${globalThis.CSS.escape(targets[0]!.projectKey)}"]`)
+          ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }, 50);
+    }
+    setSidebarProjectScopeKey(null);
+  }, [
+    requestedScopeKey,
+    sidebarProjects,
+    projectGroupingSettings,
+    sortedProjects,
+    projectSections,
+    setProjectExpanded,
+    setSidebarProjectScopeKey,
+  ]);
   const handleLocateProject = useCallback(
     (projectKey: string, expandAllThreads = false) => {
       {
@@ -4340,59 +4595,63 @@ export default function LegacySidebar() {
           threads={sidebarThreads}
           revealProject={expandThreadListForProject}
         >
-          <SidebarProjectsContent
-            workbenchInbox={
-              <WorkbenchInbox
-                threads={sidebarThreads}
-                projects={sortedProjects}
-                activeKey={routeThreadKey}
-                navigate={navigateToThread}
-              />
-            }
-            openArchivedHistory={openArchivedHistory}
-            showArm64IntelBuildWarning={showArm64IntelBuildWarning}
-            arm64IntelBuildWarningDescription={arm64IntelBuildWarningDescription}
-            desktopUpdateButtonAction={desktopUpdateButtonAction}
-            desktopUpdateButtonDisabled={desktopUpdateButtonDisabled}
-            desktopUpdateActionPending={desktopUpdateActionPending}
-            handleDesktopUpdateButtonClick={handleDesktopUpdateButtonClick}
-            projectSortOrder={sidebarProjectSortOrder}
-            threadSortOrder={sidebarThreadSortOrder}
-            threadPreviewCount={sidebarThreadPreviewCount}
-            updateSettings={updateSettings}
-            openAddProject={openAddProjectCommandPalette}
-            isManualProjectSorting={isManualProjectSorting}
-            projectDnDSensors={projectDnDSensors}
-            projectCollisionDetection={projectCollisionDetection}
-            handleProjectDragStart={handleProjectDragStart}
-            handleProjectDragEnd={handleProjectDragEnd}
-            handleProjectDragCancel={handleProjectDragCancel}
-            handleNewThread={handleNewThread}
-            archiveThread={archiveThread}
-            deleteThread={deleteThread}
-            markThreadUnread={markThreadUnread}
-            sortedProjects={sortedProjects}
-            expandedThreadListsByProject={expandedThreadListsByProject}
-            routeThreadKey={routeThreadKey}
-            openPullRequestsInRightPanel={routeThreadRef !== null}
-            newThreadShortcutLabel={newThreadShortcutLabel}
-            commandPaletteShortcutLabel={commandPaletteShortcutLabel}
-            threadJumpLabelByKey={visibleThreadJumpLabelByKey}
-            attachThreadListAutoAnimateRef={attachThreadListAutoAnimateRef}
-            expandThreadListForProject={expandThreadListForProject}
-            collapseThreadListForProject={collapseThreadListForProject}
-            dragInProgressRef={dragInProgressRef}
-            suppressProjectClickAfterDragRef={suppressProjectClickAfterDragRef}
-            suppressProjectClickForContextMenuRef={suppressProjectClickForContextMenuRef}
-            attachProjectListAutoAnimateRef={attachProjectListAutoAnimateRef}
-            projectsLength={projects.length}
-            sidebarProjects={sidebarProjects}
-            threadsByProjectKey={threadsByProjectKey}
-            activeProjectKey={activeProjectKey}
-            navigateToThread={navigateToThread}
-            handleLocateProject={handleLocateProject}
-            isMobile={isMobile}
-          />
+          <ThreadProviderLabelContext.Provider value={threadProviderLabels}>
+            <SidebarProjectsContent
+              workbenchInbox={
+                <WorkbenchInbox
+                  threads={sidebarThreads}
+                  projects={providerSortedProjects}
+                  activeKey={routeThreadKey}
+                  navigate={navigateToThread}
+                />
+              }
+              openArchivedHistory={openArchivedHistory}
+              showArm64IntelBuildWarning={showArm64IntelBuildWarning}
+              arm64IntelBuildWarningDescription={arm64IntelBuildWarningDescription}
+              desktopUpdateButtonAction={desktopUpdateButtonAction}
+              desktopUpdateButtonDisabled={desktopUpdateButtonDisabled}
+              desktopUpdateActionPending={desktopUpdateActionPending}
+              handleDesktopUpdateButtonClick={handleDesktopUpdateButtonClick}
+              projectSortOrder={sidebarProjectSortOrder}
+              threadSortOrder={sidebarThreadSortOrder}
+              threadPreviewCount={sidebarThreadPreviewCount}
+              updateSettings={updateSettings}
+              openAddProject={openAddProjectCommandPalette}
+              isManualProjectSorting={isManualProjectSorting}
+              projectDnDSensors={projectDnDSensors}
+              projectCollisionDetection={projectCollisionDetection}
+              handleProjectDragStart={handleProjectDragStart}
+              handleProjectDragEnd={handleProjectDragEnd}
+              handleProjectDragCancel={handleProjectDragCancel}
+              handleNewThread={handleNewThread}
+              archiveThread={archiveThread}
+              deleteThread={deleteThread}
+              markThreadUnread={markThreadUnread}
+              sortedProjects={sortedProjects}
+              projectSections={projectSections}
+              sidebarGrouping={sidebarGrouping}
+              expandedThreadListsByProject={expandedThreadListsByProject}
+              routeThreadKey={routeThreadKey}
+              openPullRequestsInRightPanel={routeThreadRef !== null}
+              newThreadShortcutLabel={newThreadShortcutLabel}
+              commandPaletteShortcutLabel={commandPaletteShortcutLabel}
+              threadJumpLabelByKey={visibleThreadJumpLabelByKey}
+              attachThreadListAutoAnimateRef={attachThreadListAutoAnimateRef}
+              expandThreadListForProject={expandThreadListForProject}
+              collapseThreadListForProject={collapseThreadListForProject}
+              dragInProgressRef={dragInProgressRef}
+              suppressProjectClickAfterDragRef={suppressProjectClickAfterDragRef}
+              suppressProjectClickForContextMenuRef={suppressProjectClickForContextMenuRef}
+              attachProjectListAutoAnimateRef={attachProjectListAutoAnimateRef}
+              projectsLength={projects.length}
+              sidebarProjects={sidebarProjects}
+              threadsByProjectKey={threadsByProjectKey}
+              activeProjectKey={activeProjectKey}
+              navigateToThread={navigateToThread}
+              handleLocateProject={handleLocateProject}
+              isMobile={isMobile}
+            />
+          </ThreadProviderLabelContext.Provider>
         </ThreadMoveProvider>
       </SidebarSubtasksContext.Provider>
       <SidebarChromeFooter />

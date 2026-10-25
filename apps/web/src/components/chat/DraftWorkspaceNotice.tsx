@@ -6,7 +6,7 @@ import { useClientSettings } from "../../hooks/useSettings";
 import { selectProjectGroupingSettings } from "../../logicalProject";
 import { buildSidebarProjectSnapshots } from "../../sidebarProjectGrouping";
 import {
-  compactWorkspacePath,
+  workspaceFolderName,
   projectMemberMenu,
   rememberDefaultMember,
 } from "../../projectMemberSelection";
@@ -92,7 +92,7 @@ export function DraftWorkspaceNotice({
     >
       <Tooltip>
         <TooltipTrigger render={<span className="min-w-0 truncate" />}>
-          在 {compactWorkspacePath(workspacePath)} 中运行
+          在 {workspaceFolderName(workspacePath)} 中运行
         </TooltipTrigger>
         <TooltipPopup>{workspacePath}</TooltipPopup>
       </Tooltip>

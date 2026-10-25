@@ -34,6 +34,7 @@ import {
 import { useLoadBalancedEnvironment } from "../hooks/useLoadBalancedEnvironment";
 import { useLogicalProjectEnvironments } from "../hooks/useLogicalProjectEnvironments";
 import { useScratchProject } from "../hooks/useScratchProject";
+import { onToggleThreadPanelRequest } from "../threadPanelBus";
 import { useStableCallback } from "../hooks/useStableCallback";
 import { useProjectScriptEditing } from "./chat/useProjectScriptEditing";
 import { RightPanelSurfaceContent } from "./chat/RightPanelSurfaceContent";
@@ -720,7 +721,7 @@ async function startFanoutThread(input: {
     const failureToastId = toastManager.add(
       stackedThreadToast({
         type: "error",
-        title: uiText("Could not start {0}", {"0": input.model}),
+        title: uiText("Could not start {0}", { "0": input.model }),
         description: error instanceof Error ? error.message : "Failed to send message.",
         ...(retainedThreadId
           ? {
@@ -1344,7 +1345,9 @@ export default function ChatView(props: ChatViewProps) {
       toastManager.add({
         type: "warning",
         title: uiText("The composer is not ready"),
-        description: uiText("Try citing the selection after the connection or pending input is resolved."),
+        description: uiText(
+          "Try citing the selection after the connection or pending input is resolved.",
+        ),
       });
     }
     return inserted;
@@ -1918,7 +1921,7 @@ export default function ChatView(props: ChatViewProps) {
         variant: "info",
         priority: "activity",
         icon: <DownloadIcon />,
-        title: uiText("Cloning {0}", {"0": name}),
+        title: uiText("Cloning {0}", { "0": name }),
         description: projectCloneProgressSummary(activeProjectClone),
         actions: (
           <Button
@@ -2339,7 +2342,10 @@ export default function ChatView(props: ChatViewProps) {
         id: `environment-unavailable:${activeEnvironmentUnavailableState.environmentId}`,
         variant: unavailableConnection.phase === "error" ? "error" : "warning",
         icon: <WifiOffIcon />,
-        title: uiText("{0} is {1}", {"0": activeEnvironmentUnavailableState.label, "1": environmentReconnecting ? "reconnecting" : "offline"}),
+        title: uiText("{0} is {1}", {
+          "0": activeEnvironmentUnavailableState.label,
+          "1": environmentReconnecting ? "reconnecting" : "offline",
+        }),
         description: activeEnvironment ? (
           <ConnectionDiagnosisHeadline environment={activeEnvironment} />
         ) : undefined,
@@ -3283,8 +3289,9 @@ export default function ChatView(props: ChatViewProps) {
         type: "warning",
         id: "load-balancing-attachments",
         title: uiText("Keep attachments on this machine"),
-        description:
-          uiText("Remove attachments before choosing automatic routing, then attach them on the selected machine."),
+        description: uiText(
+          "Remove attachments before choosing automatic routing, then attach them on the selected machine.",
+        ),
       });
       return;
     }
@@ -3974,6 +3981,7 @@ export default function ChatView(props: ChatViewProps) {
     useRightPanelStore.getState().toggleThreadPanel(activeThreadRef, threadPanelPresentation);
   };
   const toggleThreadPanelStable = useStableCallback(toggleThreadPanel);
+  useEffect(() => onToggleThreadPanelRequest(toggleThreadPanelStable), [toggleThreadPanelStable]);
   useEffect(() => {
     if (!canMaximizeRightPanel) return;
     if (useRightPanelStore.getState().consumeMaximizeRequest(routeThreadRef)) {
@@ -5414,7 +5422,11 @@ export default function ChatView(props: ChatViewProps) {
   const threadStatusLine = activeThreadSnoozed ? (
     <ThreadStatusLine
       icon={<AlarmClockIcon />}
-      label={snoozedUntil ? uiText("Snoozed, {0}", {"0": formatRelativeTimeUntilLabel(snoozedUntil)}) : uiText("Snoozed")}
+      label={
+        snoozedUntil
+          ? uiText("Snoozed, {0}", { "0": formatRelativeTimeUntilLabel(snoozedUntil) })
+          : uiText("Snoozed")
+      }
       clockMinute={nowMinute}
       actionLabel={isUnsnoozing ? "Waking..." : "Wake now"}
       actionDisabled={!canOperateThread || isUnsnoozing}
@@ -5423,7 +5435,11 @@ export default function ChatView(props: ChatViewProps) {
   ) : activeThreadSettled ? (
     <ThreadStatusLine
       icon={<CheckCircle2Icon />}
-      label={settledAt ? uiText("Settled {0}", {"0": formatRelativeTimeLabel(settledAt)}) : uiText("Settled")}
+      label={
+        settledAt
+          ? uiText("Settled {0}", { "0": formatRelativeTimeLabel(settledAt) })
+          : uiText("Settled")
+      }
       clockMinute={nowMinute}
       actionLabel={isUnsettling ? "Un-settling..." : "Un-settle"}
       actionDisabled={!canOperateThread || isUnsettling}
@@ -6007,7 +6023,7 @@ export default function ChatView(props: ChatViewProps) {
         sourceThreadId: input.sourceThreadId,
         targetThreadId,
         runId: input.runId,
-        title: uiText("{0} fork", {"0": activeThread.title}),
+        title: uiText("{0} fork", { "0": activeThread.title }),
       },
     });
     if (result._tag === "Failure") {
@@ -6146,7 +6162,9 @@ export default function ChatView(props: ChatViewProps) {
         stackedThreadToast({
           type: "info",
           title: uiText("Annotation attached to draft"),
-          description: uiText("Sending is unavailable right now. Finish the current action, then send."),
+          description: uiText(
+            "Sending is unavailable right now. Finish the current action, then send.",
+          ),
         }),
       );
     };
@@ -6230,8 +6248,9 @@ export default function ChatView(props: ChatViewProps) {
         stackedThreadToast({
           type: "warning",
           title: uiText("Choose models and a base branch"),
-          description:
-            uiText("Multiple models need a new thread in a Git project. Each gets its own worktree."),
+          description: uiText(
+            "Multiple models need a new thread in a Git project. Each gets its own worktree.",
+          ),
         }),
       );
       return;
@@ -6844,7 +6863,10 @@ export default function ChatView(props: ChatViewProps) {
           toastManager.add(
             stackedThreadToast({
               type: "success",
-              title: uiText("Started {0} {1} in background", {"0": startedCount, "1": startedCount === 1 ? "thread" : "threads"}),
+              title: uiText("Started {0} {1} in background", {
+                "0": startedCount,
+                "1": startedCount === 1 ? "thread" : "threads",
+              }),
             }),
           );
         }
@@ -6894,8 +6916,9 @@ export default function ChatView(props: ChatViewProps) {
             stackedThreadToast({
               type: "error",
               title: uiText("A background prompt could not be sent"),
-              description:
-                uiText("Your newer draft is unchanged. Restore the failed prompt when this composer is empty."),
+              description: uiText(
+                "Your newer draft is unchanged. Restore the failed prompt when this composer is empty.",
+              ),
               timeout: 0,
               actionProps: {
                 children: "Restore prompt",
@@ -6909,8 +6932,9 @@ export default function ChatView(props: ChatViewProps) {
                     )
                   ) {
                     toastManager.update(recoveryToastId, {
-                      description:
-                        uiText("Return to the original draft and send or clear its current prompt before restoring."),
+                      description: uiText(
+                        "Return to the original draft and send or clear its current prompt before restoring.",
+                      ),
                     });
                     return;
                   }
@@ -8670,7 +8694,9 @@ export default function ChatView(props: ChatViewProps) {
                   if (!activeThreadRef) return false;
                   const inserted = composerRef.current?.insertTextAtCursor(text) ?? false;
                   if (inserted) {
-                    useRightPanelStore.getState().setThreadPanelOpen(activeThreadRef, "popover", false);
+                    useRightPanelStore
+                      .getState()
+                      .setThreadPanelOpen(activeThreadRef, "popover", false);
                     scheduleComposerFocus();
                   }
                   return inserted;

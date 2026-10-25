@@ -1,35 +1,47 @@
 # T3 Code · 小新定制版
 
-基于 [T3 Code](https://github.com/pingdotgg/t3code) **官方 v0.1.1** 的个人定制分支。当前推荐 **C11 · 2026-10-24**，包含中文界面、成果面板、跨模型运行概览、续聊历史回看及额度常显。
+把多模型会话、项目导航与制作成果放进一个更顺手的工作台。基于 [T3 Code](https://github.com/pingdotgg/t3code) **官方 v0.1.1**，当前推荐 **C13 · 2026-10-26 分享版**，对应本机 2026-10-25 安装的 C13 r5。
 
-**[下载当前推荐版本](https://github.com/labixiaoxins/t3code-artifact-wall/releases/latest)** · [安装与使用](docs/community/README.md) · [本版改动](docs/community/CHANGELOG.md)
+**[下载 macOS Apple 芯片版](https://github.com/labixiaoxins/t3code-artifact-wall/releases/latest)** · [安装与使用](docs/community/README.md) · [改版特点与官方基线对照](docs/community/FEATURES.md) · [更新记录](docs/community/CHANGELOG.md)
 
-这是独立社区分支，不代表 T3 Tools。下载包是工作台软件，**不含账号、订阅、API 密钥、聊天、项目、私人模型通道或配对凭据**。使用者需登录自己的模型账号，遵守对应平台规则。
+![T3 Code C13 浅色完整界面展示模板](assets/community/c13/workbench-light.svg)
 
-## 当前功能
+*完整界面展示模板：项目、会话、产物、进度与额度均为虚构示例，非生产截图。布局依据 C13 实现整理。*
 
-- **任务概览**：侧栏顶部“正在进行”汇总跨模型任务及子任务；最近访问、历史与归档、项目工具收进明确入口。
-- **成果与历史**：成果面板、成果检查信息、续聊历史只读回看、草稿持久化与恢复提示。
-- **额度常显**：聊天顶部显示主要账号的剩余额度，可选账号、窗口与顺序，默认 3 项、最多 4 项。只显示提供方实际支持的数据，无接口或失败时不伪造余额。
-- **保留修复**：设置页大段留白修复、时间线及右面板切换 React #301 修复、中英文界面与导航优化。
+## 这次改版，解决哪些日常麻烦？
 
-## 直接使用
+- **按项目找工作。** 默认把同一项目分类下不同模型的会话放在一起，模型保留为小标签；支持置顶、最近、更多项目，也能切回按模型分组。
+- **中文项目更好找。** 按 ⌘K，先查项目，再查会话与消息；支持项目中文名、拼音全拼和首字母。例如展示项目“批量设计工具”可用 `plsj` 查找。
+- **产物直接看。** 图片缩略图、HTML 页面、文档与视频分开筛选；新增 MP4 / MOV / M4V / WebM 视频收录、时长与内联播放。实际可播放格式取决于编码和系统支持。
+- **右边按需展开。** “产物 / 续聊 / 项目”收进检查器，⌘⌥I 开关，记住上次标签，给主会话留出空间。
+- **界面更统一。** 浅深色玻璃质感侧栏、浮动面板、胶囊工具栏；修正字标对齐，缩短运行路径，补齐中文标题。用量页隐藏重复额度胶囊。
+- **保留此前的工作流。** 跨模型“正在进行”、待我处理、成果检查信息、续聊只读回看、草稿恢复及可配置额度常显继续保留。
+- **保留外部应用弹窗修复。** 防止后台或定时网页导航反复要求打开外部应用，并记住当前标签页中已取消的站点/协议提示。
 
-1. 在 [Releases](https://github.com/labixiaoxins/t3code-artifact-wall/releases/latest) 下载 `T3-Code-Xiaoxin-C11-macOS-arm64.zip`。当前仅提供 **Apple 芯片 Mac** 安装包，应用声明最低系统 macOS 13；没有 Windows、Intel Mac 或 Linux 安装包。
-2. 解压后将 `T3 Code (Alpha).app` 放入“应用程序”。已有 T3 请先按[升级说明](docs/community/README.md#已有-t3-如何升级)备份并完全退出旧版，只运行一份应用。
-3. 打开应用，在“设置 → 模型通道”连接自己的账号，再添加自己的项目。额度获取到可用数据后才会显示，可从聊天顶部额度入口打开“常显设置”。
+这些优势主要针对**中文、多项目、多模型、图文与视频制作**。模型能力、订阅额度和官方远程/移动端能力来自上游与提供方，不是本分支新增。[详细说明与边界](docs/community/FEATURES.md)。
 
-本包使用社区临时签名，**没有 Apple 开发者公证**。首次打开可能需要在“系统设置 → 隐私与安全性”确认“仍要打开”。签名完整性校验通过不代表 Apple 公证，不需要关闭系统整体安全检查。
+## 两套展示模板
 
-## 范围与限制
+![T3 Code C13 深色完整界面展示模板](assets/community/c13/workbench-dark.svg)
 
-- 这是本机已验收的 **C11 定制版**，不追踪最新 nightly。官方更新可能覆盖定制；本包不带官方自动更新配置，请从本仓库更新。
-- Codex、Claude、Grok、Antigravity 等额度取决于账号和提供方接口。Antigravity 可能是 Claude/GPT 共享周窗口，不是 Gemini 独享余额。APIyi、WorkBuddy、豆包没有通用余额覆盖。
-- “常驻项目”按项目工作区提供；未包含此前未安装的 C6 单项常驻试验。T3 Notch/刘海、Nowdex、私人 Grok 网关、本机设备服务不在本包内。
-- 接收者电脑上的首次登录、所有模型真实调用、跨系统构建及远程/设备控制仍需接收者验收。[查看验证范围](docs/community/README.md#验证范围)。
+[浅色 SVG](assets/community/c13/workbench-light.svg) · [深色 SVG](assets/community/c13/workbench-dark.svg) · [离线 HTML 模板](assets/community/c13/showcase.html)
 
-## 开发与许可
+SVG 可作为仓库展示图或继续编辑；下载 HTML 后用浏览器打开，可切换浅深色。模板不连接服务、不调用模型、不包含真实聊天和账号数据。
 
-源码已同步为 v0.1.1 + C11 定制状态；分享包 ASAR 与正式 C11 相同，只移除了包外构建标记中的本机路径并重新临时签名。构建方式见[社区说明](docs/community/README.md#从源码运行)。
+## 下载与使用
 
-保留上游 [MIT License](LICENSE) 及第三方许可。[官方原始 README](README.upstream.md) 供参考，其中官方安装命令下载的是官方版本。
+1. 在 [Releases](https://github.com/labixiaoxins/t3code-artifact-wall/releases/latest) 下载 `T3-Code-Xiaoxin-C13-macOS-arm64.zip`。仅提供 **Apple 芯片 Mac** 包，应用声明最低 macOS 13。
+2. 解压并放入“应用程序”。已有 T3 用户先完全退出并备份应用和自己的数据，只运行一份。[升级步骤](docs/community/README.md#已有-t3-如何升级)。
+3. 连接自己的模型账号，再添加自己的项目。下载包不含账号、订阅、API 密钥、聊天、项目或私人模型通道。
+
+本包使用 **ad-hoc 社区临时签名，未获 Apple Developer ID 公证**。首次打开可能需在系统设置中确认“仍要打开”；不需要关闭系统整体安全检查。
+
+## 版本与验证边界
+
+- 本分支比较基线固定为官方 **v0.1.1 / `fe27e8e3dc12dcbb108e9a28fd9b8cb65f34ae92`**。截至 2026-10-26 核查，官方最新稳定版为 [v0.1.2](https://github.com/pingdotgg/t3code/releases/tag/v0.1.2)；C13 尚未合并其全部修复，不应当作官方最新版替代品。
+- 本机 C13 r5 已安装；针对性类型检查、单元/浏览器/服务端测试及构建有记录。lint 仍有既有错误，不宣称全仓检查通过。发布另检查源码一致、分享包完整性和隔离空目录启动。[完整验证范围](docs/community/README.md#验证范围)。
+- 真机全屏、原生右键置顶、接收者首次登录与各模型真实调用仍需使用者确认；模板不作为功能验收证据。
+- 未提供 Windows、Intel Mac、Linux 包；T3 Notch/刘海为独立伴随应用，**未包含在本次下载包**。私人网关、个人技能库、设备服务同样不包含。
+- 额度以提供方实际支持的数据为准。无数据或过期显示不可读，不能视为 0 或 100%；部分提供方没有通用余额接口。
+
+这是独立社区分支，不代表 T3 Tools。保留 [MIT License](LICENSE)、第三方许可和[官方原始 README](README.upstream.md)。[源码运行与安装说明](docs/community/README.md#从源码运行)。

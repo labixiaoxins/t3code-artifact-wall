@@ -2,6 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { EnvironmentId, ProjectId } from "@t3tools/contracts";
 import {
   compactWorkspacePath,
+  workspaceFolderName,
   defaultProjectMember,
   isDatedCodexWorkspace,
   projectMemberMenu,
@@ -51,6 +52,12 @@ describe("one-click category member", () => {
     expect(isDatedCodexWorkspace(old.workspaceRoot)).toBe(true);
     expect(isDatedCodexWorkspace("~/Documents/Codex/2026-10-06/old")).toBe(true);
     expect(isDatedCodexWorkspace("/Users/fiction/Documents/Codex/notes/2026-10-06")).toBe(false);
+  });
+  it("shows only the last folder name of a workspace path", () => {
+    expect(workspaceFolderName("/Users/fiction/Projects/批量设计工具")).toBe("批量设计工具");
+    expect(workspaceFolderName("/Users/fiction/Projects/a/")).toBe("a");
+    expect(workspaceFolderName("C:\\work\\app")).toBe("app");
+    expect(workspaceFolderName("/")).toBe("/");
   });
   it("orders by actual use, moves historical entries to submenu and hides single-environment names", () => {
     const items = projectMemberMenu(

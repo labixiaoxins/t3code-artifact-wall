@@ -89,3 +89,8 @@ export function resumeVisits(
   }
   return result;
 }
+
+// Hide the row only when there is nothing to count and nothing listed ("new result" entries are
+// listed but not counted).
+export const shouldShowInboxRow = (count: number, listedCount: number) =>
+  count > 0 || listedCount > 0;
