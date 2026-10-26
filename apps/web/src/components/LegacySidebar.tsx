@@ -1715,7 +1715,9 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
         },
       });
     };
-    const hasOverflowingThreads = visibleProjectThreads.length > sidebarThreadPreviewCount;
+    const hasOverflowingThreads = visibleProjectThreads.some((thread, index) =>
+      index >= sidebarThreadPreviewCount && scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)) !== activeRootThreadKey,
+    );
     const previewThreads =
       isThreadListExpanded || !hasOverflowingThreads
         ? visibleProjectThreads
@@ -4243,7 +4245,9 @@ export default function LegacySidebar(props: { routeReveal?: import("./sidebar/r
           return [];
         }
         const isThreadListExpanded = expandedThreadListsByProject.has(project.projectKey);
-        const hasOverflowingThreads = projectThreads.length > sidebarThreadPreviewCount;
+        const hasOverflowingThreads = projectThreads.some((thread, index) =>
+          index >= sidebarThreadPreviewCount && scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)) !== activeThreadKey,
+        );
         const previewThreads =
           isThreadListExpanded || !hasOverflowingThreads
             ? projectThreads

@@ -14,19 +14,12 @@ import {
 /** Local one-second clock only; no polling requests or updates to the chat timeline. */
 export const TurnThroughput = memo(function TurnThroughput({
   projection,
-  environmentId,
-  threadId,
   disconnected = false,
 }: {
   projection: ThreadStructure;
-  environmentId?: EnvironmentId;
-  threadId?: ThreadId;
   disconnected?: boolean;
 }) {
-  // Subscribe to streaming details only while this on-demand panel is mounted.
-  const live = useEnvironmentThread(environmentId ?? null, threadId ?? null);
-  const current = Option.getOrNull(live.data) ?? projection;
-  const snapshot = useMemo(() => selectTurnThroughput(current), [current]);
+  const snapshot = useMemo(() => selectTurnThroughput(projection), [projection]);
   const [now, setNow] = useState(() => Date.now());
   const ticking = snapshot?.running === true && !disconnected;
   useEffect(() => {
@@ -82,3 +75,14 @@ export const TurnThroughput = memo(function TurnThroughput({
     </section>
   );
 });
+
+/** The live subscription exists only while the details popover is open. */
+export function LiveTurnThroughput(props: {
+  environmentId: EnvironmentId;
+  threadId: ThreadId;
+  projection: ThreadStructure;
+  disconnected: boolean;
+}) {
+  const live = useEnvironmentThread(props.environmentId, props.threadId);
+  return <TurnThroughput projection={Option.getOrNull(live.data) ?? props.projection} disconnected={props.disconnected} />;
+}

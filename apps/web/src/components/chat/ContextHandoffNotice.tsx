@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "../ui/button";
 import { Popover, PopoverTrigger, PopoverPopup, PopoverTitle } from "../ui/popover";
 import { ChevronDownIcon, CircleAlertIcon } from "lucide-react";
-import { TurnThroughput } from "./TurnThroughputStatus";
+import { LiveTurnThroughput } from "./TurnThroughputStatus";
 import { useProjectFileQuery } from "../files/projectFilesQueryState";
 import { useThreadHandoffSummary, useThreadShell } from "../../state/entities";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
@@ -529,7 +529,7 @@ export function ContextHandoffNotice({
           ) : null}
           {showThroughput && open ? (
             <div className="border-t border-border pt-3">
-              <TurnThroughput projection={projection} environmentId={environmentId} threadId={thread.id} disconnected={disconnected} />
+              <LiveTurnThroughput projection={projection} environmentId={environmentId} threadId={thread.id} disconnected={disconnected} />
             </div>
           ) : null}
         </div>

@@ -1325,7 +1325,7 @@ function OpenCommandPaletteDialog(props: {
         searchTerms: ["new thread", "chat", "create", "draft"],
         title: (
           <>
-            {uiText("New thread in")}<span className="font-semibold">{activeProjectTitle}</span>
+            {uiText("New thread in")}{" "}<span className="font-semibold">{activeProjectTitle}</span>
           </>
         ),
         icon: <SquarePenIcon className={ITEM_ICON_CLASS} />,

@@ -2001,7 +2001,13 @@ export function deriveMessagesTimelineRows(input: {
   }
 
   const result = attachTrailingToolGroupsToAssistant(
-    attachCreatedThreadSummaries(nextRows, timelineEntries, collapsedFoldMemberIds)
+    attachCreatedThreadSummaries(
+      hasActiveCompaction && !setupOwnsWorkingSlot
+        ? nextRows.filter((row) => row.kind !== "working")
+        : nextRows,
+      timelineEntries,
+      collapsedFoldMemberIds,
+    )
   );
   return result.map((row, index) =>
     timelineRowIsWorkLog(row) && timelineRowIsWorkLog(result[index + 1])
