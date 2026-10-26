@@ -39,7 +39,11 @@ export function OpenMediaLink(props: {
       }
     >
       {isBlob ? <DownloadIcon /> : <ExternalLinkIcon />}
-      {originalUrl ? uiText("Open original") : isBlob ? uiText("Download video") : uiText("Open in browser")}
+      {originalUrl
+        ? uiText("Open original")
+        : isBlob
+          ? uiText("Download video")
+          : uiText("Open in browser")}
     </Button>
   );
 }

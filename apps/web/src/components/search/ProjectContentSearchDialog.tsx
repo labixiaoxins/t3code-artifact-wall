@@ -185,7 +185,7 @@ function OpenContentSearchDialog(props: {
 
   return (
     <CommandPaletteContent
-      aria-label={uiText("Search file contents in {0}", {"0": target.projectName})}
+      aria-label={uiText("Search file contents in {0}", { "0": target.projectName })}
       escapeLabel={"Back"}
       footerActionLabel={"Open file"}
       inputAccessory={
@@ -223,7 +223,7 @@ function OpenContentSearchDialog(props: {
       inputProps={{
         className: "pe-30",
         disabled: !search.canReadFiles,
-        placeholder: uiText("Search in {0}", {"0": target.projectName}),
+        placeholder: uiText("Search in {0}", { "0": target.projectName }),
         onKeyDown: (event) => {
           if (isCompositionKey(event)) return;
           if (event.key === "ArrowDown" && matches.length > 0) {
@@ -265,7 +265,11 @@ function OpenContentSearchDialog(props: {
           ) : search.invalidRegex ? (
             <span className={"text-destructive"}>{uiText("Invalid regular expression")}</span>
           ) : (
-            uiText("{0}{1} results in {2} files", {"0": matches.length.toLocaleString(), "1": search.truncated ? "+" : "", "2": fileCount.toLocaleString()})
+            uiText("{0}{1} results in {2} files", {
+              "0": matches.length.toLocaleString(),
+              "1": search.truncated ? "+" : "",
+              "2": fileCount.toLocaleString(),
+            })
           )}
         </div>
       ) : null}

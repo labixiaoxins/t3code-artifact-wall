@@ -60,7 +60,8 @@ export function captureSetupCheckMessage(state: DesktopSnapShotState): string {
     (backend === "hyprland" && state.hyprlandHelper?.status === "error")
   )
     return uiText("Still unable to check access. See Advanced for help.");
-  if (captureSetupBackend(state) === "picker") return uiText("Ready. You'll choose a window each time.");
+  if (captureSetupBackend(state) === "picker")
+    return uiText("Ready. You'll choose a window each time.");
   if (gnome && state.gnomeExtension?.status === "restart-required")
     return uiText("Still waiting for you to sign out and back in.");
   return captureSetupAccessReady(state)

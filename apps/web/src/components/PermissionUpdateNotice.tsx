@@ -45,9 +45,10 @@ function EnvironmentPermissionNotice({
       toastManager.close(id);
     };
     const id = toastManager.add({
-      title: uiText("Permissions have changed for {0}", {"0": label}),
-      description:
-        uiText("This connection still uses the old permissions, so some actions may no longer be available. Pair again using a new link with the permissions you need."),
+      title: uiText("Permissions have changed for {0}", { "0": label }),
+      description: uiText(
+        "This connection still uses the old permissions, so some actions may no longer be available. Pair again using a new link with the permissions you need.",
+      ),
       timeout: 0,
       onClose: persistDismissal,
       actionProps: {

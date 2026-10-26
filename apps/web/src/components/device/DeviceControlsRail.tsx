@@ -103,13 +103,15 @@ export function DeviceControlsRail(props: {
                 <MenuItem
                   onClick={() => void controls.act({ type: "setOrientation", value: "portrait" })}
                 >
-                  {uiText("Portrait")}</MenuItem>
+                  {uiText("Portrait")}
+                </MenuItem>
                 <MenuItem
                   onClick={() =>
                     void controls.act({ type: "setOrientation", value: "landscape_left" })
                   }
                 >
-                  {uiText("Landscape")}</MenuItem>
+                  {uiText("Landscape")}
+                </MenuItem>
               </MenuPopup>
             </Menu>
           </>
@@ -126,7 +128,7 @@ export function DeviceControlsRail(props: {
         <RailDivider />
         <RailButton
           tooltipSide={popupSide}
-          label={uiText("Switch device to {0} mode", {"0": nextAppearance})}
+          label={uiText("Switch device to {0} mode", { "0": nextAppearance })}
           disabled={controls.disabled || !settings?.appearance}
           onClick={() => void controls.act({ type: "setAppearance", value: nextAppearance })}
         >
@@ -187,7 +189,9 @@ export function DeviceControlsRail(props: {
         </RailButton>
         <RailButton
           tooltipSide={popupSide}
-          label={props.screenshotPending ? uiText("Capturing screenshot") : uiText("Save screenshot")}
+          label={
+            props.screenshotPending ? uiText("Capturing screenshot") : uiText("Save screenshot")
+          }
           disabled={!view.streaming || props.screenshotPending}
           onClick={props.onScreenshot}
         >
@@ -209,14 +213,17 @@ export function DeviceControlsRail(props: {
           <MenuPopup side={popupSide} align="end">
             <MenuItem onClick={props.onFloat}>
               <PictureInPicture2 />
-              {uiText("Float device over chat") + " "}</MenuItem>
+              {uiText("Float device over chat") + " "}
+            </MenuItem>
             <MenuItem onClick={props.onClose}>
               <X />
-              {uiText("Close device panel") + " "}</MenuItem>
+              {uiText("Close device panel") + " "}
+            </MenuItem>
             <MenuSeparator />
             <MenuItem variant="destructive" onClick={props.onPowerOff}>
               <Power />
-              {uiText("Power off device") + " "}</MenuItem>
+              {uiText("Power off device") + " "}
+            </MenuItem>
           </MenuPopup>
         </Menu>
         <RailDivider />
@@ -242,7 +249,11 @@ export function DeviceControlsRail(props: {
         {view.keyboard ? (
           <RailButton
             tooltipSide={popupSide}
-            label={view.keyboard.attached ? uiText("Detach Magic Keyboard") : uiText("Attach Magic Keyboard")}
+            label={
+              view.keyboard.attached
+                ? uiText("Detach Magic Keyboard")
+                : uiText("Attach Magic Keyboard")
+            }
             pressed={view.keyboard.attached}
             onClick={view.keyboard.toggle}
           >
@@ -250,7 +261,11 @@ export function DeviceControlsRail(props: {
           </RailButton>
         ) : null}
         {view.phone ? (
-          <RailButton tooltipSide={popupSide} label={uiText("Restore 3D view")} onClick={view.resetView}>
+          <RailButton
+            tooltipSide={popupSide}
+            label={uiText("Restore 3D view")}
+            onClick={view.resetView}
+          >
             <Maximize />
           </RailButton>
         ) : null}

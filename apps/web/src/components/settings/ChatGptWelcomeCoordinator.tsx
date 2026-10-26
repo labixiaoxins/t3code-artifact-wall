@@ -67,9 +67,13 @@ export function ChatGptWelcomeCoordinator() {
           <OpenAI className="mb-2 size-8" aria-hidden="true" />
           <DialogTitle>{uiText("Your ChatGPT plan is connected")}</DialogTitle>
           <DialogDescription>
-            {uiText("Eligible usage in T3 Code uses your ChatGPT plan. Manage your shared usage and any credit settings in ChatGPT.")}</DialogDescription>
+            {uiText(
+              "Eligible usage in T3 Code uses your ChatGPT plan. Manage your shared usage and any credit settings in ChatGPT.",
+            )}
+          </DialogDescription>
           <p className="text-xs text-muted-foreground">
-            {next?.providerName} {uiText("on") + " "}{next?.environmentLabel}
+            {next?.providerName} {uiText("on") + " "}
+            {next?.environmentLabel}
           </p>
         </DialogHeader>
         <DialogFooter>

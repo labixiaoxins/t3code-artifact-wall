@@ -243,7 +243,7 @@ export function describeUpdateCapsule(
 ): UpdateCapsuleView {
   if (run.phase === "countdown" && run.restartAt !== null) {
     const seconds = Math.max(0, Math.ceil((run.restartAt - now) / 1000));
-    return { tone: "default", label: uiText("Restart in {0}s", {"0": seconds}), action: "later" };
+    return { tone: "default", label: uiText("Restart in {0}s", { "0": seconds }), action: "later" };
   }
   if (run.phase === "installing") {
     return { tone: "default", label: uiText("Restarting…"), action: null };
@@ -263,12 +263,18 @@ export function describeUpdateCapsule(
   }
   const done = machines.filter(({ status }) => status === "done").length;
   if (machines.some(({ status }) => isActive(status))) {
-    return { tone: "default", label: uiText("{0} of {1} updated", {"0": done, "1": machines.length}), action: null };
+    return {
+      tone: "default",
+      label: uiText("{0} of {1} updated", { "0": done, "1": machines.length }),
+      action: null,
+    };
   }
   if (local?.status === "downloading") {
     return {
       tone: "default",
-      label: uiText("Downloading{0}", {"0": local.percent === null ? "" : ` ${Math.floor(local.percent)}%`}),
+      label: uiText("Downloading{0}", {
+        "0": local.percent === null ? "" : ` ${Math.floor(local.percent)}%`,
+      }),
       action: null,
     };
   }
@@ -280,7 +286,11 @@ export function describeUpdateCapsule(
       action: failed.some(({ machine }) => machine.server !== null) ? "retry" : "dismiss",
     };
   }
-  return { tone: "default", label: uiText("{0} of {1} updated", {"0": done, "1": machines.length}), action: null };
+  return {
+    tone: "default",
+    label: uiText("{0} of {1} updated", { "0": done, "1": machines.length }),
+    action: null,
+  };
 }
 
 export const RUN_STATUS_LABELS: Record<UpdateRunMachineStatus, string> = {
@@ -350,7 +360,7 @@ export function getUpdateEverythingToastView(
     if (parts.length === 0) return null;
     return {
       type: "success",
-      title: uiText("Updated {0}", {"0": joinList(parts)}),
+      title: uiText("Updated {0}", { "0": joinList(parts) }),
       ...(restarting.length === 0 ? {} : { description: restarting.join("\n") }),
     };
   }

@@ -201,13 +201,13 @@ const layerDesktopEnvironment = DesktopEnvironment.layer(environmentInput).pipe(
       DesktopConfig.layerTest({
         T3CODE_PORT: "3773",
         VITE_DEV_SERVER_URL: "http://127.0.0.1:5733",
-      })
-    )
-  )
+      }),
+    ),
+  ),
 );
 
 const desktopWindowBoundsEquivalence = Schema.toEquivalence(
-  DesktopAppSettings.DesktopWindowBoundsSchema
+  DesktopAppSettings.DesktopWindowBoundsSchema,
 );
 
 function layerTest(input: {
@@ -219,7 +219,7 @@ function layerTest(input: {
   readonly mainWindowBoundsUpdates?: DesktopAppSettings.DesktopWindowBounds[];
   readonly mainWindowMaximizedUpdates?: boolean[];
   readonly beforeMainWindowBoundsUpdate?: (
-    bounds: DesktopAppSettings.DesktopWindowBounds
+    bounds: DesktopAppSettings.DesktopWindowBounds,
   ) => Effect.Effect<void>;
   readonly setPreviewMainWindow?: (window: Electron.BrowserWindow) => Effect.Effect<void>;
   readonly destroyAll?: Effect.Effect<void>;
@@ -273,7 +273,7 @@ function layerTest(input: {
       }).pipe(
         Effect.andThen(Ref.update(input.createCount, (count) => count + 1)),
         Effect.andThen(input.onWindowCreate ?? Effect.void),
-        Effect.as(input.window)
+        Effect.as(input.window),
       ),
     main: Ref.get(input.mainWindow),
     currentMainOrFirst: Ref.get(input.mainWindow),
@@ -339,10 +339,10 @@ function layerTest(input: {
             Effect.sync(() => {
               input.previewZoomReapplies?.push(input.window.webContents.getZoomLevel());
             }),
-        })
-      )
+        }),
+      ),
     ),
-    Layer.merge(DesktopState.layer)
+    Layer.merge(DesktopState.layer),
   );
 }
 
@@ -353,7 +353,7 @@ const makeSplashScenario = (createOutcomes: readonly (Electron.BrowserWindow | n
     const mainWindow = yield* Ref.make<Option.Option<Electron.BrowserWindow>>(Option.none());
     const revealedWindows = yield* Ref.make<Electron.BrowserWindow[]>([]);
     const fallbackWindow = createOutcomes.find(
-      (window): window is Electron.BrowserWindow => window !== null
+      (window): window is Electron.BrowserWindow => window !== null,
     );
 
     const currentMainOrFirst = Effect.gen(function* () {
@@ -444,9 +444,9 @@ const makeSplashScenario = (createOutcomes: readonly (Electron.BrowserWindow | n
             setMainWindow: () => Effect.void,
             isBrowserPartition: (partition) => partition.startsWith("persist:t3code-preview-"),
             getBrowserPartition: () => Effect.succeed("persist:t3code-preview-test"),
-          })
-        )
-      )
+          }),
+        ),
+      ),
     );
 
     return { layer, createCalls, mainWindow, revealedWindows } as const;
@@ -465,11 +465,11 @@ describe("DesktopWindow", () => {
 
     assert.deepEqual(
       DesktopWindow.resolveInitialMainWindowBounds(persistedBounds, displays),
-      persistedBounds
+      persistedBounds,
     );
     assert.deepEqual(
       DesktopWindow.resolveInitialMainWindowBounds(persistedBounds, [displays[0]!]),
-      DesktopAppSettings.DEFAULT_MAIN_WINDOW_SIZE
+      DesktopAppSettings.DEFAULT_MAIN_WINDOW_SIZE,
     );
   });
 
@@ -501,7 +501,7 @@ describe("DesktopWindow", () => {
           yield* desktopWindow.dispatchMenuAction("new-thread");
           assert.equal(yield* Ref.get(createCount), 3);
         }).pipe(Effect.provide(layer));
-      })
+      }),
   );
 
   it.effect("blocks only repeated Cmd+W input before it reaches the native window menu", () =>
@@ -546,7 +546,7 @@ describe("DesktopWindow", () => {
         beforeInput(event, { ...input, meta: false });
         assert.isFalse(prevented);
       }).pipe(Effect.provide(layer));
-    })
+    }),
   );
 
   // Chromium hands the main window's zoom level down to embedded preview
@@ -578,12 +578,12 @@ describe("DesktopWindow", () => {
 
         assert.deepEqual(
           fakeWindow.setZoomLevel.mock.calls.map(([level]) => level),
-          [-0.5, -1, -0.5, 0]
+          [-0.5, -1, -0.5, 0],
         );
         assert.deepEqual(previewZoomReapplies, [-0.5, -1, -0.5, 0]);
         assert.equal(popup.setZoomLevel.mock.calls.length, 0);
       }).pipe(Effect.provide(layer));
-    })
+    }),
   );
 
   // Ctrl+wheel bypasses the menu accelerators, so it has to take the same
@@ -613,11 +613,11 @@ describe("DesktopWindow", () => {
 
         assert.deepEqual(
           fakeWindow.setZoomLevel.mock.calls.map(([level]) => level),
-          [0.5, 0, -0.5]
+          [0.5, 0, -0.5],
         );
         assert.deepEqual(previewZoomReapplies, [0.5, 0, -0.5]);
       }).pipe(Effect.provide(layer));
-    })
+    }),
   );
 
   it.effect("reloads and inspects the main window even when a popup has focus", () =>
@@ -648,7 +648,7 @@ describe("DesktopWindow", () => {
         assert.equal(popup.reloadIgnoringCache.mock.calls.length, 0);
         assert.equal(popup.toggleDevTools.mock.calls.length, 0);
       }).pipe(Effect.provide(layer));
-    })
+    }),
   );
 
   it.effect("does not open main or splash windows once quitting has started", () =>
@@ -677,7 +677,7 @@ describe("DesktopWindow", () => {
         assert.isTrue(Option.isNone(yield* Ref.get(mainWindow)));
         assert.equal(fake.send.mock.calls.length, 0);
       }).pipe(Effect.provide(layerTest({ window: fake.window, createCount, mainWindow })));
-    })
+    }),
   );
 
   it.effect.each(["main", "splash"] as const)(
@@ -695,7 +695,7 @@ describe("DesktopWindow", () => {
           createCount,
           mainWindow,
           onWindowCreate: Deferred.succeed(creationStarted, undefined).pipe(
-            Effect.andThen(Deferred.await(releaseCreation))
+            Effect.andThen(Deferred.await(releaseCreation)),
           ),
           destroyAll: Effect.sync(() => fake.isDestroyed.mockReturnValue(true)),
           onReveal: reveal,
@@ -720,7 +720,7 @@ describe("DesktopWindow", () => {
           assert.equal(fake.openDevTools.mock.calls.length, 0);
           assert.equal(reveal.mock.calls.length, 0);
         }).pipe(Effect.provide(layer));
-      })
+      }),
   );
 
   it.effect.each(["backend ready", "activation", "renderer event"] as const)(
@@ -747,7 +747,7 @@ describe("DesktopWindow", () => {
           },
           setPreviewMainWindow: () =>
             Deferred.succeed(previewStarted, undefined).pipe(
-              Effect.andThen(Deferred.await(releasePreview))
+              Effect.andThen(Deferred.await(releasePreview)),
             ),
           destroyAll: Effect.sync(() => fake.isDestroyed.mockReturnValue(true)),
           onReveal: reveal,
@@ -779,10 +779,10 @@ describe("DesktopWindow", () => {
           assert.deepEqual(warnings, []);
         }).pipe(
           Effect.provide(
-            Layer.mergeAll(layer, Logger.layer([logger], { mergeWithExisting: false }))
-          )
+            Layer.mergeAll(layer, Logger.layer([logger], { mergeWithExisting: false })),
+          ),
         );
-      })
+      }),
   );
 
   it.effect("persists normal bounds and state for a maximized window", () =>
@@ -819,7 +819,7 @@ describe("DesktopWindow", () => {
         assert.equal(fakeWindow.getNormalBounds.mock.calls.length, 1);
         assert.equal(fakeWindow.getBounds.mock.calls.length, 0);
       }).pipe(Effect.provide(layer));
-    })
+    }),
   );
 
   it.effect("preserves unrestorable bounds until the user changes the window", () =>
@@ -859,7 +859,7 @@ describe("DesktopWindow", () => {
         yield* Effect.promise(() => Promise.resolve());
         assert.deepEqual(mainWindowBoundsUpdates, [{ x: 80, y: 60, width: 1280, height: 840 }]);
       }).pipe(Effect.provide(layer));
-    })
+    }),
   );
 
   it.effect("flushes normal bounds when minimized before the debounce completes", () =>
@@ -895,7 +895,7 @@ describe("DesktopWindow", () => {
         assert.equal(fakeWindow.getBounds.mock.calls.length, 0);
         assert.equal(fakeWindow.getNormalBounds.mock.calls.length, 1);
       }).pipe(Effect.provide(layer));
-    })
+    }),
   );
 
   it.effect("persists the current main window bounds before the window closes", () =>
@@ -916,7 +916,7 @@ describe("DesktopWindow", () => {
         beforeMainWindowBoundsUpdate: () =>
           Deferred.succeed(writeStarted, undefined).pipe(
             Effect.andThen(Deferred.await(allowWrite)),
-            Effect.asVoid
+            Effect.asVoid,
           ),
       });
 
@@ -934,7 +934,7 @@ describe("DesktopWindow", () => {
 
         const flushFiber = yield* desktopWindow.flushMainWindowBounds.pipe(
           Effect.andThen(Deferred.succeed(flushCompleted, undefined)),
-          Effect.forkChild({ startImmediately: true })
+          Effect.forkChild({ startImmediately: true }),
         );
         yield* Effect.yieldNow;
         assert.isFalse(yield* Deferred.isDone(flushCompleted));
@@ -952,7 +952,7 @@ describe("DesktopWindow", () => {
           },
         ]);
       }).pipe(Effect.provide(layer));
-    })
+    }),
   );
 
   it.effect("opens safe off-origin renderer navigations in the system browser", () =>
@@ -983,14 +983,14 @@ describe("DesktopWindow", () => {
               prevented = true;
             },
           },
-          "https://accounts.microsoft.com/oauth"
+          "https://accounts.microsoft.com/oauth",
         );
         yield* Effect.promise(() => Promise.resolve());
 
         assert.isTrue(prevented);
         assert.deepEqual(openedExternalUrls, ["https://accounts.microsoft.com/oauth"]);
       }).pipe(Effect.provide(layer));
-    })
+    }),
   );
 
   it.effect(
@@ -1008,7 +1008,7 @@ describe("DesktopWindow", () => {
           assert.equal(yield* Ref.get(scenario.createCalls), 1);
 
           const readyExit = yield* Effect.exit(
-            desktopWindow.handleBackendReady(new URL("http://127.0.0.1:3773"))
+            desktopWindow.handleBackendReady(new URL("http://127.0.0.1:3773")),
           );
           assert.equal(readyExit._tag, "Failure");
           assert.equal(yield* Ref.get(scenario.createCalls), 2);
@@ -1020,7 +1020,7 @@ describe("DesktopWindow", () => {
           assert.isTrue(Option.isSome(registeredMain));
           assert.equal(Option.getOrThrow(registeredMain), main.window);
         }).pipe(Effect.provide(scenario.layer));
-      })
+      }),
   );
 
   it.effect("delivers capture completion and late errors without taking focus back", () =>
@@ -1060,7 +1060,7 @@ describe("DesktopWindow", () => {
           [SNAP_SHOT_EVENT_CHANNEL, { type: "failed", id: captureTwo }],
         ]);
       }).pipe(Effect.provide(layer));
-    })
+    }),
   );
 
   it.effect("does not reopen a closed main window for a completed capture", () =>
@@ -1082,10 +1082,10 @@ describe("DesktopWindow", () => {
         assert.equal(fakeWindow.send.mock.calls.length, 0);
         assert.equal(onReveal.mock.calls.length, 0);
       }).pipe(Effect.provide(layer));
-    })
+    }),
   );
 
-it.effect.each([true, false])(
+  it.effect.each([true, false])(
     "flushes drafts before switching to closing view (saved=%s)",
     (saved) =>
       Effect.gen(function* () {

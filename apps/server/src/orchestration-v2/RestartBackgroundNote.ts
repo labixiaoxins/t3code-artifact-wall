@@ -324,9 +324,11 @@ export function pendingRestartCancelledBackgroundWork(input: {
         (source.restartCancelledBackgroundWork?.length ?? 0) > 0 &&
         !prompted.some((later) => runRanAfter(later, source)),
     )
-    .reduce<
-      ReadonlyArray<Work>
-    >((work, source) => mergeRestartCancelledBackgroundWork(work, source.restartCancelledBackgroundWork ?? []), []);
+    .reduce<ReadonlyArray<Work>>(
+      (work, source) =>
+        mergeRestartCancelledBackgroundWork(work, source.restartCancelledBackgroundWork ?? []),
+      [],
+    );
 }
 
 export function mergeRestartCancelledBackgroundWork(

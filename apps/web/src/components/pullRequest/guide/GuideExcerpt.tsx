@@ -337,7 +337,9 @@ function ExcerptDiff({
                 rangeLabel={`${excerpt.path}:${getReviewPositionAnchor(draft.position).line}`}
                 text={""}
                 placeholder={
-                  commenting.canComment ? uiText("Add a comment…") : uiText("Ask the agent about these lines…")
+                  commenting.canComment
+                    ? uiText("Add a comment…")
+                    : uiText("Ask the agent about these lines…")
                 }
                 submitLabel={commenting.canComment ? uiText("Add to review") : uiText("Ask agent")}
                 {...(commenting.canComment && onAskAgent !== null
@@ -379,7 +381,7 @@ function ExcerptDiff({
             <Button
               size={"icon-xs"}
               variant={"ghost-muted"}
-              aria-label={uiText("Open {0} in Code", {"0": excerpt.path})}
+              aria-label={uiText("Open {0} in Code", { "0": excerpt.path })}
               onClick={() => onOpenFile(excerpt.path)}
             >
               <ArrowUpRightIcon aria-hidden />

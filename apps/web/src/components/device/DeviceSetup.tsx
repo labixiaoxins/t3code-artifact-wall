@@ -19,10 +19,12 @@ import { cn } from "~/lib/utils";
 
 const platformName = (platform: DevicePlatform) => (platform === "ios" ? "iOS" : "Android");
 
-export const deviceHubDescription =
-  uiText("Enable this environment to open simulators and emulators, whether they run here or on a remote device host.");
-export const agentDeviceDescription =
-  uiText("Allow new agent sessions in this environment to start and control local and remote devices, with required tools set up automatically.");
+export const deviceHubDescription = uiText(
+  "Enable this environment to open simulators and emulators, whether they run here or on a remote device host.",
+);
+export const agentDeviceDescription = uiText(
+  "Allow new agent sessions in this environment to start and control local and remote devices, with required tools set up automatically.",
+);
 
 export const isAndroidDiscoveryUncertain = (state: DeviceServiceState) =>
   Object.values(state.hostStatuses).some(
@@ -162,7 +164,9 @@ export function DeviceSetup(props: {
     <>
       <WizardHeader
         title={uiText("Set up devices")}
-        description={uiText("Review what runs on this environment before using simulators and emulators.")}
+        description={uiText(
+          "Review what runs on this environment before using simulators and emulators.",
+        )}
       >
         <WizardSteps
           steps={["Device hub", "Simulators", "Agent access"]}
@@ -231,7 +235,10 @@ export function DeviceSetup(props: {
             </div>
             <AgentDeviceSetupStatus state={props.state} pending={pending === "agent"} />
             <p className="text-xs text-muted-foreground">
-              {uiText("Leave this off to keep manual device controls without giving agents access.")}</p>
+              {uiText(
+                "Leave this off to keep manual device controls without giving agents access.",
+              )}
+            </p>
           </section>
         ) : null}
         {props.state.hostStatus === "failed" && props.state.hostStatusDetail ? (
@@ -250,11 +257,13 @@ export function DeviceSetup(props: {
             disabled={busy || pending !== null}
             onClick={() => setStep(step - 1)}
           >
-            {uiText("Back")}</Button>
+            {uiText("Back")}
+          </Button>
         )}
         {step < 2 ? (
           <Button disabled={!ready || pending !== null} onClick={() => setStep(step + 1)}>
-            {uiText("Continue")}</Button>
+            {uiText("Continue")}
+          </Button>
         ) : (
           <Button
             disabled={!canConfigure || !ready || pending !== null}
@@ -310,7 +319,10 @@ function DevicePlatformSetup(props: {
       <PlatformStatus platform="Android" status={platformSetupStatus(props.state, "android")} />
       <DeviceHostDiagnostics hosts={props.state.hosts} hostStatuses={props.state.hostStatuses} />
       <p className="text-xs text-muted-foreground">
-        {uiText("You can use either platform. Fixing a missing platform does not block the other one.")}</p>
+        {uiText(
+          "You can use either platform. Fixing a missing platform does not block the other one.",
+        )}
+      </p>
       <Button size="compact" variant="outline" disabled={props.disabled} onClick={props.onCheck}>
         {props.checking ? <Spinner size="xs" /> : null}
         {props.checking ? uiText("Checking…") : uiText("Check again")}
@@ -352,7 +364,8 @@ export function AgentDeviceSetupStatus(props: {
     return (
       <p role="status" className="flex items-center gap-2 text-xs text-muted-foreground">
         <Check className="size-3 text-success" />
-        {uiText("Agent tools are ready.") + " "}</p>
+        {uiText("Agent tools are ready.") + " "}
+      </p>
     );
   }
   return null;

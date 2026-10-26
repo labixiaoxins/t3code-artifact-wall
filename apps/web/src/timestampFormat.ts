@@ -22,7 +22,9 @@ function getTimestampFormatOptions(
   };
 }
 
-export function resolveTimestampLocale(systemLocale: string | null | undefined): string | undefined {
+export function resolveTimestampLocale(
+  systemLocale: string | null | undefined,
+): string | undefined {
   const tag = systemLocale?.trim();
   if (!tag) return undefined;
 
@@ -42,7 +44,8 @@ function readHostSystemLocale(): string | null {
   if (typeof window === "undefined") return null;
   return window.desktopBridge?.getSystemLocale?.() ?? null;
 }
-const timestampLocale = readUiLocale() === "zh-CN" ? "zh-CN" : resolveTimestampLocale(readHostSystemLocale());
+const timestampLocale =
+  readUiLocale() === "zh-CN" ? "zh-CN" : resolveTimestampLocale(readHostSystemLocale());
 
 const WEEKDAY_INDEXES = [0, 1, 2, 3, 4, 5, 6] as const;
 type WeekdayIndex = (typeof WEEKDAY_INDEXES)[number];
@@ -251,7 +254,10 @@ export function msUntilRelativeTimeChange(
   // timestamp. Waking early is harmless: the caller re-reads and re-schedules.
   return Math.min(nextChangeMs - nowMs, DAY_MS);
 }
-export function formatRelativeElapsed(elapsedMs: number, locale: UiLocale = readUiLocale()): RelativeTimeParts {
+export function formatRelativeElapsed(
+  elapsedMs: number,
+  locale: UiLocale = readUiLocale(),
+): RelativeTimeParts {
   const zh = locale === "zh-CN";
   const seconds = Math.floor(elapsedMs / 1000);
   if (seconds < 60) return { value: zh ? "刚刚" : "just now", suffix: null };
@@ -264,14 +270,19 @@ export function formatRelativeElapsed(elapsedMs: number, locale: UiLocale = read
 }
 
 export function formatRelativeTime(
-  isoDate: string, nowMsOrLocale: number | UiLocale = Date.now(), locale: UiLocale = readUiLocale(),
+  isoDate: string,
+  nowMsOrLocale: number | UiLocale = Date.now(),
+  locale: UiLocale = readUiLocale(),
 ): RelativeTimeParts | null {
   const nowMs = typeof nowMsOrLocale === "number" ? nowMsOrLocale : Date.now();
   const selectedLocale = typeof nowMsOrLocale === "string" ? nowMsOrLocale : locale;
   const elapsedMs = relativeTimeElapsedMs(isoDate, nowMs);
   return elapsedMs === null ? null : formatRelativeElapsed(elapsedMs, selectedLocale);
 }
-export function formatRelativeTimeLabel(isoDate: string, nowMsOrLocale: number | UiLocale = Date.now()) {
+export function formatRelativeTimeLabel(
+  isoDate: string,
+  nowMsOrLocale: number | UiLocale = Date.now(),
+) {
   const relative = formatRelativeTime(isoDate, nowMsOrLocale);
   if (!relative) return "";
   const zh = (typeof nowMsOrLocale === "string" ? nowMsOrLocale : readUiLocale()) === "zh-CN";
@@ -348,7 +359,7 @@ export function formatExpiresInLabel(isoDate: string, nowMs: number = Date.now()
 
   const totalSeconds = Math.floor(diffMs / 1000);
   if (totalSeconds < 5) return uiText("Expires in a moment");
-  if (totalSeconds < 60) return uiText("Expires in {0}s", {"0": totalSeconds});
+  if (totalSeconds < 60) return uiText("Expires in {0}s", { "0": totalSeconds });
 
   if (totalSeconds < 3600) {
     const minutes = Math.floor(totalSeconds / 60);
@@ -363,11 +374,11 @@ export function formatExpiresInLabel(isoDate: string, nowMs: number = Date.now()
     const parts = [`${hours}${readUiLocale() === "zh-CN" ? "小时" : "h"}`];
     if (minutes > 0) parts.push(`${minutes}${readUiLocale() === "zh-CN" ? "分钟" : "m"}`);
     if (seconds > 0) parts.push(`${seconds}${readUiLocale() === "zh-CN" ? "秒" : "s"}`);
-    return uiText("Expires in {0}", {"0": parts.join(" ")});
+    return uiText("Expires in {0}", { "0": parts.join(" ") });
   }
   const days = Math.floor(totalSeconds / 86400);
   const remAfterDays = totalSeconds % 86400;
-  if (remAfterDays === 0) return uiText("Expires in {0}d", {"0": days});
+  if (remAfterDays === 0) return uiText("Expires in {0}d", { "0": days });
   const hours = Math.floor(remAfterDays / 3600);
   const rem = remAfterDays % 3600;
   const minutes = Math.floor(rem / 60);

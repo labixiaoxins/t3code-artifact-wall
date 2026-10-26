@@ -611,7 +611,13 @@ function useUpdateSettingsTarget(environmentId: EnvironmentId | null) {
       toastManager.add({
         type: "error",
         title: uiText("Setting not saved"),
-        description: uiText("Could not save on {0}: {1}", {"0": label, "1": error instanceof Error ? error.message : "The save failed. Try reconnecting and saving again."}),
+        description: uiText("Could not save on {0}: {1}", {
+          "0": label,
+          "1":
+            error instanceof Error
+              ? error.message
+              : "The save failed. Try reconnecting and saving again.",
+        }),
       });
     }
     return result;
@@ -629,7 +635,11 @@ function useUpdateSettingsTarget(environmentId: EnvironmentId | null) {
       toastManager.add({
         type: "warning",
         title: uiText("Setting not saved"),
-        description: uiText("This connection lacks permission to change settings on {0}.", {"0": environments.find((target) => target.environmentId === environmentId)?.label ?? "the selected environment"}),
+        description: uiText("This connection lacks permission to change settings on {0}.", {
+          "0":
+            environments.find((target) => target.environmentId === environmentId)?.label ??
+            "the selected environment",
+        }),
       });
     }
     if (Object.keys(serverPatch).length > 0 && canWriteServerPatch) {

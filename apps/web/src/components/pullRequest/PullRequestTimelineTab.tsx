@@ -331,10 +331,12 @@ function ConversationGroup({
           >
             <span className="min-w-0 flex-1">
               <span className="block text-xs font-semibold">
-                {events.length.toLocaleString()} {events.length === 1 ? uiText("comment") : uiText("comments")}
+                {events.length.toLocaleString()}{" "}
+                {events.length === 1 ? uiText("comment") : uiText("comments")}
               </span>
               <span className="block truncate text-3xs text-muted-foreground">
-                {actors.length.toLocaleString()} {actors.length === 1 ? uiText("author") : uiText("authors")} ·{" "}
+                {actors.length.toLocaleString()}{" "}
+                {actors.length === 1 ? uiText("author") : uiText("authors")} ·{" "}
                 <RelativeTime timestamp={first.at} />
               </span>
             </span>
@@ -411,10 +413,15 @@ function ReviewThreadEvent({
         {thread.isResolved ? (
           <span className="inline-flex shrink-0 items-center gap-1 font-medium text-success-foreground">
             <CircleCheckIcon aria-hidden className="size-3" />
-            {uiText("Resolved") + " "}</span>
+            {uiText("Resolved") + " "}
+          </span>
         ) : null}
-        {dismissed ? <span className="shrink-0 font-medium">{uiText("Review dismissed")}</span> : null}
-        {thread.isOutdated ? <span className="shrink-0 font-medium">{uiText("Outdated")}</span> : null}
+        {dismissed ? (
+          <span className="shrink-0 font-medium">{uiText("Review dismissed")}</span>
+        ) : null}
+        {thread.isOutdated ? (
+          <span className="shrink-0 font-medium">{uiText("Outdated")}</span>
+        ) : null}
         {expanded ? null : (
           <span className="shrink-0">
             · {event.actor?.login ?? uiText("ghost")}
@@ -478,7 +485,7 @@ function CommitEvent({
     <button
       type="button"
       className="group relative mb-5 block w-full cursor-pointer rounded-sm pl-12 text-left outline-none [contain-intrinsic-block-size:48px] [content-visibility:auto] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-      aria-label={uiText("View commit {0}", {"0": event.id})}
+      aria-label={uiText("View commit {0}", { "0": event.id })}
       onClick={() => onOpen(event.id)}
     >
       <ActorTimelineMarker
@@ -582,7 +589,9 @@ function ReviewVerdictEvent({
                 }
               >
                 {pullRequestReviewOutcomeLabel(outcome)}
-                {stale ? <span className="sr-only">{uiText(", before the latest commits")}</span> : null}
+                {stale ? (
+                  <span className="sr-only">{uiText(", before the latest commits")}</span>
+                ) : null}
               </TooltipTrigger>
               <TooltipPopup>{pullRequestReviewOutcomeStaleLabel(outcome)}</TooltipPopup>
             </Tooltip>

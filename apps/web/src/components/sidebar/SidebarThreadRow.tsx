@@ -173,7 +173,10 @@ function WorkingDurationLabel(props: { startedMs: number }) {
 }
 
 function terminalProcessLabel(count: number): string {
-  return uiText("{0} terminal {1} running", {"0": count, "1": count === 1 ? "process" : "processes"});
+  return uiText("{0} terminal {1} running", {
+    "0": count,
+    "1": count === 1 ? "process" : "processes",
+  });
 }
 
 function SidebarProviderStack(props: {
@@ -298,7 +301,8 @@ function SidebarThreadTooltip({
           <div className="flex min-w-0 items-start gap-2 text-warning">
             <CircleAlertIcon aria-hidden className="mt-0.5 size-3 shrink-0 stroke-current" />
             <div className="min-w-0 flex-1 wrap-break-word">
-              {uiText("You're currently checked out on another branch.")}</div>
+              {uiText("You're currently checked out on another branch.")}
+            </div>
           </div>
         ) : null}
         {driverKind ? (
@@ -327,7 +331,8 @@ function SidebarThreadTooltip({
           <div className="flex min-w-0 items-center gap-2">
             <ArrowRightLeftIcon className="size-3 shrink-0 stroke-muted-foreground" />
             <div className="min-w-0 truncate text-foreground/75">
-              {uiText("Handed off from")}{previousProviderNames.join(", ")}
+              {uiText("Handed off from")}
+              {previousProviderNames.join(", ")}
             </div>
           </div>
         ) : null}
@@ -413,7 +418,8 @@ function SnoozeMenuButton(props: {
             if (choice) onSnooze(choice);
           }}
         >
-          {uiText("Custom…")}</MenuItem>
+          {uiText("Custom…")}
+        </MenuItem>
       </MenuPopup>
     </Menu>
   );
@@ -477,27 +483,32 @@ const dropVerbBadge: Record<SidebarDropVerb, ReactNode> = {
   pin: (
     <>
       <PinIcon aria-hidden className="size-3" />
-      {uiText("Pin")}</>
+      {uiText("Pin")}
+    </>
   ),
   unpin: (
     <>
       <PinOffIcon aria-hidden className="size-3" />
-      {uiText("Unpin")}</>
+      {uiText("Unpin")}
+    </>
   ),
   settle: (
     <>
       <CircleCheckIcon aria-hidden className="size-3" />
-      {uiText("Settle")}</>
+      {uiText("Settle")}
+    </>
   ),
   unsettle: (
     <>
       <Undo2Icon aria-hidden className="size-3" />
-      {uiText("Un-settle")}</>
+      {uiText("Un-settle")}
+    </>
   ),
   wake: (
     <>
       <AlarmClockOffIcon aria-hidden className="size-3" />
-      {uiText("Wake")}</>
+      {uiText("Wake")}
+    </>
   ),
 };
 
@@ -1112,7 +1123,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
             {terminalStatusIcon}
             {isRegeneratingTitle ? (
               <span role="status" className="sr-only">
-                {uiText("Regenerating title")}</span>
+                {uiText("Regenerating title")}
+              </span>
             ) : null}
             {prBadge}
             {sortable?.isDragging ? (
@@ -1313,7 +1325,9 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                               </button>
                             }
                           />
-                          <TooltipPopup side="top">{uiText("Dismiss Woke notification")}</TooltipPopup>
+                          <TooltipPopup side="top">
+                            {uiText("Dismiss Woke notification")}
+                          </TooltipPopup>
                         </Tooltip>
                       ) : (
                         <span
@@ -1405,7 +1419,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                             }
                           >
                             <CheckIcon className="size-3.5" />
-                            {uiText("Settle")}</TooltipTrigger>
+                            {uiText("Settle")}
+                          </TooltipTrigger>
                           <TooltipPopup>{uiText("Settle thread")}</TooltipPopup>
                         </Tooltip>
                       ) : null}
@@ -1419,7 +1434,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
               {title}
               {isRegeneratingTitle ? (
                 <span role="status" className="sr-only">
-                  {uiText("Regenerating title")}</span>
+                  {uiText("Regenerating title")}
+                </span>
               ) : null}
             </div>
             <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-secondary-label text-xs">

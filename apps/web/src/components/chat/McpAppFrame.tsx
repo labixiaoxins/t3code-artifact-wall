@@ -441,7 +441,10 @@ export function McpAppFrame(props: {
   if (closed) {
     return (
       <div className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-muted-foreground text-xs">
-        <span>{uiText("The") + " "}{app.server} {uiText("app was closed")}</span>
+        <span>
+          {uiText("The") + " "}
+          {app.server} {uiText("app was closed")}
+        </span>
         <Button
           size="xs"
           variant="ghost"
@@ -452,7 +455,8 @@ export function McpAppFrame(props: {
             setClosed(false);
           }}
         >
-          {uiText("Show app")}</Button>
+          {uiText("Show app")}
+        </Button>
       </div>
     );
   }
@@ -492,12 +496,14 @@ export function McpAppFrame(props: {
         ) : null}
         {navigatedAway ? (
           <p className="flex size-full items-center justify-center text-muted-foreground text-xs">
-            {uiText("The") + " "}{app.server} {uiText("app left its page and was stopped") + " "}</p>
+            {uiText("The") + " "}
+            {app.server} {uiText("app left its page and was stopped") + " "}
+          </p>
         ) : src !== null ? (
           <iframe
             ref={frameRef}
             src={src}
-            title={uiText("{0} app", {"0": app.server})}
+            title={uiText("{0} app", { "0": app.server })}
             // Never allow-same-origin: the opaque origin keeps the app out of the session.
             sandbox="allow-scripts allow-forms"
             allow={mcpAppAllowAttribute(app.permissions)}
@@ -507,7 +513,9 @@ export function McpAppFrame(props: {
           />
         ) : asset._tag === "Failure" || mintFailed ? (
           <p className="flex size-full items-center justify-center text-muted-foreground text-xs">
-            {uiText("Unable to load the") + " "}{app.server} {uiText("app") + " "}</p>
+            {uiText("Unable to load the") + " "}
+            {app.server} {uiText("app") + " "}
+          </p>
         ) : null}
       </div>
     </div>

@@ -135,7 +135,10 @@ function LinkPullRequestDialog({
         <DialogHeader>
           <DialogTitle>{uiText("Link pull request")}</DialogTitle>
           <DialogDescription>
-            {uiText("Attach a pull request to this thread by its URL, or by its number for this thread's repository.")}</DialogDescription>
+            {uiText(
+              "Attach a pull request to this thread by its URL, or by its number for this thread's repository.",
+            )}
+          </DialogDescription>
         </DialogHeader>
         <DialogPanel>
           <Input
@@ -169,7 +172,8 @@ function LinkPullRequestDialog({
             onClick={() => onOpenChange(false)}
             disabled={pending}
           >
-            {uiText("Cancel")}</Button>
+            {uiText("Cancel")}
+          </Button>
           <Button
             type="button"
             size="sm"

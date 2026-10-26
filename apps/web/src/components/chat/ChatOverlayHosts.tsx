@@ -156,13 +156,19 @@ export function BranchRestoreConfirmHost(props: {
       <AlertDialogPopup>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            {uiText("Switch to") + " "}<code className="font-medium">{props.threadBranch}</code>?
+            {uiText("Switch to") + " "}
+            <code className="font-medium">{props.threadBranch}</code>?
           </AlertDialogTitle>
           <AlertDialogDescription>
-            {uiText("You have uncommitted changes. They'll carry over to the other branch, or block the switch if they conflict.")}</AlertDialogDescription>
+            {uiText(
+              "You have uncommitted changes. They'll carry over to the other branch, or block the switch if they conflict.",
+            )}
+          </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogClose render={<Button variant="outline" />}>{uiText("Cancel")}</AlertDialogClose>
+          <AlertDialogClose render={<Button variant="outline" />}>
+            {uiText("Cancel")}
+          </AlertDialogClose>
           <Button
             variant="default"
             disabled={!props.canWriteSourceControl}
@@ -171,7 +177,8 @@ export function BranchRestoreConfirmHost(props: {
               props.onConfirm();
             }}
           >
-            {uiText("Switch branch")}</Button>
+            {uiText("Switch branch")}
+          </Button>
         </AlertDialogFooter>
       </AlertDialogPopup>
     </AlertDialog>
@@ -215,9 +222,12 @@ export function RevertConfirmHost(props: {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogClose render={<Button variant="outline" />}>{uiText("Cancel")}</AlertDialogClose>
+          <AlertDialogClose render={<Button variant="outline" />}>
+            {uiText("Cancel")}
+          </AlertDialogClose>
           <Button variant="destructive-outline" onClick={() => confirm(true)}>
-            {uiText("Revert files too")}</Button>
+            {uiText("Revert files too")}
+          </Button>
           <Button onClick={() => confirm(false)}>{uiText("Revert and keep changes")}</Button>
         </AlertDialogFooter>
       </AlertDialogPopup>

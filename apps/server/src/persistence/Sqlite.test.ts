@@ -29,12 +29,12 @@ it.effect("drops planner statistics a database already has", () => {
 
     yield* Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
-      const stats = yield* sql<{ readonly count: number; }>`
+      const stats = yield* sql<{ readonly count: number }>`
         SELECT COUNT(*) AS count FROM sqlite_stat1
       `;
       assert.equal(stats[0]?.count, 0);
       // A connection still using the old stats scans the table at each step.
-      const plan = yield* sql<{ readonly detail: string; }>`
+      const plan = yield* sql<{ readonly detail: string }>`
         EXPLAIN QUERY PLAN
         WITH RECURSIVE retained(node_id) AS (
           SELECT 'node-2'
@@ -46,11 +46,11 @@ it.effect("drops planner statistics a database already has", () => {
       `;
       assert.include(
         plan.map((row) => row.detail),
-        "SEARCH parent USING INDEX sqlite_autoindex_walk_probe_1 (node_id=?)"
+        "SEARCH parent USING INDEX sqlite_autoindex_walk_probe_1 (node_id=?)",
       );
     }).pipe(Effect.provide(persistence()));
   }).pipe(
-    Effect.ensuring(Effect.sync(() => NodeFS.rmSync(tempDir, { recursive: true, force: true })))
+    Effect.ensuring(Effect.sync(() => NodeFS.rmSync(tempDir, { recursive: true, force: true }))),
   );
 });
 

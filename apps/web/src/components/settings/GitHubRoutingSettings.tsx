@@ -64,7 +64,10 @@ export function GitHubRoutingSettings({
       }
     >
       <p className="px-3 py-2.5 text-xs text-muted-foreground sm:px-4">
-        {uiText("Machines you trust here can read PR data through each other's GitHub access. Enable both machines. Read and act may use broader permissions than the machine that owns them. This applies only to this device.")}</p>
+        {uiText(
+          "Machines you trust here can read PR data through each other's GitHub access. Enable both machines. Read and act may use broader permissions than the machine that owns them. This applies only to this device.",
+        )}
+      </p>
       {environments.map((environment) => (
         <EnvironmentRow
           key={environment.environmentId}
@@ -96,7 +99,7 @@ export function GitHubRoutingSettings({
             <SelectTrigger
               size="xs"
               className="w-32"
-              aria-label={uiText("{0} GitHub routing", {"0": environment.label})}
+              aria-label={uiText("{0} GitHub routing", { "0": environment.label })}
             >
               <SelectValue />
             </SelectTrigger>

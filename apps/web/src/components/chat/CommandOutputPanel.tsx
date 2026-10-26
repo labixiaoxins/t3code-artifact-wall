@@ -47,9 +47,18 @@ export function CommandOutputPanel(props: {
   });
 
   if (text.length === 0) {
-    if (error) return <div className="text-destructive">{uiText("Couldn&apos;t load output:") + " "}{error}</div>;
-    if (data === null) return <div className="text-muted-foreground italic">{uiText("Loading output…")}</div>;
-    return data.running ? null : <div className="text-muted-foreground italic">{uiText("No output.")}</div>;
+    if (error)
+      return (
+        <div className="text-destructive">
+          {uiText("Couldn&apos;t load output:") + " "}
+          {error}
+        </div>
+      );
+    if (data === null)
+      return <div className="text-muted-foreground italic">{uiText("Loading output…")}</div>;
+    return data.running ? null : (
+      <div className="text-muted-foreground italic">{uiText("No output.")}</div>
+    );
   }
   // Parsed after the layout effect, the last hook, so the compiler caches it on text and theme.
   const spans = terminalOutputSpans(text, TERMINAL_PALETTES[resolvedTheme]);

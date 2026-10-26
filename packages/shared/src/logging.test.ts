@@ -42,7 +42,7 @@ effectIt.layer(NodeServices.layer)("asynchronous rotating file sink", (it) => {
       NodeFS.writeFileSync(`${filePath}.50`, "obsolete");
       const lines = Array.from(
         { length: 100 },
-        (_, index) => `${index.toString().padStart(3, "0")}\n`
+        (_, index) => `${index.toString().padStart(3, "0")}\n`,
       );
       const sink = yield* makeAsyncRotatingFileSink({ filePath, maxBytes: 32, maxFiles: 20 });
       yield* Effect.forEach(lines, (line) => sink.write(line), {
@@ -56,11 +56,11 @@ effectIt.layer(NodeServices.layer)("asynchronous rotating file sink", (it) => {
         .filter((name) => name.startsWith("async.log."))
         .sort((a, b) => Number(b.slice(10)) - Number(a.slice(10)));
       const contents = [...backups, "async.log"].map((name) =>
-        NodeFS.readFileSync(NodePath.join(directory, name), "utf8")
+        NodeFS.readFileSync(NodePath.join(directory, name), "utf8"),
       );
       expect(contents.every((chunk) => Buffer.byteLength(chunk) <= 32)).toBe(true);
       expect(contents.join("")).toBe(lines.join("") + "100\n");
-    })
+    }),
   );
 
   it.effect("reports a failed append and recovers its size before the next rotation", () =>
@@ -77,7 +77,7 @@ effectIt.layer(NodeServices.layer)("asynchronous rotating file sink", (it) => {
             ++attempts === 1
               ? fs.writeFile(directory, bytes, options)
               : fs.writeFile(path, bytes, options),
-        })
+        }),
       );
       const failed = yield* sink.write("new\n").pipe(Effect.result);
       expect(failed._tag).toBe("Failure");
@@ -86,7 +86,7 @@ effectIt.layer(NodeServices.layer)("asynchronous rotating file sink", (it) => {
       yield* sink.write("end\n");
       expect(NodeFS.readFileSync(`${filePath}.1`, "utf8")).toBe("old\nnew\n");
       expect(NodeFS.readFileSync(filePath, "utf8")).toBe("end\n");
-    })
+    }),
   );
 });
 
@@ -110,7 +110,7 @@ describe("RotatingFileSink", () => {
     expect(NodeFS.readFileSync(filePath, "utf8")).toBe("oversized");
   });
 
-it.skipIf(windowsHost)(
+  it.skipIf(windowsHost)(
     "protects existing logs and backups and preserves permissions through rotation",
     () => {
       const directory = makeTempDirectory();

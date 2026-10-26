@@ -140,7 +140,8 @@ export function ProjectSettingsPanel({
   if (members.length === 0)
     return (
       <p className="p-8 text-sm text-muted-foreground">
-        {uiText("This checkout is no longer available in the selected project and environment.")}</p>
+        {uiText("This checkout is no longer available in the selected project and environment.")}
+      </p>
     );
   const scopedGroup = {
     ...selected,
@@ -383,9 +384,10 @@ function ProjectDetail({
       variant="outline"
       disabled={!editableIds.has(member.environmentId)}
       onClick={() => void removeMembers([member])}
-      aria-label={uiText("Remove checkout {0}", {"0": member.workspaceRoot})}
+      aria-label={uiText("Remove checkout {0}", { "0": member.workspaceRoot })}
     >
-      {uiText("Remove")}</Button>
+      {uiText("Remove")}
+    </Button>
   );
   const checkoutChoices = (
     <SettingsSection title={uiText("Checkouts")}>
@@ -461,19 +463,26 @@ function ProjectDetail({
         <Alert variant="info">
           <InfoIcon aria-hidden />
           <AlertDescription>
-            {uiText("Can't find a setting? Keep this project picked above and hop to any other settings page.")}</AlertDescription>
+            {uiText(
+              "Can't find a setting? Keep this project picked above and hop to any other settings page.",
+            )}
+          </AlertDescription>
         </Alert>
         <SettingsSection id="project-overview" title={uiText("Project")} hideTitle>
           {!canEditGroup ? (
             <p className="px-3 py-2 text-sm text-muted-foreground sm:px-4">
               {group.memberProjects.length > 1
-                ? uiText("Shared settings require permission to change every checkout in this group.")
+                ? uiText(
+                    "Shared settings require permission to change every checkout in this group.",
+                  )
                 : uiText("This connection cannot change this project.")}
             </p>
           ) : null}
           <SettingsRow
             title={uiText("Name")}
-            description={uiText("The shared name for this project group in the sidebar and thread lists.")}
+            description={uiText(
+              "The shared name for this project group in the sidebar and thread lists.",
+            )}
             control={
               <Input
                 key={`${group.projectKey}:${group.displayName}`}
@@ -529,7 +538,8 @@ function ProjectDetail({
                   disabled={isSavingFavicon || !canEditGroup}
                   onClick={() => setIconPickerOpen(true)}
                 >
-                  {uiText("Choose icon")}</Button>
+                  {uiText("Choose icon")}
+                </Button>
                 <Button
                   size="sm"
                   variant="outline"
@@ -538,7 +548,8 @@ function ProjectDetail({
                   disabled={isSavingFavicon || !canEditGroup}
                   onClick={() => setFaviconPickerOpen(true)}
                 >
-                  {uiText("Choose file")}</Button>
+                  {uiText("Choose file")}
+                </Button>
               </div>
             }
           />
@@ -557,10 +568,17 @@ function ProjectDetail({
             }
             description={
               hasOtherMembers
-                ? uiText("Deletes the selected machine's checkout entries and their threads. Other machines and files on disk are not touched.")
+                ? uiText(
+                    "Deletes the selected machine's checkout entries and their threads. Other machines and files on disk are not touched.",
+                  )
                 : group.memberProjects.length > 1
-                  ? uiText("Deletes all {0} checkout entries and their threads on every machine. Files on disk are not touched.", {"0": group.memberProjects.length})
-                  : uiText("Deletes the project entry and its threads. Files on disk are not touched.")
+                  ? uiText(
+                      "Deletes all {0} checkout entries and their threads on every machine. Files on disk are not touched.",
+                      { "0": group.memberProjects.length },
+                    )
+                  : uiText(
+                      "Deletes the project entry and its threads. Files on disk are not touched.",
+                    )
             }
             control={
               <Button

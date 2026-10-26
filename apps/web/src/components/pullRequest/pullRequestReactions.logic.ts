@@ -70,7 +70,10 @@ export function pullRequestReactionTooltip(reaction: PullRequestReaction): strin
   const shown = names.slice(0, Math.min(NAMED_ACTOR_LIMIT, reaction.count));
   const others = Math.max(0, reaction.count - shown.length);
   const parts = [...shown, ...(others > 0 ? [countRemainder(others, shown.length > 0)] : [])];
-  return uiText("{0} reacted with {1} emoji", {"0": joinNames(parts), "1": pullRequestReactionName(reaction.content)});
+  return uiText("{0} reacted with {1} emoji", {
+    "0": joinNames(parts),
+    "1": pullRequestReactionName(reaction.content),
+  });
 }
 
 export function applyPendingPullRequestReactions(

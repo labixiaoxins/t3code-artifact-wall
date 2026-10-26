@@ -215,7 +215,9 @@ function ModelPickerProviderNotices({
                   onOpenProviderSetup?.(entry.instanceId);
                 }}
               >
-                {setupEntries.length > 1 ? uiText("Set up {0}", {"0": entry.displayName}) : uiText("Open provider setup")}
+                {setupEntries.length > 1
+                  ? uiText("Set up {0}", { "0": entry.displayName })
+                  : uiText("Open provider setup")}
               </InlineButton>
             </div>
           ))}
@@ -235,7 +237,8 @@ function ModelPickerProviderNotices({
               void navigate({ to: "/settings/providers" });
             }}
           >
-            {uiText("Provider settings")}</InlineButton>
+            {uiText("Provider settings")}
+          </InlineButton>
         </p>
       ))}
     </>
@@ -943,9 +946,12 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
                       className="group w-full cursor-pointer"
                     >
                       <div className="min-w-0 flex-1 text-left">
-                        <div className="text-xs font-medium leading-snug">{uiText("Legacy models")}</div>
+                        <div className="text-xs font-medium leading-snug">
+                          {uiText("Legacy models")}
+                        </div>
                         <div className="mt-1 text-xs font-normal leading-snug text-muted-foreground/70">
-                          {legacySection.legacyModels.length} {uiText("models") + " "}</div>
+                          {legacySection.legacyModels.length} {uiText("models") + " "}
+                        </div>
                       </div>
                       <ChevronRightIcon
                         className={cn(

@@ -118,7 +118,8 @@ export function PullRequestMarkdownEditor({
       )}
       <div className="flex justify-end gap-2">
         <Button size="xs" variant="ghost" disabled={saving} onClick={onCancel}>
-          {uiText("Cancel")}</Button>
+          {uiText("Cancel")}
+        </Button>
         <Button
           size="xs"
           variant="outline"

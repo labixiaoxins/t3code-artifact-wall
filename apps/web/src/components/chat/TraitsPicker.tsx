@@ -111,7 +111,8 @@ type TraitsPersistence =
 function DefaultBadge() {
   return (
     <Badge variant="outline" size="sm" className="min-w-0">
-      {uiText("Default")}</Badge>
+      {uiText("Default")}
+    </Badge>
   );
 }
 
@@ -440,7 +441,10 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
               </div>
               {ultrathinkInBodyText && descriptor.id === primarySelectDescriptor?.id ? (
                 <div className="px-2 pb-1.5 text-muted-foreground/80 text-xs">
-                  {uiText("Your prompt contains &quot;ultrathink&quot; in the text. Remove it to change this option.")}</div>
+                  {uiText(
+                    "Your prompt contains &quot;ultrathink&quot; in the text. Remove it to change this option.",
+                  )}
+                </div>
               ) : null}
               <MenuRadioGroup
                 value={selectedValue}

@@ -58,7 +58,8 @@ export function ClerkUserProfileRefreshButton({
       onClick={onClick}
     >
       <RefreshIcon aria-hidden="true" size="sm" refreshing={isPending} />
-      {uiText("Refresh") + " "}</Button>
+      {uiText("Refresh") + " "}
+    </Button>
   );
 }
 

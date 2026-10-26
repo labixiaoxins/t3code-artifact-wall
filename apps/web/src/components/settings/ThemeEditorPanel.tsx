@@ -1142,7 +1142,11 @@ export function ThemeEditorPanel({
           <TooltipTrigger
             render={
               <Button
-                aria-label={isInspecting ? uiText("Cancel inspecting app colors") : uiText("Inspect app colors")}
+                aria-label={
+                  isInspecting
+                    ? uiText("Cancel inspecting app colors")
+                    : uiText("Inspect app colors")
+                }
                 aria-pressed={isInspecting}
                 size={"xs"}
                 variant={isInspecting ? "secondary" : "ghost"}
@@ -1160,11 +1164,15 @@ export function ThemeEditorPanel({
             }
           />
           <TooltipPopup data-theme-editor-panel={""}>
-            {isInspecting ? uiText("Cancel and clear the selection") : uiText("Pick a color from the app")}
+            {isInspecting
+              ? uiText("Cancel and clear the selection")
+              : uiText("Pick a color from the app")}
           </TooltipPopup>
         </Tooltip>
         <Button
-          aria-label={isMinimized ? uiText("Expand the theme editor") : uiText("Minimize the theme editor")}
+          aria-label={
+            isMinimized ? uiText("Expand the theme editor") : uiText("Minimize the theme editor")
+          }
           size={"icon-xs"}
           variant={"ghost"}
           onClick={() => setIsMinimized(!isMinimized)}
@@ -1205,14 +1213,14 @@ export function ThemeEditorPanel({
             <Button disabled={!name.trim()} size={"sm"} onClick={handleSubmit}>
               {isEditing ? (
                 mergeTarget ? (
-                  uiText("Merge into “{0}”", {"0": mergeTarget.label})
+                  uiText("Merge into “{0}”", { "0": mergeTarget.label })
                 ) : (
                   uiText("Save changes")
                 )
               ) : mergeTarget ? (
                 <>
                   <PlusIcon />
-                  {uiText("Add {0} palette", {"0": activeAppearance})}
+                  {uiText("Add {0} palette", { "0": activeAppearance })}
                 </>
               ) : (
                 <>

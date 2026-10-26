@@ -103,7 +103,7 @@ export function EnvironmentRoutesList({
         onDragEnd={handleDragEnd}
       >
         <SortableContext items={order} strategy={verticalListSortingStrategy}>
-          <ol aria-label={uiText("Routes to {0}, preferred first", {"0": environment.label})}>
+          <ol aria-label={uiText("Routes to {0}, preferred first", { "0": environment.label })}>
             {routes.map((route, index) => (
               <SortableRouteRow
                 key={connectionRouteId(route.target)}
@@ -187,7 +187,7 @@ function SortableRouteRow({
         ref={setActivatorNodeRef}
         {...attributes}
         {...listeners}
-        aria-label={uiText("Reorder {0}, position {1}", {"0": label, "1": position})}
+        aria-label={uiText("Reorder {0}, position {1}", { "0": label, "1": position })}
         className={
           "flex size-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-muted-foreground/70 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:cursor-grabbing"
         }
@@ -202,7 +202,7 @@ function SortableRouteRow({
                 type={"button"}
                 variant={"ghost-muted"}
                 size={"icon-xs"}
-                aria-label={uiText("Remove {0} route", {"0": label})}
+                aria-label={uiText("Remove {0} route", { "0": label })}
                 onClick={onRemove}
               />
             }

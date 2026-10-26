@@ -110,7 +110,8 @@ function UsageLimitsBannerBody({
                   className="self-start"
                   onClick={() => void ensureLocalApi().shell.openExternal(externalUsage.url)}
                 >
-                  {uiText("Manage usage")}</Button>
+                  {uiText("Manage usage")}
+                </Button>
               ) : null}
               {resetCreditInput && account.limits.resetCredits ? (
                 <ResetCredits

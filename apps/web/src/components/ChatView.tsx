@@ -381,7 +381,8 @@ const EMPTY_AUTO_UPDATE_ENVIRONMENTS: ReadonlyArray<EnvironmentPresentation> = [
 
 const EMPTY_PENDING_FILE_SURFACE_IDS: ReadonlySet<string> = new Set();
 
-type ChatViewProps = {
+type ChatViewProps =
+  | {
       environmentId: EnvironmentId;
       threadId: ThreadId;
       onDiffPanelOpen?: () => void;
@@ -455,7 +456,7 @@ export default function ChatView(props: ChatViewProps) {
   const providersByEnvironment = useEnvironmentProviders();
   const primaryEnvironment = usePrimaryEnvironment();
   const environmentById = new Map(
-    environments.map((environment) => [environment.environmentId, environment])
+    environments.map((environment) => [environment.environmentId, environment]),
   );
   const baseComposerDraftTarget: ScopedThreadRef | DraftId =
     routeKind === "server" ? routeThreadRef : props.draftId;
@@ -464,7 +465,7 @@ export default function ChatView(props: ChatViewProps) {
       ? store.getDraftSessionByRef(routeThreadRef)
       : draftId
         ? store.getDraftSession(draftId)
-        : null
+        : null,
   );
   const serverThreadShell = useQuietThreadShell(routeThreadRef);
   const routeThreadDetailRef = resolveThreadDetailRef(routeThreadRef, {
@@ -497,11 +498,13 @@ export default function ChatView(props: ChatViewProps) {
     composerRef,
   });
   const composerDraftTarget = queuedRunEdit.draftTarget;
-  const artifactDraftKey = typeof composerDraftTarget === "string"
-        ? composerDraftTarget: scopedThreadKey (composerDraftTarget);
-    const artifactDraftTargetRef = useRef(artifactDraftKey);
-    artifactDraftTargetRef.current = artifactDraftKey;
-    const reportedModelSelection = serverProjection
+  const artifactDraftKey =
+    typeof composerDraftTarget === "string"
+      ? composerDraftTarget
+      : scopedThreadKey(composerDraftTarget);
+  const artifactDraftTargetRef = useRef(artifactDraftKey);
+  artifactDraftTargetRef.current = artifactDraftKey;
+  const reportedModelSelection = serverProjection
     ? deriveReportedModelSelection(serverProjection)
     : null;
   const threadStatus = useThreadStatus(routeThreadDetailRef);
@@ -512,12 +515,12 @@ export default function ChatView(props: ChatViewProps) {
   });
   const threadDetailLoading = threadSyncPhase === "loading";
   const activeProviderThread = serverProjection?.providerThreads.find(
-    (thread) => thread.id === serverProjection.thread.activeProviderThreadId
+    (thread) => thread.id === serverProjection.thread.activeProviderThreadId,
   );
   const activeThreadLiveTokenUsage = latestProviderTurnTokenUsage(
     serverProjection?.providerTurns ?? [],
     serverProjection,
-    activeProviderThread
+    activeProviderThread,
   );
   const serverVisibleTurnItems = useQuietThreadVisibleTurnItems(routeThreadDetailRef);
   const serverThreadHistory = useThreadHistory(routeThreadDetailRef);
@@ -570,13 +573,13 @@ export default function ChatView(props: ChatViewProps) {
   })() as AssistantCitationRequest | null;
   const { resolvedTheme } = useTheme();
   const composerRuntimeMode = useComposerDraftStore(
-    (store) => store.getComposerDraft(composerDraftTarget)?.runtimeMode ?? null
+    (store) => store.getComposerDraft(composerDraftTarget)?.runtimeMode ?? null,
   );
   const composerInteractionMode = useComposerDraftStore(
-    (store) => store.getComposerDraft(composerDraftTarget)?.interactionMode ?? null
+    (store) => store.getComposerDraft(composerDraftTarget)?.interactionMode ?? null,
   );
   const composerActiveProvider = useComposerDraftStore(
-    (store) => store.getComposerDraft(composerDraftTarget)?.activeProvider ?? null
+    (store) => store.getComposerDraft(composerDraftTarget)?.activeProvider ?? null,
   );
   const composerSelectedModelSelection = useComposerDraftStore((store) => {
     const draft = store.getComposerDraft(composerDraftTarget);
@@ -595,7 +598,7 @@ export default function ChatView(props: ChatViewProps) {
       // Linked prompts can replace text without pruning stored context records.
       const referenced = new Set(collectInlineContextIds(draft.prompt));
       return draft.threadContexts.filter((record) => referenced.has(record.contextId));
-    })
+    }),
   );
   const composerHasNonPromptContent = useComposerDraftStore((store) => {
     const draft = store.getComposerDraft(composerDraftTarget);
@@ -610,10 +613,10 @@ export default function ChatView(props: ChatViewProps) {
   const [restingComposerControlsHost, setRestingComposerControlsHost] =
     useState<HTMLDivElement | null>(null);
   const [contextControlsHost, setContextControlsHost] = useState<HTMLDivElement | null>(null);
-const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useState(false);
+  const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useState(false);
   const citeAssistantText = (
     citation: AssistantCitation,
-    sourceAnchor: AssistantCitationSourceAnchor
+    sourceAnchor: AssistantCitationSourceAnchor,
   ) => {
     const inserted = composerRef.current?.citeAssistantText(citation, sourceAnchor) ?? false;
     if (!inserted) {
@@ -641,7 +644,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
   const feedbackSubmissions =
     feedbackSubmissionsByThreadKey[routeThreadKey] ?? EMPTY_FEEDBACK_SUBMISSIONS;
   const feedbackUploading = feedbackSubmissions.some(
-    (submission) => submission.status === "uploading"
+    (submission) => submission.status === "uploading",
   );
   const [localDraftErrorsByDraftId, setLocalDraftErrorsByDraftId] = useState<
     Record<string, LocalThreadErrorEntry>
@@ -651,7 +654,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
   >({});
   const [isConnecting, _setIsConnecting] = useState(false);
   const isRevertingCheckpoint = useComposerDraftStore((store) =>
-    store.rewindingThreadKeys.has(routeThreadKey)
+    store.rewindingThreadKeys.has(routeThreadKey),
   );
 
   const workspaceFileDragRouteKey = `${routeThreadKey}:${draftId ?? ""}`;
@@ -704,10 +707,10 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
   const { sendInFlight: sendInFlightRef } = draftSendState(routeThreadKey);
   const multipleModelSelections = useAtomValue(fanoutSelectionsAtom);
   const setMultipleModelSelections = (
-    selections: SetStateAction<ReadonlyArray<ModelSelection> | null>
+    selections: SetStateAction<ReadonlyArray<ModelSelection> | null>,
   ) => {
     appAtomRegistry.update(fanoutSelectionsAtom, (current) =>
-      typeof selections === "function" ? selections(current) : selections
+      typeof selections === "function" ? selections(current) : selections,
     );
   };
   const setMultipleModelSelectionsStable = useStableCallback(setMultipleModelSelections);
@@ -715,7 +718,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
   const terminalUiOpenByThreadRef = useRef<Record<string, boolean>>({});
 
   const terminalUiState = useTerminalUiStateStore((state) =>
-    selectThreadTerminalUiState(state.terminalUiStateByThreadKey, routeThreadRef)
+    selectThreadTerminalUiState(state.terminalUiStateByThreadKey, routeThreadRef),
   );
 
   const fallbackDraftProjectRef = draftThread
@@ -752,8 +755,8 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
         resolveProjectSettings(
           settings,
           fallbackDraftProject?.id ?? null,
-          fallbackDraftProject ?? undefined
-        ).settings.defaultModelSelection ?? NO_PROVIDER_MODEL_SELECTION
+          fallbackDraftProject ?? undefined,
+        ).settings.defaultModelSelection ?? NO_PROVIDER_MODEL_SELECTION,
       )
     : undefined;
   const isServerThread = serverThread !== null;
@@ -812,7 +815,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
   const workflowOpeningParentProjection = useQuietThreadProjection(
     workflowOpeningParentId === null || parentSubagentEnvironmentId === null
       ? null
-      : scopeThreadRef(parentSubagentEnvironmentId, workflowOpeningParentId)
+      : scopeThreadRef(parentSubagentEnvironmentId, workflowOpeningParentId),
   );
   const workflowOpening =
     serverProjection === null || workflowOpeningParentId === null
@@ -836,7 +839,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
   const visibleThreadError = shouldShowThreadErrorBanner(
     routeThreadKey,
     threadError,
-    isThreadErrorBannerDismissedForSession(threadErrorBannerKey)
+    isThreadErrorBannerDismissedForSession(threadErrorBannerKey),
   )
     ? threadError
     : null;
@@ -870,18 +873,18 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
       return [];
     }
     return activeThreadKnownSessionsRaw.filter(
-      (session) => session.target.threadId === activeThreadId
+      (session) => session.target.threadId === activeThreadId,
     );
   })();
   const activeServerOrderedTerminalIds = activeThreadKnownSessions.map(
-    (session) => session.target.terminalId
+    (session) => session.target.terminalId,
   );
   const activeTerminalLabelsById = (() => {
     const labels = new Map<string, string>();
     for (const session of activeThreadKnownSessions) {
       labels.set(
         session.target.terminalId,
-        resolveTerminalSessionLabel(session.target.terminalId, session.state.summary)
+        resolveTerminalSessionLabel(session.target.terminalId, session.state.summary),
       );
     }
     return labels;
@@ -889,7 +892,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
   const activeThreadRef = useActiveThreadRef(activeThread);
   const activeThreadKey = activeThreadRef ? scopedThreadKey(activeThreadRef) : null;
   const activeEnvironmentServerBrowser = useEnvironmentSupportsServerBrowser(
-    activeThreadRef?.environmentId ?? null
+    activeThreadRef?.environmentId ?? null,
   );
   const browserAvailable = isPreviewSupportedInRuntime() || activeEnvironmentServerBrowser;
   const activeThreadShell = serverThread;
@@ -916,7 +919,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
   const anchorRunSettled = (() => {
     if (timelineAnchorMessageId === null) return false;
     const anchorRun = serverProjection?.runs.find(
-      (run) => run.userMessageId === timelineAnchorMessageId
+      (run) => run.userMessageId === timelineAnchorMessageId,
     );
     if (anchorRun === undefined) return false;
     return (
@@ -931,7 +934,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
     setTimelineAnchor({ threadKey: activeThreadKey, messageId: null });
   }
   const activeRightPanelKind = useRightPanelStore((state) =>
-    selectActiveRightPanel(state.byThreadKey, activeThreadRef)
+    selectActiveRightPanel(state.byThreadKey, activeThreadRef),
   );
   const diffOpen = activeRightPanelKind === "diff";
   const explicitDiffOpenRef = useRef<ScopedThreadRef | null>(null);
@@ -943,10 +946,10 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
     }
   }, [activeThreadRef, diffOpen]);
   const rightPanelState = useRightPanelStore((state) =>
-    selectThreadRightPanelState(state.byThreadKey, activeThreadRef)
+    selectThreadRightPanelState(state.byThreadKey, activeThreadRef),
   );
   const activeRightPanelSurface = useRightPanelStore((state) =>
-    selectActiveRightPanelSurface(state.byThreadKey, activeThreadRef)
+    selectActiveRightPanelSurface(state.byThreadKey, activeThreadRef),
   );
   const activePreviewState = useThreadPreviewState(activeThreadRef);
   const activePreviewServerEpoch = activePreviewState.serverEpoch;
@@ -955,12 +958,12 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
     ? (tabId: string) => previewRuntimeTabId(activeThreadRef, activePreviewServerEpoch, tabId)
     : undefined;
   const activePreviewMiniPlayer = usePreviewMiniPlayerStore((state) =>
-    selectThreadPreviewMiniPlayer(state.byThreadKey, activeThreadRef)
+    selectThreadPreviewMiniPlayer(state.byThreadKey, activeThreadRef),
   );
   const panelTerminalIds = new Set(
     rightPanelState.surfaces.flatMap((surface) =>
-      surface.kind === "terminal" ? surface.terminalIds : []
-    )
+      surface.kind === "terminal" ? surface.terminalIds : [],
+    ),
   );
   const canReuseTerminal = activeThreadKnownSessionsRaw !== null;
   const previewPanelOpen = activeRightPanelKind === "preview" && browserAvailable;
@@ -976,7 +979,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
     rightPanelPresenceValue,
     panelAnimationsActive,
     activeThreadKey,
-    panelAnimationDurationMs
+    panelAnimationDurationMs,
   );
   const rightPanelPresent = rightPanelPresence.present;
   const rightPanelControlsInPanel =
@@ -986,7 +989,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
   const renderedRightPanelSurfaces = rightPanelPresence.value?.surfaces ?? [];
   const previewMiniPlayerVisible = shouldRenderPreviewMiniPlayer(
     activePreviewMiniPlayer?.source ?? null,
-    renderedRightPanelSurface
+    renderedRightPanelSurface,
   );
   const canMaximizeRightPanel = rightPanelOpen && !shouldUsePlanSidebarSheet;
   const rightPanelMaximized = canMaximizeRightPanel && rightPanelState.maximized === true;
@@ -998,8 +1001,8 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
     selectThreadPanelOpen(
       state.threadPanelVisibilityByThreadKey,
       activeThreadRef,
-      threadPanelPresentation
-    )
+      threadPanelPresentation,
+    ),
   );
 
   useEffect(() => {
@@ -1007,14 +1010,14 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
     const hiddenTabIds = new Set(
       Object.values(activePreviewState.sessions)
         .filter((session) => session.runtime === "server" && session.reveal === false)
-        .map((session) => session.tabId)
+        .map((session) => session.tabId),
     );
     useRightPanelStore
       .getState()
       .reconcileBrowserSurfaces(
         activeThreadRef,
         Object.keys(activePreviewState.sessions),
-        hiddenTabIds
+        hiddenTabIds,
       );
   }, [activePreviewState.sessions, activeThreadRef, previewSessionsReady]);
 
@@ -1037,7 +1040,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
     serverProjection,
     activePlan,
     activeActivityRun?.runId ?? null,
-    activeActivityRunSettled
+    activeActivityRunSettled,
   );
   const activeComposerTasksProgress = (() => {
     if (!composerTasksPlan) return null;
@@ -1045,7 +1048,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
     const totalSteps = composerTasksPlan.steps.length;
     if (totalSteps === 0) return null;
     const completedSteps = composerTasksPlan.steps.filter(
-      (step) => step.status === "completed"
+      (step) => step.status === "completed",
     ).length;
     const step =
       composerTasksPlan.steps.find((candidate) => candidate.status === "inProgress")?.step ??
@@ -1065,7 +1068,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
   const activeProjectSettings = resolveProjectSettings(
     settings,
     activeProject?.id ?? null,
-    activeProject ?? undefined
+    activeProject ?? undefined,
   );
   const activeProjectScripts = activeProject ? resolveProjectScripts(settings, activeProject) : [];
   const { projectCloneBannerItem, projectCloneSendBlockReason } =
@@ -1089,7 +1092,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
   };
   const handleOpenDraftProjectSettingsStable = useStableCallback(handleOpenDraftProjectSettings);
   const activeEnvironmentBootstrapComplete = useEnvironmentShellHasSnapshot(
-    activeThread?.environmentId ?? null
+    activeThread?.environmentId ?? null,
   );
   const activeProjectKey = activeProject
     ? `${activeProject.environmentId}:${activeProject.workspaceRoot}`
@@ -1148,17 +1151,17 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
     activeProject !== null &&
     isScratchProject(
       activeProject,
-      environmentById.get(activeProject.environmentId)?.serverConfig?.scratchWorkspaceRoot ?? null
+      environmentById.get(activeProject.environmentId)?.serverConfig?.scratchWorkspaceRoot ?? null,
     );
   const logicalProjectEnvironments = useLogicalProjectEnvironments(
     activeProject,
-    activeProjectIsScratch && draftId !== null
+    activeProjectIsScratch && draftId !== null,
   );
   const hasMultipleEnvironments = logicalProjectEnvironments.length > 1;
   const canAutoBalanceEnvironments = hasMultipleEnvironments && !activeProjectIsScratch;
   const activeEnvironmentOption =
     logicalProjectEnvironments.find(
-      (environment) => environment.environmentId === activeThread?.environmentId
+      (environment) => environment.environmentId === activeThread?.environmentId,
     ) ?? null;
   const showComposerEnvironmentIndicator = shouldShowEnvironmentIndicator({
     activeEnvironment: activeEnvironmentOption,
@@ -1231,7 +1234,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
     draftThread?.environmentSelection !== "manual" &&
     (!composerHasAttachments || Boolean(draftThread?.loadBalancedEnvironmentId)) &&
     (!draftThread?.branch || draftThread.environmentSelection === "auto") &&
-    !draftThread?.worktreePath
+    !draftThread?.worktreePath,
   );
   const autoUpdateEnvironments = automaticEnvironment
     ? logicalProjectEnvironments.flatMap(({ environmentId }) => {
@@ -1253,8 +1256,8 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
     applyProviderInstanceSettings(
       deriveProviderInstanceEntries(providerStatuses),
       settings,
-      activeProject?.id ?? null
-    )
+      activeProject?.id ?? null,
+    ),
   );
   const activeThreadModelInstanceId = activeThread?.modelSelection.instanceId;
   const { selectedProviderEntry, requestedDriverKind } = resolveComposerProviderSelection({
@@ -1385,7 +1388,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
   });
   const optimisticCompactionMessage = optimisticUserMessages.at(-1);
   const latestServerUserItem = serverVisibleTurnItems.findLast(
-    (row) => row.item.type === "user_message"
+    (row) => row.item.type === "user_message",
   )?.item;
   const compactRequestIsActive =
     (isSendBusy &&
@@ -1403,14 +1406,14 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
       (item.status === "completed" ||
         item.status === "failed" ||
         item.status === "interrupted" ||
-        item.status === "cancelled")
+        item.status === "cancelled"),
   );
   const compactionRunning = serverVisibleTurnItems.some(
     ({ item }) =>
       item.type === "compaction" &&
       item.runId !== null &&
       item.runId === activeRuntime?.activeRunId &&
-      item.status === "running"
+      item.status === "running",
   );
   const isCompacting =
     (isSendBusy || phase === "connecting" || phase === "running") &&
@@ -1424,7 +1427,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
   const activeContextWindow = deriveLatestContextWindowSnapshot(
     serverVisibleTurnItems ?? [],
     activeThreadLiveTokenUsage,
-    activeProviderThread
+    activeProviderThread,
   );
   const pendingBackgroundTasks = deriveThreadPendingBackgroundTasks(serverProjection);
   const activeWorkStartedAt =
@@ -1480,7 +1483,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
       : [
           { ...codexFeedbackMessage(submission), runId: null },
           { ...codexFeedbackMessage(submission, "assistant"), runId: null },
-        ]
+        ],
   );
   const timelineEntriesInput = {
     optimisticMessages: optimisticUserMessages,
@@ -1511,11 +1514,11 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
         kind: "message",
         createdAt: message.createdAt,
         message,
-      }) as const
+      }) as const,
   );
   const timelineEntries = isServerThread ? serverTimelineEntries : draftTimelineEntries;
   const timelineMessages = timelineEntries.flatMap((entry) =>
-    entry.kind === "message" ? [entry.message] : []
+    entry.kind === "message" ? [entry.message] : [],
   );
   const timelineEmpty = timelineEntries.length === 0 && !hasStreamedTimelineRows;
   const displayedTimeline = resolveThreadSwitchTimeline({
@@ -1527,7 +1530,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
   const displayedTimelineKey = displayedTimeline.displayThreadKey ?? routeThreadKey;
   const paintOnlyDisplayedTimeline = isPaintOnlyThreadTimeline(
     displayedTimeline.displayThreadKey,
-    activeThreadKey
+    activeThreadKey,
   );
   const displayedThreadRef = parseScopedThreadKey(displayedTimelineKey);
   const {
@@ -1571,7 +1574,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
   } = useDraftHeroLayoutTransition(
     isDraftHeroState,
     panelAnimationsActive,
-    panelAnimationDurationMs
+    panelAnimationDurationMs,
   );
   const turnDiffSummaries = useThreadCheckpointSummaries(routeThreadDetailRef);
   const availableRevertTurnCounts = deriveAvailableRevertTurnCounts(serverProjection);
@@ -1582,7 +1585,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
 
   const workspaceMutationId = deriveWorkspaceMutationId(
     serverVisibleTurnItems,
-    turnDiffSummaries.at(-1)?.completedAt ?? null
+    turnDiffSummaries.at(-1)?.completedAt ?? null,
   );
 
   const gitCwd = activeProject
@@ -1598,7 +1601,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
       : vcsEnvironment.status({
           environmentId,
           input: { cwd: gitStatusCwd },
-        })
+        }),
   );
   useWorkspaceMutationRefresh({
     enabled: gitStatusCwd !== null,
@@ -1637,7 +1640,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
     useLocalStorage(
       `t3code:resume-compaction-dismissed:${environmentId}:${activeProviderInstanceId ?? "claudeAgent"}`,
       false,
-      Schema.Boolean
+      Schema.Boolean,
     );
   const nativeResumeCompactionDismissed = hasDismissedResumeCompaction(
     (serverProjection?.runtimeRequests ?? [])
@@ -1645,7 +1648,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
       .map((request) => ({
         kind: "user-input.resolved",
         payload: { answers: request.answers },
-      }))
+      })),
   );
   useEffect(() => {
     if (nativeResumeCompactionDismissed && !resumeCompactionPermanentlyDismissed) {
@@ -1665,7 +1668,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
   }
   const visibleProviderStatus = shouldShowProviderStatusBanner(
     activeProviderStatus,
-    dismissedProviderStatusBannerKey
+    dismissedProviderStatusBannerKey,
   )
     ? activeProviderStatus
     : null;
@@ -1696,11 +1699,11 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
     ? resolveSelectableModel(
         selectedProviderEntry.driverKind,
         activeThread?.modelSelection.model,
-        providerSubagentModels
+        providerSubagentModels,
       )
     : null;
   const providerSubagentCatalogModel = providerSubagentModels.find(
-    (model) => model.slug === providerSubagentModelSlug
+    (model) => model.slug === providerSubagentModelSlug,
   );
   const providerSubagentModelLabel = providerSubagentCatalogModel
     ? getTriggerDisplayModelName(providerSubagentCatalogModel)
@@ -1711,7 +1714,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
       : formatModelSelectionEffort(
           activeThread.modelSelection,
           providerSubagentModels,
-          reportedModelSelection
+          reportedModelSelection,
         );
   const mountComposerContextStrip = shouldShowComposerContextStrip({
     isDraftHeroState,
@@ -1741,22 +1744,22 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
   const splitTerminalShortcutLabel = shortcutLabelForCommand(
     keybindings,
     "terminal.split",
-    terminalShortcutLabelOptions
+    terminalShortcutLabelOptions,
   );
   const splitTerminalVerticalShortcutLabel = shortcutLabelForCommand(
     keybindings,
     "terminal.splitVertical",
-    terminalShortcutLabelOptions
+    terminalShortcutLabelOptions,
   );
   const newTerminalShortcutLabel = shortcutLabelForCommand(
     keybindings,
     "terminal.new",
-    terminalShortcutLabelOptions
+    terminalShortcutLabelOptions,
   );
   const closeTerminalShortcutLabel = shortcutLabelForCommand(
     keybindings,
     "terminal.close",
-    terminalShortcutLabelOptions
+    terminalShortcutLabelOptions,
   );
 
   const {
@@ -1806,7 +1809,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
       const error = squashAtomCommandFailure(result);
       setThreadError(
         activeThread.id,
-        error instanceof Error ? error.message : "Failed to interrupt the current turn."
+        error instanceof Error ? error.message : "Failed to interrupt the current turn.",
       );
     }
   };
@@ -1900,18 +1903,18 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
   });
   const canOperatePreview = useEnvironmentScope(
     activeThreadRef?.environmentId ?? null,
-    AuthPreviewOperateScope
+    AuthPreviewOperateScope,
   );
   const supportsThreadPullRequests =
     serverConfig?.environment.capabilities.threadPullRequests === true;
   const visiblePullRequests = visibleThreadPullRequests(
-    (activeThreadShell ?? activeThread)?.pullRequests ?? []
+    (activeThreadShell ?? activeThread)?.pullRequests ?? [],
   );
   const visiblePullRequestCount = visiblePullRequests.length;
   const pullRequestsSurfaceAvailable =
     isServerThread && supportsThreadPullRequests && visiblePullRequestCount > 0;
   const { state: deviceState, loaded: deviceStateLoaded } = useDeviceState(
-    activeThreadRef?.environmentId ?? null
+    activeThreadRef?.environmentId ?? null,
   );
   useAgentOpenedPreviews({
     threadRef: activeThreadRef,
@@ -1926,7 +1929,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
   // The thread's own change request, placed against the project it belongs to. Without a
   // project there is nothing to resolve it against, so the caller falls back to the browser.
   const activeProjectRepository = sourceControlRepositorySelector(
-    activeProject?.repositoryIdentity
+    activeProject?.repositoryIdentity,
   );
   const {
     linked: linkedThreadPullRequest,
@@ -1945,7 +1948,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
   });
   const proactivePullRequestsKey = pullRequestsSurfaceAvailable
     ? JSON.stringify(
-        visiblePullRequests.map((link) => [link.host, link.repository, link.number]).sort()
+        visiblePullRequests.map((link) => [link.host, link.repository, link.number]).sort(),
       )
     : linkedThreadPullRequestKey;
   const activeRunningTurnId = activeRuntime?.activeRunId ?? null;
@@ -2010,7 +2013,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
             ...metadataUpdate,
           },
         }),
-        () => undefined
+        () => undefined,
       );
       if (result._tag === "Failure") {
         return result;
@@ -2027,7 +2030,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
             createdAt: input.createdAt,
           },
         }),
-        () => undefined
+        () => undefined,
       );
       if (result._tag === "Failure") {
         return result;
@@ -2044,7 +2047,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
             createdAt: input.createdAt,
           },
         }),
-        () => undefined
+        () => undefined,
       );
     }
     return result;
@@ -2122,14 +2125,14 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
       return;
     }
     const removedMessages = optimisticUserMessages.filter((message) =>
-      serverAcknowledgedUserMessageIds.has(message.id)
+      serverAcknowledgedUserMessageIds.has(message.id),
     );
     if (removedMessages.length === 0) {
       return;
     }
     const timer = window.setTimeout(() => {
       setOptimisticUserMessages((existing) =>
-        existing.filter((message) => !serverAcknowledgedUserMessageIds.has(message.id))
+        existing.filter((message) => !serverAcknowledgedUserMessageIds.has(message.id)),
       );
     }, 0);
     for (const removedMessage of removedMessages) {
@@ -2182,7 +2185,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
     activeThread &&
     activeMessageCount === 0 &&
     activeThread.worktreePath === null &&
-    !envLocked
+    !envLocked,
   );
   if (
     !canOverrideServerThreadEnvMode &&
@@ -2236,23 +2239,23 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
       composerReportedResting: composerRestingRef.current,
     });
     const modelStrip = composerOverlayElement?.querySelector<HTMLElement>(
-      '[data-composer-model-strip="true"]'
+      '[data-composer-model-strip="true"]',
     );
     const restingOnlyHeight =
       modelStrip && isResting
         ? Math.max(
             0,
-            modelStrip.offsetHeight + Number.parseFloat(getComputedStyle(modelStrip).marginTop)
+            modelStrip.offsetHeight + Number.parseFloat(getComputedStyle(modelStrip).marginTop),
           )
         : 0;
     const noticeStack = composerOverlayElement?.querySelector<HTMLElement>(
-      '[data-composer-banner-stack="true"]'
+      '[data-composer-banner-stack="true"]',
     );
     const expandedNoticesHeight = noticeStack
       ? Math.max(
           0,
           noticeStack.getBoundingClientRect().height -
-            Number.parseFloat(getComputedStyle(noticeStack).minHeight)
+            Number.parseFloat(getComputedStyle(noticeStack).minHeight),
         )
       : 0;
     const nextInset = resolveComposerTimelineInset({
@@ -2275,12 +2278,12 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
     // the reservation follows it up. A hero composer's overlay fills the pane,
     // so only its stack counts there.
     const stack = composerOverlayElement?.querySelector<HTMLElement>(
-      '[data-chat-composer-stack="true"]'
+      '[data-chat-composer-stack="true"]',
     );
     const expandedComposerHeight =
       isDraftHeroState && stack ? Math.ceil(stack.getBoundingClientRect().height) : nextInset;
     const mobileCollapsed = Boolean(
-      stack?.querySelector('[data-chat-composer-mobile-collapsed="true"]')
+      stack?.querySelector('[data-chat-composer-mobile-collapsed="true"]'),
     );
     if (!mobileCollapsed) composerExpandedHeightRef.current = expandedComposerHeight;
     const reservedHeight = Math.max(composerExpandedHeightRef.current, expandedComposerHeight);
@@ -2289,10 +2292,10 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
       setComposerReservedHeight(reservedHeight);
     }
     const mainSurface = composerOverlayElement?.querySelector<HTMLElement>(
-      '[data-chat-composer-main-surface="true"]'
+      '[data-chat-composer-main-surface="true"]',
     );
     const button = composerOverlayElement?.parentElement?.querySelector<HTMLElement>(
-      'button[aria-label="Scroll to end"]'
+      'button[aria-label="Scroll to end"]',
     );
     const clearance =
       composerOverlayElement && mainSurface && button
@@ -2302,9 +2305,9 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
             button: button.getBoundingClientRect(),
             attachments: Array.from(
               composerOverlayElement.querySelectorAll<HTMLElement>(
-                '[data-composer-banner-surface="attached"]'
+                '[data-composer-banner-surface="attached"]',
               ),
-              (element) => element.getBoundingClientRect()
+              (element) => element.getBoundingClientRect(),
             ),
           })
         : nextHeight;
@@ -2341,7 +2344,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
       : null;
     return observeResize(
       stack ? [composerOverlayElement, stack] : composerOverlayElement,
-      updateHeight
+      updateHeight,
     );
   }, [
     composerOverlayElement,
@@ -2388,9 +2391,9 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
             type: "error",
             title: target.failureTitle,
             description: error instanceof Error ? error.message : uiText("An error occurred."),
-          })
+          }),
         );
-      }
+      },
     );
   };
   const pullRequestPanelTarget = activeThread
@@ -2503,19 +2506,19 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
   const activeThreadHasCompactableConversation = serverVisibleTurnItems.some(
     ({ item }) =>
       item.type === "user_message" &&
-      (item.text.trim().toLowerCase() !== "/compact" || item.attachments.length > 0)
+      (item.text.trim().toLowerCase() !== "/compact" || item.attachments.length > 0),
   );
   const pendingHandoffSelection = composerSelectedModelSelection ?? activeThread?.modelSelection;
   const pendingHandoffSelectionUsable = providerInstanceEntries.some(
     (entry) =>
       entry.instanceId === pendingHandoffSelection?.instanceId &&
       entry.enabled &&
-      entry.isAvailable
+      entry.isAvailable,
   );
   const pendingHandoff = resolvePendingHandoff(
     serverProjection,
     pendingHandoffSelectionUsable ? pendingHandoffSelection : null,
-    providerStatuses
+    providerStatuses,
   );
   const compactThreadUnavailable =
     !canOperateThread ||
@@ -2547,7 +2550,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
     activeContextWindow &&
     resolveIdleCompaction(
       settings,
-      activeProviderInstanceId ?? ProviderInstanceId.make("claudeAgent")
+      activeProviderInstanceId ?? ProviderInstanceId.make("claudeAgent"),
     ) !== "off" &&
     !resumeCompactionPermanentlyDismissed &&
     !nativeResumeCompactionDismissed &&
@@ -2564,7 +2567,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
       ? activeContextWindow.usedTokens
       : null;
   const [fullHistoryThreadKeys, setFullHistoryThreadKeys] = useState<ReadonlySet<string>>(
-    () => new Set()
+    () => new Set(),
   );
   const keepFullHistory = fullHistoryThreadKeys.has(routeThreadKey);
   const setKeepFullHistory = (threadKey: string, keep: boolean) => {
@@ -2592,7 +2595,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
       setFeedbackSubmissionsByThreadKey((current) => ({
         ...current,
         [routeThreadKey]: (current[routeThreadKey] ?? []).filter(
-          (entry) => entry.id !== submission.id
+          (entry) => entry.id !== submission.id,
         ),
       }));
     });
@@ -2620,7 +2623,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
   const composerBannerItems = (() => {
     const limitRecoveryItems = limitRecoveryBanner === null ? [] : [limitRecoveryBanner];
     const backgroundWorkItems = [childInputBanner, goalBanner, backgroundWorkBanner].filter(
-      (item) => item !== null
+      (item) => item !== null,
     );
     const usageLimitsItems = usageLimitsBanner === null ? [] : [usageLimitsBanner];
     const projectCloneItems = projectCloneBannerItem === null ? [] : [projectCloneBannerItem];
@@ -2744,7 +2747,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
         if (event.repeat) return;
         const currentId = readPendingEnvironmentChange()?.environmentId ?? environmentId;
         const index = logicalProjectEnvironments.findIndex(
-          (env) => env.environmentId === currentId
+          (env) => env.environmentId === currentId,
         );
         const next = logicalProjectEnvironments[(index + 1) % logicalProjectEnvironments.length];
         if (next) onEnvironmentChangeStable(next.environmentId);
@@ -2961,7 +2964,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
   const onComposerSendStable = useStableCallback(onSend);
   const sendPreviewAnnotation = (
     annotation: PreviewAnnotationPayload,
-    image: ComposerImageAttachment | null
+    image: ComposerImageAttachment | null,
   ) => {
     void onSend(undefined, "auto", "foreground", { annotation, image });
   };
@@ -3036,14 +3039,14 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
 
   const pendingSidebarFileDrops = useSidebarPendingFileDropStore((state) => state.pending);
   const consumePendingFileDrop = useSidebarPendingFileDropStore(
-    (state) => state.consumePendingFileDrop
+    (state) => state.consumePendingFileDrop,
   );
   useEffect(() => {
     if (pendingSidebarFileDrops.length === 0) return;
     if (
       typeof composerDraftTarget === "string" ||
       !pendingSidebarFileDrops.some((drop) =>
-        isSameSidebarThreadRef(composerDraftTarget, drop.threadRef)
+        isSameSidebarThreadRef(composerDraftTarget, drop.threadRef),
       )
     ) {
       return;
@@ -3069,11 +3072,11 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
 
   const addDroppedFilesToComposer = useStableCallback(
     (files: Parameters<ChatComposerHandle["addDroppedFiles"]>[0]) =>
-      composerRef.current?.addDroppedFiles(files)
+      composerRef.current?.addDroppedFiles(files),
   );
   const addDroppedFoldersToComposer = useStableCallback(
     (folders: Parameters<ChatComposerHandle["addDroppedFolders"]>[0]) =>
-      composerRef.current?.addDroppedFolders(folders)
+      composerRef.current?.addDroppedFolders(folders),
   );
 
   if (!activeThread) {
@@ -3184,7 +3187,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
       <div
         className={cn(
           "flex min-h-0 min-w-0 flex-col overflow-x-hidden",
-          rightPanelMaximized ? "w-0 flex-none" : "flex-1"
+          rightPanelMaximized ? "w-0 flex-none" : "flex-1",
         )}
         data-chat-column-maximized-away={rightPanelMaximized ? "true" : "false"}
         data-chat-column
@@ -3199,10 +3202,10 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
                   "drag-region flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center px-3 sm:px-5",
                   reserveTitleBarControlInset &&
                     !inlineRightPanelOwnsTitleBar &&
-                    "wco:pr-(--workspace-native-controls-inset)"
+                    "wco:pr-(--workspace-native-controls-inset)",
                 )
               : "flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center pl-(--workspace-gutter-start) pr-(--workspace-gutter-end)",
-            COLLAPSED_SIDEBAR_TITLEBAR_INSET_CLASS
+            COLLAPSED_SIDEBAR_TITLEBAR_INSET_CLASS,
           )}
         >
           {isElectron && rightPanelControlsAtRoot ? (
@@ -3471,7 +3474,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
                                 selectedProviderEntry !== undefined &&
                                 shouldShowInstanceBadge(
                                   selectedProviderEntry,
-                                  providerInstanceEntries
+                                  providerInstanceEntries,
                                 )
                               }
                               modelLabel={providerSubagentModelLabel}
@@ -3484,24 +3487,48 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
                               }
                             />
                           ) : null}
-                          {!isServerThread && draftId && activeProject ? (<DraftWorkspaceNotice draftId={draftId} project={activeProject} workspacePath={activeWorkspaceRoot ?? activeProject.workspaceRoot} canChange={() => !envLocked && !sendInFlightRef.current}/>) : null}{contextControlsHost &&
-            isServerThread &&
-            activeThreadShell &&
-            serverProjection &&
-            activeWorkspaceRoot
-            ? createPortal(<ContextHandoffNotice key={routeThreadKey} environmentId={environmentId} thread={activeThreadShell} projection={serverProjection} cwd={activeWorkspaceRoot} enabled={settings.longConversationReminderEnabled} onCompact={manualCompactionProviderAvailable
-                    ? () => composerRef.current?.compactContext()
-                    : undefined} compactDisabled={compactDisabled
-                              } showThroughput={settings.turnThroughputEnabled
-                              } disconnected={activeEnvironmentUnavailable ||
-                    false} disabled={isConnecting ||
-                    activeEnvironmentUnavailable ||
-                    isRevertingCheckpoint
-                              }/>, contextControlsHost)
-            : null
-                              }{!composerMounted ? null : (
+                          {!isServerThread && draftId && activeProject ? (
+                            <DraftWorkspaceNotice
+                              draftId={draftId}
+                              project={activeProject}
+                              workspacePath={activeWorkspaceRoot ?? activeProject.workspaceRoot}
+                              canChange={() => !envLocked && !sendInFlightRef.current}
+                            />
+                          ) : null}
+                          {contextControlsHost &&
+                          isServerThread &&
+                          activeThreadShell &&
+                          serverProjection &&
+                          activeWorkspaceRoot
+                            ? createPortal(
+                                <ContextHandoffNotice
+                                  key={routeThreadKey}
+                                  environmentId={environmentId}
+                                  thread={activeThreadShell}
+                                  projection={serverProjection}
+                                  cwd={activeWorkspaceRoot}
+                                  enabled={settings.longConversationReminderEnabled}
+                                  onCompact={
+                                    manualCompactionProviderAvailable
+                                      ? () => composerRef.current?.compactContext()
+                                      : undefined
+                                  }
+                                  compactDisabled={compactDisabled}
+                                  showThroughput={settings.turnThroughputEnabled}
+                                  disconnected={activeEnvironmentUnavailable || false}
+                                  disabled={
+                                    isConnecting ||
+                                    activeEnvironmentUnavailable ||
+                                    isRevertingCheckpoint
+                                  }
+                                />,
+                                contextControlsHost,
+                              )
+                            : null}
+                          {!composerMounted ? null : (
                             <ChatComposer
-                              canOperateThread={canOperateThread} onContextControlsHostChange={setContextControlsHost}
+                              canOperateThread={canOperateThread}
+                              onContextControlsHostChange={setContextControlsHost}
                               reportedModelSelection={reportedModelSelection}
                               multipleModelSelections={multipleModelSelections}
                               supportsMultipleModels={
@@ -3685,7 +3712,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
                               className={cn(
                                 "group-data-model-strip-transition/composer-surface:before:backdrop-blur-(--glass-blur) group-data-model-strip-transition/composer-surface:before:bg-(--chat-composer-glass-surface)/(--glass-opacity)",
                                 !showComposerModelStrip &&
-                                  "pointer-events-none invisible absolute inset-x-0 top-full"
+                                  "pointer-events-none invisible absolute inset-x-0 top-full",
                               )}
                             >
                               <div
@@ -3773,24 +3800,28 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
               onConfirm={handleSwitchCheckoutToThreadStable}
             />
 
-            <ThreadDetailsPanel continuation={{
-            thread: activeThread,
-            projection: serverProjection ?? null,
-            onQuote: (text) => {
-            if (!activeThreadRef)
-                    return false;
-                const inserted = composerRef.current?.insertTextAtCursor(text) ?? false;
-                if (inserted) {
-              useRightPanelStore.getState().setThreadPanelOpen(activeThreadRef, "popover", false);
+            <ThreadDetailsPanel
+              continuation={{
+                thread: activeThread,
+                projection: serverProjection ?? null,
+                onQuote: (text) => {
+                  if (!activeThreadRef) return false;
+                  const inserted = composerRef.current?.insertTextAtCursor(text) ?? false;
+                  if (inserted) {
+                    useRightPanelStore
+                      .getState()
+                      .setThreadPanelOpen(activeThreadRef, "popover", false);
                     scheduleComposerFocus();
-          }
-                return inserted;
-            },
-        }} onAttachArtifactFiles={(files) => {
-            if (artifactDraftTargetRef.current !== artifactDraftKey)
-                throw new Error("会话已切换，请回到原会话重新附加");
-            composerRef.current?.addDroppedFiles(files);
-            scheduleComposerFocus();}}
+                  }
+                  return inserted;
+                },
+              }}
+              onAttachArtifactFiles={(files) => {
+                if (artifactDraftTargetRef.current !== artifactDraftKey)
+                  throw new Error("会话已切换，请回到原会话重新附加");
+                composerRef.current?.addDroppedFiles(files);
+                scheduleComposerFocus();
+              }}
               anchor={threadPanelPopoverAnchorRef}
               handle={threadPanelPopoverHandle}
               onPresentationChange={setThreadPanelPresentation}
@@ -3950,7 +3981,7 @@ const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useS
   );
 }
 
-function PreviewSessionSync(props: { readonly threadRef: ScopedThreadRef; }) {
+function PreviewSessionSync(props: { readonly threadRef: ScopedThreadRef }) {
   usePreviewSession(props.threadRef);
   return null;
 }

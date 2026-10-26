@@ -124,14 +124,16 @@ export function EasDeviceHostsSettings(props: { environmentId: EnvironmentId | n
                     disabled={disabled}
                     onClick={() => setEditing({ host, isNew: false })}
                   >
-                    {uiText("Edit")}</Button>
+                    {uiText("Edit")}
+                  </Button>
                   <Button
                     size="sm"
                     variant="ghost-destructive"
                     disabled={disabled}
                     onClick={() => void save(host, true)}
                   >
-                    {uiText("Remove")}</Button>
+                    {uiText("Remove")}
+                  </Button>
                 </div>
               </li>
             ))}
@@ -408,9 +410,11 @@ function EasDeviceHostEditor(props: {
           </DialogPanel>
           <DialogFooter>
             <Button type="button" variant="ghost" disabled={props.busy} onClick={props.onClose}>
-              {uiText("Cancel")}</Button>
+              {uiText("Cancel")}
+            </Button>
             <Button type="submit" disabled={props.busy || !valid}>
-              {props.busy ? <Spinner size="xs" /> : null} {uiText("Save host") + " "}</Button>
+              {props.busy ? <Spinner size="xs" /> : null} {uiText("Save host") + " "}
+            </Button>
           </DialogFooter>
         </form>
       </DialogPopup>

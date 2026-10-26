@@ -48,14 +48,14 @@ function titleizeFieldKey(key: string): string {
 }
 
 function readFieldAnnotations(
-  fieldSchema: ProviderClientDefinition["settingsSchema"]["fields"][string]
+  fieldSchema: ProviderClientDefinition["settingsSchema"]["fields"][string],
 ) {
   return Schema.resolveAnnotationsKey(fieldSchema) ?? Schema.resolveAnnotations(fieldSchema);
 }
 
 function readFieldAnnotationString(
   fieldSchema: ProviderClientDefinition["settingsSchema"]["fields"][string],
-  key: "title" | "description"
+  key: "title" | "description",
 ): string | undefined {
   const annotations = readFieldAnnotations(fieldSchema);
   const value = annotations?.[key];
@@ -63,20 +63,20 @@ function readFieldAnnotationString(
 }
 
 function readProviderSettingsFormAnnotation(
-  fieldSchema: ProviderClientDefinition["settingsSchema"]["fields"][string]
+  fieldSchema: ProviderClientDefinition["settingsSchema"]["fields"][string],
 ): ProviderSettingsFormAnnotation {
   const annotation = readFieldAnnotations(fieldSchema)?.providerSettingsForm;
   return annotation ?? {};
 }
 
 function readProviderSettingsFormSchemaAnnotation(
-  definition: SettingsFormDefinition
+  definition: SettingsFormDefinition,
 ): ProviderSettingsFormSchemaAnnotation {
   return Schema.resolveAnnotations(definition.settingsSchema)?.providerSettingsFormSchema ?? {};
 }
 
 function readFieldBooleanDefault(
-  fieldSchema: ProviderClientDefinition["settingsSchema"]["fields"][string]
+  fieldSchema: ProviderClientDefinition["settingsSchema"]["fields"][string],
 ): boolean | undefined {
   const decodeDefault = Schema.decodeUnknownOption(fieldSchema as Schema.Decoder<unknown>);
   const decoded = decodeDefault(undefined);
@@ -85,14 +85,14 @@ function readFieldBooleanDefault(
 
 export function deriveProviderSettingsFields(
   definition: SettingsFormDefinition,
-  value?: unknown
+  value?: unknown,
 ): ReadonlyArray<ProviderSettingsFieldModel> {
   const isLocalAcp =
     definition.driverKind === "acpRegistry" &&
     readProviderConfigString(value, "source") === "local";
   const schemaAnnotation = readProviderSettingsFormSchemaAnnotation(definition);
   const orderedKeys = new Map(
-    (schemaAnnotation.order ?? []).map((key, index) => [key, index] as const)
+    (schemaAnnotation.order ?? []).map((key, index) => [key, index] as const),
   );
   const orderFallbackOffset = orderedKeys.size;
 
@@ -210,7 +210,8 @@ function ProviderCommandArguments({
           onClick={() => updateArguments([...rowsRef.current, makeCommandArgumentDraftRow("")])}
         >
           <PlusIcon />
-          {uiText("Add argument")}</Button>
+          {uiText("Add argument")}
+        </Button>
       }
     >
       {rows.length > 0 ? (
@@ -224,11 +225,11 @@ function ProviderCommandArguments({
                 onCommit={(next) =>
                   updateArguments(
                     rowsRef.current.map((current) =>
-                      current.id === argument.id ? { ...current, value: next } : current
-                    )
+                      current.id === argument.id ? { ...current, value: next } : current,
+                    ),
                   )
                 }
-                aria-label={uiText("Argument {0}", {"0": index + 1})}
+                aria-label={uiText("Argument {0}", { "0": index + 1 })}
                 spellCheck={false}
               />
               <Button
@@ -238,7 +239,7 @@ function ProviderCommandArguments({
                 onClick={() =>
                   updateArguments(rowsRef.current.filter((current) => current.id !== argument.id))
                 }
-                aria-label={uiText("Remove argument {0}", {"0": index + 1})}
+                aria-label={uiText("Remove argument {0}", { "0": index + 1 })}
               >
                 <XIcon />
               </Button>
@@ -265,7 +266,7 @@ function readProviderConfigBoolean(config: unknown, key: string, defaultValue = 
 export function nextProviderConfigWithFieldValue(
   config: unknown,
   field: ProviderSettingsFieldModel,
-  value: string | boolean
+  value: string | boolean,
 ): Record<string, unknown> | undefined {
   const base: Record<string, unknown> =
     config !== null && typeof config === "object" ? { ...(config as Record<string, unknown>) } : {};
@@ -425,7 +426,7 @@ function ProviderSettingsFieldRow({
               size="icon-sm"
               variant="ghost-destructive"
               onClick={() => onChange(nextProviderConfigWithFieldValue(value, field, ""))}
-              aria-label={uiText("Clear {0}", {"0": field.label})}
+              aria-label={uiText("Clear {0}", { "0": field.label })}
             >
               <XIcon className="size-3.5" />
             </Button>

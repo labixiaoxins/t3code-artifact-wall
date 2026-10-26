@@ -144,8 +144,8 @@ export function useComposerContextImport(input: {
     const fail = (reason: string) => {
       toastManager.add({
         type: "error",
-        title: uiText("Couldn't bring {0} into this message", {"0": record.name}),
-        description: uiText("{0} Remove the chip or attach the file again.", {"0": reason}),
+        title: uiText("Couldn't bring {0} into this message", { "0": record.name }),
+        description: uiText("{0} Remove the chip or attach the file again.", { "0": reason }),
       });
     };
     let file = copiedComposerAttachmentFile(sourceEnvironmentId, record.attachmentId);

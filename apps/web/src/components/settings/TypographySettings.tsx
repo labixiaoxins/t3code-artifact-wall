@@ -231,7 +231,9 @@ function WordWrapRow() {
   return (
     <SettingsRow
       {...searchableSetting("word-wrap")}
-      description={uiText("Wrap long lines in code blocks, tables, diffs, and file previews by default.")}
+      description={uiText(
+        "Wrap long lines in code blocks, tables, diffs, and file previews by default.",
+      )}
       resetAction={
         settings.wordWrap !== DEFAULT_UNIFIED_SETTINGS.wordWrap ? (
           <SettingResetButton
@@ -323,7 +325,8 @@ export function TypographySection() {
       title={uiText("Typography")}
       headerAction={
         <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-muted-foreground">
-          {uiText("Advanced")}<Switch
+          {uiText("Advanced")}
+          <Switch
             checked={advanced}
             onCheckedChange={(checked) => setAdvanced(Boolean(checked))}
             aria-label={uiText("Show advanced typography settings")}
@@ -424,7 +427,7 @@ function FontFamilySettingsRow({
   const familyControl =
     fontEnumeration.status === "granted" ? (
       <FontFamilyPicker
-        ariaLabel={uiText("{0} family", {"0": title})}
+        ariaLabel={uiText("{0} family", { "0": title })}
         defaultFamily={defaultFamily}
         selectedFamily={trimmed}
         requireMonospace={requireMonospace}
@@ -434,7 +437,7 @@ function FontFamilySettingsRow({
     ) : (
       <Input
         size="sm"
-        aria-label={uiText("{0} family", {"0": title})}
+        aria-label={uiText("{0} family", { "0": title })}
         aria-invalid={draftPending || undefined}
         autoCapitalize="off"
         autoComplete="off"

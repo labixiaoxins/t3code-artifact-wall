@@ -35,8 +35,9 @@ function ConnectCliAuthMessage({
 const invalidLinkMessage = {
   eyebrow: "Authorization request",
   title: uiText("This connect link is incomplete"),
-  description:
-    uiText("The link is missing its authorization request. Re-run `t3 connect` in your terminal and open the freshly printed URL."),
+  description: uiText(
+    "The link is missing its authorization request. Re-run `t3 connect` in your terminal and open the freshly printed URL.",
+  ),
 } as const;
 
 export function ConnectCliAuthorizeSurface() {
@@ -100,7 +101,8 @@ export function ConnectCliAuthorizeSurface() {
       {isLoaded && !isSignedIn ? (
         <div className="mt-6">
           <Button type="button" onClick={openSignIn}>
-            {uiText("Sign in")}</Button>
+            {uiText("Sign in")}
+          </Button>
         </div>
       ) : null}
     </AuthSurfaceShell>

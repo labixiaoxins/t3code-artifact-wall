@@ -12,7 +12,10 @@ export function PullRequestContextDetails({ metadata }: { metadata: PullRequestC
     <div className="max-w-80 space-y-1 overflow-hidden py-0.5 text-left">
       <div className="flex items-center gap-1.5 text-xs font-medium">
         <state.Icon className={cn("size-3.5 shrink-0", state.toneClassName)} />
-        <span className="text-foreground">{uiText("Pull request #")}{metadata.number}</span>
+        <span className="text-foreground">
+          {uiText("Pull request #")}
+          {metadata.number}
+        </span>
         <span className={state.toneClassName}>{state.label}</span>
       </div>
       <div className="wrap-break-word text-foreground">{metadata.title}</div>

@@ -206,8 +206,16 @@ const CHECK_STATUS_PRESENTATION = {
   },
   failure: { label: uiText("Failed"), Icon: CircleXIcon, toneClassName: "text-destructive" },
   cancelled: { label: uiText("Cancelled"), Icon: CircleXIcon, toneClassName: "text-destructive" },
-  skipped: { label: uiText("Skipped"), Icon: CircleSlashIcon, toneClassName: "text-muted-foreground/70" },
-  neutral: { label: uiText("Neutral"), Icon: CircleDashedIcon, toneClassName: "text-muted-foreground/70" },
+  skipped: {
+    label: uiText("Skipped"),
+    Icon: CircleSlashIcon,
+    toneClassName: "text-muted-foreground/70",
+  },
+  neutral: {
+    label: uiText("Neutral"),
+    Icon: CircleDashedIcon,
+    toneClassName: "text-muted-foreground/70",
+  },
 } as const satisfies Record<
   PullRequestCheckStatus,
   {
@@ -340,7 +348,7 @@ export function pullRequestReviewOutcomeRingClassName(
 }
 
 export function pullRequestReviewOutcomeStaleLabel(outcome: PullRequestReviewOutcome): string {
-  return uiText("{0} earlier changes", {"0": REVIEW_OUTCOME_PRESENTATION[outcome].label});
+  return uiText("{0} earlier changes", { "0": REVIEW_OUTCOME_PRESENTATION[outcome].label });
 }
 
 export function PullRequestReviewOutcomeIcon({
@@ -451,7 +459,7 @@ export function PullRequestActorLabel({
                   href={profileUrl}
                   target={"_blank"}
                   rel={"noopener noreferrer"}
-                  aria-label={uiText("Open {0}'s profile", {"0": login})}
+                  aria-label={uiText("Open {0}'s profile", { "0": login })}
                 />
               }
             />

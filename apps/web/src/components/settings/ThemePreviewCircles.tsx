@@ -170,7 +170,7 @@ export function ThemePreviewCircles({
             <TooltipTrigger
               render={
                 <button
-                  aria-label={uiText("Use {0} {1} mode", {"0": label, "1": mode})}
+                  aria-label={uiText("Use {0} {1} mode", { "0": label, "1": mode })}
                   aria-pressed={isPicked}
                   className={cn(
                     "relative flex size-[68px] shrink-0 transform-gpu cursor-pointer items-center justify-center rounded-full p-1 outline-none transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card",
@@ -206,7 +206,9 @@ export function ThemePreviewCircles({
               }
             />
             <TooltipPopup>
-              {mode === "light" ? uiText("Use for light mode only") : uiText("Use for dark mode only")}
+              {mode === "light"
+                ? uiText("Use for light mode only")
+                : uiText("Use for dark mode only")}
             </TooltipPopup>
           </Tooltip>
         );

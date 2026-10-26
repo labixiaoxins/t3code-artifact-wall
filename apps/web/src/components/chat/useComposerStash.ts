@@ -223,8 +223,9 @@ export function useComposerStash(input: {
       toastManager.add({
         type: "warning",
         title: uiText("Restored prompt may reappear in the stash"),
-        description:
-          uiText("Browser storage rejected the update, so this entry could still be there after a reload."),
+        description: uiText(
+          "Browser storage rejected the update, so this entry could still be there after a reload.",
+        ),
         data: { hideCopyButton: true },
       });
     }
@@ -460,8 +461,9 @@ export function useComposerStash(input: {
       toastManager.add({
         type: "warning",
         title: uiText("Stash entry may come back"),
-        description:
-          uiText("Browser storage rejected the delete, so this prompt could reappear after a reload."),
+        description: uiText(
+          "Browser storage rejected the delete, so this prompt could reappear after a reload.",
+        ),
         data: { hideCopyButton: true },
       });
     }
@@ -570,8 +572,9 @@ export function useComposerStash(input: {
         toastManager.add({
           type: "error",
           title: uiText("Could not stash this prompt"),
-          description:
-            uiText("Browser storage rejected the write, so the composer was left as-is. Free up site data and try again."),
+          description: uiText(
+            "Browser storage rejected the write, so the composer was left as-is. Free up site data and try again.",
+          ),
           data: { hideCopyButton: true },
         });
         return;
@@ -580,8 +583,9 @@ export function useComposerStash(input: {
         toastManager.add({
           type: "warning",
           title: uiText("Stashed prompt will not survive a reload"),
-          description:
-            uiText("Browser storage is unavailable, so this stash is kept in memory only for this session."),
+          description: uiText(
+            "Browser storage is unavailable, so this stash is kept in memory only for this session.",
+          ),
           data: { hideCopyButton: true },
         });
       }
@@ -616,7 +620,9 @@ export function useComposerStash(input: {
         toastManager.add({
           type: "warning",
           title: uiText("Oldest stashed prompt discarded"),
-          description: uiText("The stash holds {0} prompts; the oldest was removed to make room.", {"0": MAX_STASH_ENTRIES}),
+          description: uiText("The stash holds {0} prompts; the oldest was removed to make room.", {
+            "0": MAX_STASH_ENTRIES,
+          }),
           data: { hideCopyButton: true },
         });
       }
@@ -658,8 +664,9 @@ export function useComposerStash(input: {
           toastManager.add({
             type: "warning",
             title: uiText("Stashed images were not saved"),
-            description:
-              uiText("The prompt was stashed, but browser storage rejected its images. They will be missing if you reload."),
+            description: uiText(
+              "The prompt was stashed, but browser storage rejected its images. They will be missing if you reload.",
+            ),
             data: { hideCopyButton: true },
           });
         }
@@ -667,7 +674,15 @@ export function useComposerStash(input: {
         toastManager.add({
           type: "warning",
           title: uiText("Stashed images did not attach"),
-          description: uiText("That prompt was restored or deleted before {0} image{1} finished saving. Re-attach {2} if you still need {3}.", {"0": kept.length, "1": kept.length === 1 ? "" : "s", "2": kept.length === 1 ? "it" : "them", "3": kept.length === 1 ? "it" : "them"}),
+          description: uiText(
+            "That prompt was restored or deleted before {0} image{1} finished saving. Re-attach {2} if you still need {3}.",
+            {
+              "0": kept.length,
+              "1": kept.length === 1 ? "" : "s",
+              "2": kept.length === 1 ? "it" : "them",
+              "3": kept.length === 1 ? "it" : "them",
+            },
+          ),
           data: { hideCopyButton: true },
         });
       }

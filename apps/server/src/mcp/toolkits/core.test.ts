@@ -54,7 +54,7 @@ import * as AttachmentHandlers from "./attachment/handlers.ts";
 
 const layerOrchestratorToolkit = McpHttpServer.layerOrchestratorToolkit.pipe(
   Layer.provide(Layer.mock(ThreadLaunchService.ThreadLaunchService)({})),
-  Layer.provide(Layer.mock(GitVcsDriver.GitVcsDriver)({}))
+  Layer.provide(Layer.mock(GitVcsDriver.GitVcsDriver)({})),
 );
 
 // Effect returns a declared tool failure as `isError` with its encoded payload
@@ -70,7 +70,7 @@ const decodeThreadReadResult = Schema.decodeUnknownEffect(OrchestratorMcpThreadR
 
 const layerThreadToolkit = McpHttpServer.layerThreadToolkit.pipe(
   Layer.provide(Layer.mock(ThreadSearch.ThreadSearch)({})),
-  Layer.provide(Layer.mock(ScheduledTaskService.ScheduledTaskService)({}))
+  Layer.provide(Layer.mock(ScheduledTaskService.ScheduledTaskService)({})),
 );
 
 const threadId = ThreadId.make("mcp-core-thread");
@@ -110,7 +110,7 @@ it.effect("checks capability through the production registration", () =>
           ...scope,
           capabilities: new Set<never>(),
         }),
-        Effect.provideService(McpSchema.McpServerClient, client)
+        Effect.provideService(McpSchema.McpServerClient, client),
       );
     expect(declaredFailure(result)).toMatchObject({ code: "capability_denied" });
     expect(result.isError).toBe(true);
@@ -120,10 +120,10 @@ it.effect("checks capability through the production registration", () =>
       layerThreadToolkit.pipe(
         Layer.provideMerge(McpServer.McpServer.layer),
         Layer.provide(NodeCrypto.layer),
-        Layer.provide(McpToolAccessTestkit.liveThreadsLayer)
-      )
-    )
-  )
+        Layer.provide(McpToolAccessTestkit.liveThreadsLayer),
+      ),
+    ),
+  ),
 );
 
 it.effect("an answered question reports already answered instead of not found", () => {
@@ -140,7 +140,7 @@ it.effect("an answered question reports already answered instead of not found", 
         })
         .pipe(
           Effect.provideService(McpInvocationContext.McpInvocationContext, scope),
-          Effect.provideService(McpSchema.McpServerClient, client)
+          Effect.provideService(McpSchema.McpServerClient, client),
         );
     expect(declaredFailure(yield* respond(requestId))).toMatchObject({
       code: "invalid_request",
@@ -198,10 +198,10 @@ it.effect("an answered question reports already answered instead of not found", 
                 ],
               }),
             dispatch: () => Effect.die("an answered question must not dispatch again"),
-          })
-        )
-      )
-    )
+          }),
+        ),
+      ),
+    ),
   );
 });
 
@@ -209,12 +209,12 @@ it("bounds public command rejections and redacts internal dispatch causes", () =
   const command = { commandId: CommandId.make("mcp-core-command"), commandType: "thread.settle" };
   expect(
     dispatchFailure(new OrchestratorDispatchError({ ...command, cause: "🙂".repeat(1001) }))
-      .message
+      .message,
   ).toBe("🙂".repeat(1000));
   expect(
     dispatchFailure(
-      new OrchestratorCommandRejectedError({ ...command, cause: "Run is not queued." })
-    ).message
+      new OrchestratorCommandRejectedError({ ...command, cause: "Run is not queued." }),
+    ).message,
   ).toBe("Run is not queued.");
   for (const cause of [
     undefined,
@@ -227,14 +227,14 @@ it("bounds public command rejections and redacts internal dispatch causes", () =
       message: "The operation could not be completed.",
     });
     expect(
-      dispatchFailure(new OrchestratorCommandRejectedError({ ...command, cause }))
+      dispatchFailure(new OrchestratorCommandRejectedError({ ...command, cause })),
     ).toMatchObject({
       code: "orchestration_error",
       message: "The operation could not be completed.",
     });
   }
   expect(
-    dispatchFailure(new OrchestratorProjectionError({ threadId, cause: "private-storage-path" }))
+    dispatchFailure(new OrchestratorProjectionError({ threadId, cause: "private-storage-path" })),
   ).toMatchObject({
     code: "orchestration_error",
     message: "The operation could not be completed.",
@@ -251,7 +251,7 @@ it.effect("returns an HTML render reference that Codex and Claude tool rows both
       })
       .pipe(
         Effect.provideService(McpInvocationContext.McpInvocationContext, scope),
-        Effect.provideService(McpSchema.McpServerClient, client)
+        Effect.provideService(McpSchema.McpServerClient, client),
       );
     const reference = htmlRenderFromToolItem({
       toolName: "t3-code.html_render",
@@ -259,7 +259,7 @@ it.effect("returns an HTML render reference that Codex and Claude tool rows both
     });
     expect(reference).toMatchObject({ title: "Revenue", height: 240 });
     expect(
-      htmlRenderFromToolItem({ toolName: "mcp__t3-code__html_render", output: result.content })
+      htmlRenderFromToolItem({ toolName: "mcp__t3-code__html_render", output: result.content }),
     ).toEqual(reference);
   }).pipe(
     Effect.provide(
@@ -280,11 +280,11 @@ it.effect("returns an HTML render reference that Codex and Claude tool rows both
                 activeRunId: RunId.make("mcp-core-run"),
                 providerInstanceId: ProviderInstanceId.make("codex"),
               } as OrchestrationV2ThreadShell),
-          })
-        )
-      )
-    )
-  )
+          }),
+        ),
+      ),
+    ),
+  ),
 );
 
 it.effect("keeps unexpected handler defects private through the production registration", () =>
@@ -294,7 +294,7 @@ it.effect("keeps unexpected handler defects private through the production regis
       .callTool({ name: "t3_thread_organize", arguments: { action: "pin" } })
       .pipe(
         Effect.provideService(McpInvocationContext.McpInvocationContext, scope),
-        Effect.provideService(McpSchema.McpServerClient, client)
+        Effect.provideService(McpSchema.McpServerClient, client),
       );
     expect(result.isError).toBe(true);
     expect(result.structuredContent).toBeUndefined();
@@ -309,11 +309,11 @@ it.effect("keeps unexpected handler defects private through the production regis
         Layer.provide(
           Layer.mock(ThreadManagement.ThreadManagementService)({
             getThreadShell: () => Effect.die(new Error("private-storage-path")),
-          })
-        )
-      )
-    )
-  )
+          }),
+        ),
+      ),
+    ),
+  ),
 );
 
 it("keeps MCP preference output allowlisted and Unicode-bounded", () => {
@@ -361,14 +361,14 @@ it.effect("resolves reused attachment references from stored metadata", () =>
     expect(result).toEqual([stored]);
     const failure = yield* AttachmentHandlers.resolveAttachmentReferences(
       [{ ...forged, id: "other-image" }],
-      [stored]
+      [stored],
     ).pipe(Effect.flip);
     expect(failure.code).toBe("invalid_request");
-  })
+  }),
 );
 
 const clientScope = (
-  access: McpInvocationContext.McpClientCaller["access"]
+  access: McpInvocationContext.McpClientCaller["access"],
 ): McpInvocationContext.McpInvocationScope => ({
   environmentId: EnvironmentId.make("mcp-core-environment"),
   requestNamespace: "client:session-1",
@@ -384,13 +384,13 @@ it.effect("a client caller targets any thread within its ceiling and cannot act 
     const call = (
       name: string,
       args: Record<string, unknown>,
-      invocation: McpInvocationContext.McpInvocationScope
+      invocation: McpInvocationContext.McpInvocationScope,
     ) =>
       server
         .callTool({ name, arguments: args })
         .pipe(
           Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
-          Effect.provideService(McpSchema.McpServerClient, client)
+          Effect.provideService(McpSchema.McpServerClient, client),
         );
 
     const untargeted = yield* call("t3_thread_organize", { action: "pin" }, clientScope("auto"));
@@ -399,7 +399,7 @@ it.effect("a client caller targets any thread within its ceiling and cannot act 
     const pinned = yield* call(
       "t3_thread_organize",
       { action: "pin", threadId: "other-project-thread" },
-      clientScope("auto")
+      clientScope("auto"),
     );
     expect(pinned.isError).toBe(false);
     expect(pinned.structuredContent).toMatchObject({ sequence: 7 });
@@ -407,7 +407,7 @@ it.effect("a client caller targets any thread within its ceiling and cannot act 
     const aboveCeiling = yield* call(
       "t3_thread_organize",
       { action: "pin", threadId: "other-project-thread" },
-      clientScope("approval-required")
+      clientScope("approval-required"),
     );
     expect(declaredFailure(aboveCeiling)).toMatchObject({
       code: "runtime_mode_escalation_denied",
@@ -416,7 +416,7 @@ it.effect("a client caller targets any thread within its ceiling and cannot act 
     const forked = yield* call(
       "t3_thread_fork",
       { sourcePoint: { type: "latest_stable" } },
-      clientScope("auto")
+      clientScope("auto"),
     );
     expect(declaredFailure(forked)).toMatchObject({ code: "target_required" });
   }).pipe(
@@ -439,11 +439,11 @@ it.effect("a client caller targets any thread within its ceiling and cannot act 
                 },
               } as never),
             dispatch: () => Effect.succeed({ sequence: 7, storedEvents: [] }),
-          })
-        )
-      )
-    )
-  )
+          }),
+        ),
+      ),
+    ),
+  ),
 );
 
 it.effect("a read-only client reads threads and is refused every write before it runs", () =>
@@ -455,9 +455,9 @@ it.effect("a read-only client reads threads and is refused every write before it
         .pipe(
           Effect.provideService(
             McpInvocationContext.McpInvocationContext,
-            clientScope("read-only")
+            clientScope("read-only"),
           ),
-          Effect.provideService(McpSchema.McpServerClient, client)
+          Effect.provideService(McpSchema.McpServerClient, client),
         );
 
     const configuration = yield* call("t3_thread_configuration", {
@@ -508,11 +508,11 @@ it.effect("a read-only client reads threads and is refused every write before it
                 dispatched.push("dispatch");
                 return { sequence: 7 } as never;
               }),
-          })
-        )
-      )
-    )
-  )
+          }),
+        ),
+      ),
+    ),
+  ),
 );
 const dispatched: Array<string> = [];
 
@@ -527,9 +527,9 @@ it.effect("refuses act-as-caller tools to a client caller", () =>
       .pipe(
         Effect.provideService(
           McpInvocationContext.McpInvocationContext,
-          clientScope("full-access")
+          clientScope("full-access"),
         ),
-        Effect.provideService(McpSchema.McpServerClient, client)
+        Effect.provideService(McpSchema.McpServerClient, client),
       );
     expect(declaredFailure(result)).toMatchObject({ code: "thread_credential_required" });
   }).pipe(
@@ -543,10 +543,10 @@ it.effect("refuses act-as-caller tools to a client caller", () =>
         Layer.provide(Layer.mock(ProviderAdapterRegistry.ProviderAdapterRegistryV2)({})),
         Layer.provide(Layer.mock(ScheduledTaskService.ScheduledTaskService)({})),
         Layer.provide(Layer.mock(ProjectService.ProjectService)({})),
-        Layer.provide(Layer.mock(SecretRequests.SecretRequests)({}))
-      )
-    )
-  )
+        Layer.provide(Layer.mock(SecretRequests.SecretRequests)({})),
+      ),
+    ),
+  ),
 );
 
 it.effect("a caller cannot rewrite a scheduled task that runs above its own modes", () =>
@@ -557,7 +557,7 @@ it.effect("a caller cannot rewrite a scheduled task that runs above its own mode
         .callTool({ name, arguments: args })
         .pipe(
           Effect.provideService(McpInvocationContext.McpInvocationContext, clientScope("auto")),
-          Effect.provideService(McpSchema.McpServerClient, client)
+          Effect.provideService(McpSchema.McpServerClient, client),
         );
     const update = yield* call("update_scheduled_task", {
       scheduledTaskId: "task-full-access",
@@ -593,13 +593,13 @@ it.effect("a caller cannot rewrite a scheduled task that runs above its own mode
               Effect.succeed({
                 task: { ...(scheduledTask(input.id ?? "task-auto", "auto") as object), ...input },
               } as never),
-          })
+          }),
         ),
         Layer.provide(Layer.mock(ProjectService.ProjectService)({})),
-        Layer.provide(Layer.mock(SecretRequests.SecretRequests)({}))
-      )
-    )
-  )
+        Layer.provide(Layer.mock(SecretRequests.SecretRequests)({})),
+      ),
+    ),
+  ),
 );
 
 function scheduledTask(id: string, runtimeMode: "auto" | "full-access"): never {
@@ -643,7 +643,7 @@ it.effect.each(["t3_thread_interrupt", "t3_workflow_stop"])(
         })
         .pipe(
           Effect.provideService(McpInvocationContext.McpInvocationContext, clientScope("auto")),
-          Effect.provideService(McpSchema.McpServerClient, client)
+          Effect.provideService(McpSchema.McpServerClient, client),
         );
       expect(declaredFailure(result)).toMatchObject({ code: "runtime_mode_escalation_denied" });
     }).pipe(
@@ -673,17 +673,17 @@ it.effect.each(["t3_thread_interrupt", "t3_workflow_stop"])(
                 } as never),
               stopWorkflow: () => Effect.die("workflow stop must not dispatch above the ceiling"),
               interruptThread: () => Effect.die("interrupt must not dispatch above the ceiling"),
-            })
+            }),
           ),
           Layer.provide(ServerSettings.layerTest()),
           Layer.provide(Layer.mock(ProviderRegistry.ProviderRegistry)({})),
           Layer.provide(Layer.mock(ProviderAdapterRegistry.ProviderAdapterRegistryV2)({})),
           Layer.provide(Layer.mock(ScheduledTaskService.ScheduledTaskService)({})),
           Layer.provide(Layer.mock(ProjectService.ProjectService)({})),
-          Layer.provide(Layer.mock(SecretRequests.SecretRequests)({}))
-        )
-      )
-    )
+          Layer.provide(Layer.mock(SecretRequests.SecretRequests)({})),
+        ),
+      ),
+    ),
 );
 
 it.effect("discovers workflow stop targets and requires orchestration capability", () => {
@@ -721,7 +721,7 @@ it.effect("discovers workflow stop targets and requires orchestration capability
       result: null,
     },
   };
-  const stopped: Array<{ readonly threadId: ThreadId; readonly subagentId: string; }> = [];
+  const stopped: Array<{ readonly threadId: ThreadId; readonly subagentId: string }> = [];
   return Effect.gen(function* () {
     const server = yield* McpServer.McpServer;
     const scope = clientScope("full-access");
@@ -729,7 +729,7 @@ it.effect("discovers workflow stop targets and requires orchestration capability
       .callTool({ name: "t3_thread_read", arguments: { threadId, view: "activity" } })
       .pipe(
         Effect.provideService(McpInvocationContext.McpInvocationContext, scope),
-        Effect.provideService(McpSchema.McpServerClient, client)
+        Effect.provideService(McpSchema.McpServerClient, client),
       );
     expect(read.isError).toBe(false);
     const result = yield* decodeThreadReadResult(read.structuredContent);
@@ -742,7 +742,7 @@ it.effect("discovers workflow stop targets and requires orchestration capability
         })
         .pipe(
           Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
-          Effect.provideService(McpSchema.McpServerClient, client)
+          Effect.provideService(McpSchema.McpServerClient, client),
         );
     const denied = yield* call({ ...scope, capabilities: new Set(["worktree"]) });
     expect(declaredFailure(denied)).toMatchObject({ code: "capability_denied" });
@@ -765,16 +765,16 @@ it.effect("discovers workflow stop targets and requires orchestration capability
               Effect.sync(() => {
                 stopped.push(input);
               }),
-          })
+          }),
         ),
         Layer.provide(ServerSettings.layerTest()),
         Layer.provide(Layer.mock(ProviderRegistry.ProviderRegistry)({})),
         Layer.provide(Layer.mock(ProviderAdapterRegistry.ProviderAdapterRegistryV2)({})),
         Layer.provide(Layer.mock(ScheduledTaskService.ScheduledTaskService)({})),
         Layer.provide(Layer.mock(ProjectService.ProjectService)({})),
-        Layer.provide(Layer.mock(SecretRequests.SecretRequests)({}))
-      )
-    )
+        Layer.provide(Layer.mock(SecretRequests.SecretRequests)({})),
+      ),
+    ),
   );
 });
 
@@ -784,20 +784,20 @@ it.effect("only the caller that prepared a pending upload can discard it", () =>
     const call = (
       name: string,
       args: Record<string, unknown>,
-      invocation: McpInvocationContext.McpInvocationScope
+      invocation: McpInvocationContext.McpInvocationScope,
     ) =>
       server
         .callTool({ name, arguments: args })
         .pipe(
           Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
-          Effect.provideService(McpSchema.McpServerClient, client)
+          Effect.provideService(McpSchema.McpServerClient, client),
         );
     const prepared = yield* call(
       "t3_attachment_prepare_upload",
       { upload: { name: "shot.png", mimeType: "image/png", sizeBytes: 4 } },
-      scope
+      scope,
     );
-    const { attachmentId } = prepared.structuredContent as { readonly attachmentId: string; };
+    const { attachmentId } = prepared.structuredContent as { readonly attachmentId: string };
     const otherThread = {
       ...scope,
       requestNamespace: "other-session",
@@ -811,13 +811,13 @@ it.effect("only the caller that prepared a pending upload can discard it", () =>
     yield* call(
       "t3_attachment_prepare_upload",
       { upload: { name: "later.png", mimeType: "image/png", sizeBytes: 4 } },
-      scope
+      scope,
     );
 
     const discarded = yield* call(
       "t3_attachment_discard",
       { attachmentId },
-      { ...scope, requestNamespace: "mcp-core-session-2" }
+      { ...scope, requestNamespace: "mcp-core-session-2" },
     );
     expect(discarded.isError).toBe(false);
   }).pipe(
@@ -827,8 +827,8 @@ it.effect("only the caller that prepared a pending upload can discard it", () =>
         Layer.provide(McpToolAccessTestkit.liveThreadsLayer),
         Layer.provide(ServerSecretStore.layer),
         Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "t3-mcp-attachment-" })),
-        Layer.provide(NodeServices.layer)
-      )
-    )
-  )
+        Layer.provide(NodeServices.layer),
+      ),
+    ),
+  ),
 );

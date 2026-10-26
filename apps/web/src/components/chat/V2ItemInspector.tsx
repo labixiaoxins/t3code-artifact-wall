@@ -173,7 +173,10 @@ function ToolOutput(props: ToolOutputState) {
   ) : props.pending ? (
     <div className="text-muted-foreground italic">{uiText("Loading output…")}</div>
   ) : props.error ? (
-    <div className="text-destructive">{uiText("Couldn&apos;t load output:") + " "}{props.error}</div>
+    <div className="text-destructive">
+      {uiText("Couldn&apos;t load output:") + " "}
+      {props.error}
+    </div>
   ) : props.empty && images.length === 0 ? (
     <div className="text-muted-foreground italic">{uiText("No output.")}</div>
   ) : null;
@@ -229,7 +232,10 @@ function ToolCallBody(
       {call.argsText ? <StructuredValue value={call.argsText} highlightJson /> : null}
       {props.outputSlot ?? <ToolOutput {...props} />}
       {props.exitCode !== undefined && props.exitCode !== 0 ? (
-        <div className="text-destructive">{uiText("exit") + " "}{props.exitCode}</div>
+        <div className="text-destructive">
+          {uiText("exit") + " "}
+          {props.exitCode}
+        </div>
       ) : null}
     </div>
   );
@@ -300,7 +306,8 @@ export const V2ItemInspector = memo(function V2ItemInspector(props: V2ItemInspec
                 variant="outline"
                 onClick={() => props.onOpenTurnDiff(item.runId!, item.fileName)}
               >
-                {uiText("Open diff")}</Button>
+                {uiText("Open diff")}
+              </Button>
             ) : null}
           </div>
           {item.status === "failed" && item.diffStr?.trim() ? (
@@ -403,7 +410,9 @@ export const V2ItemInspector = memo(function V2ItemInspector(props: V2ItemInspec
       {item.type === "checkpoint" ? (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-muted-foreground">
-            {support.checkpoint?.status ?? item.status} · {item.files.length} {uiText("files") + " "}</span>
+            {support.checkpoint?.status ?? item.status} · {item.files.length}{" "}
+            {uiText("files") + " "}
+          </span>
           {props.onRollbackCheckpoint && support.checkpoint?.status === "ready" ? (
             <Button
               size="xs"
@@ -416,7 +425,8 @@ export const V2ItemInspector = memo(function V2ItemInspector(props: V2ItemInspec
               }
             >
               <RotateCcwIcon className="size-3" />
-              {uiText("Roll back") + " "}</Button>
+              {uiText("Roll back") + " "}
+            </Button>
           ) : null}
         </div>
       ) : null}
@@ -424,12 +434,14 @@ export const V2ItemInspector = memo(function V2ItemInspector(props: V2ItemInspec
       {item.type === "fork" ? (
         <Button size="xs" variant="outline" onClick={() => props.onOpenThread(item.targetThreadId)}>
           <GitBranchIcon className="size-3" />
-          {uiText("Open fork") + " "}</Button>
+          {uiText("Open fork") + " "}
+        </Button>
       ) : null}
 
       {item.type === "subagent" && item.childThreadId !== null ? (
         <Button size="xs" variant="outline" onClick={() => props.onOpenThread(item.childThreadId!)}>
-          {uiText("Open subagent thread")}</Button>
+          {uiText("Open subagent thread")}
+        </Button>
       ) : null}
 
       {item.type === "handoff" ? (
@@ -442,8 +454,8 @@ export const V2ItemInspector = memo(function V2ItemInspector(props: V2ItemInspec
           </p>
           {support.contextTransfer ? (
             <p>
-              {uiText("Transfer") + " "}{support.contextTransfer.type.replaceAll("_", " ")} ·{" "}
-              {support.contextTransfer.status}
+              {uiText("Transfer") + " "}
+              {support.contextTransfer.type.replaceAll("_", " ")} · {support.contextTransfer.status}
             </p>
           ) : null}
         </div>

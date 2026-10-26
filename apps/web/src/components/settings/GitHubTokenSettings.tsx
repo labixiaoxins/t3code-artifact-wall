@@ -69,9 +69,9 @@ export function GitHubTokenSettings({
           <code className={"rounded bg-muted px-1 py-px text-2xs"}>{"GH_TOKEN"}</code>
           {uiText("and the")}
           <code className={"rounded bg-muted px-1 py-px text-2xs"}>{"gh"}</code>
-          {
-            uiText("login, so GitHub works without the GitHub CLI. Give it read and write access to pull requests and contents.")
-          }
+          {uiText(
+            "login, so GitHub works without the GitHub CLI. Give it read and write access to pull requests and contents.",
+          )}
           <InlineButton
             render={
               <a
@@ -112,7 +112,7 @@ export function GitHubTokenSettings({
           <p className={"text-xs text-muted-foreground"}>
             {savedHosts.length === 0
               ? uiText("No token saved; the server uses GH_TOKEN or the gh login.")
-              : uiText("Saved for {0}.", {"0": savedHosts.join(", ")})}
+              : uiText("Saved for {0}.", { "0": savedHosts.join(", ") })}
           </p>
           <div className={"flex shrink-0 gap-2"}>
             {isSaved ? (

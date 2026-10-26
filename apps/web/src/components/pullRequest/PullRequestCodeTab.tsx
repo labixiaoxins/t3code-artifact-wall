@@ -205,9 +205,11 @@ function FileViewedToggle({
         {stale ? (
           <Tooltip>
             <TooltipTrigger render={<span className="text-warning-foreground" />}>
-              {uiText("Changed")}</TooltipTrigger>
+              {uiText("Changed")}
+            </TooltipTrigger>
             <TooltipPopup side="bottom">
-              {uiText("This file has been pushed to since you marked it viewed.")}</TooltipPopup>
+              {uiText("This file has been pushed to since you marked it viewed.")}
+            </TooltipPopup>
           </Tooltip>
         ) : (
           <span className="@max-xs:hidden">{uiText("Viewed")}</span>
@@ -777,7 +779,8 @@ function PullRequestCodeTab({
           <>
             <span>{uiText("The rest of this diff could not be loaded.")}</span>
             <Button size="xs" variant="outline" onClick={() => diffQuery.refresh()}>
-              {uiText("Retry")}</Button>
+              {uiText("Retry")}
+            </Button>
           </>
         ) : diffQuery.isPending ? (
           uiText("Loading more files...")
@@ -1000,7 +1003,7 @@ function PullRequestCodeTab({
             <DropdownMenuTrigger
               render={<Button size="xs" variant="secondary" />}
               className="min-w-0 max-w-64"
-              aria-label={uiText("Diff scope: {0}", {"0": scopeLabel})}
+              aria-label={uiText("Diff scope: {0}", { "0": scopeLabel })}
             >
               <span className="truncate">{scopeLabel}</span>
               <ChevronDownIcon className="size-3.5 shrink-0 opacity-70" />
@@ -1035,7 +1038,9 @@ function PullRequestCodeTab({
                   onClick={() => setVisibleCommitCount((count) => count + COMMIT_PAGE_SIZE)}
                 >
                   <span className="text-muted-foreground">
-                    {uiText("Show more (")}{orderedCommits.length - visibleCommitCount} {uiText("left)") + " "}</span>
+                    {uiText("Show more (")}
+                    {orderedCommits.length - visibleCommitCount} {uiText("left)") + " "}
+                  </span>
                 </DropdownMenuItem>
               ) : null}
             </DropdownMenuContent>
@@ -1052,7 +1057,9 @@ function PullRequestCodeTab({
                 {filePaths.filter(isFileViewed).length} / {files.length}
               </span>
               <span className="truncate">
-                {viewedFilesStore === "environment" ? uiText("viewed in {0}", {"0": APP_BASE_NAME}) : uiText("viewed")}
+                {viewedFilesStore === "environment"
+                  ? uiText("viewed in {0}", { "0": APP_BASE_NAME })
+                  : uiText("viewed")}
               </span>
               {viewedFilesStore === "environment" ? (
                 <Tooltip>
@@ -1063,7 +1070,10 @@ function PullRequestCodeTab({
                     />
                   </TooltipTrigger>
                   <TooltipPopup side="bottom">
-                    {uiText("This host keeps no shared record of which files you have read, so these ticks are kept by this environment. They follow you between the apps connected to it, but the host's own web UI will not show them.")}</TooltipPopup>
+                    {uiText(
+                      "This host keeps no shared record of which files you have read, so these ticks are kept by this environment. They follow you between the apps connected to it, but the host's own web UI will not show them.",
+                    )}
+                  </TooltipPopup>
                 </Tooltip>
               ) : null}
               {filesViewed.error !== null ? (
@@ -1075,7 +1085,10 @@ function PullRequestCodeTab({
                     />
                   </TooltipTrigger>
                   <TooltipPopup side="bottom">
-                    {uiText("The boxes below are whatever was last read, and empty if nothing has been read yet.") + " "}{filesViewed.error}
+                    {uiText(
+                      "The boxes below are whatever was last read, and empty if nothing has been read yet.",
+                    ) + " "}
+                    {filesViewed.error}
                   </TooltipPopup>
                 </Tooltip>
               ) : null}
@@ -1088,7 +1101,10 @@ function PullRequestCodeTab({
                     />
                   </TooltipTrigger>
                   <TooltipPopup side="bottom">
-                    {uiText("This change has more files than the host will report ticks for in one read, so the count is short and some boxes below start empty.")}</TooltipPopup>
+                    {uiText(
+                      "This change has more files than the host will report ticks for in one read, so the count is short and some boxes below start empty.",
+                    )}
+                  </TooltipPopup>
                 </Tooltip>
               ) : null}
             </span>
@@ -1102,7 +1118,10 @@ function PullRequestCodeTab({
                 />
               </TooltipTrigger>
               <TooltipPopup side="bottom">
-                {uiText("The host withheld part of this diff — a binary file, or a change too large to inline.")}</TooltipPopup>
+                {uiText(
+                  "The host withheld part of this diff — a binary file, or a change too large to inline.",
+                )}
+              </TooltipPopup>
             </Tooltip>
           ) : null}
           {commit !== null && review.inlineComment ? (
@@ -1114,7 +1133,10 @@ function PullRequestCodeTab({
                 />
               </TooltipTrigger>
               <TooltipPopup side="bottom">
-                {uiText("A comment is anchored to the whole change, so switch to All commits to write one.")}</TooltipPopup>
+                {uiText(
+                  "A comment is anchored to the whole change, so switch to All commits to write one.",
+                )}
+              </TooltipPopup>
             </Tooltip>
           ) : null}
         </PullRequestMetaLine>
@@ -1140,12 +1162,14 @@ function PullRequestCodeTab({
               checked={ignoreWhitespace}
               onCheckedChange={(checked) => changeIgnoreWhitespace(checked)}
             >
-              {uiText("Hide whitespace changes")}</DropdownMenuCheckboxItem>
+              {uiText("Hide whitespace changes")}
+            </DropdownMenuCheckboxItem>
             <DropdownMenuCheckboxItem
               checked={wordWrap}
               onCheckedChange={(checked) => setWordWrap(checked)}
             >
-              {uiText("Wrap lines")}</DropdownMenuCheckboxItem>
+              {uiText("Wrap lines")}
+            </DropdownMenuCheckboxItem>
             <DropdownMenuSeparator />
             <DropdownMenuRadioGroup
               value={diffLayout}
@@ -1156,9 +1180,11 @@ function PullRequestCodeTab({
               }}
             >
               <DropdownMenuRadioItem value="stacked" closeOnClick>
-                {uiText("Stacked")}</DropdownMenuRadioItem>
+                {uiText("Stacked")}
+              </DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="split" closeOnClick>
-                {uiText("Split")}</DropdownMenuRadioItem>
+                {uiText("Split")}
+              </DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -1168,7 +1194,9 @@ function PullRequestCodeTab({
               render={
                 <Toggle
                   aria-label={
-                    ignoreWhitespace ? uiText("Show whitespace changes") : uiText("Hide whitespace changes")
+                    ignoreWhitespace
+                      ? uiText("Show whitespace changes")
+                      : uiText("Hide whitespace changes")
                   }
                   variant="ghost"
                   size="sm"
@@ -1180,7 +1208,9 @@ function PullRequestCodeTab({
               <PilcrowIcon className="size-3.5" />
             </TooltipTrigger>
             <TooltipPopup side="top">
-              {ignoreWhitespace ? uiText("Show whitespace changes") : uiText("Hide whitespace changes")}
+              {ignoreWhitespace
+                ? uiText("Show whitespace changes")
+                : uiText("Hide whitespace changes")}
             </TooltipPopup>
           </Tooltip>
           <ToggleGroup
@@ -1206,7 +1236,11 @@ function PullRequestCodeTab({
             <TooltipTrigger
               render={
                 <Toggle
-                  aria-label={wordWrap ? uiText("Disable diff line wrapping") : uiText("Enable diff line wrapping")}
+                  aria-label={
+                    wordWrap
+                      ? uiText("Disable diff line wrapping")
+                      : uiText("Enable diff line wrapping")
+                  }
                   variant="ghost"
                   size="sm"
                   pressed={wordWrap}
@@ -1231,7 +1265,9 @@ function PullRequestCodeTab({
                   type="button"
                   size="icon-sm"
                   variant="ghost"
-                  aria-label={allFilesCollapsed ? uiText("Expand all files") : uiText("Collapse all files")}
+                  aria-label={
+                    allFilesCollapsed ? uiText("Expand all files") : uiText("Collapse all files")
+                  }
                   onClick={toggleAllFiles}
                 />
               }
@@ -1370,7 +1406,7 @@ function PullRequestCodeTab({
                 <span className="sr-only">
                   {orphanThreads.length === 1
                     ? uiText("1 conversation")
-                    : uiText("{0} conversations", {"0": orphanThreads.length})}
+                    : uiText("{0} conversations", { "0": orphanThreads.length })}
                 </span>
               </CollapsibleTrigger>
             </h2>
@@ -1390,7 +1426,10 @@ function PullRequestCodeTab({
                       {threads.map((thread) => (
                         <div key={thread.id}>
                           {thread.line === null ? null : (
-                            <p className="px-3 text-xs text-muted-foreground">{uiText("Line") + " "}{thread.line}</p>
+                            <p className="px-3 text-xs text-muted-foreground">
+                              {uiText("Line") + " "}
+                              {thread.line}
+                            </p>
                           )}
                           {renderThreadCard(thread)}
                         </div>

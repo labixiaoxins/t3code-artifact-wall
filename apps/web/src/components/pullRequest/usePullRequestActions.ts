@@ -369,7 +369,10 @@ export function usePullRequestHandoffs({
       toastManager.update(toastId, {
         type: "error",
         title: uiText("Checked out, but the thread stayed where it was"),
-        description: uiText("The checkout is ready on `{0}`. Point a thread at it from the branch picker, then ask again.", {"0": prepared.value.branch}),
+        description: uiText(
+          "The checkout is ready on `{0}`. Point a thread at it from the branch picker, then ask again.",
+          { "0": prepared.value.branch },
+        ),
       });
       return;
     }

@@ -79,7 +79,7 @@ function NumberLink({
               "inline-flex shrink-0 cursor-pointer items-center gap-0.5 font-medium underline-offset-2 hover:underline",
               toneClassName,
             )}
-            aria-label={uiText("Open pull request #{0} on host", {"0": detail.number})}
+            aria-label={uiText("Open pull request #{0} on host", { "0": detail.number })}
           >
             #{detail.number}
             <ExternalLinkIcon aria-hidden className="size-2.5" />
@@ -145,7 +145,9 @@ export function PullRequestDetailCrumbs({
                 }
               />
               <TooltipPopup side="top">
-                {repositoryUrl ? uiText("Open {0} repository", {"0": detail.repository}) : detail.repository}
+                {repositoryUrl
+                  ? uiText("Open {0} repository", { "0": detail.repository })
+                  : detail.repository}
               </TooltipPopup>
             </Tooltip>
             <NumberLink

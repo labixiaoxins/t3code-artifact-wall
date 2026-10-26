@@ -92,14 +92,19 @@ export function AddCodexAccountDialog({
       <WizardPopup size="wide">
         <WizardHeader
           title={instanceId ? displayName : uiText("Add ChatGPT account")}
-          description={uiText("Each account has its own Codex instance and sign-in. Choose the other account on the sign-in page.")}
+          description={uiText(
+            "Each account has its own Codex instance and sign-in. Choose the other account on the sign-in page.",
+          )}
         />
         <WizardPanel>
           {instanceId ? (
             provider?.setup ? (
               renderSetup(instanceId, provider)
             ) : (
-              <SettingsRow title={uiText("Codex runtime")} description={uiText("Preparing managed setup.")} />
+              <SettingsRow
+                title={uiText("Codex runtime")}
+                description={uiText("Preparing managed setup.")}
+              />
             )
           ) : (
             <form
@@ -128,11 +133,13 @@ export function AddCodexAccountDialog({
         <WizardFooter>
           {instanceId ? (
             <Button variant="outline" onClick={onClose}>
-              {uiText("Finish later")}</Button>
+              {uiText("Finish later")}
+            </Button>
           ) : (
             <>
               <Button variant="outline" disabled={pending} onClick={onClose}>
-                {uiText("Cancel")}</Button>
+                {uiText("Cancel")}
+              </Button>
               <Button
                 type="submit"
                 form="add-codex-account"

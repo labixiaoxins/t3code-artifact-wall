@@ -213,8 +213,9 @@ function AddProjectToMachineDialog({ request }: { request: AddProjectToMachineRe
           <DialogHeader>
             <DialogTitle>Add to another machine</DialogTitle>
             <DialogDescription>
-              {uiText("Clone") + " "}{project?.repositoryIdentity?.displayName ?? project?.title} and bring the local
-              files git does not track.
+              {uiText("Clone") + " "}
+              {project?.repositoryIdentity?.displayName ?? project?.title} and bring the local files
+              git does not track.
             </DialogDescription>
           </DialogHeader>
           <DialogPanel>
@@ -319,7 +320,8 @@ function AddProjectToMachineDialog({ request }: { request: AddProjectToMachineRe
                   {copyable.length > 0 ? (
                     <>
                       <span className="text-muted-foreground text-xs">
-                        {selectedFiles.size} {uiText("of") + " "}{files.length}
+                        {selectedFiles.size} {uiText("of") + " "}
+                        {files.length}
                         {selectedBytes > 0 ? ` · ${formatBytes(selectedBytes)}` : ""}
                       </span>
                       <Button
@@ -361,7 +363,8 @@ function AddProjectToMachineDialog({ request }: { request: AddProjectToMachineRe
                 )}
                 {ignoredFiles.data?.truncated ? (
                   <p className="text-muted-foreground text-xs">
-                    Showing the first {files.length} {uiText("files.") + " "}</p>
+                    Showing the first {files.length} {uiText("files.") + " "}
+                  </p>
                 ) : null}
                 <p className="text-muted-foreground text-xs">
                   Files are copied after the clone finishes. Folders git ignores whole, like
@@ -374,7 +377,8 @@ function AddProjectToMachineDialog({ request }: { request: AddProjectToMachineRe
           </DialogPanel>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={close}>
-              {uiText("Cancel")}</Button>
+              {uiText("Cancel")}
+            </Button>
             <Button type="submit" disabled={unavailable || submitting}>
               {submitting ? uiText("Starting…") : `Clone to ${target?.label ?? "machine"}`}
             </Button>

@@ -187,7 +187,7 @@ export function ComposerAttachmentMediaRow({
                 <button
                   type="button"
                   className="h-full w-full cursor-zoom-in"
-                  aria-label={uiText("Preview {0}", {"0": image.name})}
+                  aria-label={uiText("Preview {0}", { "0": image.name })}
                   onClick={() => {
                     const preview = buildExpandedImagePreview(images, image.id);
                     if (!preview) return;
@@ -243,7 +243,10 @@ export function ComposerAttachmentMediaRow({
                     }
                   />
                   <TooltipPopup side="top">
-                    {uiText("Draft attachment could not be saved locally and may be lost on navigation.")}</TooltipPopup>
+                    {uiText(
+                      "Draft attachment could not be saved locally and may be lost on navigation.",
+                    )}
+                  </TooltipPopup>
                 </Tooltip>
               )}
               {upload?.status === "uploading" && (
@@ -267,7 +270,7 @@ export function ComposerAttachmentMediaRow({
                           })
                         }
                         disabled={!canOperateThread}
-                        aria-label={uiText("Retry upload for {0}", {"0": image.name})}
+                        aria-label={uiText("Retry upload for {0}", { "0": image.name })}
                       />
                     }
                   >
@@ -287,7 +290,7 @@ export function ComposerAttachmentMediaRow({
                   variant="media-close"
                   size="icon-xs"
                   onClick={() => onRemoveImage(image.id)}
-                  aria-label={uiText("Remove {0}", {"0": image.name})}
+                  aria-label={uiText("Remove {0}", { "0": image.name })}
                 >
                   <XIcon />
                 </Button>
@@ -325,7 +328,7 @@ export function ComposerAttachmentMediaRow({
             <button
               type="button"
               className="flex h-full w-full cursor-zoom-in flex-col items-center justify-center gap-1 px-1 text-white"
-              aria-label={uiText("Play {0}", {"0": file.name})}
+              aria-label={uiText("Play {0}", { "0": file.name })}
               onClick={() => {
                 if (file.file !== null) {
                   const preview = buildExpandedImagePreview([file], file.id);
@@ -365,7 +368,7 @@ export function ComposerAttachmentMediaRow({
                         })
                       }
                       disabled={!canOperateThread}
-                      aria-label={uiText("Retry upload for {0}", {"0": file.name})}
+                      aria-label={uiText("Retry upload for {0}", { "0": file.name })}
                     />
                   }
                 >
@@ -379,7 +382,7 @@ export function ComposerAttachmentMediaRow({
               size="icon-xs"
               className="absolute right-1 top-1"
               onClick={() => onRemoveFile(file.id)}
-              aria-label={uiText("Remove {0}", {"0": file.name})}
+              aria-label={uiText("Remove {0}", { "0": file.name })}
             >
               <XIcon />
             </Button>
@@ -463,7 +466,7 @@ export function ComposerAttachmentFileList({
                         })
                       }
                       disabled={!canOperateThread}
-                      aria-label={uiText("Retry upload for {0}", {"0": file.name})}
+                      aria-label={uiText("Retry upload for {0}", { "0": file.name })}
                     />
                   }
                 >
@@ -476,7 +479,7 @@ export function ComposerAttachmentFileList({
               variant="ghost"
               size="icon-xs"
               onClick={() => onRemoveFile(file.id)}
-              aria-label={uiText("Remove {0}", {"0": file.name})}
+              aria-label={uiText("Remove {0}", { "0": file.name })}
             >
               <XIcon />
             </Button>
@@ -559,7 +562,7 @@ export function ComposerRestingImagePreviews({
           key={image.id}
           type="button"
           className="relative size-7 shrink-0 cursor-zoom-in overflow-hidden rounded-md border border-border/70 bg-muted/60"
-          aria-label={uiText("Preview {0}", {"0": image.name})}
+          aria-label={uiText("Preview {0}", { "0": image.name })}
           onPointerDown={(event) => event.preventDefault()}
           onClick={() => {
             const preview = buildExpandedImagePreview(allImages, image.id);
@@ -645,7 +648,7 @@ export function ComposerQueuedAttachmentRow({
             size="icon-xs"
             className="absolute right-1 top-1"
             onClick={() => onRemove(attachment.id)}
-            aria-label={uiText("Remove {0}", {"0": attachment.name})}
+            aria-label={uiText("Remove {0}", { "0": attachment.name })}
           >
             <XIcon />
           </Button>

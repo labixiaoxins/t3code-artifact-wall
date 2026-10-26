@@ -52,7 +52,9 @@ const MODE_OPTIONS: Record<SourceControlWritingStyleMode, { label: string; descr
   {
     repo_conventions: {
       label: uiText("Repository conventions"),
-      description: uiText("In each project, matches recent change descriptions and change request titles."),
+      description: uiText(
+        "In each project, matches recent change descriptions and change request titles.",
+      ),
     },
     conventional_commits: {
       label: "Conventional Commits",
@@ -60,8 +62,9 @@ const MODE_OPTIONS: Record<SourceControlWritingStyleMode, { label: string; descr
     },
     custom: {
       label: uiText("Custom instructions"),
-      description:
-        uiText("Use your instructions for change descriptions and change requests in every project."),
+      description: uiText(
+        "Use your instructions for change descriptions and change requests in every project.",
+      ),
     },
   };
 
@@ -244,8 +247,12 @@ export function SourceControlWritingSettingsSection() {
                   value={allInstructions ?? ""}
                   onChange={(event) => setAllInstructions(event.target.value)}
                   rows={4}
-                  aria-label={uiText("Custom source control instructions for all selected environments")}
-                  placeholder={uiText("Write the instructions each selected environment should use.")}
+                  aria-label={uiText(
+                    "Custom source control instructions for all selected environments",
+                  )}
+                  placeholder={uiText(
+                    "Write the instructions each selected environment should use.",
+                  )}
                 />
                 <Button
                   size="sm"
@@ -262,7 +269,8 @@ export function SourceControlWritingSettingsSection() {
                     setEditingAllInstructions(false);
                   }}
                 >
-                  {uiText("Apply instructions to all")}</Button>
+                  {uiText("Apply instructions to all")}
+                </Button>
               </>
             ) : (
               <Button
@@ -273,7 +281,8 @@ export function SourceControlWritingSettingsSection() {
                   setEditingAllInstructions(true);
                 }}
               >
-                {uiText("Write custom instructions for all")}</Button>
+                {uiText("Write custom instructions for all")}
+              </Button>
             )}
           </div>
         ) : style.mode === "custom" ? (
@@ -301,7 +310,9 @@ export function SourceControlWritingSettingsSection() {
         settingKeys={["sourceControlWritingStyle"]}
         mixed={templatesMixed}
         {...searchableSetting("follow-change-request-templates")}
-        description={uiText("Use the repository's template for change request descriptions when available.")}
+        description={uiText(
+          "Use the repository's template for change request descriptions when available.",
+        )}
         resetAction={
           templatesMixed ||
           style.followChangeRequestTemplates !== defaults.followChangeRequestTemplates ? (
@@ -337,16 +348,20 @@ export function SourceControlWritingSettingsSection() {
         serverScoped
         settingKeys={["sourceControlWriterModelSelection"]}
         {...searchableSetting("source-control-writer-model")}
-        description={uiText("Model for source control text and branch or bookmark names. Off uses the environment's text generation model.")}
+        description={uiText(
+          "Model for source control text and branch or bookmark names. Off uses the environment's text generation model.",
+        )}
         control={
           !hasServerTargets ? (
             <span className="text-sm text-muted-foreground">
-              {uiText("Connect an environment to choose its source control writer model.")}</span>
+              {uiText("Connect an environment to choose its source control writer model.")}
+            </span>
           ) : (
             <div className="flex flex-wrap items-center justify-end gap-2">
               {usesDedicatedModel && !canEnableDedicatedModel ? (
                 <span className="text-sm text-muted-foreground">
-                  {uiText("No text generation providers available.")}</span>
+                  {uiText("No text generation providers available.")}
+                </span>
               ) : null}
               {usesDedicatedModel && canEnableDedicatedModel ? (
                 <ProviderModelPicker
@@ -437,7 +452,9 @@ export function SourceControlWritingSettingsSection() {
         settingKeys={["reviewGuidesEnabled"]}
         mixed={mixedReviewGuidesEnabled}
         {...searchableSetting("review-guides")}
-        description={uiText("Adds a Guide tab to pull requests: an agent writes a tour of the change, stop by stop, with the calls a maintainer should make.")}
+        description={uiText(
+          "Adds a Guide tab to pull requests: an agent writes a tour of the change, stop by stop, with the calls a maintainer should make.",
+        )}
         control={
           <Switch
             mixed={mixedReviewGuidesEnabled}
@@ -454,11 +471,14 @@ export function SourceControlWritingSettingsSection() {
             serverScoped
             settingKeys={["reviewGuideModelSelection"]}
             {...searchableSetting("review-guide-model")}
-            description={uiText("Model that reads a pull request to write its review guide. It reads the change itself over many steps, so a stronger model helps. Off uses the source control writer model.")}
+            description={uiText(
+              "Model that reads a pull request to write its review guide. It reads the change itself over many steps, so a stronger model helps. Off uses the source control writer model.",
+            )}
             control={
               !hasServerTargets ? (
                 <span className="text-sm text-muted-foreground">
-                  {uiText("Connect an environment to choose its review guide model.")}</span>
+                  {uiText("Connect an environment to choose its review guide model.")}
+                </span>
               ) : (
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   {(usesReviewGuideModel || mixedReviewGuideModel) && canEnableDedicatedModel ? (
@@ -554,7 +574,9 @@ export function SourceControlWritingSettingsSection() {
             serverScoped
             settingKeys={["reviewGuideInstructions"]}
             {...searchableSetting("review-guide-instructions")}
-            description={uiText("Your preferences for review guides: what to show first, dwell on, or skip. The guide's format and coverage stay the same.")}
+            description={uiText(
+              "Your preferences for review guides: what to show first, dwell on, or skip. The guide's format and coverage stay the same.",
+            )}
             resetAction={
               mixedReviewGuideInstructions || settings.reviewGuideInstructions !== "" ? (
                 <SettingResetButton
@@ -576,7 +598,9 @@ export function SourceControlWritingSettingsSection() {
                 placeholder={
                   mixedReviewGuideInstructions
                     ? uiText("Mixed. Enter instructions to apply to all selected targets.")
-                    : uiText("Show service interfaces before implementations. Skip test files unless they change behavior. Keep summaries to two sentences.")
+                    : uiText(
+                        "Show service interfaces before implementations. Skip test files unless they change behavior. Keep summaries to two sentences.",
+                      )
                 }
                 onBlur={(event) => {
                   const value = event.target.value.trim();

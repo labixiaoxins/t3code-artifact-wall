@@ -127,7 +127,9 @@ export function useSnapShotShortcutRecorder({
         disabled={disabled}
         aria-label={
           displayShortcut
-            ? uiText("Record snapshot shortcut, currently {0}", {"0": formatSnapShotShortcutLabel(displayShortcut)})
+            ? uiText("Record snapshot shortcut, currently {0}", {
+                "0": formatSnapShotShortcutLabel(displayShortcut),
+              })
             : uiText("Change snapshot shortcut")
         }
         aria-pressed={recording}

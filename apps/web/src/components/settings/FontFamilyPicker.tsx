@@ -150,8 +150,10 @@ export function FontFamilyPicker({
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: uiText("\"{0}\" isn't monospace", {"0": value}),
-          description: uiText("Code and terminal need a fixed-width font, so the current font was kept."),
+          title: uiText('"{0}" isn\'t monospace', { "0": value }),
+          description: uiText(
+            "Code and terminal need a fixed-width font, so the current font was kept.",
+          ),
         }),
       );
       return;

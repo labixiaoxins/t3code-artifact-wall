@@ -35,14 +35,16 @@ export function PullRequestDiffUnavailableState({
       <div className="flex flex-wrap justify-center gap-2">
         <Button size="sm" variant="default" onClick={onRetry}>
           <RefreshIcon />
-          {uiText("Try again") + " "}</Button>
+          {uiText("Try again") + " "}
+        </Button>
         <Button
           size="sm"
           variant="outline"
           render={<a href={url} target="_blank" rel="noopener noreferrer" />}
         >
           <ExternalLinkIcon aria-hidden />
-          {uiText("Open on") + " "}{providerName}
+          {uiText("Open on") + " "}
+          {providerName}
         </Button>
       </div>
       <details className="w-full max-w-lg text-xs text-muted-foreground">

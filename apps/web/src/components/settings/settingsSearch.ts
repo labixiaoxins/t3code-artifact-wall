@@ -117,7 +117,7 @@ const SOURCE_CONTROL_HOST_SEARCH_ITEMS = sourceControlClients.definitions.flatMa
     ? [
         {
           id: sourceControlHostSettingsSearchId(definition.kind),
-          title: uiText("{0} credentials", {"0": definition.label}),
+          title: uiText("{0} credentials", { "0": definition.label }),
           to: "/settings/source-control" as const,
           searchTerms: [
             `${definition.label} ${Object.keys(definition.settings.fields).join(" ")} token credentials sign in`,

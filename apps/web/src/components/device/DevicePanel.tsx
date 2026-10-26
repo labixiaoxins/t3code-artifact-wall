@@ -201,7 +201,10 @@ export function DevicePanel(props: {
           <DeviceHostUpdates state={state} environmentId={environmentId} />
           {bootingDevices.length > 0 ? (
             <div role="status" className="border-b px-3 py-2 text-xs text-muted-foreground">
-              {uiText("Starting") + " "}{bootingDevices.map((device) => device.name).join(", ")}{uiText("… This can take a minute.") + " "}</div>
+              {uiText("Starting") + " "}
+              {bootingDevices.map((device) => device.name).join(", ")}
+              {uiText("… This can take a minute.") + " "}
+            </div>
           ) : null}
           {operationError ? (
             <DeviceNotice tone="error" onDismiss={() => setOperation(null)}>
@@ -319,7 +322,10 @@ export function DevicePanel(props: {
                 !state.devices.some((device) => device.platform === "android") &&
                 !unavailablePlatforms.some((platform) => platform.platform === "android") ? (
                   <p className="max-w-sm text-xs">
-                    {uiText("No Android virtual devices found. Create one in Android Studio's Device Manager, then refresh.")}</p>
+                    {uiText(
+                      "No Android virtual devices found. Create one in Android Studio's Device Manager, then refresh.",
+                    )}
+                  </p>
                 ) : null}
                 {loaded && !hostBusy ? (
                   <Button
@@ -328,7 +334,8 @@ export function DevicePanel(props: {
                     size="sm"
                     onClick={() => void list({ environmentId, input: {} })}
                   >
-                    {uiText("Refresh devices")}</Button>
+                    {uiText("Refresh devices")}
+                  </Button>
                 ) : null}
               </div>
             </div>
@@ -364,7 +371,9 @@ function DeviceNotice(props: {
       <Button
         size="icon-xs"
         variant="ghost"
-        aria-label={props.tone === "warning" ? "Dismiss device warning" : uiText("Dismiss device error")}
+        aria-label={
+          props.tone === "warning" ? "Dismiss device warning" : uiText("Dismiss device error")
+        }
         onClick={props.onDismiss}
       >
         <X />

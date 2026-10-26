@@ -191,7 +191,9 @@ export function AssistantSelectionToolbar({
       size="xs"
       variant="glass"
       disabled={tooLong}
-      aria-label={tooLong ? uiText("Selection is too long to cite") : uiText("Cite selection in composer")}
+      aria-label={
+        tooLong ? uiText("Selection is too long to cite") : uiText("Cite selection in composer")
+      }
       className="fixed z-50 max-w-[calc(100vw-1rem)]"
       style={{ left: selection.position.x, top: selection.position.y }}
       onPointerDown={(event) => event.preventDefault()}

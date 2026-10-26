@@ -136,7 +136,9 @@ export function DevicePhoneViewport(props: {
         />
         <canvas
           ref={canvasRef}
-          aria-label={uiText("Interactive 3D device. Drag the screen to interact. Drag outside it or swipe with two fingers to turn.")}
+          aria-label={uiText(
+            "Interactive 3D device. Drag the screen to interact. Drag outside it or swipe with two fingers to turn.",
+          )}
           className="size-full touch-none"
           onPointerDown={(event) => {
             if (event.button !== 0) return;

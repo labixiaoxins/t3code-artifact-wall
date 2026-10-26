@@ -103,11 +103,17 @@ export function PullRequestCheckoutMenu({
                 <Button
                   size="xs"
                   variant="outline"
-                  aria-label={handoff?.startsWith("checkout") ? uiText("Checking out...") : uiText("Check out")}
+                  aria-label={
+                    handoff?.startsWith("checkout")
+                      ? uiText("Checking out...")
+                      : uiText("Check out")
+                  }
                 >
                   <GitBranchIcon aria-hidden className="size-3.5" />
                   <span className="@max-[35rem]/pr-header:hidden">
-                    {handoff?.startsWith("checkout") ? uiText("Checking out...") : uiText("Check out")}
+                    {handoff?.startsWith("checkout")
+                      ? uiText("Checking out...")
+                      : uiText("Check out")}
                   </span>
                   <ChevronDownIcon aria-hidden className="size-3.5 text-muted-foreground" />
                 </Button>
@@ -123,7 +129,8 @@ export function PullRequestCheckoutMenu({
           <span className="flex min-w-0 flex-col">
             <span>{uiText("In a separate worktree")}</span>
             <span className="text-xs text-muted-foreground">
-              {uiText("Its own folder and thread. Nothing you have open moves.")}</span>
+              {uiText("Its own folder and thread. Nothing you have open moves.")}
+            </span>
           </span>
         </MenuItem>
         <MenuItem disabled={!canCheckoutHere} onClick={() => onCheckout("local")}>
@@ -131,7 +138,8 @@ export function PullRequestCheckoutMenu({
           <span className="flex min-w-0 flex-col">
             <span>{uiText("In this repository")}</span>
             <span className="text-xs text-muted-foreground">
-              {uiText("Switches the branch you are working in, like `gh pr checkout`.")}</span>
+              {uiText("Switches the branch you are working in, like `gh pr checkout`.")}
+            </span>
           </span>
         </MenuItem>
         {pickableEnvironments.length > 0 ? (
@@ -166,7 +174,9 @@ export function PullRequestResolveConflictsButton({
               variant="destructive-outline"
               disabled={handoff !== null || unavailable}
               onClick={onResolve}
-              aria-label={handoff === "conflicts" ? uiText("Preparing...") : uiText("Resolve conflicts")}
+              aria-label={
+                handoff === "conflicts" ? uiText("Preparing...") : uiText("Resolve conflicts")
+              }
             >
               <PullRequestGlyph.conflicting aria-hidden className="size-3.5" />
               <span className="@max-[30rem]/pr-header:hidden">
@@ -224,7 +234,9 @@ export function PullRequestPrimaryAction({
             }
           />
           <TooltipPopup side="top">
-            {armedAutoMergeLabel}{uiText(": the host will merge this on its own once its requirements are met")}</TooltipPopup>
+            {armedAutoMergeLabel}
+            {uiText(": the host will merge this on its own once its requirements are met")}
+          </TooltipPopup>
         </Tooltip>
       ) : null}
       {primaryAction === "resolve" ? (
@@ -242,7 +254,9 @@ export function PullRequestPrimaryAction({
                   aria-label={uiText("Ready for review")}
                 >
                   <PullRequestGlyph.pullRequest aria-hidden className="size-3.5" />
-                  <span className="@max-[30rem]/pr-header:hidden">{uiText("Ready for review")}</span>
+                  <span className="@max-[30rem]/pr-header:hidden">
+                    {uiText("Ready for review")}
+                  </span>
                 </Button>
               </span>
             }
@@ -312,7 +326,9 @@ export function PullRequestPrimaryAction({
             }
           />
           <TooltipPopup side="top">
-            {armedAutoMergeLabel}{uiText(": the host will merge this on its own once its requirements are met")}</TooltipPopup>
+            {armedAutoMergeLabel}
+            {uiText(": the host will merge this on its own once its requirements are met")}
+          </TooltipPopup>
         </Tooltip>
       ) : primaryAction === "merge" ? (
         <Tooltip>
@@ -411,9 +427,11 @@ export function PullRequestApproveWorkflowsButton({
               <PlayIcon aria-hidden className="size-3.5" />
               <span className="inline-grid">
                 <span aria-hidden className="invisible col-start-1 row-start-1">
-                  {uiText("Approve workflows to run")}</span>
+                  {uiText("Approve workflows to run")}
+                </span>
                 <span aria-hidden className="invisible col-start-1 row-start-1">
-                  {uiText("Confirm approve?")}</span>
+                  {uiText("Confirm approve?")}
+                </span>
                 <span className="col-start-1 row-start-1">
                   {pendingAction === "approve-workflows"
                     ? uiText("Approving...")

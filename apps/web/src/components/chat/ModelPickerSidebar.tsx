@@ -124,7 +124,8 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                     sideOffset={PICKER_TOOLTIP_SIDE_OFFSET}
                     align="center"
                   >
-                    {uiText("Favorites")}</TooltipPopup>
+                    {uiText("Favorites")}
+                  </TooltipPopup>
                 </Tooltip>
               </div>
               <div className="border-b border-border/70" aria-hidden="true" />
@@ -175,7 +176,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                   isUnavailable || isContextDisabled
                     ? tooltip
                     : showNewBadge
-                      ? uiText("{0}, new", {"0": entry.displayName})
+                      ? uiText("{0}, new", { "0": entry.displayName })
                       : entry.displayName
                 }
               >

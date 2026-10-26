@@ -208,11 +208,21 @@ function itemSummary({
   readonly authAccount: string | null;
 }) {
   if (isVcsNotReady(item)) {
-    return <span>{uiText("Support for") + " "}{item.label} {uiText("is coming soon.")}</span>;
+    return (
+      <span>
+        {uiText("Support for") + " "}
+        {item.label} {uiText("is coming soon.")}
+      </span>
+    );
   }
 
   if (item.status !== "available") {
-    return <span>{uiText("Not available on this server:") + " "}{item.installHint}</span>;
+    return (
+      <span>
+        {uiText("Not available on this server:") + " "}
+        {item.installHint}
+      </span>
+    );
   }
 
   if (auth) {
@@ -233,23 +243,39 @@ function itemSummary({
     }
 
     if (!item.executable && auth.status === "unauthenticated") {
-      return <span>{uiText("Available.") + " "}{item.installHint}</span>;
+      return (
+        <span>
+          {uiText("Available.") + " "}
+          {item.installHint}
+        </span>
+      );
     }
 
     if (auth.status === "unauthenticated" && auth.accounts?.some((entry) => entry.authenticated)) {
-      return <span>{optionLabel(auth.detail) ?? uiText("Every {0} host is turned off.", {"0": item.label})}</span>;
+      return (
+        <span>
+          {optionLabel(auth.detail) ?? uiText("Every {0} host is turned off.", { "0": item.label })}
+        </span>
+      );
     }
 
     if (auth.status === "unauthenticated") {
       return (
         <span>
-          {item.label} {uiText("is not authenticated on this server. Sign in or configure credentials using the") + " "}<code className="rounded bg-muted px-1 py-px text-2xs">{item.executable}</code> {uiText("tool on the server host to enable change request features.") + " "}</span>
+          {item.label}{" "}
+          {uiText(
+            "is not authenticated on this server. Sign in or configure credentials using the",
+          ) + " "}
+          <code className="rounded bg-muted px-1 py-px text-2xs">{item.executable}</code>{" "}
+          {uiText("tool on the server host to enable change request features.") + " "}
+        </span>
       );
     }
     const authDetail = optionLabel(auth.detail);
     return (
       <span>
-        {uiText("Could not verify") + " "}{item.label}. {authDetail ?? item.installHint}
+        {uiText("Could not verify") + " "}
+        {item.label}. {authDetail ?? item.installHint}
       </span>
     );
   }
@@ -301,7 +327,8 @@ function DiscoveryItemRow({
               {version ? <code className="text-xs text-muted-foreground">{version}</code> : null}
               {isVcsNotReady(item) ? (
                 <Badge variant="warning" size="sm">
-                  {uiText("Coming Soon")}</Badge>
+                  {uiText("Coming Soon")}
+                </Badge>
               ) : null}
               {authStatus?.badge ? (
                 <Badge variant={authStatus.badge} size="sm">
@@ -320,7 +347,7 @@ function DiscoveryItemRow({
                 variant="ghost-muted"
                 onClick={() => setIsExpanded((open) => !open)}
                 aria-expanded={isExpanded}
-                aria-label={uiText("Toggle {0} details", {"0": item.label})}
+                aria-label={uiText("Toggle {0} details", { "0": item.label })}
               >
                 <ChevronDownIcon
                   className={cn("size-3.5 transition-transform", isExpanded && "rotate-180")}
@@ -328,7 +355,11 @@ function DiscoveryItemRow({
               </Button>
             ) : null}
             {!isVcsNotReady(item) ? (
-              <Switch checked={enabled} disabled aria-label={uiText("{0} availability", {"0": item.label})} />
+              <Switch
+                checked={enabled}
+                disabled
+                aria-label={uiText("{0} availability", { "0": item.label })}
+              />
             ) : null}
           </div>
         </div>
@@ -368,7 +399,10 @@ function GitFetchIntervalSettings() {
           <div className="flex min-w-0 items-center gap-1">
             <span className="text-xs font-medium text-foreground">{setting.title}</span>
             <PolicyTooltip>
-              {uiText("This interval is configured for Git only. The shared Background activity policy still decides whether Git refreshes may run when the timer fires. Custom intervals appear as Advanced in General settings.")}</PolicyTooltip>
+              {uiText(
+                "This interval is configured for Git only. The shared Background activity policy still decides whether Git refreshes may run when the timer fires. Custom intervals appear as Advanced in General settings.",
+              )}
+            </PolicyTooltip>
             <span
               className={cn(
                 "inline-flex size-5 shrink-0 items-center justify-center transition-opacity",
@@ -391,7 +425,10 @@ function GitFetchIntervalSettings() {
             </span>
           </div>
           <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
-            {uiText("Refresh remote branches in the background. Set to 0 to avoid automatic Git prompts.")}</p>
+            {uiText(
+              "Refresh remote branches in the background. Set to 0 to avoid automatic Git prompts.",
+            )}
+          </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <NumberField
@@ -471,25 +508,33 @@ function EmptySourceControlDiscovery({
   const hasError = error !== null;
 
   return (
-    <SettingsSection id={searchableSetting("source-control").id} title={uiText("Server environment")}>
+    <SettingsSection
+      id={searchableSetting("source-control").id}
+      title={uiText("Server environment")}
+    >
       <Empty>
         <EmptyMedia variant="icon">
           <PullRequestGlyph.pullRequest />
         </EmptyMedia>
         <EmptyHeader>
           <EmptyTitle>
-            {hasError ? uiText("Could not scan the server environment") : uiText("Nothing detected yet")}
+            {hasError
+              ? uiText("Could not scan the server environment")
+              : uiText("Nothing detected yet")}
           </EmptyTitle>
           <EmptyDescription>
             {hasError
               ? error
-              : uiText("Install Git on the server, add optional hosting integrations or credentials your workspace needs, then rescan.")}
+              : uiText(
+                  "Install Git on the server, add optional hosting integrations or credentials your workspace needs, then rescan.",
+                )}
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
           <Button size="sm" variant="outline" onClick={onScan} disabled={isPending}>
             <RefreshIcon size="sm" refreshing={isPending} />
-            {uiText("Scan") + " "}</Button>
+            {uiText("Scan") + " "}
+          </Button>
         </EmptyContent>
       </Empty>
     </SettingsSection>
@@ -556,14 +601,20 @@ export function SourceControlSettingsPanel() {
     <SettingsPageContainer>
       <ProjectDefaultsSettings category="source-control" />
       {environmentId === null ? (
-        <SettingsSection id={searchableSetting("source-control").id} title={uiText("Server environment")}>
+        <SettingsSection
+          id={searchableSetting("source-control").id}
+          title={uiText("Server environment")}
+        >
           <p className="px-4 py-3 text-sm text-muted-foreground">
-            {uiText("Connect an environment to inspect its version control tools and hosting integrations.")}</p>
+            {uiText(
+              "Connect an environment to inspect its version control tools and hosting integrations.",
+            )}
+          </p>
         </SettingsSection>
       ) : isInitialScanPending ? (
         <>
           <SourceControlSectionSkeleton
-            title={uiText("Version Control{0}", {"0": environmentSuffix})}
+            title={uiText("Version Control{0}", { "0": environmentSuffix })}
             headerAction={scanButton}
           />
           <SourceControlSectionSkeleton title={uiText("Source Control Providers")} />
@@ -573,7 +624,7 @@ export function SourceControlSettingsPanel() {
           {hasVersionControlSystems ? (
             <SettingsSection
               id={searchableSetting("source-control").id}
-              title={uiText("Version Control{0}", {"0": environmentSuffix})}
+              title={uiText("Version Control{0}", { "0": environmentSuffix })}
               headerAction={scanButton}
             >
               {result.versionControlSystems.map((item) => (
@@ -590,7 +641,7 @@ export function SourceControlSettingsPanel() {
               title={
                 hasVersionControlSystems
                   ? uiText("Source Control Providers")
-                  : uiText("Source Control Providers{0}", {"0": environmentSuffix})
+                  : uiText("Source Control Providers{0}", { "0": environmentSuffix })
               }
               headerAction={hasVersionControlSystems ? null : scanButton}
             >

@@ -112,7 +112,8 @@ export function PullRequestTitleEditor({
           disabled={titleSaving}
           onClick={() => setTitleScope(null)}
         >
-          {uiText("Cancel")}</Button>
+          {uiText("Cancel")}
+        </Button>
         <Button
           size="xs"
           variant="outline"

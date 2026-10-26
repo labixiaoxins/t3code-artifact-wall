@@ -329,7 +329,10 @@ export function DesktopUpdateLaunchNotice() {
       stackedThreadToast({
         type: "error",
         title: uiText("Update did not apply"),
-        description: uiText("T3 Code is still on {0}. Install {1} again from the update button.", {"0": APP_VERSION, "1": notAppliedVersion}),
+        description: uiText("T3 Code is still on {0}. Install {1} again from the update button.", {
+          "0": APP_VERSION,
+          "1": notAppliedVersion,
+        }),
       }),
     );
   }, [notAppliedVersion]);

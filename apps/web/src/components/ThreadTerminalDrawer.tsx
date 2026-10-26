@@ -365,7 +365,9 @@ function terminalSelectionMenuItems(options?: {
   return [
     ...(options?.canAddToChat === false
       ? []
-      : ([{ id: "add-to-chat", label: uiText("Add to chat") }] satisfies ContextMenuItem<"add-to-chat">[])),
+      : ([
+          { id: "add-to-chat", label: uiText("Add to chat") },
+        ] satisfies ContextMenuItem<"add-to-chat">[])),
     { id: "copy", label: uiText("Copy") },
   ];
 }
@@ -1375,7 +1377,10 @@ function TerminalSidebarGroup({
         {terminalGroup.terminalIds.map((terminalId) => {
           const isActive = terminalId === activeTerminalId;
           const terminalLabel = terminalLabelById.get(terminalId) ?? "Terminal";
-          const closeTerminalLabel = uiText("Close {0}{1}", {"0": terminalLabel, "1": isActive && closeShortcutLabel ? ` (${closeShortcutLabel})` : ""});
+          const closeTerminalLabel = uiText("Close {0}{1}", {
+            "0": terminalLabel,
+            "1": isActive && closeShortcutLabel ? ` (${closeShortcutLabel})` : "",
+          });
           return (
             <div
               key={terminalId}

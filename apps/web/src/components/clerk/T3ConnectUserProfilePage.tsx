@@ -76,7 +76,7 @@ function T3ConnectEnvironmentRow(props: {
             <div
               className={"rounded-lg border border-input bg-muted/32 px-5 py-4 shadow-xs/5"}
               role={"group"}
-              aria-label={uiText("Confirm deregistration of {0}", {"0": environment.label})}
+              aria-label={uiText("Confirm deregistration of {0}", { "0": environment.label })}
             >
               <h4 className={"text-sm leading-4.5 font-semibold text-foreground"}>
                 {uiText("Deregister server")}
@@ -87,9 +87,9 @@ function T3ConnectEnvironmentRow(props: {
                 {uiText("” will be removed from this account.")}
               </p>
               <p className={"mt-4 max-w-xl text-xs leading-4.5 text-muted-foreground"}>
-                {
-                  uiText("T3 Connect access will be revoked, any managed tunnel will be removed, and a host space will become available. Local connections on your devices are not changed.")
-                }
+                {uiText(
+                  "T3 Connect access will be revoked, any managed tunnel will be removed, and a host space will become available. Local connections on your devices are not changed.",
+                )}
               </p>
               <div className={"mt-4 flex justify-end gap-2"}>
                 <Button
@@ -201,9 +201,9 @@ export function T3ConnectUserProfilePage() {
   return (
     <ClerkUserProfilePage
       title={"T3 Connect"}
-      description={
-        uiText("Environments registered to your account. Connections on this device are managed in Settings.")
-      }
+      description={uiText(
+        "Environments registered to your account. Connections on this device are managed in Settings.",
+      )}
       action={
         <ClerkUserProfileRefreshButton
           disabled={deregisteringEnvironmentId !== null}
@@ -250,9 +250,9 @@ export function T3ConnectUserProfilePage() {
               <EmptyHeader>
                 <EmptyTitle>{uiText("No T3 Connect environments")}</EmptyTitle>
                 <EmptyDescription>
-                  {
-                    uiText("Link an environment from its local Settings to make it available through T3 Connect.")
-                  }
+                  {uiText(
+                    "Link an environment from its local Settings to make it available through T3 Connect.",
+                  )}
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>

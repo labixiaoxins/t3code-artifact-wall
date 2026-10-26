@@ -238,7 +238,9 @@ function FileContextChip(props: {
       }
       tooltip={
         needsReattach
-          ? uiText("{0} was not saved with this draft. Attach it again to send it.", {"0": props.record.name})
+          ? uiText("{0} was not saved with this draft. Attach it again to send it.", {
+              "0": props.record.name,
+            })
           : attachmentTooltip(props.record, props.upload)
       }
     />
@@ -314,7 +316,8 @@ function ComposerPreviewAnnotationDetails({
         />
       ) : (
         <div className="border-border/70 border-b bg-muted/40 px-3 py-2 text-secondary-label text-xs">
-          {uiText("Screenshot unavailable")}</div>
+          {uiText("Screenshot unavailable")}
+        </div>
       )}
       <div className="whitespace-pre-wrap wrap-break-word px-3 py-2.5 text-sm text-foreground">
         {summary}

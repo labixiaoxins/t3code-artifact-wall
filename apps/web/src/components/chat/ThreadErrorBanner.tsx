@@ -23,7 +23,7 @@ function copyAdminRequest() {
         title: "Request copied",
         description: "Send it to your workspace admin.",
       }),
-    () => toastManager.add({ type: "error", title: "Could not copy the request" })
+    () => toastManager.add({ type: "error", title: "Could not copy the request" }),
   );
 }
 
@@ -53,7 +53,7 @@ export function getThreadErrorBannerKey(threadKey: string, error: string | null)
 export function shouldShowThreadErrorBanner(
   threadKey: string,
   error: string | null,
-  isDismissed: boolean
+  isDismissed: boolean,
 ): boolean {
   return getThreadErrorBannerKey(threadKey, error) !== null && !isDismissed;
 }
@@ -117,7 +117,12 @@ export const ThreadErrorBanner = memo(function ThreadErrorBanner({
               <ChatGptUsageButton variant="default" size="sm" />
             ) : null}
             {onDismiss ? (
-              <Button variant="ghost" size="icon-xs" aria-label={uiText("Dismiss error")} onClick={onDismiss}>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label={uiText("Dismiss error")}
+                onClick={onDismiss}
+              >
                 <XIcon />
               </Button>
             ) : null}

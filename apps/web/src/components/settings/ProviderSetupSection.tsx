@@ -63,13 +63,17 @@ export function ProviderSetupSection(props: ProviderSetupSectionProps) {
             </span>
             {!props.enabled && !props.readOnly ? (
               <Button size="sm" variant="outline" onClick={props.onEnable}>
-                {uiText("Enable Antigravity")}</Button>
+                {uiText("Enable Antigravity")}
+              </Button>
             ) : null}
           </div>
         }
       />
       {props.readOnly ? (
-        <SettingsRow title={uiText("Setup unavailable")} description={uiText("Provider setup is read-only.")} />
+        <SettingsRow
+          title={uiText("Setup unavailable")}
+          description={uiText("Provider setup is read-only.")}
+        />
       ) : props.provider?.setup === undefined ? (
         <SettingsRow
           title={uiText("Update required")}
@@ -197,11 +201,15 @@ function ProviderSetupActions({
           <div className="space-y-2">
             {usesCustomBinary ? (
               <p className="text-muted-foreground">
-                {uiText("Uses the custom binary path below. Installation keeps that path.")}</p>
+                {uiText("Uses the custom binary path below. Installation keeps that path.")}
+              </p>
             ) : null}
             {!installed && !provider.setup?.canInstall ? (
               <p className="text-muted-foreground">
-                {uiText("Automatic installation unavailable. Set a binary path or use another environment.")}</p>
+                {uiText(
+                  "Automatic installation unavailable. Set a binary path or use another environment.",
+                )}
+              </p>
             ) : null}
           </div>
         }
@@ -248,7 +256,8 @@ function ProviderSetupActions({
                       );
                     }}
                   >
-                    {uiText("Cancel installation")}</Button>
+                    {uiText("Cancel installation")}
+                  </Button>
                 ) : !installActive && provider.setup?.canInstall ? (
                   <Button
                     size="sm"
@@ -318,7 +327,8 @@ function ProviderSetupActions({
                 installQuery.refresh();
               }}
             >
-              {uiText("Retry setup status")}</Button>
+              {uiText("Retry setup status")}
+            </Button>
           ) : null}
         </div>
       ) : null}

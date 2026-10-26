@@ -94,11 +94,13 @@ function DraftStartError({ onRetry }: { readonly onRetry: () => void }) {
         <EmptyHeader className="max-w-md">
           <EmptyTitle>{uiText("Couldn’t start a new thread")}</EmptyTitle>
           <EmptyDescription>
-            {uiText("The project is still available. Try opening the draft again.")}</EmptyDescription>
+            {uiText("The project is still available. Try opening the draft again.")}
+          </EmptyDescription>
           <div className="mt-5 flex justify-center">
             <Button size="sm" onClick={onRetry}>
               <RefreshIcon size="md" />
-              {uiText("Try again") + " "}</Button>
+              {uiText("Try again") + " "}
+            </Button>
           </div>
         </EmptyHeader>
       </Empty>

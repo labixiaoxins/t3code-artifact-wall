@@ -112,12 +112,12 @@ async function submitQueuedRunEdit(input: {
     const keptRecords = (editing.context?.records ?? []).filter(
       (record) =>
         !("attachmentId" in record) ||
-        editing.existingAttachments.some((attachment) => attachment.id === record.attachmentId)
+        editing.existingAttachments.some((attachment) => attachment.id === record.attachmentId),
     );
     const newRecords =
       buildMessageContext({
         terminalContexts: content.terminalContexts.filter(
-          (context) => context.text.trim().length > 0
+          (context) => context.text.trim().length > 0,
         ),
         reviewComments: content.reviewComments,
         previewAnnotations: content.previewAnnotations,
@@ -141,8 +141,8 @@ async function submitQueuedRunEdit(input: {
             records: [
               ...new Map(
                 [...keptRecords, ...newRecords].map(
-                  (record) => [record.contextId, record] as const
-                )
+                  (record) => [record.contextId, record] as const,
+                ),
               ).values(),
             ],
           },
@@ -172,7 +172,7 @@ export function useQueuedRunEdit(input: {
   // Null while the route has no thread yet; an edit needs one to target.
   readonly activeThreadId: ThreadId | null;
   readonly serverProjection: ThreadStructure | null;
-  readonly promptRef: { current: string; };
+  readonly promptRef: { current: string };
   readonly composerRef: RefObject<ChatComposerHandle | null>;
 }) {
   const {
@@ -200,7 +200,7 @@ export function useQueuedRunEdit(input: {
     .map((attachment) => ({ _tag: "attachment" as const, attachmentId: attachment.id }));
   const imageUrls = useAssetUrls(environmentId, imageResources);
   const urlByAttachmentId = new Map(
-    imageResources.map((resource, index) => [resource.attachmentId, imageUrls[index] ?? null])
+    imageResources.map((resource, index) => [resource.attachmentId, imageUrls[index] ?? null]),
   );
   const editingAttachments =
     editing === null
@@ -249,9 +249,9 @@ export function useQueuedRunEdit(input: {
         : {
             ...current,
             existingAttachments: current.existingAttachments.filter(
-              (attachment) => attachment.id !== attachmentId
+              (attachment) => attachment.id !== attachmentId,
             ),
-          }
+          },
     );
   });
 
@@ -277,20 +277,20 @@ export function useQueuedRunEdit(input: {
             recovery === "kept"
               ? "Your unsaved edit was kept in the composer."
               : "Your unsaved edit was discarded.",
-        })
+        }),
       );
     }
     // oxlint-disable-next-line react/set-state-in-effect -- Leaving edit mode follows the draft recovery and toast above, which must run once after commit.
     setEditing(null);
   }, [activeThreadId, editing, routeThreadRef, serverProjection, threadDraftTarget]);
-    /**
-     * Saves the composer content into the queued message being edited. Reports
-     * failures through `setThreadError`, which callers own because the error
-     * banner lives with the thread.
-     */
+  /**
+   * Saves the composer content into the queued message being edited. Reports
+   * failures through `setThreadError`, which callers own because the error
+   * banner lives with the thread.
+   */
   const saveEdit = async (
     content: QueuedRunEditContent,
-    setThreadError: (threadId: ThreadId, error: string | null) => void
+    setThreadError: (threadId: ThreadId, error: string | null) => void,
   ) => {
     if (editing === null || saveInFlightRef.current) return;
     const newAttachments = [...content.images, ...content.files];
@@ -300,7 +300,7 @@ export function useQueuedRunEdit(input: {
     ) {
       setThreadError(
         editing.threadId,
-        `A message can have at most ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} attachments.`
+        `A message can have at most ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} attachments.`,
       );
       return;
     }

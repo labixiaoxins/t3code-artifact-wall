@@ -107,9 +107,10 @@ function DeviceHostEditorForm({
         <DialogTitle>{isNew ? uiText("Add device host") : uiText("Edit device host")}</DialogTitle>
         <DialogDescription>
           {targets.length === 1
-            ? uiText("Connect from {0}.", {"0": targets[0]?.label})
-            : uiText("Connect from {0} selected environments.", {"0": targets.length})}{" "}
-          {uiText("Hosts on the same machine are skipped.") + " "}</DialogDescription>
+            ? uiText("Connect from {0}.", { "0": targets[0]?.label })
+            : uiText("Connect from {0} selected environments.", { "0": targets.length })}{" "}
+          {uiText("Hosts on the same machine are skipped.") + " "}
+        </DialogDescription>
       </DialogHeader>
       <DialogPanel>
         <label className="block space-y-1.5 text-sm">
@@ -143,7 +144,9 @@ function DeviceHostEditorForm({
           open={host.port !== undefined || host.identityFile !== undefined || undefined}
           className="text-sm"
         >
-          <summary className="cursor-pointer text-muted-foreground">{uiText("SSH options")}</summary>
+          <summary className="cursor-pointer text-muted-foreground">
+            {uiText("SSH options")}
+          </summary>
           <div className="mt-3 grid grid-cols-[minmax(0,1fr)_7rem] gap-3">
             <label className="block space-y-1.5">
               <span>{uiText("Identity file")}</span>
@@ -180,7 +183,8 @@ function DeviceHostEditorForm({
             </label>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            {uiText("Optional. Resolved separately on each environment.")}</p>
+            {uiText("Optional. Resolved separately on each environment.")}
+          </p>
         </details>
         <Collapsible
           open={checksOpen}
@@ -219,7 +223,8 @@ function DeviceHostEditorForm({
                 if (Option.isSome(input)) void testConnection(input.value);
               }}
             >
-              {checking ? <Spinner size="xs" /> : null} {uiText("Test connection") + " "}</Button>
+              {checking ? <Spinner size="xs" /> : null} {uiText("Test connection") + " "}
+            </Button>
           </div>
           {results ? (
             <CollapsiblePanel
@@ -237,16 +242,21 @@ function DeviceHostEditorForm({
                       >
                         {result.status === "pending" ? (
                           <>
-                            <Spinner size="xs" /> {uiText("Checking…") + " "}</>
+                            <Spinner size="xs" /> {uiText("Checking…") + " "}
+                          </>
                         ) : result.status === "local" ? (
                           <>
-                            <MonitorIcon className="size-3" /> {uiText("Already available locally") + " "}</>
+                            <MonitorIcon className="size-3" />{" "}
+                            {uiText("Already available locally") + " "}
+                          </>
                         ) : result.status === "failed" ? (
                           <>
-                            <XIcon className="size-3" /> {uiText("Failed") + " "}</>
+                            <XIcon className="size-3" /> {uiText("Failed") + " "}
+                          </>
                         ) : (
                           <>
-                            <CheckIcon className="size-3" /> {uiText("Connected") + " "}</>
+                            <CheckIcon className="size-3" /> {uiText("Connected") + " "}
+                          </>
                         )}
                       </span>
                     </div>
@@ -272,9 +282,11 @@ function DeviceHostEditorForm({
       </DialogPanel>
       <DialogFooter>
         <Button type="button" variant="ghost" disabled={busy} onClick={onClose}>
-          {uiText("Cancel")}</Button>
+          {uiText("Cancel")}
+        </Button>
         <Button type="submit" disabled={busy || checking || !valid || !draft.label.trim()}>
-          {busy ? <Spinner size="xs" /> : null} {uiText("Save host") + " "}</Button>
+          {busy ? <Spinner size="xs" /> : null} {uiText("Save host") + " "}
+        </Button>
       </DialogFooter>
     </form>
   );

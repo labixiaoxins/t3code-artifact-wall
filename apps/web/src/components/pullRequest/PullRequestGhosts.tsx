@@ -149,7 +149,7 @@ export function PullRequestDetailGhost({
                 <span className="min-w-0 truncate font-medium">{seed.repository}</span>
                 <InlineButton
                   onClick={() => void readLocalApi()?.shell.openExternal(seed.url)}
-                  aria-label={uiText("Open pull request #{0} on host", {"0": seed.number})}
+                  aria-label={uiText("Open pull request #{0} on host", { "0": seed.number })}
                 >
                   <span className={statePresentation?.toneClassName}>#{seed.number}</span>
                   <ExternalLinkIcon aria-hidden className="size-2.5" />
@@ -165,7 +165,12 @@ export function PullRequestDetailGhost({
         </div>
         <div className="mr-4 flex h-7 shrink-0 items-center justify-end gap-1">
           {actions ?? <GhostBar className="h-6 w-16 rounded-md" />}
-          <Button size="icon-xs" variant="ghost" disabled aria-label={uiText("Pull request actions loading")}>
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            disabled
+            aria-label={uiText("Pull request actions loading")}
+          >
             <EllipsisIcon aria-hidden className="size-4" />
           </Button>
           {onClose ? (
@@ -205,7 +210,8 @@ export function PullRequestDetailGhost({
               updated={
                 seed ? (
                   <span>
-                    {uiText("updated") + " "}<RelativeTime timestamp={seed.updatedAt} />
+                    {uiText("updated") + " "}
+                    <RelativeTime timestamp={seed.updatedAt} />
                   </span>
                 ) : (
                   <GhostBar className="h-3 w-16" />
@@ -294,10 +300,16 @@ export function PullRequestDetailGhost({
             <div className="grid min-h-7 min-w-0 grid-cols-[6rem_minmax(0,1fr)] items-center gap-2 text-xs sm:min-h-6">
               <span className="flex items-center gap-1.5 text-muted-foreground">
                 <UsersIcon aria-hidden className="size-3.5" />
-                {uiText("Reviewers") + " "}</span>
+                {uiText("Reviewers") + " "}
+              </span>
               <span className="flex min-w-0 items-center gap-1.5 text-foreground">
                 <GhostBar className="h-3 w-10" />
-                <Button size="icon-xs" variant="ghost" disabled aria-label={uiText("Reviewers loading")}>
+                <Button
+                  size="icon-xs"
+                  variant="ghost"
+                  disabled
+                  aria-label={uiText("Reviewers loading")}
+                >
                   <UserPlusIcon aria-hidden className="size-3.5" />
                 </Button>
               </span>
@@ -305,7 +317,8 @@ export function PullRequestDetailGhost({
             <div className="grid min-h-7 min-w-0 grid-cols-[6rem_minmax(0,1fr)] items-center gap-2 text-xs sm:min-h-6">
               <span className="flex items-center gap-1.5 text-muted-foreground">
                 <TagIcon aria-hidden className="size-3.5" />
-                {uiText("Labels") + " "}</span>
+                {uiText("Labels") + " "}
+              </span>
               <span className="flex min-w-0 flex-wrap items-center gap-1 text-foreground">
                 {entry?.labels ? (
                   entry.labels.length > 0 ? (
@@ -326,7 +339,12 @@ export function PullRequestDetailGhost({
                     <GhostBar className="h-4.5 w-20" />
                   </>
                 )}
-                <Button size="icon-xs" variant="ghost" disabled aria-label={uiText("Labels loading")}>
+                <Button
+                  size="icon-xs"
+                  variant="ghost"
+                  disabled
+                  aria-label={uiText("Labels loading")}
+                >
                   <TagIcon aria-hidden className="size-3.5" />
                 </Button>
               </span>

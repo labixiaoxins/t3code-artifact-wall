@@ -393,7 +393,9 @@ function ChoiceSelect<V extends string>(props: {
           {current ? (
             current.label
           ) : (
-            <span className={"text-muted-foreground"}>{props.placeholder ?? uiText("Unknown")}</span>
+            <span className={"text-muted-foreground"}>
+              {props.placeholder ?? uiText("Unknown")}
+            </span>
           )}
         </SelectValue>
       </SelectTrigger>

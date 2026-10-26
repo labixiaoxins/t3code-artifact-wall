@@ -196,7 +196,9 @@ export function DiffFileTree({
                   size="icon-xs"
                   variant="ghost"
                   aria-label={
-                    allDirectoriesExpanded ? uiText("Collapse all folders") : uiText("Expand all folders")
+                    allDirectoriesExpanded
+                      ? uiText("Collapse all folders")
+                      : uiText("Expand all folders")
                   }
                   onClick={() =>
                     setAllDirectoriesExpanded(model, directoryPaths, !allDirectoriesExpanded)
@@ -210,7 +212,9 @@ export function DiffFileTree({
               />
             </TooltipTrigger>
             <TooltipPopup>
-              {allDirectoriesExpanded ? uiText("Collapse all folders") : uiText("Expand all folders")}
+              {allDirectoriesExpanded
+                ? uiText("Collapse all folders")
+                : uiText("Expand all folders")}
             </TooltipPopup>
           </Tooltip>
         ) : null}

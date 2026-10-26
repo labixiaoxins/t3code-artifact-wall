@@ -439,7 +439,11 @@ export function ThreadRelationshipsPanel(props: {
   return (
     <ThreadDetailsSection
       headingId={"thread-details-lineage-heading"}
-      title={runningCount > 0 ? uiText("Lineage · {0} running", {"0": runningCount}) : uiText("Lineage")}
+      title={
+        runningCount > 0
+          ? uiText("Lineage · {0} running", { "0": runningCount })
+          : uiText("Lineage")
+      }
       data-thread-relationships-panel
       actions={
         canDetach ? (
@@ -468,7 +472,10 @@ export function ThreadRelationshipsPanel(props: {
       }
     >
       {active.length + attention.length + previous.length > 0 ? (
-        <p className={"px-1.5 pb-2 text-xs text-muted-foreground"} aria-label={uiText("Subtask summary")}>
+        <p
+          className={"px-1.5 pb-2 text-xs text-muted-foreground"}
+          aria-label={uiText("Subtask summary")}
+        >
           {active.length}
           {uiText("active ·")}
           {completedCount}
@@ -675,7 +682,9 @@ export function ThreadRelationshipsPanel(props: {
                         variant={"ghost"}
                         part={workflowGroup ? "primary" : "row"}
                         aria-label={
-                          isSubagent && !isParent ? uiText("View result: {0}", {"0": threadTitle}) : undefined
+                          isSubagent && !isParent
+                            ? uiText("View result: {0}", { "0": threadTitle })
+                            : undefined
                         }
                         aria-pressed={
                           isSubagent && !isParent ? selectedRow?.threadId === threadId : undefined
@@ -749,7 +758,7 @@ export function ThreadRelationshipsPanel(props: {
                               part={"secondary"}
                               aria-label={
                                 parentTitle
-                                  ? uiText("Merge back to {0}", {"0": parentTitle})
+                                  ? uiText("Merge back to {0}", { "0": parentTitle })
                                   : uiText("Merge back to source conversation")
                               }
                               disabled={!canMerge || busyAction !== null}
@@ -767,7 +776,9 @@ export function ThreadRelationshipsPanel(props: {
                           {latestMergeBackRun === null
                             ? uiText("Complete a run in this fork before merging it back")
                             : parentTitle
-                              ? uiText("Merge this conversation back into {0}", {"0": parentTitle})
+                              ? uiText("Merge this conversation back into {0}", {
+                                  "0": parentTitle,
+                                })
                               : uiText("Merge this conversation back into its source")}
                         </TooltipPopup>
                       </Tooltip>
@@ -796,7 +807,7 @@ export function ThreadRelationshipsPanel(props: {
                               variant={"ghost"}
                               part={"icon"}
                               tone={"destructive"}
-                              aria-label={uiText("Stop subagent {0}", {"0": threadTitle})}
+                              aria-label={uiText("Stop subagent {0}", { "0": threadTitle })}
                               disabled={stoppingId !== null}
                               onClick={() => void stopSubagent(threadId, agent)}
                             />

@@ -182,11 +182,15 @@ function ProviderLastChecked({ environmentId }: { environmentId: EnvironmentId }
     <span>
       {lastCheckedRelative.suffix ? (
         <>
-          {uiText("Checked") + " "}<span className="font-mono tabular-nums">{lastCheckedRelative.value}</span>{" "}
+          {uiText("Checked") + " "}
+          <span className="font-mono tabular-nums">{lastCheckedRelative.value}</span>{" "}
           {lastCheckedRelative.suffix}
         </>
       ) : (
-        <>{uiText("Checked") + " "}{lastCheckedRelative.value}</>
+        <>
+          {uiText("Checked") + " "}
+          {lastCheckedRelative.value}
+        </>
       )}
     </span>
   );
@@ -431,7 +435,9 @@ function ProviderSettingsPanelContent(target: ProviderSettingsTarget) {
           deviceTabs={deviceTabs}
           icon={<EnvironmentMachineIcon kind={resolveEnvironmentMachineKind(null)} />}
           title={uiText("Device unavailable")}
-          description={uiText("Reconnect this device to set up its provider, or select another device.")}
+          description={uiText(
+            "Reconnect this device to set up its provider, or select another device.",
+          )}
         />
       ) : null}
       {options.length === 0 && !targetEnvironmentMissing ? (
@@ -704,7 +710,9 @@ export function EnvironmentProviderSettings({
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: uiText("Could not update {0}", {"0": PROVIDER_DISPLAY_NAMES[candidate.driver] ?? candidate.driver}),
+            title: uiText("Could not update {0}", {
+              "0": PROVIDER_DISPLAY_NAMES[candidate.driver] ?? candidate.driver,
+            }),
             description:
               error instanceof Error
                 ? error.message
@@ -1047,7 +1055,10 @@ export function EnvironmentProviderSettings({
           <SettingsGroup divided={false} className="overflow-hidden">
             <SettingsRow
               title={uiText("Limited permissions")}
-              description={uiText("This session can view {0}'s providers but can't change their settings.", {"0": environmentLabel})}
+              description={uiText(
+                "This session can view {0}'s providers but can't change their settings.",
+                { "0": environmentLabel },
+              )}
             />
           </SettingsGroup>
         ) : null}
@@ -1073,7 +1084,8 @@ export function EnvironmentProviderSettings({
                     onClick={() => setIsAddInstanceDialogOpen(true)}
                   >
                     <PlusIcon className="size-4 shrink-0" />
-                    {uiText("Add provider") + " "}</button>
+                    {uiText("Add provider") + " "}
+                  </button>
                 ) : null}
               </div>
             </ScrollArea>
@@ -1111,10 +1123,15 @@ export function EnvironmentProviderSettings({
             <span className="inline-flex items-center gap-1.5">
               {searchableSetting("provider-health-check-interval").title}
               <PolicyTooltip>
-                {uiText("This interval is configured here, then the shared Background activity policy decides whether provider probes may run when the timer fires. Custom intervals appear as Advanced in General settings.")}</PolicyTooltip>
+                {uiText(
+                  "This interval is configured here, then the shared Background activity policy decides whether provider probes may run when the timer fires. Custom intervals appear as Advanced in General settings.",
+                )}
+              </PolicyTooltip>
             </span>
           }
-          description={uiText("Refresh provider status, versions, and models in the background. Set to 0 to disable.")}
+          description={uiText(
+            "Refresh provider status, versions, and models in the background. Set to 0 to disable.",
+          )}
           resetAction={
             providerHealthRefreshIntervalSeconds !== defaultProviderHealthRefreshIntervalSeconds ? (
               <span
@@ -1166,9 +1183,15 @@ export function EnvironmentProviderSettings({
                 }
               >
                 <NumberFieldGroup>
-                  <NumberFieldDecrement aria-label={uiText("Decrease provider health check interval")} />
-                  <NumberFieldInput aria-label={uiText("Provider health check interval in seconds")} />
-                  <NumberFieldIncrement aria-label={uiText("Increase provider health check interval")} />
+                  <NumberFieldDecrement
+                    aria-label={uiText("Decrease provider health check interval")}
+                  />
+                  <NumberFieldInput
+                    aria-label={uiText("Provider health check interval in seconds")}
+                  />
+                  <NumberFieldIncrement
+                    aria-label={uiText("Increase provider health check interval")}
+                  />
                 </NumberFieldGroup>
               </NumberField>
               <span className="text-xs text-muted-foreground">{uiText("seconds")}</span>
@@ -1389,7 +1412,9 @@ function ProviderInstanceRow({
           liveProvider?.setup?.canAuthenticate === false ? (
           <SettingsRow
             title={uiText("Cursor account")}
-            description={uiText("Using CURSOR_API_KEY. Remove it from this provider's environment to use browser sign-in.")}
+            description={uiText(
+              "Using CURSOR_API_KEY. Remove it from this provider's environment to use browser sign-in.",
+            )}
           />
         ) : null
       }
@@ -1402,7 +1427,7 @@ function ProviderInstanceRow({
       headerAction={
         mode === "editor" && isDefault && isDirty ? (
           <SettingResetButton
-            label={uiText("{0} provider settings", {"0": resetLabel})}
+            label={uiText("{0} provider settings", { "0": resetLabel })}
             onClick={() => actions.resetDefaultInstance(driver)}
           />
         ) : null

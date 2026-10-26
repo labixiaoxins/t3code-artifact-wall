@@ -287,9 +287,9 @@ export function UsagePriceOverrides({
         <DialogHeader>
           <DialogTitle>{uiText("Custom model prices")}</DialogTitle>
           <DialogDescription>
-            {
-              uiText("Prices and mappings apply to all past and future usage on the environments you select.")
-            }
+            {uiText(
+              "Prices and mappings apply to all past and future usage on the environments you select.",
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogPanel>
@@ -343,7 +343,9 @@ export function UsagePriceOverrides({
                 </MenuPopup>
               </Menu>
             </div>
-            <span className={"text-xs text-muted-foreground"}>{uiText("USD / million tokens")}</span>
+            <span className={"text-xs text-muted-foreground"}>
+              {uiText("USD / million tokens")}
+            </span>
           </div>
           {selected.length === 0 ? (
             <p className={"text-sm text-muted-foreground"}>
@@ -354,7 +356,10 @@ export function UsagePriceOverrides({
           ) : (
             <>
               <div className={"min-w-0 overflow-hidden rounded-lg border border-border"}>
-                <Table className={"min-w-180 table-fixed"} aria-label={uiText("Custom model prices")}>
+                <Table
+                  className={"min-w-180 table-fixed"}
+                  aria-label={uiText("Custom model prices")}
+                >
                   <colgroup>
                     <col className={"w-[22%]"} />
                     <col className={"w-[18%]"} />
@@ -457,9 +462,13 @@ export function UsagePriceOverrides({
                                 <Input
                                   size={"compact"}
                                   value={row.alias ?? aliasCell.value}
-                                  aria-label={uiText("Map {0} to model", {"0": row.model || "new model"})}
+                                  aria-label={uiText("Map {0} to model", {
+                                    "0": row.model || "new model",
+                                  })}
                                   list={"usage-alias-models"}
-                                  placeholder={row.isNew ? uiText("Optional") : aliasCell.placeholder}
+                                  placeholder={
+                                    row.isNew ? uiText("Optional") : aliasCell.placeholder
+                                  }
                                   autoComplete={"off"}
                                   spellCheck={false}
                                   disabled={locked}
@@ -484,7 +493,10 @@ export function UsagePriceOverrides({
                                     <Input
                                       size={"compact"}
                                       inputMode={"decimal"}
-                                      aria-label={uiText("{0} price for {1}", {"0": field.label, "1": row.model || "new model"})}
+                                      aria-label={uiText("{0} price for {1}", {
+                                        "0": field.label,
+                                        "1": row.model || "new model",
+                                      })}
                                       value={value}
                                       placeholder={
                                         row.isNew
@@ -512,10 +524,12 @@ export function UsagePriceOverrides({
                                   disabled={locked}
                                   aria-label={
                                     row.removed
-                                      ? uiText("Undo reset for {0}", {"0": row.model})
+                                      ? uiText("Undo reset for {0}", { "0": row.model })
                                       : row.isNew
                                         ? uiText("Remove new model")
-                                        : uiText("Reset price for {0} to automatic", {"0": row.model})
+                                        : uiText("Reset price for {0} to automatic", {
+                                            "0": row.model,
+                                          })
                                   }
                                   onClick={() => {
                                     if (row.isNew)
@@ -568,9 +582,9 @@ export function UsagePriceOverrides({
                   ))}
               </datalist>
               <p className={"text-xs text-muted-foreground"}>
-                {
-                  uiText("Blank cache rates use the input price. Enter 0 for free tokens. A mapped model’s usage counts as the model it maps to.")
-                }
+                {uiText(
+                  "Blank cache rates use the input price. Enter 0 for free tokens. A mapped model’s usage counts as the model it maps to.",
+                )}
                 {selected.length > 1
                   ? uiText("Mixed cells keep each environment’s rate until you edit them.")
                   : ""}
@@ -592,7 +606,7 @@ export function UsagePriceOverrides({
                       }
                     >
                       {result?.status === "failed"
-                        ? uiText("Not saved · {0}", {"0": result.error})
+                        ? uiText("Not saved · {0}", { "0": result.error })
                         : result?.status === "saved"
                           ? uiText("Saved")
                           : uiText("Saving…")}
@@ -605,12 +619,14 @@ export function UsagePriceOverrides({
         </DialogPanel>
         <DialogFooter variant={"bare"} className={"items-center sm:justify-between"}>
           <span className={"text-xs text-muted-foreground"}>
-            {hasChanges ? uiText("Changes apply to {0}", {"0": destinationLabel}) : ""}
+            {hasChanges ? uiText("Changes apply to {0}", { "0": destinationLabel }) : ""}
           </span>
           <div className={"flex w-full flex-wrap justify-end gap-2 sm:w-auto"}>
             {hasChanges ? (
               <Button variant={"ghost"} disabled={pending} onClick={discard}>
-                {failedDestinations.length > 0 ? uiText("Discard pending changes") : uiText("Discard changes")}
+                {failedDestinations.length > 0
+                  ? uiText("Discard pending changes")
+                  : uiText("Discard changes")}
               </Button>
             ) : null}
             <Button

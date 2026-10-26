@@ -381,9 +381,9 @@ function BrowserViewportSetting({ disabled }: { readonly disabled: boolean }) {
   return (
     <SettingsRow
       {...searchableSetting("browser-default-viewport")}
-      description={
-        uiText("Tab size for you and agents. Fill fits the panel; other sizes show the device toolbar.")
-      }
+      description={uiText(
+        "Tab size for you and agents. Fill fits the panel; other sizes show the device toolbar.",
+      )}
       resetAction={
         !disabled && viewport._tag !== DEFAULT_BROWSER_VIEWPORT._tag ? (
           <SettingResetButton
@@ -463,7 +463,9 @@ function BrowserViewportSetting({ disabled }: { readonly disabled: boolean }) {
                       size={"icon-sm"}
                       variant={"ghost-muted"}
                       disabled={disabled}
-                      aria-label={uiText("Rotate to {0}", {"0": presentedSize.height >= presentedSize.width ? "landscape" : "portrait"})}
+                      aria-label={uiText("Rotate to {0}", {
+                        "0": presentedSize.height >= presentedSize.width ? "landscape" : "portrait",
+                      })}
                       onClick={() =>
                         updateSettings({ browserDefaultViewport: rotateViewport(sized) })
                       }
@@ -536,7 +538,9 @@ function BrowserAppearanceSetting({ disabled }: { readonly disabled: boolean }) 
   return (
     <SettingsRow
       {...searchableSetting("browser-default-appearance")}
-      description={uiText("The color scheme pages are told to prefer. System follows your OS setting.")}
+      description={uiText(
+        "The color scheme pages are told to prefer. System follows your OS setting.",
+      )}
       resetAction={
         !disabled && appearance !== DEFAULT_PREVIEW_APPEARANCE ? (
           <SettingResetButton
@@ -583,9 +587,9 @@ function BrowserRecordingInputSettings({ disabled }: { readonly disabled: boolea
     <>
       <SettingsRow
         {...searchableSetting("browser-recording-key-presses")}
-        description={
-          uiText("Show pressed keys and shortcuts in new recordings. Password fields are excluded.")
-        }
+        description={uiText(
+          "Show pressed keys and shortcuts in new recordings. Password fields are excluded.",
+        )}
         control={
           <Switch
             disabled={disabled}
@@ -622,7 +626,9 @@ function BrowserRecordingFrameRateSetting({ disabled }: { readonly disabled: boo
   return (
     <SettingsRow
       {...searchableSetting("browser-recording-frame-rate")}
-      description={uiText("Maximum recording rate. 30 fps saves CPU and storage; 60 fps is smoother.")}
+      description={uiText(
+        "Maximum recording rate. 30 fps saves CPU and storage; 60 fps is smoother.",
+      )}
       resetAction={
         !disabled && frameRate !== DEFAULT_BROWSER_RECORDING_FRAME_RATE ? (
           <SettingResetButton
@@ -680,9 +686,9 @@ function BrowserLinkTargetSetting({ disabled }: { readonly disabled: boolean }) 
   return (
     <SettingsRow
       {...searchableSetting("browser-link-target")}
-      description={
-        uiText("Where links in the chat and terminal open. Hold ⌘ or Ctrl while clicking a link to open it in your default browser either way.")
-      }
+      description={uiText(
+        "Where links in the chat and terminal open. Hold ⌘ or Ctrl while clicking a link to open it in your default browser either way.",
+      )}
       resetAction={
         !disabled && linkTarget !== DEFAULT_BROWSER_LINK_TARGET ? (
           <SettingResetButton
@@ -701,7 +707,11 @@ function BrowserLinkTargetSetting({ disabled }: { readonly disabled: boolean }) 
             }
           }}
         >
-          <SelectTrigger size={"sm"} className={"w-full sm:w-40"} aria-label={uiText("Open links in")}>
+          <SelectTrigger
+            size={"sm"}
+            className={"w-full sm:w-40"}
+            aria-label={uiText("Open links in")}
+          >
             <SelectValue>{LINK_TARGET_LABELS[linkTarget]}</SelectValue>
           </SelectTrigger>
           <SelectPopup align={"end"} alignItemWithTrigger={false}>
@@ -809,9 +819,9 @@ function PullRequestLinksOpenInAppSetting() {
   return (
     <SettingsRow
       {...searchableSetting("pull-request-links-open-in-app")}
-      description={
-        uiText("Clicking a pull request link opens it in T3 Code. Turn off to open pull request links like any other link, on GitHub or your git host.")
-      }
+      description={uiText(
+        "Clicking a pull request link opens it in T3 Code. Turn off to open pull request links like any other link, on GitHub or your git host.",
+      )}
       resetAction={
         openInApp ? null : (
           <SettingResetButton
@@ -920,7 +930,9 @@ function DeviceIntegrationControls({
       toastManager.add({
         type: "error",
         title: uiText("Device settings not saved on all environments"),
-        description: uiText("Could not update {0}.", {"0": failed.map((environment) => environment.label).join(", ")}),
+        description: uiText("Could not update {0}.", {
+          "0": failed.map((environment) => environment.label).join(", "),
+        }),
       });
     }
   };
@@ -951,7 +963,9 @@ function DeviceIntegrationControls({
                   .finally(() => setPending(null));
               }}
             >
-              {pending === `update-${tool}` ? uiText("Updating…") : uiText("Update to v{0}", {"0": version.requiredVersion})}
+              {pending === `update-${tool}`
+                ? uiText("Updating…")
+                : uiText("Update to v{0}", { "0": version.requiredVersion })}
             </Button>
           ) : null}
           {state.supportsToolInspection ? (
@@ -1023,7 +1037,14 @@ function DeviceIntegrationControls({
             {...searchableSetting("device-platform-support")}
             description={
               connectedEnvironments.length > 1
-                ? uiText("Status for {0}. Select an environment to inspect its simulator support.", {"0": connectedEnvironments.find((environment) => environment.environmentId === environmentId)?.label})
+                ? uiText(
+                    "Status for {0}. Select an environment to inspect its simulator support.",
+                    {
+                      "0": connectedEnvironments.find(
+                        (environment) => environment.environmentId === environmentId,
+                      )?.label,
+                    },
+                  )
                 : undefined
             }
             status={
@@ -1121,7 +1142,9 @@ function AgentBrowserAccessSetting() {
       {...searchableSetting("agent-browser-access")}
       description={
         isProjectScope
-          ? uiText("Allow agents in this project to use the shared browser. Applies when the agent session next starts.")
+          ? uiText(
+              "Allow agents in this project to use the shared browser. Applies when the agent session next starts.",
+            )
           : uiText("Allow agents to use the shared browser. Projects can override it.")
       }
       resetAction={
@@ -1155,9 +1178,9 @@ function BrowserAutoShowFloatingPreviewSetting({ disabled }: { readonly disabled
   return (
     <SettingsRow
       {...searchableSetting("browser-auto-show-floating-preview")}
-      description={
-        uiText("Show the floating preview when an agent opens a browser or device unless the agent says otherwise.")
-      }
+      description={uiText(
+        "Show the floating preview when an agent opens a browser or device unless the agent says otherwise.",
+      )}
       resetAction={
         !disabled && autoShow !== DEFAULT_BROWSER_AUTO_SHOW_FLOATING_PREVIEW ? (
           <SettingResetButton
@@ -1264,7 +1287,7 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
     if (!removalAvailable) {
       toastManager.add({
         type: "error",
-        title: uiText("Could not clear {0}'s data", {"0": name}),
+        title: uiText("Could not clear {0}'s data", { "0": name }),
         description: uiText("You're not connected to a server yet."),
       });
       return;
@@ -1276,10 +1299,16 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
       serverProfileData,
     )
       .then(() => {
-        toastManager.add({ type: "success", title: uiText("Cleared {0}'s cookies and cache", {"0": name}) });
+        toastManager.add({
+          type: "success",
+          title: uiText("Cleared {0}'s cookies and cache", { "0": name }),
+        });
       })
       .catch(() => {
-        toastManager.add({ type: "error", title: uiText("Could not clear {0}'s data", {"0": name}) });
+        toastManager.add({
+          type: "error",
+          title: uiText("Could not clear {0}'s data", { "0": name }),
+        });
       });
   };
 
@@ -1374,9 +1403,9 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
   return (
     <SettingsRow
       {...searchableSetting("browser-profiles")}
-      description={
-        uiText("Profiles separate cookies and logins. Incognito data is cleared when the app closes.")
-      }
+      description={uiText(
+        "Profiles separate cookies and logins. Incognito data is cleared when the app closes.",
+      )}
       control={
         <Menu onOpenChange={(open) => open && loadSources()}>
           <MenuTrigger
@@ -1431,7 +1460,9 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
                     </MenuItem>
                   ))}
                   {primaryEnvironment == null ? (
-                    <MenuItem disabled>{uiText("Connect to an environment to import cookies")}</MenuItem>
+                    <MenuItem disabled>
+                      {uiText("Connect to an environment to import cookies")}
+                    </MenuItem>
                   ) : null}
                 </>
               )}
@@ -1467,7 +1498,7 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
                     nativeInput
                     size={"sm"}
                     className={"w-full max-w-56"}
-                    aria-label={uiText("Rename {0}", {"0": profile.name})}
+                    aria-label={uiText("Rename {0}", { "0": profile.name })}
                     disabled={profileWritesDisabled || importInFlight}
                     maxLength={BROWSER_PROFILE_NAME_MAX_LENGTH}
                     value={profile.name}
@@ -1487,7 +1518,7 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
                       size={"icon-xs"}
                       variant={"ghost-muted"}
                       disabled={profileWritesDisabled || importInFlight}
-                      aria-label={uiText("{0} options", {"0": profile.name})}
+                      aria-label={uiText("{0} options", { "0": profile.name })}
                     />
                   }
                 >
@@ -1558,9 +1589,9 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
               {"\u201D?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {
-                uiText("Its cookies and logins are deleted. Desktop tabs already open in this profile stay open until you close them; server browser tabs close now.")
-              }
+              {uiText(
+                "Its cookies and logins are deleted. Desktop tabs already open in this profile stay open until you close them; server browser tabs close now.",
+              )}
             </AlertDialogDescription>
             {profileRemovalError ? (
               <p aria-live={"polite"} className={"text-sm text-destructive"}>
@@ -1608,13 +1639,15 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
               {uiText("”’s cookies and cache?")}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {
-                uiText("You are signed out of its sites. Server browser tabs open in this profile close now.")
-              }
+              {uiText(
+                "You are signed out of its sites. Server browser tabs open in this profile close now.",
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogClose render={<Button variant={"outline"} />}>{uiText("Cancel")}</AlertDialogClose>
+            <AlertDialogClose render={<Button variant={"outline"} />}>
+              {uiText("Cancel")}
+            </AlertDialogClose>
             <Button
               variant={"destructive"}
               onClick={() => {

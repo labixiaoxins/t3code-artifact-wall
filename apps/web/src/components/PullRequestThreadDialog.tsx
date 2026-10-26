@@ -211,10 +211,15 @@ export function PullRequestThreadDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <SourceControlIcon className="me-2 size-4" />
-            {uiText("Checkout") + " "}{terminology.singular}
+            {uiText("Checkout") + " "}
+            {terminology.singular}
           </DialogTitle>
           <DialogDescription>
-            {uiText("Resolve a") + " "}{sourceControlPresentation.providerName} {terminology.singular}{uiText(", then create the draft thread in the main repo or in a dedicated worktree.") + " "}</DialogDescription>
+            {uiText("Resolve a") + " "}
+            {sourceControlPresentation.providerName} {terminology.singular}
+            {uiText(", then create the draft thread in the main repo or in a dedicated worktree.") +
+              " "}
+          </DialogDescription>
         </DialogHeader>
         <DialogPanel>
           <label className="grid gap-1.5">
@@ -223,7 +228,9 @@ export function PullRequestThreadDialog({
             </span>
             <Input
               ref={referenceInputRef}
-              placeholder={uiText("{0} URL, checkout command, or #42", {"0": terminology.shortLabel})}
+              placeholder={uiText("{0} URL, checkout command, or #42", {
+                "0": terminology.shortLabel,
+              })}
               value={reference}
               onChange={(event) => {
                 setReferenceDirty(true);
@@ -264,7 +271,8 @@ export function PullRequestThreadDialog({
           {isResolving ? (
             <div className="flex items-center gap-2 text-muted-foreground text-xs">
               <Spinner size="sm" />
-              {uiText("Resolving") + " "}{terminology.singular}...
+              {uiText("Resolving") + " "}
+              {terminology.singular}...
             </div>
           ) : null}
 
@@ -278,7 +286,8 @@ export function PullRequestThreadDialog({
             onClick={() => onOpenChange(false)}
             disabled={preparePullRequestThreadAction.isPending}
           >
-            {uiText("Cancel")}</Button>
+            {uiText("Cancel")}
+          </Button>
           <Button
             type="button"
             size="sm"

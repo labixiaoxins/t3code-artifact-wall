@@ -1165,9 +1165,12 @@ export function PullRequestsPage() {
 
       {listQuery.error && shownCount > 0 ? (
         <div className="flex items-center justify-between gap-3 rounded-lg border border-warning/30 bg-warning-surface px-3 py-2 text-xs">
-          <span>{listQuery.error} {uiText("Showing the last pull requests loaded.")}</span>
+          <span>
+            {listQuery.error} {uiText("Showing the last pull requests loaded.")}
+          </span>
           <Button size="xs" variant="outline" onClick={() => listQuery.refresh()}>
-            {uiText("Retry")}</Button>
+            {uiText("Retry")}
+          </Button>
         </div>
       ) : null}
       {listData?.truncated && entries.length > 0 ? (
@@ -1184,7 +1187,8 @@ export function PullRequestsPage() {
               onClick={loadMore}
               disabled={listQuery.isPending || showingCarried}
             >
-              {uiText("Load more pull requests")}</Button>
+              {uiText("Load more pull requests")}
+            </Button>
           ) : (
             <span>{uiText("Narrow your search to find more pull requests.")}</span>
           )}

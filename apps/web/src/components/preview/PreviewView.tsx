@@ -108,13 +108,13 @@ interface Props {
   visible: boolean;
   onSendAnnotation?: (
     annotation: PreviewAnnotationPayload,
-    image: ComposerImageAttachment | null
+    image: ComposerImageAttachment | null,
   ) => void;
 }
 
 function previewProfileName(
-  profiles: ReadonlyArray<{ readonly id: string; readonly name: string; }>,
-  profileId: string
+  profiles: ReadonlyArray<{ readonly id: string; readonly name: string }>,
+  profileId: string,
 ): string {
   return profiles.find((profile) => profile.id === profileId)?.name ?? "Removed profile";
 }
@@ -125,7 +125,7 @@ function ServerTabFileNotShown(props: {
   readonly threadRef: ScopedThreadRef;
   readonly tabId: string;
   readonly url: string;
-  readonly download: { readonly id: string; readonly fileName: string; };
+  readonly download: { readonly id: string; readonly fileName: string };
 }) {
   const access = usePreviewStreamAccess(props.threadRef.environmentId);
   return (
@@ -136,7 +136,7 @@ function ServerTabFileNotShown(props: {
         access
           ? previewStreamDownloadUrl(
               { access, threadId: props.threadRef.threadId, tabId: props.tabId },
-              props.download.id
+              props.download.id,
             )
           : null
       }
@@ -158,15 +158,15 @@ export function PreviewView({
     useEnvironmentScope(threadRef.environmentId, AuthOrchestrationOperateScope) &&
     Boolean(onSendAnnotation);
   const activeRecordingTabIds = useActiveBrowserRecordingTabIds();
-  const pickActiveRef = useRef<{ cancelled: boolean; } | null>(null);
+  const pickActiveRef = useRef<{ cancelled: boolean } | null>(null);
   const isMountedRef = useRef(true);
   const previewState = useThreadPreviewState(threadRef);
   const recentHistoryEntries = useThreadRecentHistory(
     threadRef,
-    BROWSER_HISTORY_MAX_ENTRIES_PER_PROJECT
+    BROWSER_HISTORY_MAX_ENTRIES_PER_PROJECT,
   );
   const miniPlayerTabId = usePreviewMiniPlayerStore((state) =>
-    selectThreadPreviewMiniPlayerTabId(state.byThreadKey, threadRef)
+    selectThreadPreviewMiniPlayerTabId(state.byThreadKey, threadRef),
   );
   const addPreviewAnnotation = useComposerDraftStore((store) => store.addPreviewAnnotation);
   const addImage = useComposerDraftStore((store) => store.addImage);
@@ -215,7 +215,7 @@ export function PreviewView({
     const element = serverBodyRef.current;
     if (!element || !serverToolbarShown) return;
     return observeResize(element, ([entry]) =>
-      setServerToolbarWidth(Math.max(1, Math.round(entry?.contentRect.width ?? 0)))
+      setServerToolbarWidth(Math.max(1, Math.round(entry?.contentRect.width ?? 0))),
     );
   }, [serverToolbarShown]);
   const [serverControlledTabId, setServerControlledTabId] = useState<string | null>(null);
@@ -241,7 +241,7 @@ export function PreviewView({
   const activeProfileId = snapshot?.profileId ?? DEFAULT_BROWSER_PROFILE_ID;
   const activeProfileName = previewProfileName(browserDefaults.profiles, activeProfileId);
   const panelRect = useBrowserSurfaceStore((state) =>
-    runtimeTabId ? (state.byTabId[runtimeTabId]?.rect ?? null) : null
+    runtimeTabId ? (state.byTabId[runtimeTabId]?.rect ?? null) : null,
   );
 
   const navUrl = navStatus._tag === "Success" ? navStatus.url : null;
@@ -255,7 +255,7 @@ export function PreviewView({
       scopeThreadRef(threadEnvironmentId, threadId),
       navUrl,
       navTitle,
-      environmentHostname
+      environmentHostname,
     );
   }, [environmentHostname, latestHistoryUrl, navTitle, navUrl, threadEnvironmentId, threadId]);
 
@@ -338,7 +338,7 @@ export function PreviewView({
         : PREVIEW_ZOOM_LEVELS[
             Math.min(
               Math.max((index < 0 ? 7 : index) + direction, 0),
-              PREVIEW_ZOOM_LEVELS.length - 1
+              PREVIEW_ZOOM_LEVELS.length - 1,
             )
           ]!;
     if (next !== serverZoomFactor) void adjustServerTab({ zoomFactor: next });
@@ -394,7 +394,7 @@ export function PreviewView({
         defaults: browserDefaults,
         panelRect,
         zoomFactor: isServerTab ? serverZoomFactor : layoutZoomFactor,
-      })
+      }),
     ).catch(() => undefined);
   };
 
@@ -402,7 +402,7 @@ export function PreviewView({
   useEffect(() => {
     if (!runtimeTabId) return;
     return subscribeBrowserViewportChange(runtimeTabId, (nextViewport) =>
-      onViewportChange(nextViewport)
+      onViewportChange(nextViewport),
     );
   }, [runtimeTabId]);
 
@@ -425,7 +425,7 @@ export function PreviewView({
     threadRef.environmentId,
     primaryEnvironmentId,
     serverBrowser,
-    snapshot
+    snapshot,
   );
   const moveLabel =
     moveTarget === "server" ? `Open in ${environmentLabel}'s browser` : "Open on this computer";
@@ -537,7 +537,6 @@ export function PreviewView({
           let toastId: ReturnType<typeof toastManager.add>;
 
           const copyPath = () => {
-
             void writeTextToClipboard(artifact.path, "artifact path").then(
               () => {
                 pathCopied = true;
@@ -553,11 +552,12 @@ export function PreviewView({
                   stackedThreadToast({
                     type: "error",
                     title: uiText("Unable to copy recording path"),
-                    description: error instanceof Error ? error.message : uiText("An error occurred."),
+                    description:
+                      error instanceof Error ? error.message : uiText("An error occurred."),
                     actionProps: revealAction,
-                  })
+                  }),
                 );
-              }
+              },
             );
           };
 
@@ -580,7 +580,7 @@ export function PreviewView({
                   },
                   secondaryActionVariant: "outline",
                 },
-              })
+              }),
             );
           };
 
@@ -596,7 +596,7 @@ export function PreviewView({
                 },
                 secondaryActionVariant: "outline",
               },
-            })
+            }),
           );
         },
         (error) => {
@@ -605,7 +605,7 @@ export function PreviewView({
             title: uiText("Unable to stop recording"),
             description: error instanceof Error ? error.message : uiText("An error occurred."),
           });
-        }
+        },
       );
       return;
     }
@@ -634,7 +634,7 @@ export function PreviewView({
         const updateScreenshotToast = (
           type: "success" | "error" = "success",
           title = uiText("Screenshot saved"),
-          description?: string
+          description?: string,
         ) => {
           toastManager.update(
             toastId,
@@ -663,12 +663,11 @@ export function PreviewView({
                 },
                 secondaryActionVariant: "outline",
               },
-            })
+            }),
           );
         };
 
         const copyPath = () => {
-
           void writeTextToClipboard(artifact.path, "artifact path").then(
             () => {
               pathCopied = true;
@@ -682,9 +681,9 @@ export function PreviewView({
               updateScreenshotToast(
                 "error",
                 "Unable to copy screenshot path",
-                error instanceof Error ? error.message : uiText("An error occurred.")
+                error instanceof Error ? error.message : uiText("An error occurred."),
               );
-            }
+            },
           );
         };
 
@@ -702,9 +701,9 @@ export function PreviewView({
               updateScreenshotToast(
                 "error",
                 "Unable to copy screenshot",
-                error instanceof Error ? error.message : uiText("An error occurred.")
+                error instanceof Error ? error.message : uiText("An error occurred."),
               );
-            }
+            },
           );
         };
 
@@ -731,7 +730,7 @@ export function PreviewView({
               },
               secondaryActionVariant: "outline",
             },
-          })
+          }),
         );
       },
       (error) => {
@@ -740,7 +739,7 @@ export function PreviewView({
           title: uiText("Unable to capture screenshot"),
           description: error instanceof Error ? error.message : uiText("An error occurred."),
         });
-      }
+      },
     );
   };
 
@@ -783,7 +782,7 @@ export function PreviewView({
       await bridge.setAnnotationSendEnabled?.(
         runtimeTabId,
         Boolean(onSendAnnotation) &&
-          readEnvironmentScope(threadRef.environmentId, AuthOrchestrationOperateScope)
+          readEnvironmentScope(threadRef.environmentId, AuthOrchestrationOperateScope),
       );
       if (pickRequest.cancelled) return;
       const result = await bridge.pickElement(runtimeTabId);
@@ -812,7 +811,7 @@ export function PreviewView({
             type: "error",
             title: uiText("Could not capture the picked element"),
             description: uiText("The annotation was kept without the screenshot."),
-          })
+          }),
         );
       }
       const screenshotFile = capture.status === "captured" ? capture.file : null;
@@ -882,7 +881,7 @@ export function PreviewView({
         case "toggle-panel":
           return;
       }
-    }
+    },
   );
   useEffect(() => {
     if (!visible) return;
@@ -999,7 +998,7 @@ export function PreviewView({
                 // Stays connected under the empty state so a URL picked there reaches the page.
                 className={cn(
                   "absolute inset-0 h-full w-full",
-                  (showEmptyState || isUnreachable) && "invisible"
+                  (showEmptyState || isUnreachable) && "invisible",
                 )}
               />
             </div>
@@ -1015,7 +1014,8 @@ export function PreviewView({
           ) : (
             <div className="flex h-full items-center justify-center p-8 text-center">
               <p className="max-w-sm text-sm text-muted-foreground">
-                {uiText("This tab is open in the T3 Code desktop app.")}</p>
+                {uiText("This tab is open in the T3 Code desktop app.")}
+              </p>
             </div>
           )
         ) : null}

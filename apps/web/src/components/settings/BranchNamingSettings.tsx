@@ -82,7 +82,9 @@ export function BranchNamingSettings() {
           serverScoped
           settingKeys={["branchNamePrefix"]}
           title={uiText("Branch prefix")}
-          description={uiText("For example, t3 or t3/ produces t3/add-search. Leave empty for no prefix.")}
+          description={uiText(
+            "For example, t3 or t3/ produces t3/add-search. Leave empty for no prefix.",
+          )}
           resetAction={
             prefixMixed ||
             settings.branchNamePrefix !== DEFAULT_SERVER_SETTINGS.branchNamePrefix ? (
@@ -120,7 +122,9 @@ export function BranchNamingSettings() {
           serverScoped
           settingKeys={["branchNameInstructions"]}
           title={uiText("Branch naming instructions")}
-          description={uiText("Appended to the naming prompt. The model returns the complete branch name; no prefix or suffix is added.")}
+          description={uiText(
+            "Appended to the naming prompt. The model returns the complete branch name; no prefix or suffix is added.",
+          )}
           resetAction={
             instructionsMixed || settings.branchNameInstructions !== "" ? (
               <SettingResetButton

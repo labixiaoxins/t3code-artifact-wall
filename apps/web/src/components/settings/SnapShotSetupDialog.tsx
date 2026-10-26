@@ -30,12 +30,15 @@ const SETUP_STEPS = [
 const GNOME_ACCESS_COPY = {
   "not-installed": {
     title: uiText("Install the extension"),
-    description:
-      uiText("The T3 Code GNOME extension lets you capture other windows and bring them into your draft. Sign out once after installing."),
+    description: uiText(
+      "The T3 Code GNOME extension lets you capture other windows and bring them into your draft. Sign out once after installing.",
+    ),
   },
   "restart-required": {
     title: uiText("Extension installed"),
-    description: uiText("Save your work, then sign out and back in. Your setup will be waiting here."),
+    description: uiText(
+      "Save your work, then sign out and back in. Your setup will be waiting here.",
+    ),
   },
   "update-required": {
     title: uiText("Update the extension"),
@@ -171,8 +174,9 @@ export function SnapShotSetupDialog({
                     helper?.status === "update-required"
                       ? "Update the capture helper"
                       : "Allow snapshots",
-                  description:
-                    uiText("T3 Code's capture helper lets you capture other apps and return to your draft. It's included with T3 Code."),
+                  description: uiText(
+                    "T3 Code's capture helper lets you capture other apps and return to your draft. It's included with T3 Code.",
+                  ),
                 }
           : backend === "niri"
             ? {
@@ -182,8 +186,9 @@ export function SnapShotSetupDialog({
             : backend === "picker"
               ? {
                   title: uiText("Choose a window each time"),
-                  description:
-                    uiText("Your desktop doesn't support automatic capture. You'll choose the window to capture instead."),
+                  description: uiText(
+                    "Your desktop doesn't support automatic capture. You'll choose the window to capture instead.",
+                  ),
                 }
               : {
                   title: uiText("Allow snapshots"),
@@ -232,7 +237,13 @@ export function SnapShotSetupDialog({
       }}
     >
       <WizardPopup showCloseButton={!busy}>
-        <WizardHeader title={desktop ? uiText("Set up snapshots for {0}", {"0": desktop}) : uiText("Set up snapshots")}>
+        <WizardHeader
+          title={
+            desktop
+              ? uiText("Set up snapshots for {0}", { "0": desktop })
+              : uiText("Set up snapshots")
+          }
+        >
           <WizardSteps
             steps={SETUP_STEPS.map((item) => item.label)}
             currentStep={stepIndex}
@@ -297,7 +308,8 @@ export function SnapShotSetupDialog({
                     disabled={busy}
                     onClick={() => void onAction(installHelper)}
                   >
-                    {uiText("Reinstall helper")}</Button>
+                    {uiText("Reinstall helper")}
+                  </Button>
                 ) : null}
               </>
             ) : configShortcut ? (
@@ -334,11 +346,13 @@ export function SnapShotSetupDialog({
             )}
             {step === "shortcut" && !accessReady ? (
               <p role="alert" className="text-destructive">
-                {uiText("Capture needs attention. Go back to check access.")}</p>
+                {uiText("Capture needs attention. Go back to check access.")}
+              </p>
             ) : null}
             {error ? (
               <p role="alert" className="text-destructive">
-                {uiText("Couldn't finish this step. Try again or check Advanced for help.")}</p>
+                {uiText("Couldn't finish this step. Try again or check Advanced for help.")}
+              </p>
             ) : null}
             {details.length > 0 || (step === "access" && (backend === "gnome" || helperBackend)) ? (
               <details className="text-xs text-muted-foreground">
@@ -359,7 +373,8 @@ export function SnapShotSetupDialog({
                       disabled={busy}
                       onClick={() => void onAction("disable-extension")}
                     >
-                      {uiText("Disable extension")}</Button>
+                      {uiText("Disable extension")}
+                    </Button>
                   ) : null}
                   {step === "access" && helperBackend && helper?.status !== "not-installed" ? (
                     <Button
@@ -368,7 +383,8 @@ export function SnapShotSetupDialog({
                       disabled={busy}
                       onClick={() => void onAction(removeHelper)}
                     >
-                      {uiText("Remove capture helper")}</Button>
+                      {uiText("Remove capture helper")}
+                    </Button>
                   ) : null}
                 </div>
               </details>
@@ -378,7 +394,8 @@ export function SnapShotSetupDialog({
         <WizardFooter>
           {step !== "access" ? (
             <Button variant="ghost" disabled={busy} onClick={() => changeStep("access")}>
-              {uiText("Back")}</Button>
+              {uiText("Back")}
+            </Button>
           ) : null}
           <Button variant="ghost" disabled={busy} onClick={() => void onClose(false)}>
             {wasEnabled ? uiText("Close") : uiText("Finish later")}
@@ -458,7 +475,11 @@ export function SnapShotSetupDialog({
                 if (!shortcutChanged || (await onSaveShortcut())) await onClose(true);
               }}
             >
-              {busy ? uiText("Saving…") : shortcutChanged ? uiText("Save and finish") : uiText("Done")}
+              {busy
+                ? uiText("Saving…")
+                : shortcutChanged
+                  ? uiText("Save and finish")
+                  : uiText("Done")}
             </Button>
           ) : null}
         </WizardFooter>

@@ -11,7 +11,7 @@ const MAX_SEARCH_LABEL_CANDIDATES = 100;
 function pullRequestSearchLabels(raw: unknown): Partial<Pick<PullRequestsSearch, "labels">> {
   const values = (Array.isArray(raw) ? raw : typeof raw === "string" ? [raw] : []).slice(
     0,
-    MAX_SEARCH_LABEL_CANDIDATES
+    MAX_SEARCH_LABEL_CANDIDATES,
   );
   const labels: Array<string> = [];
   const seen = new Set<string>();

@@ -86,7 +86,11 @@ function RecoveryActions({ runId, resetAt, recovery, snoozedUntil, onChange }: R
   return (
     <>
       <Button size="xs" variant="ghost" disabled={pending} onClick={() => void toggle("resume")}>
-        {pending ? uiText("Saving...") : scheduled ? uiText("Cancel auto-resume") : uiText("Resume at reset")}
+        {pending
+          ? uiText("Saving...")
+          : scheduled
+            ? uiText("Cancel auto-resume")
+            : uiText("Resume at reset")}
       </Button>
       {!snoozed ? (
         <Button

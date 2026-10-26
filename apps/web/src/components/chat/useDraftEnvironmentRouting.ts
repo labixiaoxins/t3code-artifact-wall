@@ -139,8 +139,7 @@ export function useDraftEnvironmentRouting(input: DraftEnvironmentRoutingInput) 
         type: "warning",
         id: "load-balancing-attachments",
         title: uiText("Keep attachments on this machine"),
-        description:
-          uiText(
+        description: uiText(
           "Remove attachments before choosing automatic routing, then attach them on the selected machine.",
         ),
       });

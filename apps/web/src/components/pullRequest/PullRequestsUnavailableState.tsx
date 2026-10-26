@@ -41,7 +41,8 @@ export function PullRequestsUnavailableState({
               aria-busy={refreshing}
             >
               <RefreshIcon size="sm" refreshing={refreshing} />
-              {uiText("Retry") + " "}</Button>
+              {uiText("Retry") + " "}
+            </Button>
           ) : null}
           {gitHubUrl ? (
             <Button
@@ -50,7 +51,8 @@ export function PullRequestsUnavailableState({
               render={<a href={gitHubUrl} target="_blank" rel="noopener noreferrer" />}
             >
               <ExternalLinkIcon aria-hidden className="size-3.5" />
-              {uiText("Open on GitHub") + " "}</Button>
+              {uiText("Open on GitHub") + " "}
+            </Button>
           ) : null}
         </div>
       ) : null}

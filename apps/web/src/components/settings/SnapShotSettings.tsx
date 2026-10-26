@@ -467,7 +467,8 @@ export function SnapShotSettings() {
                       disabled={setupBusy}
                       onClick={() => void openSetup("shortcut")}
                     >
-                      {uiText("Change shortcut")}</Button>
+                      {uiText("Change shortcut")}
+                    </Button>
                   ) : (
                     <>
                       {shortcutInput}
@@ -491,7 +492,8 @@ export function SnapShotSettings() {
                               setShortcutCheck({ status: "idle", availability: null });
                             }}
                           >
-                            {uiText("Cancel")}</Button>
+                            {uiText("Cancel")}
+                          </Button>
                         </>
                       ) : state?.mode === "portal" &&
                         state.shortcutCanRetry !== false &&
@@ -502,7 +504,8 @@ export function SnapShotSettings() {
                           disabled={setupBusy || state.shortcutPending}
                           onClick={() => void setup("retry-shortcut")}
                         >
-                          {uiText("Shortcut permissions")}</Button>
+                          {uiText("Shortcut permissions")}
+                        </Button>
                       ) : null}
                     </>
                   )
@@ -523,7 +526,8 @@ export function SnapShotSettings() {
                         uiText("Off")
                       ) : soundSelection === "soft-pop" ? (
                         <>
-                          {uiText("Whoosh") + " "}<span className="text-muted-foreground">{uiText("(Default)")}</span>
+                          {uiText("Whoosh") + " "}
+                          <span className="text-muted-foreground">{uiText("(Default)")}</span>
                         </>
                       ) : (
                         uiText("Click")
@@ -537,10 +541,12 @@ export function SnapShotSettings() {
                         value={soundSelection}
                       >
                         <MenuRadioItem closeOnClick value="off">
-                          {uiText("Off")}</MenuRadioItem>
+                          {uiText("Off")}
+                        </MenuRadioItem>
                         <div className={soundOptionRowClassName}>
                           <MenuRadioItem closeOnClick value="soft-pop">
-                            {uiText("Whoosh") + " "}<span className="text-muted-foreground">{uiText("(Default)")}</span>
+                            {uiText("Whoosh") + " "}
+                            <span className="text-muted-foreground">{uiText("(Default)")}</span>
                           </MenuRadioItem>
                           <MenuItem
                             aria-label={uiText("Play Whoosh")}
@@ -552,7 +558,8 @@ export function SnapShotSettings() {
                         </div>
                         <div className={soundOptionRowClassName}>
                           <MenuRadioItem closeOnClick value="camera-shutter">
-                            {uiText("Click")}</MenuRadioItem>
+                            {uiText("Click")}
+                          </MenuRadioItem>
                           <MenuItem
                             aria-label={uiText("Play Click")}
                             closeOnClick={false}

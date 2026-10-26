@@ -37,11 +37,17 @@ export function RemoveT3ConnectEnvironmentDialog({
       >
         <AlertDialogPopup>
           <AlertDialogHeader>
-            <AlertDialogTitle>{uiText("Remove") + " "}{shownLabel} {uiText("from this device?")}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {uiText("Remove") + " "}
+              {shownLabel} {uiText("from this device?")}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              {uiText("This forgets its pairing, credentials, and cached threads here.")}</AlertDialogDescription>
+              {uiText("This forgets its pairing, credentials, and cached threads here.")}
+            </AlertDialogDescription>
             <AlertDialogDescription>
-              {uiText("It stays on your T3 Connect account and keeps its host space. Deregister it in")}{" "}
+              {uiText(
+                "It stays on your T3 Connect account and keeps its host space. Deregister it in",
+              )}{" "}
               {openAccountPage ? (
                 <InlineButton
                   onClick={() => {
@@ -49,16 +55,21 @@ export function RemoveT3ConnectEnvironmentDialog({
                     openAccountPage();
                   }}
                 >
-                  {uiText("T3 Connect settings")}</InlineButton>
+                  {uiText("T3 Connect settings")}
+                </InlineButton>
               ) : (
                 uiText("T3 Connect settings")
               )}{" "}
-              {uiText("to free it.") + " "}</AlertDialogDescription>
+              {uiText("to free it.") + " "}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogClose render={<Button variant="outline" />}>{uiText("Cancel")}</AlertDialogClose>
+            <AlertDialogClose render={<Button variant="outline" />}>
+              {uiText("Cancel")}
+            </AlertDialogClose>
             <Button variant="destructive" onClick={onConfirm}>
-              {uiText("Remove from this device")}</Button>
+              {uiText("Remove from this device")}
+            </Button>
           </AlertDialogFooter>
         </AlertDialogPopup>
       </AlertDialog>

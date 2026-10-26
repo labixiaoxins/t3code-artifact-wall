@@ -56,7 +56,7 @@ const providerThread: OrchestrationV2ProviderThread = {
 const message = (
   id: string,
   role: "user" | "assistant",
-  text: string
+  text: string,
 ): OrchestrationV2HistoricalMessage => ({
   itemId: TurnItemId.make(id),
   role,
@@ -143,7 +143,7 @@ describe("handoff budget", () => {
         type: "reasoning",
         text: "private reasoning",
         streaming: false,
-      })
+      }),
     );
     assert.equal(historyResponseItems([command!], "Activity")[1]?.type, "message");
     const tool = historicalMessage({
@@ -161,18 +161,18 @@ describe("handoff budget", () => {
   });
   it.each(
     ["code", "visual", "slides", "research", "mock-publication"].flatMap((task) =>
-      [4000, 8000, 16000].map((budget) => ({ task, budget }))
-    )
+      [4000, 8000, 16000].map((budget) => ({ task, budget })),
+    ),
   )("keeps user corrections ahead of noisy logs: $task, $budget bytes", ({ task, budget }) => {
     const original = message(
       `${task}:original`,
       "user",
-      "Keep the original files and preserve existing authorization scope."
+      "Keep the original files and preserve existing authorization scope.",
     );
     const correction = message(
       `${task}:correction`,
       "user",
-      "Use final-v3; do not publish. The previous v2 is obsolete."
+      "Use final-v3; do not publish. The previous v2 is obsolete.",
     );
     const latest = message(`${task}:latest`, "user", "Continue the remaining work.");
     const file = {
@@ -198,11 +198,11 @@ describe("handoff budget", () => {
     });
     assert.deepEqual(
       selected.messages.filter((m) => m.role === "user"),
-      [original, correction, latest]
+      [original, correction, latest],
     );
     assert.include(
       selected.messages.map((m) => m.itemId),
-      file.itemId
+      file.itemId,
     );
     assert.include(selected.omittedItemIds, `${task}:log`);
     assert.isAtMost(historyCost(selected.messages, selected.context), budget);
@@ -227,7 +227,7 @@ describe("handoff budget", () => {
 
   it("counts JSON escaping and UTF-8 bytes across many messages", () => {
     const candidates = Array.from({ length: 500 }, (_, i) =>
-      message(`item:${i}`, i % 2 ? "assistant" : "user", '\u0000\\"🧪界'.repeat(15))
+      message(`item:${i}`, i % 2 ? "assistant" : "user", '\u0000\\"🧪界'.repeat(15)),
     );
     for (const budget of [1_024, 4_000, 16_000]) {
       const selected = selectHistory({
@@ -242,7 +242,7 @@ describe("handoff budget", () => {
 
   it("fits the final envelope at intermediate selected/omitted digit boundaries", () => {
     const candidates = Array.from({ length: 20 }, (_, index) =>
-      message(`boundary:${index}`, "user", "Short request")
+      message(`boundary:${index}`, "user", "Short request"),
     );
     for (let budget = 4_000; budget <= 9_000; budget++) {
       const selected = selectHistory({
@@ -275,7 +275,7 @@ describe("handoff budget", () => {
           contextUsage: { usedTokens: 23_000, maxTokens: 24_000 },
         },
       }),
-      0
+      0,
     );
     for (const sizeBytes of [100_000, 10 * 1024 * 1024]) {
       const attachments = [
@@ -303,7 +303,7 @@ describe("handoff budget", () => {
             contextUsage: { usedTokens: 0, maxTokens: 1_000_000 },
           },
         }),
-        64000
+        64000,
       );
     }
     assert.equal(handoffBudget({ ...base, tokenCap: 2_000 }), 2_000);
@@ -321,7 +321,7 @@ describe("handoff budget", () => {
         sameSelection: false,
         reuseTelemetry: false,
         previousUsage: previous,
-      })
+      }),
     );
     assert.equal(
       contextUsageForHandoff({
@@ -330,7 +330,7 @@ describe("handoff budget", () => {
         reuseTelemetry: true,
         previousUsage: previous,
       }),
-      previous
+      previous,
     );
     assert.deepEqual(
       contextUsageForHandoff({
@@ -339,7 +339,7 @@ describe("handoff budget", () => {
         reuseTelemetry: true,
         previousUsage: previous,
       }),
-      { usedTokens: 37321, maxTokens: 258400 }
+      { usedTokens: 37321, maxTokens: 258400 },
     );
     assert.deepEqual(
       contextUsageForHandoff({
@@ -348,7 +348,7 @@ describe("handoff budget", () => {
         reuseTelemetry: false,
         previousUsage: previous,
       }),
-      { usedTokens: 37321, maxTokens: 258400 }
+      { usedTokens: 37321, maxTokens: 258400 },
     );
     assert.deepEqual(
       contextUsageForHandoff({
@@ -358,7 +358,7 @@ describe("handoff budget", () => {
         previousUsage: { usedTokens: 30_000, maxTokens: 32_000, autoCompactThreshold: 31_000 },
         knownModelWindow: 1_000_000,
       }),
-      { usedTokens: 30000, maxTokens: 1000000 }
+      { usedTokens: 30000, maxTokens: 1000000 },
     );
 
     const preserved = contextUsageForHandoff({
@@ -391,7 +391,7 @@ describe("handoff budget", () => {
         nativeContextEstimate: 0,
         modelContextWindow: preserved?.maxTokens,
       }),
-      16000
+      16000,
     );
     assert.equal(
       handoffBudget({
@@ -401,7 +401,7 @@ describe("handoff budget", () => {
         providerThread,
         nativeContextEstimate: 120_000,
       }),
-      0
+      0,
     );
   });
   it("reserves context for image batches up to the attachment limit, honoring smaller known windows", () => {
@@ -441,7 +441,7 @@ describe("handoff budget", () => {
           ...input,
           providerThread: { ...providerThread, contextUsage: { usedTokens: 0, maxTokens: 20_000 } },
         }),
-        0
+        0,
       );
       assert.equal(
         handoffBudget({
@@ -452,7 +452,7 @@ describe("handoff budget", () => {
             contextUsage: { usedTokens: 0, maxTokens: 1_000_000, autoCompactThreshold: 20_000 },
           },
         }),
-        0
+        0,
       );
     }
   });
@@ -484,7 +484,7 @@ describe("handoff delivery", () => {
           assert.include(value.context, "omitted 2 items");
           assert.notInclude(
             value.messages.map((item) => item.itemId),
-            oversized.itemId
+            oversized.itemId,
           );
           return Effect.succeed(native);
         },
@@ -498,11 +498,11 @@ describe("handoff delivery", () => {
       assert.equal(durable.delivery?.status, native ? "injected" : "inline");
       assert.deepEqual(
         durable.delivery?.itemIds,
-        messages.map((item) => item.itemId)
+        messages.map((item) => item.itemId),
       );
       assert.deepEqual(durable.delivery?.omittedItemIds, [omittedBeforeDelivery, oversized.itemId]);
       assert.deepEqual(decodeHandoff(durable).delivery, durable.delivery);
-    })
+    }),
   );
 
   it.effect("persists successful injection before turn start and skips it on retry", () =>
@@ -532,7 +532,7 @@ describe("handoff delivery", () => {
       const second = yield* deliverContextHandoffs({ ...input, handoffs: [durable] });
       assert.equal(second.context, "");
       assert.lengthOf(history, 3);
-    })
+    }),
   );
 
   it.effect(
@@ -556,7 +556,7 @@ describe("handoff delivery", () => {
         assert.equal(durable.delivery?.status, "pending");
         yield* result.delivered;
         assert.equal(durable.delivery?.status, "inline");
-      })
+      }),
   );
 
   it.effect(
@@ -591,7 +591,7 @@ describe("handoff delivery", () => {
         assert.include(next.context, messages[0]!.text);
         yield* next.delivered;
         assert.equal(durable.delivery?.status, "inline");
-      })
+      }),
   );
 
   it.effect("bounds accumulated recovery markers while keeping omitted history discoverable", () =>
@@ -620,7 +620,7 @@ describe("handoff delivery", () => {
       assert.include(captured.context, threadId);
       assert.isAtMost(historyCost(captured.messages, captured.context), 2_500);
       assert.isAbove(captured.messages.length, 0);
-    })
+    }),
   );
 
   it.effect("does not redeliver after ambiguous injection failure", () =>
@@ -643,11 +643,11 @@ describe("handoff delivery", () => {
       yield* deliverContextHandoffs({ ...input, handoffs: [durable] }).pipe(Effect.result);
       assert.equal(durable.delivery?.status, "pending");
       const retry = yield* deliverContextHandoffs({ ...input, handoffs: [durable] }).pipe(
-        Effect.result
+        Effect.result,
       );
       assert.equal(retry._tag, "Failure");
       assert.equal(calls, 1);
-    })
+    }),
   );
 
   it.effect("budgets multiple handoffs together and skips previously delivered items", () =>
@@ -678,7 +678,7 @@ describe("handoff delivery", () => {
       assert.notInclude(serialized, "Preserve every line");
       assert.equal(serialized.split("Partial work").length - 1, 1);
       assert.include(serialized, "Latest result");
-    })
+    }),
   );
 
   it.effect("fails before delivery when even the coverage marker cannot fit", () =>
@@ -698,6 +698,6 @@ describe("handoff delivery", () => {
       }).pipe(Effect.result);
       assert.equal(result._tag, "Failure");
       assert.equal(calls, 0);
-    })
+    }),
   );
 });

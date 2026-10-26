@@ -269,7 +269,7 @@ function ComposerMentionNodeView({ node }: NodeViewProps) {
       dir="ltr"
       render={<button type="button" />}
       onClick={() => actions.openMention(path)}
-      aria-label={uiText("Preview {0}", {"0": path})}
+      aria-label={uiText("Preview {0}", { "0": path })}
       contentEditable={false}
       spellCheck={false}
       data-composer-mention-chip="true"
@@ -367,7 +367,8 @@ function ComposerSkillNodeView({ node }: NodeViewProps) {
           <p>{description || uiText("No description is available for this skill.")}</p>
           {skill?.path && actions.environmentId ? (
             <Button variant="outline" size="sm" onClick={() => actions.openMention(skill.path)}>
-              {uiText("View instructions")}</Button>
+              {uiText("View instructions")}
+            </Button>
           ) : null}
         </div>
       </ContextChipPopover>

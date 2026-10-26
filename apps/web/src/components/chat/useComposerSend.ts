@@ -499,8 +499,7 @@ export function useComposerSend(input: ComposerSendInput) {
         stackedThreadToast({
           type: "warning",
           title: uiText("Choose models and a base branch"),
-          description:
-            uiText(
+          description: uiText(
             "Multiple models need a new thread in a Git project. Each gets its own worktree.",
           ),
         }),

@@ -36,7 +36,7 @@ export function GuideNotes({
       >
         {uiText("Notes on this stop")}
         <span className={"font-normal text-muted-foreground tabular-nums"}>
-          {notes.length === 1 ? uiText("1 note") : uiText("{0} notes", {"0": notes.length})}
+          {notes.length === 1 ? uiText("1 note") : uiText("{0} notes", { "0": notes.length })}
         </span>
       </h4>
       <ol className={"flex flex-col gap-3"}>

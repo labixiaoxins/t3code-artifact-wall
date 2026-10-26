@@ -880,7 +880,10 @@ function RightPanelTab(
   });
   const content = (
     <>
-      <PanelTabCloseButton label={uiText("Close {0}", {"0": title})} onClick={() => onClose(surface)}>
+      <PanelTabCloseButton
+        label={uiText("Close {0}", { "0": title })}
+        onClick={() => onClose(surface)}
+      >
         <SurfaceIcon
           surface={surface}
           previewUrl={props.previewUrl}
@@ -905,7 +908,11 @@ function RightPanelTab(
                 className={
                   "cursor-pointer flex size-4 shrink-0 items-center justify-center rounded-sm hover:bg-muted"
                 }
-                aria-label={audio === "muted" ? uiText("Unmute {0}", {"0": title}) : uiText("Mute {0}", {"0": title})}
+                aria-label={
+                  audio === "muted"
+                    ? uiText("Unmute {0}", { "0": title })
+                    : uiText("Mute {0}", { "0": title })
+                }
                 onClick={(event) => {
                   event.stopPropagation();
                   void previewBridge
@@ -917,7 +924,9 @@ function RightPanelTab(
               </button>
             }
           />
-          <TooltipPopup>{audio === "muted" ? uiText("Unmute tab") : uiText("Mute tab")}</TooltipPopup>
+          <TooltipPopup>
+            {audio === "muted" ? uiText("Unmute tab") : uiText("Mute tab")}
+          </TooltipPopup>
         </Tooltip>
       )}
       {props.renaming ? (

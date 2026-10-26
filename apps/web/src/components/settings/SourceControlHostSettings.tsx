@@ -25,7 +25,7 @@ export function SourceControlHostSettings({
     (settings) => settings.sourceControlHosts[definition.kind],
   );
   const updateSettings = useAtomCommand(serverEnvironment.updateSettings, {
-    label: uiText("save {0} settings", {"0": definition.label}),
+    label: uiText("save {0} settings", { "0": definition.label }),
   });
   const [saving, setSaving] = useState(false);
   const formDefinition = { settingsSchema: definition.settings };
@@ -67,7 +67,8 @@ export function SourceControlHostSettings({
               void save(Object.fromEntries(Object.keys(saved ?? {}).map((key) => [key, ""])))
             }
           >
-            {uiText("Remove")}</Button>
+            {uiText("Remove")}
+          </Button>
         </div>
       ) : null}
     </fieldset>

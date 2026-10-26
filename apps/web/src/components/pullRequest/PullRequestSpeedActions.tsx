@@ -20,7 +20,7 @@ import {
 type PullRequestSpeedActionEntry = Pick<
   EnvironmentPullRequestEntry,
   "environmentId" | "projectId" | "host" | "repository" | "number" | "state" | "isDraft"
-> & { readonly stack?: object | undefined; };
+> & { readonly stack?: object | undefined };
 
 export interface PullRequestSpeedActionResult<Entry = EnvironmentPullRequestEntry> {
   readonly entry: Entry;
@@ -43,11 +43,11 @@ export function PullRequestSpeedActions<Entry extends PullRequestSpeedActionEntr
   onCloseSweepStart?: (entry: Entry, event: PointerEvent) => void;
 }) {
   const canWrite = useAtomValue(
-    pullRequestEnvironment.runAction.permissionAtom(entry.environmentId)
+    pullRequestEnvironment.runAction.permissionAtom(entry.environmentId),
   );
   const resolveProjectDefault = usePullRequestDefaultMergeMethodResolver(
     entry.environmentId,
-    entry.projectId
+    entry.projectId,
   );
   const reference = {
     projectId: entry.projectId,
@@ -61,7 +61,7 @@ export function PullRequestSpeedActions<Entry extends PullRequestSpeedActionEntr
     onSuccess: (action) => onActed?.({ entry, action }),
     resolveMergeMethod: (detail) => {
       const allowed = detail.capabilities.mergeMethods.filter(
-        (method) => detail.mergeCapabilities[method]
+        (method) => detail.mergeCapabilities[method],
       );
       if (allowed.length === 0)
         throw new Error("No merge method is available for this repository.");
@@ -69,7 +69,7 @@ export function PullRequestSpeedActions<Entry extends PullRequestSpeedActionEntr
         allowed,
         null,
         resolveProjectDefault(),
-        useUiStateStore.getState().pullRequestMergeMethod
+        useUiStateStore.getState().pullRequestMergeMethod,
       );
     },
   });
@@ -80,7 +80,7 @@ export function PullRequestSpeedActions<Entry extends PullRequestSpeedActionEntr
     <SpeedModeGroup
       busy={busy}
       pending={actionPending || closing}
-      label={uiText("Quick actions for pull request #{0}", {"0": entry.number})}
+      label={uiText("Quick actions for pull request #{0}", { "0": entry.number })}
     >
       {actions.map((action) => {
         const label = ACTIONS[action].label;
@@ -111,7 +111,7 @@ export function PullRequestSpeedActions<Entry extends PullRequestSpeedActionEntr
                 ? uiText("Open this pull request to merge its stack")
                 : action === "close" && onCloseSweepStart
                   ? uiText("Close immediately, or drag across rows to close several")
-                  : uiText("{0} immediately", {"0": label})}
+                  : uiText("{0} immediately", { "0": label })}
             </TooltipPopup>
           </Tooltip>
         );
@@ -127,7 +127,7 @@ export function PullRequestSpeedActions<Entry extends PullRequestSpeedActionEntr
 export const PullRequestSpeedModeContext = createContext(false);
 
 /** Tracks Shift for the quick actions below it. */
-export function PullRequestSpeedModeProvider({ children }: { children: ReactNode; }) {
+export function PullRequestSpeedModeProvider({ children }: { children: ReactNode }) {
   const modifiers = useShortcutModifierState(true);
   const speedMode =
     modifiers.shiftKey && !modifiers.metaKey && !modifiers.ctrlKey && !modifiers.altKey;

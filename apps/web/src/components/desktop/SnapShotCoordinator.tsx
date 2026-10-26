@@ -379,7 +379,10 @@ export function SnapShotCoordinator() {
               stackedThreadToast({
                 type: "error",
                 title: uiText("Snapshot failed"),
-                description: uiText("Capture {0}: {1}", {"0": item.id, "1": error instanceof Error ? error.message : "Try the capture again."}),
+                description: uiText("Capture {0}: {1}", {
+                  "0": item.id,
+                  "1": error instanceof Error ? error.message : "Try the capture again.",
+                }),
               }),
             );
           }

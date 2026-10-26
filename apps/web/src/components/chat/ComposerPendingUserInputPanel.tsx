@@ -188,7 +188,9 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
       <CollapsibleTrigger
         render={<ComposerBanner.Row render={<button type="button" />} />}
         title={
-          isCollapsed ? uiText("Show the question and its options") : uiText("Hide the question and its options")
+          isCollapsed
+            ? uiText("Show the question and its options")
+            : uiText("Hide the question and its options")
         }
         data-pending-user-input-toggle={isCollapsed ? "collapsed" : "expanded"}
       >
@@ -242,7 +244,9 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
               className="text-foreground/85"
             />
             {activeQuestion.multiSelect ? (
-              <p className="mt-1 text-secondary-label text-xs">{uiText("Select one or more options.")}</p>
+              <p className="mt-1 text-secondary-label text-xs">
+                {uiText("Select one or more options.")}
+              </p>
             ) : null}
             <div className="mt-2 space-y-0.5">
               {activeQuestion.options.map((option, index) => {

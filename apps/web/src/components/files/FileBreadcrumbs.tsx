@@ -120,7 +120,10 @@ function BreadcrumbMenuContent(props: {
         <>
           <MenuItem closeOnClick={false} onClick={() => props.onDirectoryChange(parentPath)}>
             <ArrowLeftIcon />
-            <span className="truncate">{uiText("Back to") + " "}{pathLabel(parentPath, props.projectName)}</span>
+            <span className="truncate">
+              {uiText("Back to") + " "}
+              {pathLabel(parentPath, props.projectName)}
+            </span>
           </MenuItem>
           <MenuSeparator />
         </>
@@ -129,7 +132,8 @@ function BreadcrumbMenuContent(props: {
         {entriesQuery.isPending && entriesQuery.data === null ? (
           <MenuItem disabled>
             <Spinner />
-            {uiText("Loading folder…") + " "}</MenuItem>
+            {uiText("Loading folder…") + " "}
+          </MenuItem>
         ) : entriesQuery.error && entriesQuery.data === null ? (
           <MenuItem closeOnClick={false} onClick={entriesQuery.refresh}>
             <RefreshIcon refreshing={entriesQuery.isPending} />
@@ -201,7 +205,8 @@ function BreadcrumbMenuContent(props: {
           <MenuSeparator />
           <MenuItem closeOnClick={false} onClick={entriesQuery.refresh}>
             <RefreshIcon refreshing={entriesQuery.isPending} />
-            {uiText("Refresh failed — retry") + " "}</MenuItem>
+            {uiText("Refresh failed — retry") + " "}
+          </MenuItem>
         </>
       ) : null}
       {entriesTruncated ? (
@@ -240,7 +245,7 @@ function FolderContentsMenu(props: FileBreadcrumbsProps & { readonly crumb: File
         render={
           <button
             type="button"
-            aria-label={uiText("Browse {0}", {"0": props.crumb.label})}
+            aria-label={uiText("Browse {0}", { "0": props.crumb.label })}
             className="relative mx-0.5 flex h-5 w-4 shrink-0 cursor-pointer items-center justify-center rounded-sm text-muted-foreground/60 outline-none pointer-coarse:after:absolute pointer-coarse:after:-inset-3 hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring data-popup-open:bg-accent data-popup-open:text-foreground"
           />
         }

@@ -14,7 +14,8 @@ export function NoActiveThreadState() {
           ) : (
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-foreground md:text-muted-foreground/60">
-                {uiText("No active thread")}</span>
+                {uiText("No active thread")}
+              </span>
             </div>
           )}
         </WorkspacePageHeader>
@@ -24,7 +25,8 @@ export function NoActiveThreadState() {
             <EmptyHeader className="max-w-none">
               <EmptyTitle>{uiText("Pick a thread to continue")}</EmptyTitle>
               <EmptyDescription>
-                {uiText("Select an existing thread or create a new one to get started.")}</EmptyDescription>
+                {uiText("Select an existing thread or create a new one to get started.")}
+              </EmptyDescription>
             </EmptyHeader>
           </div>
         </Empty>

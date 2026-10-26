@@ -92,7 +92,7 @@ function expandableMarkdownImageProps(
   return {
     role: "button" as const,
     tabIndex: 0,
-    "aria-label": uiText("Preview {0}", {"0": previewName}),
+    "aria-label": uiText("Preview {0}", { "0": previewName }),
     onClick: expand,
     onKeyDown: (event: ReactKeyboardEvent) => {
       if (event.key === "Enter" || event.key === " ") expand(event);

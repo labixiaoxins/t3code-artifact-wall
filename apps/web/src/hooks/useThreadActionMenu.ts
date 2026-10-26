@@ -107,7 +107,11 @@ export function useThreadActionMenu(input: {
   });
   const { copyToClipboard: copyThreadIdToClipboard } = useCopyToClipboard<{ threadId: ThreadId }>({
     onCopy: ({ threadId }) => {
-      toastManager.add({ type: "success", title: uiText("Thread ID copied"), description: threadId });
+      toastManager.add({
+        type: "success",
+        title: uiText("Thread ID copied"),
+        description: threadId,
+      });
     },
     onError: (error) => failureToast(uiText("Failed to copy thread ID"), error),
   });

@@ -39,7 +39,10 @@ export function DeviceHostUpdates({
               </p>
               {failed ? (
                 <p className="mt-1 text-muted-foreground">
-                  {uiText("Check the host connection and network access, then retry. Your device settings are saved.")}</p>
+                  {uiText(
+                    "Check the host connection and network access, then retry. Your device settings are saved.",
+                  )}
+                </p>
               ) : null}
             </div>
             {failed && state.supportsHostRetry ? (

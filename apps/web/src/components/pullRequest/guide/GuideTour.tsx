@@ -104,11 +104,14 @@ export function GuideTour({
           {banner}
           {diff.error !== null ? (
             <p className="text-xs text-muted-foreground">
-              {uiText("The diff could not be loaded, so excerpts are missing:") + " "}{diff.error}
+              {uiText("The diff could not be loaded, so excerpts are missing:") + " "}
+              {diff.error}
             </p>
           ) : null}
           {stop === null ? (
-            <p className="text-sm text-muted-foreground">{uiText("This change has no files to tour.")}</p>
+            <p className="text-sm text-muted-foreground">
+              {uiText("This change has no files to tour.")}
+            </p>
           ) : (
             <GuideStop
               key={position}

@@ -46,7 +46,7 @@ import {
 
 const layerTest = Layer.mergeAll(
   ProjectionStore.layer.pipe(Layer.provideMerge(SqlitePersistence.layerMemory)),
-  SqlitePersistence.layerMemory
+  SqlitePersistence.layerMemory,
 );
 const modelSelection = {
   instanceId: ProviderInstanceId.make("codex"),
@@ -74,7 +74,7 @@ const traceSqlStatements = () => {
 };
 
 const addRolledBackRecoveryCandidate = Effect.fn("addRolledBackRecoveryCandidate")(function* (
-  suffix: string
+  suffix: string,
 ) {
   const projectionStore = yield* ProjectionStore.ProjectionStoreV2;
   const now = yield* DateTime.now;
@@ -369,7 +369,7 @@ it.effect.each([
     yield* assertBlocked(true);
     yield* updateItem({ ...blockingDelegation, status: "completed", completedAt: at });
     yield* assertBlocked(false);
-  }).pipe(Effect.provide(layer))
+  }).pipe(Effect.provide(layer)),
 );
 
 it.effect.each([
@@ -384,7 +384,7 @@ it.effect.each([
       const initial = yield* store.getThreadProjection(threadId);
       const at = initial.updatedAt;
       const otherThreadId = yield* addRolledBackRecoveryCandidate(
-        "duplicate-provider-thread-owner:other"
+        "duplicate-provider-thread-owner:other",
       );
       const other = yield* store.getThreadProjection(otherThreadId);
       const otherRun = other.runs[0]!;
@@ -501,17 +501,17 @@ it.effect.each([
       assert.deepEqual((yield* store.getThreadProjection(otherThreadId)).providerThreads, []);
       const assertOwners = Effect.fnUntraced(function* (
         targetThreadId: ThreadId,
-        expected: ReadonlyArray<unknown>
+        expected: ReadonlyArray<unknown>,
       ) {
         const listed = (yield* store.getShellSnapshot()).threads.find(
-          (thread) => thread.id === targetThreadId
+          (thread) => thread.id === targetThreadId,
         );
         for (const shell of [yield* store.getThreadShell(targetThreadId), listed]) {
           assert.equal(shell?.providerInstanceId, otherInstanceId);
           assert.equal(shell?.activeRunId, null);
           assert.deepEqual(
             shell?.pendingBackgroundTasks?.filter((task) => task.kind === "subagent"),
-            expected
+            expected,
           );
         }
       });
@@ -548,17 +548,17 @@ it.effect.each([
       assert.deepEqual(rolledBack.providerThreads, []);
       assert.equal(
         (yield* store.getThreadProjection(threadId)).thread.activeProviderThreadId,
-        providerThreadId
+        providerThreadId,
       );
       assert.deepEqual(
         ProjectionStore.threadShellFromProjection(rolledBack).pendingBackgroundTasks,
-        []
+        [],
       );
-    }).pipe(Effect.provide(layer))
+    }).pipe(Effect.provide(layer)),
 );
 
 const addOrphanedRecoveryCandidate = Effect.fn("addOrphanedRecoveryCandidate")(function* (
-  suffix: string
+  suffix: string,
 ) {
   const projectionStore = yield* ProjectionStore.ProjectionStoreV2;
   const now = yield* DateTime.now;
@@ -662,7 +662,7 @@ const restartCancelledWorkSurvivesStaleRunUpdate = Effect.gen(function* () {
 const threadWorktreePathsIncludeArchivedOnRequest = Effect.gen(function* () {
   const store = yield* ProjectionStore.ProjectionStoreV2;
   const now = yield* DateTime.now;
-  const create = (id: string, input: { worktreePath: string | null; archived?: boolean; }) => {
+  const create = (id: string, input: { worktreePath: string | null; archived?: boolean }) => {
     const threadId = ThreadId.make(id);
     const thread = {
       createdBy: "user" as const,
@@ -781,7 +781,7 @@ const commandReadsSkipSettledLeafNodes = Effect.gen(function* () {
       },
     });
   }
-  const nodeNames = (records: { readonly nodes: ReadonlyArray<{ readonly id: string; }>; }) =>
+  const nodeNames = (records: { readonly nodes: ReadonlyArray<{ readonly id: string }> }) =>
     records.nodes
       .map((node) => node.id.replace("node:settled-leaf-nodes:", ""))
       .filter((name) => nodes.some(([candidate]) => candidate === name))
@@ -789,11 +789,11 @@ const commandReadsSkipSettledLeafNodes = Effect.gen(function* () {
 
   assert.deepEqual(
     nodeNames(yield* store.getThreadRecords(threadId, ["nodes"], { omitSettledLeafNodes: true })),
-    ["active-run-done-tool", "settled-root", "settled-run-live-tool", "settled-subagent"]
+    ["active-run-done-tool", "settled-root", "settled-run-live-tool", "settled-subagent"],
   );
   assert.deepEqual(
     nodeNames(yield* store.getThreadRecords(threadId, ["nodes"])),
-    nodes.map(([name]) => name).toSorted()
+    nodes.map(([name]) => name).toSorted(),
   );
 });
 
@@ -908,7 +908,7 @@ const backgroundThreadUpdatesKeepTimestamp = Effect.gen(function* () {
 });
 
 it.effect("SQL projection keeps background thread updates out of updatedAt", () =>
-  backgroundThreadUpdatesKeepTimestamp.pipe(Effect.provide(layerTest))
+  backgroundThreadUpdatesKeepTimestamp.pipe(Effect.provide(layerTest)),
 );
 
 it.effect("memory recovery selection includes unfinished items from missing runs", () =>
@@ -917,7 +917,7 @@ it.effect("memory recovery selection includes unfinished items from missing runs
     const threadId = yield* addOrphanedRecoveryCandidate("memory-recovery-candidates");
 
     assert.include(yield* projectionStore.getRecoveryThreadIds("runtime"), threadId);
-  }).pipe(Effect.provide(ProjectionStore.layerMemory))
+  }).pipe(Effect.provide(ProjectionStore.layerMemory)),
 );
 
 const runlessNativeSubagentNeedsRecovery = Effect.gen(function* () {
@@ -959,13 +959,13 @@ const runlessNativeSubagentNeedsRecovery = Effect.gen(function* () {
     });
     assert.equal(
       (yield* store.getRecoveryThreadIds("runtime")).includes(threadId),
-      status !== "completed"
+      status !== "completed",
     );
   }
 });
 
 const assertProjectScopedShells = Effect.fn("assertProjectScopedShells")(function* (
-  suffix: string
+  suffix: string,
 ) {
   const projectionStore = yield* ProjectionStore.ProjectionStoreV2;
   const now = yield* DateTime.now;
@@ -1084,13 +1084,13 @@ const assertProjectScopedShells = Effect.fn("assertProjectScopedShells")(functio
   });
 
   const unscoped = yield* projectionStore.getShellSnapshot();
-  const inProject = (thread: { readonly projectId: ProjectId; }) => thread.projectId === projectId;
+  const inProject = (thread: { readonly projectId: ProjectId }) => thread.projectId === projectId;
   const active = yield* projectionStore.getShellSnapshot({ projectId, location: "active" });
   assert.deepEqual(active.threads, unscoped.threads.filter(inProject));
   assert.deepEqual(active.archivedThreads, []);
   assert.sameMembers(
     active.threads.map((thread) => thread.id),
-    [activeThreadId, forkThreadId]
+    [activeThreadId, forkThreadId],
   );
   const fork = active.threads.find((thread) => thread.id === forkThreadId);
   assert.isAbove(fork?.visibleItemCount ?? 0, 0);
@@ -1100,7 +1100,7 @@ const assertProjectScopedShells = Effect.fn("assertProjectScopedShells")(functio
   assert.deepEqual(all.archivedThreads, unscoped.archivedThreads.filter(inProject));
   assert.sameMembers(
     all.archivedThreads.map((thread) => thread.id),
-    [archivedThreadId]
+    [archivedThreadId],
   );
   return { projectId, activeThreadId, forkThreadId, otherThreadId };
 });
@@ -1123,26 +1123,26 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
           Effect.flip,
           Effect.ensuring(
             Effect.orDie(
-              sql`DELETE FROM orchestration_v2_projection_plans WHERE plan_id = ${planId}`
-            )
-          )
+              sql`DELETE FROM orchestration_v2_projection_plans WHERE plan_id = ${planId}`,
+            ),
+          ),
         );
       assert.strictEqual(failure._tag, "ProjectionStoreReadError");
-    })
+    }),
   );
 
   it.effect(
     "SQL recovery selects unfinished runless native subagents",
-    () => runlessNativeSubagentNeedsRecovery
+    () => runlessNativeSubagentNeedsRecovery,
   );
   it.effect(
     "worktree path lookup defaults to active threads and can include archived threads",
-    () => threadWorktreePathsIncludeArchivedOnRequest
+    () => threadWorktreePathsIncludeArchivedOnRequest,
   );
 
   it.effect(
     "keeps restart-cancelled work through a stale run.updated",
-    () => restartCancelledWorkSurvivesStaleRunUpdate
+    () => restartCancelledWorkSurvivesStaleRunUpdate,
   );
   it.effect("records restart-cancelled work without regressing a run that completed since", () =>
     Effect.gen(function* () {
@@ -1177,11 +1177,11 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       })).runs;
       assert.equal(recovery?.status, "completed");
       assert.deepEqual(recovery?.restartCancelledBackgroundWork, work);
-    })
+    }),
   );
   it.effect(
     "command reads skip finished leaf nodes of finished runs",
-    () => commandReadsSkipSettledLeafNodes
+    () => commandReadsSkipSettledLeafNodes,
   );
   it.effect("limits turn-start history to the requested runs, including an empty selection", () =>
     Effect.gen(function* () {
@@ -1216,15 +1216,14 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
           completedAt: now,
           type: "dynamic_tool",
           toolName: "publish_asset",
-          input: { secret: "private-fixture"
-    },
+          input: { secret: "private-fixture" },
           output: { binary: "x".repeat(20000) },
           status: "cancelled",
           updatedAt: now,
         },
       });
       const receipt = (yield* store.getTurnStartHistory(threadId, [runId])).find(
-        (item) => item.id === toolId
+        (item) => item.id === toolId,
       );
       assert.equal(receipt?.type, "dynamic_tool");
       if (receipt?.type === "dynamic_tool") {
@@ -1233,10 +1232,10 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         assert.isUndefined(receipt.output);
       }
       const original = (yield* store.getThreadProjection(threadId)).turnItems.find(
-        (item) => item.id === toolId
+        (item) => item.id === toolId,
       );
       assert.isTrue(original?.type === "dynamic_tool" && original.output !== undefined);
-    })
+    }),
   );
   it.effect("preserves stored provider usage when a terminal update omits it", () =>
     Effect.gen(function* () {
@@ -1342,7 +1341,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
 
       const replaced = yield* projectionStore.getThreadProjection(threadId);
       assert.deepEqual(replaced.providerTurns[0]?.tokenUsage, replacementUsage);
-    })
+    }),
   );
 
   it.effect("reads a fixed SQL turn-item window for long histories and repeated clients", () =>
@@ -1386,32 +1385,32 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         const id = `turn-item:bounded-sql-history:${ordinal}`;
         const runId = `run:bounded-sql-history:${ordinal}`;
         const message = ordinal === 1 || ordinal === 1000;
-        yield* sql `
+        yield* sql`
           INSERT INTO orchestration_v2_projection_runs (
             run_id, thread_id, ordinal, provider, provider_thread_id, status,
             requested_at, completed_at, payload_json
           ) VALUES (
             ${runId}, ${threadId}, ${ordinal}, 'codex', NULL, 'completed', ${nowIso}, ${nowIso},
             ${encodeUnknownJsonString({
-                id: runId,
-                threadId,
-                ordinal,
-                providerInstanceId,
-                modelSelection,
-                providerThreadId: null,
-                userMessageId: `message:bounded-sql-history:${ordinal}`,
-                rootNodeId: `node:bounded-sql-history:${ordinal}`,
-                activeAttemptId: null,
-                status: "completed",
-                requestedAt: nowIso,
-                startedAt: nowIso,
-                completedAt: nowIso,
-                checkpointId: null,
-                contextHandoffId: null,
+              id: runId,
+              threadId,
+              ordinal,
+              providerInstanceId,
+              modelSelection,
+              providerThreadId: null,
+              userMessageId: `message:bounded-sql-history:${ordinal}`,
+              rootNodeId: `node:bounded-sql-history:${ordinal}`,
+              activeAttemptId: null,
+              status: "completed",
+              requestedAt: nowIso,
+              startedAt: nowIso,
+              completedAt: nowIso,
+              checkpointId: null,
+              contextHandoffId: null,
             })}
           )
         `;
-        yield* sql `
+        yield* sql`
           INSERT INTO orchestration_v2_projection_turn_items (
             turn_item_id, thread_id, run_id, node_id, provider_thread_id, provider_turn_id,
             parent_item_id, ordinal, type, status, updated_at, payload_json
@@ -1419,34 +1418,34 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
             ${id}, ${threadId}, ${runId}, NULL, NULL, NULL, NULL, ${ordinal},
             ${message ? "user_message" : "command_execution"}, 'completed', ${nowIso},
             ${encodeUnknownJsonString({
-                id,
-                threadId,
-                runId,
-                nodeId: null,
-                providerThreadId: null,
-                providerTurnId: null,
-                nativeItemRef: null,
-                parentItemId: null,
-                ordinal,
-                status: "completed",
-                title: `command ${ordinal}`,
-                input: `echo ${ordinal}`,
-                output: "ok",
-                exitCode: 0,
-                startedAt: nowIso,
-                completedAt: nowIso,
-                updatedAt: nowIso,
-                ...(message
-                    ? {
-                        type: "user_message",
-                        createdBy: "user",
-                        creationSource: "web",
-                        messageId: `message:bounded-sql-history:${ordinal}`,
-                        inputIntent: "turn_start",
-                        text: `Turn ${ordinal}`,
-                        attachments: [],
-                    }
-                    : { type: "command_execution" }),
+              id,
+              threadId,
+              runId,
+              nodeId: null,
+              providerThreadId: null,
+              providerTurnId: null,
+              nativeItemRef: null,
+              parentItemId: null,
+              ordinal,
+              status: "completed",
+              title: `command ${ordinal}`,
+              input: `echo ${ordinal}`,
+              output: "ok",
+              exitCode: 0,
+              startedAt: nowIso,
+              completedAt: nowIso,
+              updatedAt: nowIso,
+              ...(message
+                ? {
+                    type: "user_message",
+                    createdBy: "user",
+                    creationSource: "web",
+                    messageId: `message:bounded-sql-history:${ordinal}`,
+                    inputIntent: "turn_start",
+                    text: `Turn ${ordinal}`,
+                    attachments: [],
+                  }
+                : { type: "command_execution" }),
             })}
           )
         `;
@@ -1519,9 +1518,9 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
 
       const snapshots = yield* Effect.all(
         Array.from({ length: 4 }, () =>
-          projectionStore.getThreadSnapshotWindow(threadId, { rowLimit: 76 })
+          projectionStore.getThreadSnapshotWindow(threadId, { rowLimit: 76 }),
         ),
-        { concurrency: 4 }
+        { concurrency: 4 },
       );
       for (const snapshot of snapshots) {
         assert.lengthOf(snapshot.projection.turnItems, 76);
@@ -1531,18 +1530,18 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         assert.strictEqual(snapshot.projection.turnItems.at(-1)?.ordinal, 1000);
         assert.deepEqual(
           snapshot.projection.messages.map((message) => message.id),
-          [MessageId.make("message:bounded-sql-history:1000")]
+          [MessageId.make("message:bounded-sql-history:1000")],
         );
         assert.deepEqual(
           snapshot.projection.checkpointScopes.map((scope) => scope.id),
-          [scopeId]
+          [scopeId],
         );
         assert.deepEqual(
           snapshot.projection.checkpoints.map((checkpoint) => checkpoint.id),
-          [baselineId]
+          [baselineId],
         );
       }
-      const retainedRequestPlan = yield* sql<{ readonly detail: string; }>`
+      const retainedRequestPlan = yield* sql<{ readonly detail: string }>`
         EXPLAIN QUERY PLAN
         WITH selected AS (
           SELECT run_id, type
@@ -1561,8 +1560,8 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       `;
       assert.isTrue(
         retainedRequestPlan.some((row) =>
-          row.detail.includes("orchestration_v2_projection_turn_items_run_ordinal_idx")
-        )
+          row.detail.includes("orchestration_v2_projection_turn_items_run_ordinal_idx"),
+        ),
       );
 
       const older = yield* projectionStore.getThreadSnapshotWindow(threadId, {
@@ -1578,7 +1577,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       const stored = yield* projectionStore.getTurnItem({ threadId, itemId });
       assert.strictEqual(stored?.type === "command_execution" ? stored.output : undefined, "ok");
       assert.isNull(
-        yield* projectionStore.getTurnItem({ threadId: ThreadId.make("thread:other"), itemId })
+        yield* projectionStore.getTurnItem({ threadId: ThreadId.make("thread:other"), itemId }),
       );
 
       const sqlPageLimit = THREAD_HISTORY_PAGE_POLICY.maxItems + 2;
@@ -1591,7 +1590,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         snapshotSequence: initialSnapshot.snapshotSequence,
       });
       const loadedIds = initialPage.projection.visibleTurnItems.map((row) =>
-        String(row.sourceItemId)
+        String(row.sourceItemId),
       );
       let cursor = initialPage.historyCursor;
       let pageCount = 1;
@@ -1617,9 +1616,9 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       assert.strictEqual(new Set(loadedIds).size, 1000);
       assert.deepEqual(
         loadedIds.toSorted(
-          (left, right) => Number(left.split(":").at(-1)) - Number(right.split(":").at(-1))
+          (left, right) => Number(left.split(":").at(-1)) - Number(right.split(":").at(-1)),
         ),
-        Array.from({ length: 1000 }, (_, index) => `turn-item:bounded-sql-history:${index + 1}`)
+        Array.from({ length: 1000 }, (_, index) => `turn-item:bounded-sql-history:${index + 1}`),
       );
 
       const tiedIds = [
@@ -1642,7 +1641,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       const tied = yield* projectionStore.getThreadSnapshotWindow(threadId, { rowLimit: 3 });
       assert.deepEqual(
         tied.projection.turnItems.map((item) => item.id),
-        [TurnItemId.make("turn-item:bounded-sql-history:1000"), tiedIds[1], tiedIds[0]]
+        [TurnItemId.make("turn-item:bounded-sql-history:1000"), tiedIds[1], tiedIds[0]],
       );
       yield* sql`
         DELETE FROM orchestration_v2_projection_turn_items
@@ -1650,7 +1649,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       `;
 
       const hiddenRunId = RunId.make("run:bounded-sql-history:hidden-suffix");
-      yield* sql `
+      yield* sql`
         INSERT INTO orchestration_v2_projection_runs (
           run_id, thread_id, ordinal, provider, provider_thread_id, status,
           requested_at, completed_at, payload_json
@@ -1672,12 +1671,12 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
             completedAt: nowIso,
             checkpointId: null,
             contextHandoffId: null,
-        })}
+          })}
         )
       `;
       for (let ordinal = 1001; ordinal <= 1100; ordinal += 1) {
         const id = `turn-item:bounded-sql-history:hidden:${ordinal}`;
-        yield* sql `
+        yield* sql`
           INSERT INTO orchestration_v2_projection_turn_items (
             turn_item_id, thread_id, run_id, node_id, provider_thread_id, provider_turn_id,
             parent_item_id, ordinal, type, status, updated_at, payload_json
@@ -1685,24 +1684,24 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
             ${id}, ${threadId}, ${hiddenRunId}, NULL, NULL, NULL, NULL, ${ordinal},
             'command_execution', 'completed', ${nowIso},
             ${encodeUnknownJsonString({
-                id,
-                threadId,
-                runId: hiddenRunId,
-                nodeId: null,
-                providerThreadId: null,
-                providerTurnId: null,
-                nativeItemRef: null,
-                parentItemId: null,
-                ordinal,
-                status: "completed",
-                title: "rolled back",
-                input: "echo hidden",
-                output: "hidden",
-                exitCode: 0,
-                startedAt: nowIso,
-                completedAt: nowIso,
-                updatedAt: nowIso,
-                type: "command_execution",
+              id,
+              threadId,
+              runId: hiddenRunId,
+              nodeId: null,
+              providerThreadId: null,
+              providerTurnId: null,
+              nativeItemRef: null,
+              parentItemId: null,
+              ordinal,
+              status: "completed",
+              title: "rolled back",
+              input: "echo hidden",
+              output: "hidden",
+              exitCode: 0,
+              startedAt: nowIso,
+              completedAt: nowIso,
+              updatedAt: nowIso,
+              type: "command_execution",
             })}
           )
         `;
@@ -1721,8 +1720,8 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       assert.isTrue(hiddenSuffixPage.hasMoreHistory);
       assert.isFalse(
         hiddenSuffixPage.projection.visibleTurnItems.some((row) =>
-          String(row.sourceItemId).includes(":hidden:")
-        )
+          String(row.sourceItemId).includes(":hidden:"),
+        ),
       );
       const hiddenSuffixCursor = hiddenSuffixPage.historyCursor;
       assert.isNotNull(hiddenSuffixCursor);
@@ -1741,7 +1740,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       assert.isTrue(hiddenSuffixOlderPage.hasMoreHistory);
 
       const cancelledRunId = RunId.make("run:bounded-sql-history:cancelled-suffix");
-      yield* sql `
+      yield* sql`
         INSERT INTO orchestration_v2_projection_runs (
           run_id, thread_id, ordinal, provider, provider_thread_id, status,
           requested_at, completed_at, payload_json
@@ -1763,12 +1762,12 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
             completedAt: nowIso,
             checkpointId: null,
             contextHandoffId: null,
-        })}
+          })}
         )
       `;
       for (let ordinal = 1101; ordinal <= 1200; ordinal += 1) {
         const id = `turn-item:bounded-sql-history:cancelled:${ordinal}`;
-        yield* sql `
+        yield* sql`
           INSERT INTO orchestration_v2_projection_turn_items (
             turn_item_id, thread_id, run_id, node_id, provider_thread_id, provider_turn_id,
             parent_item_id, ordinal, type, status, updated_at, payload_json
@@ -1776,33 +1775,33 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
             ${id}, ${threadId}, ${cancelledRunId}, NULL, NULL, NULL, NULL, ${ordinal},
             'user_message', 'completed', ${nowIso},
             ${encodeUnknownJsonString({
-                createdBy: "user",
-                creationSource: "web",
-                id,
-                threadId,
-                runId: cancelledRunId,
-                nodeId: null,
-                providerThreadId: null,
-                providerTurnId: null,
-                nativeItemRef: null,
-                parentItemId: null,
-                ordinal,
-                status: "completed",
-                title: "cancelled queued message",
-                startedAt: nowIso,
-                completedAt: nowIso,
-                updatedAt: nowIso,
-                type: "user_message",
-                messageId: `message:bounded-sql-history:cancelled:${ordinal}`,
-                inputIntent: "queued_turn",
-                text: "cancelled",
-                attachments: [],
+              createdBy: "user",
+              creationSource: "web",
+              id,
+              threadId,
+              runId: cancelledRunId,
+              nodeId: null,
+              providerThreadId: null,
+              providerTurnId: null,
+              nativeItemRef: null,
+              parentItemId: null,
+              ordinal,
+              status: "completed",
+              title: "cancelled queued message",
+              startedAt: nowIso,
+              completedAt: nowIso,
+              updatedAt: nowIso,
+              type: "user_message",
+              messageId: `message:bounded-sql-history:cancelled:${ordinal}`,
+              inputIntent: "queued_turn",
+              text: "cancelled",
+              attachments: [],
             })}
           )
         `;
       }
       const runlessQueuedId = "turn-item:bounded-sql-history:runless-queued";
-      yield* sql `
+      yield* sql`
         INSERT INTO orchestration_v2_projection_turn_items (
           turn_item_id, thread_id, run_id, node_id, provider_thread_id, provider_turn_id,
           parent_item_id, ordinal, type, status, updated_at, payload_json
@@ -1831,11 +1830,11 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
             inputIntent: "queued_turn",
             text: "still visible",
             attachments: [],
-        })}
+          })}
         )
       `;
       const laterCancelledId = "turn-item:bounded-sql-history:cancelled:1202";
-      yield* sql `
+      yield* sql`
         INSERT INTO orchestration_v2_projection_turn_items (
           turn_item_id, thread_id, run_id, node_id, provider_thread_id, provider_turn_id,
           parent_item_id, ordinal, type, status, updated_at, payload_json
@@ -1864,7 +1863,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
             inputIntent: "queued_turn",
             text: "cancelled",
             attachments: [],
-        })}
+          })}
         )
       `;
       const cancelledSuffixSnapshot = yield* projectionStore.getThreadSnapshotWindow(threadId, {
@@ -1879,20 +1878,20 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       assert.lengthOf(cancelledSuffixPage.projection.visibleTurnItems, 75);
       assert.isFalse(
         cancelledSuffixPage.projection.visibleTurnItems.some((row) =>
-          String(row.sourceItemId).includes(":cancelled:")
-        )
+          String(row.sourceItemId).includes(":cancelled:"),
+        ),
       );
       assert.isTrue(
         cancelledSuffixPage.projection.visibleTurnItems.some(
-          (row) => row.sourceItemId === runlessQueuedId
-        )
+          (row) => row.sourceItemId === runlessQueuedId,
+        ),
       );
 
       const interruptRunId = RunId.make("run:bounded-sql-history:interrupt");
       const interruptNodeId = NodeId.make("node:bounded-sql-history:interrupt");
       const interruptRequestId = TurnItemId.make("turn-item:bounded-sql-history:interrupt-request");
       const interruptResultId = TurnItemId.make("turn-item:bounded-sql-history:interrupt-result");
-      yield* sql `
+      yield* sql`
         INSERT INTO orchestration_v2_projection_runs (
           run_id, thread_id, ordinal, provider, provider_thread_id, status,
           requested_at, completed_at, payload_json
@@ -1915,10 +1914,10 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
             completedAt: nowIso,
             checkpointId: null,
             contextHandoffId: null,
-        })}
+          })}
         )
       `;
-      yield* sql `
+      yield* sql`
         INSERT INTO orchestration_v2_projection_run_attempts (
           attempt_id, thread_id, run_id, attempt_ordinal, root_node_id, provider,
           provider_instance_id, provider_thread_id, provider_turn_id, status, payload_json
@@ -1938,14 +1937,14 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
             status: "superseded",
             startedAt: nowIso,
             completedAt: nowIso,
-        })}
+          })}
         )
       `;
       const insertInterruptItem = (input: {
         id: TurnItemId;
         ordinal: number;
         type: "run_interrupt_request" | "run_interrupt_result";
-      }) => sql `
+      }) => sql`
         INSERT INTO orchestration_v2_projection_turn_items (
           turn_item_id, thread_id, run_id, node_id, provider_thread_id, provider_turn_id,
           parent_item_id, ordinal, type, status, updated_at, payload_json
@@ -1969,7 +1968,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
             completedAt: nowIso,
             updatedAt: nowIso,
             type: input.type,
-        })}
+          })}
         )
       `;
       yield* insertInterruptItem({
@@ -1979,7 +1978,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       });
       for (let ordinal = 1202; ordinal <= 1281; ordinal += 1) {
         const id = `turn-item:bounded-sql-history:interrupt-filler:${ordinal}`;
-        yield* sql `
+        yield* sql`
           INSERT INTO orchestration_v2_projection_turn_items (
             turn_item_id, thread_id, run_id, node_id, provider_thread_id, provider_turn_id,
             parent_item_id, ordinal, type, status, updated_at, payload_json
@@ -1987,24 +1986,24 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
             ${id}, ${threadId}, NULL, NULL, NULL, NULL, NULL, ${ordinal},
             'command_execution', 'completed', ${nowIso},
             ${encodeUnknownJsonString({
-                id,
-                threadId,
-                runId: null,
-                nodeId: null,
-                providerThreadId: null,
-                providerTurnId: null,
-                nativeItemRef: null,
-                parentItemId: null,
-                ordinal,
-                status: "completed",
-                title: "filler",
-                input: "echo filler",
-                output: "ok",
-                exitCode: 0,
-                startedAt: nowIso,
-                completedAt: nowIso,
-                updatedAt: nowIso,
-                type: "command_execution",
+              id,
+              threadId,
+              runId: null,
+              nodeId: null,
+              providerThreadId: null,
+              providerTurnId: null,
+              nativeItemRef: null,
+              parentItemId: null,
+              ordinal,
+              status: "completed",
+              title: "filler",
+              input: "echo filler",
+              output: "ok",
+              exitCode: 0,
+              startedAt: nowIso,
+              completedAt: nowIso,
+              updatedAt: nowIso,
+              type: "command_execution",
             })}
           )
         `;
@@ -2019,12 +2018,12 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         rowLimit: sqlPageLimit,
       });
       assert.isTrue(
-        interruptSnapshot.projection.turnItems.some((item) => item.id === interruptRequestId)
+        interruptSnapshot.projection.turnItems.some((item) => item.id === interruptRequestId),
       );
       assert.isTrue(
         interruptSnapshot.projection.visibleTurnItems.some(
-          (row) => row.sourceItemId === interruptResultId
-        )
+          (row) => row.sourceItemId === interruptResultId,
+        ),
       );
 
       yield* sql`
@@ -2049,14 +2048,14 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       });
       assert.lengthOf(
         agentWindow.projection.visibleTurnItems.filter(
-          (row) => row.item.type !== "run_interrupt_request"
+          (row) => row.item.type !== "run_interrupt_request",
         ),
-        sqlPageLimit
+        sqlPageLimit,
       );
       assert.isTrue(
-        agentWindow.projection.visibleTurnItems.some((row) => row.sourceItemId === agentPromptId)
+        agentWindow.projection.visibleTurnItems.some((row) => row.sourceItemId === agentPromptId),
       );
-    })
+    }),
   );
 
   it.effect("scopes actionable provider state to the requested bounded thread", () =>
@@ -2150,13 +2149,13 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
 
       assert.deepEqual(
         snapshot.projection.providerSessions.map((session) => session.id),
-        [ProviderSessionId.make(`provider-session:${targetThreadId}`)]
+        [ProviderSessionId.make(`provider-session:${targetThreadId}`)],
       );
       assert.deepEqual(
         snapshot.projection.providerThreads.map((thread) => thread.id),
-        [ProviderThreadId.make(`provider-thread:${targetThreadId}`)]
+        [ProviderThreadId.make(`provider-thread:${targetThreadId}`)],
       );
-    })
+    }),
   );
 
   it.effect("projects root provider owners into the shell in first-use order", () =>
@@ -2236,10 +2235,10 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       }
 
       const shell = (yield* projectionStore.getShellSnapshot()).threads.find(
-        (thread) => thread.id === threadId
+        (thread) => thread.id === threadId,
       );
       assert.deepEqual(shell?.providerInstanceHistory, [providerInstanceId, claudeInstanceId]);
-    })
+    }),
   );
 
   it.effect("shows the native goal of the active provider thread on the shell", () =>
@@ -2279,7 +2278,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       const applyProviderThread = (
         suffix: string,
         goal: OrchestrationV2ProviderThread["goal"],
-        seconds: number
+        seconds: number,
       ) =>
         projectionStore.apply({
           id: EventId.make(`event:provider-goal:${suffix}:${seconds}`),
@@ -2308,7 +2307,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         });
       const shellGoal = Effect.map(
         projectionStore.getShellSnapshot(),
-        (snapshot) => snapshot.threads.find((thread) => thread.id === threadId)?.goal
+        (snapshot) => snapshot.threads.find((thread) => thread.id === threadId)?.goal,
       );
       const goal = { objective: "Ship it", status: "active" as const, tokensUsed: 10 };
 
@@ -2316,7 +2315,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       assert.deepEqual(yield* shellGoal, goal);
       yield* applyProviderThread("second", null, 1);
       assert.isNull(yield* shellGoal);
-    })
+    }),
   );
 
   // regression: #17141 shell snapshot decoding blocked other database reads
@@ -2372,7 +2371,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         laterThreadId,
       ]);
 
-      const [stored] = yield* sql<{ readonly payload_json: string; }>`
+      const [stored] = yield* sql<{ readonly payload_json: string }>`
         SELECT payload_json FROM orchestration_v2_projection_threads
         WHERE thread_id = ${laterThreadId}
       `;
@@ -2384,10 +2383,10 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         .withTransaction(projectionStore.readShellSnapshot())
         .pipe(
           Effect.flatMap(Effect.flip),
-          Effect.ensuring(Effect.orDie(setPayload(stored!.payload_json)))
+          Effect.ensuring(Effect.orDie(setPayload(stored!.payload_json))),
         );
       assert.strictEqual(failure._tag, "ProjectionStoreReadError");
-    })
+    }),
   );
 
   it.effect("reads only the requested project's threads into a scoped shell snapshot", () =>
@@ -2397,7 +2396,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       const { projectId, activeThreadId, forkThreadId, otherThreadId } =
         yield* assertProjectScopedShells("sql-project-shell");
 
-      const [stored] = yield* sql<{ readonly payload_json: string; }>`
+      const [stored] = yield* sql<{ readonly payload_json: string }>`
         SELECT payload_json FROM orchestration_v2_projection_threads
         WHERE thread_id = ${otherThreadId}
       `;
@@ -2412,9 +2411,9 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       assert.strictEqual(unscoped._tag, "ProjectionStoreReadError");
       assert.sameMembers(
         scoped.threads.map((thread) => thread.id),
-        [activeThreadId, forkThreadId]
+        [activeThreadId, forkThreadId],
       );
-    })
+    }),
   );
 
   it.effect("does not treat visited or marked-unread state as thread activity", () =>
@@ -2483,7 +2482,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       const markedUnread = yield* projectionStore.getThreadProjection(threadId);
       assert.isNull(markedUnread.thread.lastVisitedAt);
       assert.deepEqual(markedUnread.thread.updatedAt, createdAt);
-    })
+    }),
   );
 
   it.effect("dates thread activity by a run event and leaves the rest of the thread alone", () =>
@@ -2565,17 +2564,17 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         statements.filter(
           (statement) =>
             /^\s*SELECT/i.test(statement) &&
-            statement.includes("orchestration_v2_projection_threads")
-        )
+            statement.includes("orchestration_v2_projection_threads"),
+        ),
       );
 
       const active = (yield* projectionStore.getThreadProjection(threadId)).thread;
       assert.deepEqual(active, { ...created, updatedAt: runOccurredAt });
       const shell = (yield* projectionStore.getShellSnapshot()).threads.find(
-        (candidate) => candidate.id === threadId
+        (candidate) => candidate.id === threadId,
       );
       assert.deepEqual(shell?.updatedAt, runOccurredAt);
-    })
+    }),
   );
 
   it.effect("preserves delegated completion ownership across stale run and task updates", () =>
@@ -2725,7 +2724,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       const projection = yield* projectionStore.getThreadProjection(threadId);
       assert.deepEqual(projection.runs[0]?.delegatedCompletion, run.delegatedCompletion);
       assert.deepEqual(projection.subagents[0]?.completionDelivery, task.completionDelivery);
-    })
+    }),
   );
 
   it.effect("only exposes interruptible runs through the shell activeRunId", () =>
@@ -2799,17 +2798,17 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       });
 
       let shell = (yield* projectionStore.getShellSnapshot()).threads.find(
-        (thread) => thread.id === threadId
+        (thread) => thread.id === threadId,
       );
       assert.equal(shell?.status, "running");
       assert.equal(shell?.activeRunId, runId);
       assert.equal(
         shell?.latestRunRequestedAt && DateTime.toEpochMillis(shell.latestRunRequestedAt),
-        DateTime.toEpochMillis(now)
+        DateTime.toEpochMillis(now),
       );
       assert.equal(
         shell?.latestRunStartedAt && DateTime.toEpochMillis(shell.latestRunStartedAt),
-        DateTime.toEpochMillis(now)
+        DateTime.toEpochMillis(now),
       );
       assert.isNull(shell?.latestRunCompletedAt);
 
@@ -2839,7 +2838,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         });
         const projection = yield* projectionStore.getThreadProjection(threadId);
         const sqlShell = (yield* projectionStore.getShellSnapshot()).threads.find(
-          (row) => row.id === threadId
+          (row) => row.id === threadId,
         )!;
         for (const questionShell of [
           sqlShell,
@@ -2867,7 +2866,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       });
 
       shell = (yield* projectionStore.getShellSnapshot()).threads.find(
-        (thread) => thread.id === threadId
+        (thread) => thread.id === threadId,
       );
       assert.equal(shell?.status, "waiting");
       assert.isNull(shell?.activeRunId);
@@ -2903,7 +2902,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
           });
           const projection = yield* projectionStore.getThreadProjection(threadId);
           const sqlShell = (yield* projectionStore.getShellSnapshot()).threads.find(
-            (row) => row.id === threadId
+            (row) => row.id === threadId,
           )!;
           const memoryShell = ProjectionStore.threadShellFromProjection(projection);
           const expected = activityStatus === "completed" ? null : DateTime.toEpochMillis(now);
@@ -2933,7 +2932,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       });
       const heldProjection = yield* projectionStore.getThreadProjection(threadId);
       const heldSqlShell = (yield* projectionStore.getShellSnapshot()).threads.find(
-        (row) => row.id === threadId
+        (row) => row.id === threadId,
       )!;
       for (const heldShell of [
         heldSqlShell,
@@ -2955,7 +2954,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       });
       const onlyHeldProjection = yield* projectionStore.getThreadProjection(threadId);
       const onlyHeldSqlShell = (yield* projectionStore.getShellSnapshot()).threads.find(
-        (row) => row.id === threadId
+        (row) => row.id === threadId,
       )!;
       for (const onlyHeldShell of [
         onlyHeldSqlShell,
@@ -2983,7 +2982,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       });
       const wakeProjection = yield* projectionStore.getThreadProjection(threadId);
       const wakeSqlShell = (yield* projectionStore.getShellSnapshot()).threads.find(
-        (row) => row.id === threadId
+        (row) => row.id === threadId,
       )!;
       for (const wakeShell of [
         wakeSqlShell,
@@ -2991,10 +2990,10 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       ]) {
         assert.equal(
           wakeShell.activityRunStartedAt && DateTime.toEpochMillis(wakeShell.activityRunStartedAt),
-          DateTime.toEpochMillis(now)
+          DateTime.toEpochMillis(now),
         );
       }
-    })
+    }),
   );
 
   it.effect("selects only threads with runtime state that needs recovery", () =>
@@ -3162,15 +3161,15 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       const childRecovery = yield* projectionStore.getRuntimeRecoveryProjection(childThreadId);
       assert.deepEqual(
         memberRecovery.subagents.map((subagent) => subagent.id),
-        [memberId]
+        [memberId],
       );
       assert.deepEqual(
         memberRecovery.nodes.map((node) => node.id),
-        [memberId]
+        [memberId],
       );
       assert.deepEqual(
         childRecovery.nodes.map((node) => node.id),
-        [childRootNodeId]
+        [childRootNodeId],
       );
       yield* projectionStore.apply({
         id: EventId.make("event:recovery-candidates:member-cancelled"),
@@ -3188,7 +3187,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         },
       });
       assert.include(yield* projectionStore.getRecoveryThreadIds("runtime"), childThreadId);
-    })
+    }),
   );
 
   it.effect("projects only the latest failed root turn's limit into SQL and memory shells", () =>
@@ -3232,7 +3231,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         });
       const assertSummary = Effect.fnUntraced(function* (
         lastError: string | null,
-        lastErrorClass: string | null
+        lastErrorClass: string | null,
       ) {
         const projection = yield* store.getThreadProjection(threadId);
         const memoryShell = ProjectionStore.threadShellFromProjection(projection);
@@ -3243,7 +3242,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
           assert.equal(shell.lastErrorClass, lastErrorClass);
           assert.equal(
             shell.usageLimitResetAt,
-            lastErrorClass === "usage_limit" ? "2099-01-01T00:00:00.000Z" : null
+            lastErrorClass === "usage_limit" ? "2099-01-01T00:00:00.000Z" : null,
           );
         }
         assert.isNull(shells.threads.find((row) => row.id === otherThreadId)!.lastErrorClass);
@@ -3305,7 +3304,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       const queuedProjection = yield* store.getThreadProjection(threadId);
       const queuedMemoryShell = ProjectionStore.threadShellFromProjection(queuedProjection);
       const queuedSqlShell = (yield* store.getShellSnapshot()).threads.find(
-        (row) => row.id === threadId
+        (row) => row.id === threadId,
       )!;
       assert.equal(queuedMemoryShell.status, "failed");
       assert.equal(queuedMemoryShell.latestRunId, original.id);
@@ -3405,8 +3404,8 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
           WHERE thread_id = ${threadId}`;
         assert.isUndefined(
           (yield* store.getLimitRecoveryCandidates({ now, autoResume: true, snooze: false })).find(
-            (row) => row.id === threadId
-          )
+            (row) => row.id === threadId,
+          ),
         );
         yield* sql`UPDATE orchestration_v2_projection_threads
           SET payload_json = ${originalRow!.payload_json} WHERE thread_id = ${threadId}`;
@@ -3414,15 +3413,15 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       yield* sql`UPDATE orchestration_v2_projection_threads SET deleted_at = ${DateTime.formatIso(now)} WHERE thread_id = ${threadId}`;
       assert.isUndefined(
         (yield* store.getLimitRecoveryCandidates({ now, autoResume: true, snooze: false })).find(
-          (row) => row.id === threadId
-        )
+          (row) => row.id === threadId,
+        ),
       );
       yield* sql`UPDATE orchestration_v2_projection_threads SET deleted_at = NULL WHERE thread_id = ${threadId}`;
       const recoveryOptions = { now, autoResume: false, snooze: false };
       assert.isUndefined(
         (yield* store.getLimitRecoveryCandidates(recoveryOptions)).find(
-          (row) => row.id === threadId
-        )
+          (row) => row.id === threadId,
+        ),
       );
       const reset = DateTime.makeUnsafe(limitItem.failure.resetAt);
       const recovery = {
@@ -3436,8 +3435,8 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         WHERE thread_id = ${threadId}`;
       assert.isUndefined(
         (yield* store.getLimitRecoveryCandidates({ ...recoveryOptions, autoResume: true })).find(
-          (row) => row.id === threadId
-        )
+          (row) => row.id === threadId,
+        ),
       );
       const due = (yield* store.getLimitRecoveryCandidates({
         ...recoveryOptions,
@@ -3449,8 +3448,8 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         VALUES ('limit-shell:pending-request', ${threadId}, ${original.rootNodeId}, 'approval', 'pending', ${DateTime.formatIso(now)}, '{}')`;
       assert.isUndefined(
         (yield* store.getLimitRecoveryCandidates({ ...recoveryOptions, now: reset })).find(
-          (row) => row.id === threadId
-        )
+          (row) => row.id === threadId,
+        ),
       );
       yield* sql`DELETE FROM orchestration_v2_projection_runtime_requests WHERE runtime_request_id = 'limit-shell:pending-request'`;
       yield* sql`UPDATE orchestration_v2_projection_threads
@@ -3458,8 +3457,8 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         WHERE thread_id = ${threadId}`;
       assert.isUndefined(
         (yield* store.getLimitRecoveryCandidates({ ...recoveryOptions, now: reset })).find(
-          (row) => row.id === threadId
-        )
+          (row) => row.id === threadId,
+        ),
       );
       yield* sql`UPDATE orchestration_v2_projection_threads
         SET payload_json = json_set(payload_json, '$.snoozedUntil', NULL, '$.limitRecovery.autoResume', json('false'))
@@ -3469,7 +3468,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
           ...recoveryOptions,
           now: reset,
           autoResume: true,
-        })).find((row) => row.id === threadId)
+        })).find((row) => row.id === threadId),
       );
       yield* sql`UPDATE orchestration_v2_projection_threads SET payload_json = ${originalRow!.payload_json} WHERE thread_id = ${threadId}`;
       const session = {
@@ -3551,7 +3550,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       }
       yield* applyRun("failed", NodeId.make("new-attempt-root"));
       yield* assertSummary(null, null);
-    })
+    }),
   );
 
   it.effect("projects one shared provider session into multiple thread bindings", () =>
@@ -3562,7 +3561,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       const firstThreadId = ThreadId.make("thread:projection-shared-provider-session:first");
       const secondThreadId = ThreadId.make("thread:projection-shared-provider-session:second");
       const providerSessionId = ProviderSessionId.make(
-        "provider-session:projection-shared-provider-session"
+        "provider-session:projection-shared-provider-session",
       );
       const makeThread = (threadId: ThreadId) => ({
         createdBy: "user" as const,
@@ -3635,15 +3634,15 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
 
       assert.deepEqual(
         (yield* projectionStore.getThreadProjection(firstThreadId)).providerSessions.map(
-          (value) => value.id
+          (value) => value.id,
         ),
-        [providerSessionId]
+        [providerSessionId],
       );
       assert.deepEqual(
         (yield* projectionStore.getThreadProjection(secondThreadId)).providerSessions.map(
-          (value) => value.id
+          (value) => value.id,
         ),
-        [providerSessionId]
+        [providerSessionId],
       );
       assert.deepEqual(
         (yield* projectionStore.getShellSnapshot()).threads
@@ -3655,7 +3654,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         [
           { id: firstThreadId, lastError: "provider process exited" },
           { id: secondThreadId, lastError: "provider process exited" },
-        ]
+        ],
       );
 
       yield* projectionStore.apply({
@@ -3670,13 +3669,13 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
 
       assert.lengthOf(
         (yield* projectionStore.getThreadProjection(firstThreadId)).providerSessions,
-        0
+        0,
       );
       assert.lengthOf(
         (yield* projectionStore.getThreadProjection(secondThreadId)).providerSessions,
-        1
+        1,
       );
-    })
+    }),
   );
 
   it.effect("looks up a thread's last provider error through its own session bindings", () =>
@@ -3689,7 +3688,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       const attachErroredSession = Effect.fnUntraced(function* (
         name: string,
         lastError: string,
-        updatedAt: DateTime.Utc
+        updatedAt: DateTime.Utc,
       ) {
         const threadId = ThreadId.make(`thread:projection-session-error-lookup:${name}`);
         yield* projectionStore.apply({
@@ -3813,7 +3812,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       const shell = yield* projectionStore.getShellSnapshot().pipe(Effect.withTracer(tracer));
       assert.equal(
         shell.threads.find((thread) => thread.id === threadId)?.lastError,
-        failure.message
+        failure.message,
       );
       const candidates = yield* projectionStore
         .getLimitRecoveryCandidates({ now, autoResume: true, snooze: false })
@@ -3830,21 +3829,21 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       for (const marker of ["AS blocking_failure_payload_json", "AS failure_payload_json"]) {
         const statement = statements.find((query) => query.includes(marker));
         assert.isDefined(statement, marker);
-        const plan = (yield* sql.unsafe<{ readonly detail: string; }>(
-          `EXPLAIN QUERY PLAN ${statement}`
+        const plan = (yield* sql.unsafe<{ readonly detail: string }>(
+          `EXPLAIN QUERY PLAN ${statement}`,
         )).map((row) => row.detail);
         const bindingLookup = plan.findIndex((detail) => detail.startsWith("SEARCH binding "));
         const sessionLookup = plan.findIndex((detail) => detail.startsWith("SEARCH session "));
         assert.isAtLeast(bindingLookup, 0, marker);
         assert.include(
           plan[bindingLookup],
-          "orchestration_v2_projection_provider_session_bindings_thread_idx (thread_id=?)"
+          "orchestration_v2_projection_provider_session_bindings_thread_idx (thread_id=?)",
         );
         assert.isAbove(sessionLookup, bindingLookup, marker);
         assert.include(plan[sessionLookup], "(provider_session_id=?)");
         const errorLookups = plan.filter(
           (detail) =>
-            /^SEARCH (?:item|error) /.test(detail) && !detail.includes("(turn_item_id=?)")
+            /^SEARCH (?:item|error) /.test(detail) && !detail.includes("(turn_item_id=?)"),
         );
         assert.lengthOf(errorLookups, marker.includes("blocking") ? 2 : 1, marker);
         for (const errorLookup of errorLookups) {
@@ -3852,7 +3851,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
           assert.include(errorLookup, "(thread_id=? AND run_id=? AND node_id=?)");
         }
       }
-    })
+    }),
   );
 
   it.effect("selects the latest waiting secret only from active runs", () =>
@@ -3904,7 +3903,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         WHERE run_id = ${runId}
       `;
       const secretOnlyShell = (yield* projectionStore.getShellSnapshot()).threads.find(
-        (thread) => thread.id === threadId
+        (thread) => thread.id === threadId,
       );
       const secretOnlyProjection = yield* projectionStore.getThreadProjection(threadId);
       for (const shell of [
@@ -3958,14 +3957,14 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         const terminal = status === "completed" || status === "rolled_back";
         assert.deepEqual(
           [thread?.pendingRuntimeRequest?.id, memoryShell.pendingRuntimeRequest?.id],
-          terminal ? [requestId, requestId] : ["secret:b", "secret:b"]
+          terminal ? [requestId, requestId] : ["secret:b", "secret:b"],
         );
         assert.deepEqual(
           [thread?.pendingRuntimeRequest?.blocking, memoryShell.pendingRuntimeRequest?.blocking],
-          terminal ? [false, false] : [true, true]
+          terminal ? [false, false] : [true, true],
         );
       }
-    })
+    }),
   );
 
   it.effect("counts imported runless history inherited by fork shells", () =>
@@ -4117,7 +4116,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       assert.equal(targetShell.itemCount, 0);
       assert.equal(targetShell.visibleItemCount, 4);
       assert.equal(targetProjection.visibleTurnItems.length, 4);
-    })
+    }),
   );
 
   it.effect("removes rolled back runs from the active visible projection", () =>
@@ -4137,7 +4136,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       const userTurnItemId = TurnItemId.make("turn-item:projection-rollback-prune:user");
       const assistantTurnItemId = TurnItemId.make("turn-item:projection-rollback-prune:assistant");
       const backgroundTurnItemId = TurnItemId.make(
-        "turn-item:projection-rollback-prune:background"
+        "turn-item:projection-rollback-prune:background",
       );
 
       yield* projectionStore.apply({
@@ -4508,14 +4507,14 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
 
       assert.deepEqual(
         projection.runs.map((run) => run.status),
-        ["rolled_back"]
+        ["rolled_back"],
       );
       assert.deepEqual(
         projection.nodes.map((node) => [node.id, node.status]),
         [
           [assistantNodeId, "completed"],
           [rootNodeId, "rolled_back"],
-        ]
+        ],
       );
       assert.lengthOf(projection.providerTurns, 1);
       assert.lengthOf(projection.messages, 2);
@@ -4527,7 +4526,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       assert.isDefined(rolledBackShellThread);
       assert.isNull(rolledBackShellThread.latestVisibleMessage);
       assert.deepEqual(rolledBackShellThread?.pendingBackgroundTasks ?? [], []);
-    })
+    }),
   );
 
   it.effect("keeps fork visible items stable after a source run is rolled back", () =>
@@ -4539,10 +4538,10 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       const sourceThreadId = ThreadId.make("thread:projection-fork-source-rollback:source");
       const targetThreadId = ThreadId.make("thread:projection-fork-source-rollback:target");
       const sourceProviderThreadId = ProviderThreadId.make(
-        "provider-thread:projection-fork-source-rollback:source"
+        "provider-thread:projection-fork-source-rollback:source",
       );
       const targetProviderThreadId = ProviderThreadId.make(
-        "provider-thread:projection-fork-source-rollback:target"
+        "provider-thread:projection-fork-source-rollback:target",
       );
       const sourceRun1Id = RunId.make("run:projection-fork-source-rollback:source:1");
       const sourceRun2Id = RunId.make("run:projection-fork-source-rollback:source:2");
@@ -4642,7 +4641,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
             modelSelection,
             providerThreadId: sourceProviderThreadId,
             userMessageId: MessageId.make(
-              `message:projection-fork-source-rollback:user:${ordinal}`
+              `message:projection-fork-source-rollback:user:${ordinal}`,
             ),
             rootNodeId: nodeId,
             activeAttemptId: null,
@@ -4711,7 +4710,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
             updatedAt: now,
             type: "assistant_message",
             messageId: MessageId.make(
-              `message:projection-fork-source-rollback:assistant:${ordinal}`
+              `message:projection-fork-source-rollback:assistant:${ordinal}`,
             ),
             text: responseText,
             streaming: false,
@@ -4722,7 +4721,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       const targetBeforeRollback = yield* projectionStore.getThreadProjection(targetThreadId);
       assert.deepEqual(
         targetBeforeRollback.visibleTurnItems.map((row) => row.item.type),
-        ["user_message", "assistant_message", "user_message", "assistant_message", "fork"]
+        ["user_message", "assistant_message", "user_message", "assistant_message", "fork"],
       );
 
       yield* projectionStore.apply({
@@ -4756,7 +4755,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         .messages;
       assert.deepEqual(
         sourceMessages,
-        (yield* projectionStore.getThreadProjection(sourceThreadId)).messages
+        (yield* projectionStore.getThreadProjection(sourceThreadId)).messages,
       );
       const targetAfterRollback = yield* projectionStore.getThreadProjection(targetThreadId);
       const shellSnapshot = yield* projectionStore.getShellSnapshot();
@@ -4801,7 +4800,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
           ["inherited", "user_message", "source two"],
           ["inherited", "assistant_message", "two"],
           ["synthetic", "fork", "Forked from conversation"],
-        ]
+        ],
       );
 
       yield* projectionStore.apply({
@@ -4834,7 +4833,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       for (let index = 0; index < 300; index += 1) {
         const id = `turn-item:projection-fork-source-rollback:post-fork:${index}`;
         const ordinal = index < 10 ? 190 + index : 300 + index;
-        yield* sql `
+        yield* sql`
           INSERT INTO orchestration_v2_projection_turn_items (
             turn_item_id, thread_id, run_id, node_id, provider_thread_id, provider_turn_id,
             parent_item_id, ordinal, type, status, updated_at, payload_json
@@ -4842,24 +4841,24 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
             ${id}, ${sourceThreadId}, ${sourceRun3Id}, ${sourceRun3NodeId},
             ${sourceProviderThreadId}, NULL, NULL, ${ordinal}, 'command_execution',
             'completed', ${nowIso}, ${encodeUnknownJsonString({
-                id,
-                threadId: sourceThreadId,
-                runId: sourceRun3Id,
-                nodeId: sourceRun3NodeId,
-                providerThreadId: sourceProviderThreadId,
-                providerTurnId: null,
-                nativeItemRef: null,
-                parentItemId: null,
-                ordinal,
-                status: "completed",
-                title: "post fork",
-                input: "echo later",
-                output: "later",
-                exitCode: 0,
-                startedAt: nowIso,
-                completedAt: nowIso,
-                updatedAt: nowIso,
-                type: "command_execution",
+              id,
+              threadId: sourceThreadId,
+              runId: sourceRun3Id,
+              nodeId: sourceRun3NodeId,
+              providerThreadId: sourceProviderThreadId,
+              providerTurnId: null,
+              nativeItemRef: null,
+              parentItemId: null,
+              ordinal,
+              status: "completed",
+              title: "post fork",
+              input: "echo later",
+              output: "later",
+              exitCode: 0,
+              startedAt: nowIso,
+              completedAt: nowIso,
+              updatedAt: nowIso,
+              type: "command_execution",
             })}
           )
         `;
@@ -4871,11 +4870,11 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         .pipe(Effect.withTracer(tracer));
       assert.lengthOf(
         statements.filter((statement) => statement.includes("WITH RECURSIVE retained")),
-        1
+        1,
       );
       assert.lengthOf(
         statements.filter((statement) => statement.includes("SELECT node.payload_json")),
-        1
+        1,
       );
       assert.lengthOf(boundedFork.projection.turnItems, 0);
       assert.deepEqual(
@@ -4884,7 +4883,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
           ["inherited", "user_message"],
           ["inherited", "assistant_message"],
           ["synthetic", "fork"],
-        ]
+        ],
       );
       const parentPage = yield* projectionStore.getThreadSnapshotWindow(targetThreadId, {
         rowLimit: 2,
@@ -4894,13 +4893,13 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         parentPage.projection.visibleTurnItems.map((row) =>
           row.item.type === "user_message" || row.item.type === "assistant_message"
             ? row.item.text
-            : row.item.type
+            : row.item.type,
         ),
-        ["source one", "one", "fork"]
+        ["source one", "one", "fork"],
       );
 
       const emptyBoundaryRunId = RunId.make(
-        "run:projection-fork-source-rollback:source:empty-boundary"
+        "run:projection-fork-source-rollback:source:empty-boundary",
       );
       yield* projectionStore.apply({
         id: EventId.make("event:projection-fork-source-rollback:empty-boundary-run"),
@@ -4918,7 +4917,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
           modelSelection,
           providerThreadId: sourceProviderThreadId,
           userMessageId: MessageId.make(
-            "message:projection-fork-source-rollback:user:empty-boundary"
+            "message:projection-fork-source-rollback:user:empty-boundary",
           ),
           rootNodeId: NodeId.make("node:projection-fork-source-rollback:source:empty-boundary"),
           activeAttemptId: null,
@@ -4942,9 +4941,9 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         emptyBoundaryFork.projection.visibleTurnItems.map((row) =>
           row.item.type === "user_message" || row.item.type === "assistant_message"
             ? row.item.text
-            : row.item.type
+            : row.item.type,
         ),
-        ["source two", "two", "fork"]
+        ["source two", "two", "fork"],
       );
       yield* sql`
         UPDATE orchestration_v2_projection_threads
@@ -4982,7 +4981,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       });
       for (let ordinal = 1; ordinal <= 102; ordinal += 1) {
         const id = `turn-item:projection-fork-source-rollback:target:${ordinal}`;
-        yield* sql `
+        yield* sql`
           INSERT INTO orchestration_v2_projection_turn_items (
             turn_item_id, thread_id, run_id, node_id, provider_thread_id, provider_turn_id,
             parent_item_id, ordinal, type, status, updated_at, payload_json
@@ -4990,24 +4989,24 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
             ${id}, ${targetThreadId}, ${targetRunId}, ${targetNodeId}, ${targetProviderThreadId},
             NULL, NULL, ${ordinal}, 'command_execution', 'completed', ${nowIso},
             ${encodeUnknownJsonString({
-                id,
-                threadId: targetThreadId,
-                runId: targetRunId,
-                nodeId: targetNodeId,
-                providerThreadId: targetProviderThreadId,
-                providerTurnId: null,
-                nativeItemRef: null,
-                parentItemId: null,
-                ordinal,
-                status: "completed",
-                title: `target ${ordinal}`,
-                input: `echo target ${ordinal}`,
-                output: "target",
-                exitCode: 0,
-                startedAt: nowIso,
-                completedAt: nowIso,
-                updatedAt: nowIso,
-                type: "command_execution",
+              id,
+              threadId: targetThreadId,
+              runId: targetRunId,
+              nodeId: targetNodeId,
+              providerThreadId: targetProviderThreadId,
+              providerTurnId: null,
+              nativeItemRef: null,
+              parentItemId: null,
+              ordinal,
+              status: "completed",
+              title: `target ${ordinal}`,
+              input: `echo target ${ordinal}`,
+              output: "target",
+              exitCode: 0,
+              startedAt: nowIso,
+              completedAt: nowIso,
+              updatedAt: nowIso,
+              type: "command_execution",
             })}
           )
         `;
@@ -5019,7 +5018,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       ]) {
         const runId = ordinal < 100 ? sourceRun1Id : sourceRun2Id;
         const id = `turn-item:projection-fork-source-rollback:lineage:${ordinal}`;
-        yield* sql `
+        yield* sql`
           INSERT INTO orchestration_v2_projection_turn_items (
             turn_item_id, thread_id, run_id, node_id, provider_thread_id, provider_turn_id,
             parent_item_id, ordinal, type, status, updated_at, payload_json
@@ -5027,32 +5026,32 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
             ${id}, ${sourceThreadId}, ${runId}, NULL, NULL, NULL, NULL, ${ordinal},
             'command_execution', 'completed', ${nowIso},
             ${encodeUnknownJsonString({
-                id,
-                threadId: sourceThreadId,
-                runId,
-                nodeId: null,
-                providerThreadId: null,
-                providerTurnId: null,
-                nativeItemRef: null,
-                parentItemId: null,
-                ordinal,
-                status: "completed",
-                title: `lineage ${ordinal}`,
-                input: "echo lineage",
-                output: "lineage",
-                exitCode: 0,
-                startedAt: nowIso,
-                completedAt: nowIso,
-                updatedAt: nowIso,
-                type: "command_execution",
+              id,
+              threadId: sourceThreadId,
+              runId,
+              nodeId: null,
+              providerThreadId: null,
+              providerTurnId: null,
+              nativeItemRef: null,
+              parentItemId: null,
+              ordinal,
+              status: "completed",
+              title: `lineage ${ordinal}`,
+              input: "echo lineage",
+              output: "lineage",
+              exitCode: 0,
+              startedAt: nowIso,
+              completedAt: nowIso,
+              updatedAt: nowIso,
+              type: "command_execution",
             })}
           )
         `;
       }
       const inheritedSupersededNodeId = NodeId.make(
-        "node:projection-fork-source-rollback:inherited-superseded"
+        "node:projection-fork-source-rollback:inherited-superseded",
       );
-      yield* sql `
+      yield* sql`
         INSERT INTO orchestration_v2_projection_run_attempts (
           attempt_id, thread_id, run_id, attempt_ordinal, root_node_id, provider,
           provider_instance_id, provider_thread_id, provider_turn_id, status, payload_json
@@ -5072,12 +5071,12 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
             status: "superseded",
             startedAt: nowIso,
             completedAt: nowIso,
-        })}
+          })}
         )
       `;
       for (let ordinal = 201; ordinal <= 300; ordinal += 1) {
         const id = `turn-item:projection-fork-source-rollback:hidden-interrupt:${ordinal}`;
-        yield* sql `
+        yield* sql`
           INSERT INTO orchestration_v2_projection_turn_items (
             turn_item_id, thread_id, run_id, node_id, provider_thread_id, provider_turn_id,
             parent_item_id, ordinal, type, status, updated_at, payload_json
@@ -5086,22 +5085,22 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
             ${sourceProviderThreadId}, NULL, NULL, ${ordinal}, 'run_interrupt_result',
             'completed', ${nowIso},
             ${encodeUnknownJsonString({
-                id,
-                threadId: sourceThreadId,
-                runId: sourceRun2Id,
-                nodeId: inheritedSupersededNodeId,
-                providerThreadId: sourceProviderThreadId,
-                providerTurnId: null,
-                nativeItemRef: null,
-                parentItemId: null,
-                ordinal,
-                status: "completed",
-                title: "Stopped",
-                message: "Stopped",
-                startedAt: nowIso,
-                completedAt: nowIso,
-                updatedAt: nowIso,
-                type: "run_interrupt_result",
+              id,
+              threadId: sourceThreadId,
+              runId: sourceRun2Id,
+              nodeId: inheritedSupersededNodeId,
+              providerThreadId: sourceProviderThreadId,
+              providerTurnId: null,
+              nativeItemRef: null,
+              parentItemId: null,
+              ordinal,
+              status: "completed",
+              title: "Stopped",
+              message: "Stopped",
+              startedAt: nowIso,
+              completedAt: nowIso,
+              updatedAt: nowIso,
+              type: "run_interrupt_result",
             })}
           )
         `;
@@ -5151,7 +5150,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
           "command_execution",
           "command_execution",
           "fork",
-        ]
+        ],
       );
 
       const nestedInitial = buildBoundedThreadProjection({
@@ -5164,10 +5163,10 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         snapshotSequence: 1,
       });
       const expectedNestedIds = (yield* projectionStore.getThreadProjection(
-        nestedThreadId
+        nestedThreadId,
       )).visibleTurnItems.map((row) => String(row.sourceItemId));
       const nestedIds = nestedInitial.projection.visibleTurnItems.map((row) =>
-        String(row.sourceItemId)
+        String(row.sourceItemId),
       );
       let nestedCursor = nestedInitial.historyCursor;
       let nestedPages = 1;
@@ -5201,7 +5200,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         snapshotSequence: 1,
       });
       const turnPagedIds = nestedTurnPage.projection.visibleTurnItems.map((row) =>
-        String(row.sourceItemId)
+        String(row.sourceItemId),
       );
       let turnCursor = nestedTurnPage.historyCursor;
       while (turnCursor !== null) {
@@ -5235,13 +5234,13 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         messagePage.items,
         fullNested.visibleTurnItems
           .filter((row) =>
-            ["user_message", "assistant_message", "proposed_plan"].includes(row.item.type)
+            ["user_message", "assistant_message", "proposed_plan"].includes(row.item.type),
           )
-          .slice(0, 2)
+          .slice(0, 2),
       );
 
       const emptyMiddleThreadId = ThreadId.make(
-        "thread:projection-fork-source-rollback:empty-middle"
+        "thread:projection-fork-source-rollback:empty-middle",
       );
       const emptyMiddleRunId = RunId.make("run:projection-fork-source-rollback:empty-middle");
       yield* projectionStore.apply({
@@ -5343,7 +5342,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       });
       const emptyMiddleSnapshot = yield* projectionStore.getThreadSnapshotWindow(
         emptyLeafThreadId,
-        { rowLimit: 2 }
+        { rowLimit: 2 },
       );
       assert.deepEqual(
         emptyMiddleSnapshot.projection.visibleTurnItems.map((row) => [
@@ -5355,7 +5354,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
           [sourceThreadId, "assistant_message"],
           [sourceThreadId, "fork"],
           [emptyMiddleThreadId, "fork"],
-        ]
+        ],
       );
 
       yield* sql`
@@ -5363,7 +5362,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         WHERE run_id IN (${sourceRun1Id}, ${sourceRun2Id})
       `;
       const importedItemId = "turn-item:projection-fork-source-rollback:legacy-import";
-      yield* sql `
+      yield* sql`
         INSERT INTO orchestration_v2_projection_turn_items (
           turn_item_id, thread_id, run_id, node_id, provider_thread_id, provider_turn_id,
           parent_item_id, ordinal, type, status, updated_at, payload_json
@@ -5389,7 +5388,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
             text: "legacy import before empty fork",
             streaming: false,
             historyOrigin: "v1_import",
-        })}
+          })}
         )
       `;
       yield* sql`
@@ -5416,9 +5415,9 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
           ["synthetic", sourceThreadId, "fork"],
           ["local", targetThreadId, "command_execution"],
           ["local", targetThreadId, "command_execution"],
-        ]
+        ],
       );
-    })
+    }),
   );
 
   it.effect("a pull request watch keeps a finished thread working until it ends", () =>
@@ -5506,7 +5505,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       const phase = Effect.gen(function* () {
         const shell = yield* store.getThreadShell(threadId);
         const listed = (yield* store.getShellSnapshot()).threads.find(
-          (candidate) => candidate.id === threadId
+          (candidate) => candidate.id === threadId,
         );
         assert.deepEqual(listed?.pendingBackgroundTasks, shell?.pendingBackgroundTasks);
         return shell && projectThreadAwarenessV2({ environmentId, project, thread: shell })?.phase;
@@ -5540,7 +5539,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       yield* syncPullRequests("unwatched", [link]);
       assert.deepEqual((yield* store.getThreadShell(threadId))?.pendingBackgroundTasks, []);
       assert.equal(yield* phase, "completed");
-    })
+    }),
   );
 
   it.effect("dates a completion released by held background work at the release", () =>
@@ -5638,7 +5637,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       const held = yield* store.getThreadShell(threadId);
       assert.equal(
         held && projectThreadAwarenessV2({ environmentId, project, thread: held })?.phase,
-        "running"
+        "running",
       );
 
       yield* store.apply({
@@ -5682,8 +5681,8 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       });
       assert.deepEqual(
         (yield* store.getRuntimeRecoveryProjection(threadId)).runs.map((run) => run.id),
-        [runId, newerRunId]
+        [runId, newerRunId],
       );
-    })
+    }),
   );
 });

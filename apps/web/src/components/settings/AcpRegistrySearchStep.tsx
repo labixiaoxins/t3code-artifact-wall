@@ -193,7 +193,10 @@ export function AcpRegistrySearchStep({
           : isRefreshing
             ? uiText("Refreshing ACP Registry results.")
             : results
-              ? uiText("{0} compatible {1} found.", {"0": resultCount, "1": resultCount === 1 ? "agent" : "agents"})
+              ? uiText("{0} compatible {1} found.", {
+                  "0": resultCount,
+                  "1": resultCount === 1 ? "agent" : "agents",
+                })
               : ""}
       </div>
 
@@ -217,7 +220,9 @@ export function AcpRegistrySearchStep({
             }
           >
             <p className={"text-sm font-medium"}>{uiText("No compatible agents found")}</p>
-            <p className={"mt-1 text-xs text-muted-foreground"}>{uiText("Try a broader search.")}</p>
+            <p className={"mt-1 text-xs text-muted-foreground"}>
+              {uiText("Try a broader search.")}
+            </p>
           </div>
         ) : (
           <ScrollArea scrollFade className={"max-h-64"}>
@@ -285,7 +290,7 @@ function AcpRegistryAgentRow({
                   <Button
                     size={"icon-xs"}
                     variant={"ghost-muted"}
-                    aria-label={uiText("About {0}", {"0": agent.name})}
+                    aria-label={uiText("About {0}", { "0": agent.name })}
                     render={<a href={aboutUrl} target={"_blank"} rel={"noreferrer"} />}
                   >
                     <ExternalLinkIcon />

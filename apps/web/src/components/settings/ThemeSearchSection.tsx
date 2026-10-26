@@ -280,9 +280,11 @@ export function ThemeSearchSection({
     <section className="space-y-3" aria-labelledby="theme-search-heading">
       <div>
         <h3 className="text-sm font-medium" id="theme-search-heading">
-          {uiText("Search community themes")}</h3>
+          {uiText("Search community themes")}
+        </h3>
         <p className="mt-0.5 text-muted-foreground text-xs">
-          {uiText("Find open-source themes from Open VSX.")}</p>
+          {uiText("Find open-source themes from Open VSX.")}
+        </p>
       </div>
       <InputGroup>
         <InputGroupAddon>
@@ -356,7 +358,10 @@ export function ThemeSearchSection({
         {isSearching
           ? uiText("Searching themes...")
           : results
-            ? uiText("{0} supported {1} found.", {"0": results.length, "1": results.length === 1 ? "theme" : "themes"})
+            ? uiText("{0} supported {1} found.", {
+                "0": results.length,
+                "1": results.length === 1 ? "theme" : "themes",
+              })
             : ""}
       </div>
 
@@ -368,7 +373,8 @@ export function ThemeSearchSection({
 
       {isSearching && results === null ? (
         <div className="flex min-h-20 items-center justify-center gap-2 text-muted-foreground text-sm">
-          <Spinner /> {uiText("Searching themes...") + " "}</div>
+          <Spinner /> {uiText("Searching themes...") + " "}
+        </div>
       ) : null}
 
       {results ? (
@@ -397,7 +403,8 @@ export function ThemeSearchSection({
                       <h4 className="truncate text-sm font-medium">{extension.name}</h4>
                       <p className="truncate text-muted-foreground text-xs">
                         {extension.publisher} · {DOWNLOAD_FORMAT.format(extension.downloadCount)}{" "}
-                        {uiText("downloads") + " "}</p>
+                        {uiText("downloads") + " "}
+                      </p>
                     </div>
                   </div>
                   <p className="line-clamp-2 min-h-8 text-muted-foreground text-xs leading-4">
@@ -407,7 +414,7 @@ export function ThemeSearchSection({
                     <div className="flex min-w-0 items-center gap-2">
                       {extension.sourceUrl ? (
                         <Button
-                          aria-label={uiText("View source for {0}", {"0": extension.name})}
+                          aria-label={uiText("View source for {0}", { "0": extension.name })}
                           render={<a href={extension.sourceUrl} rel="noreferrer" target="_blank" />}
                           size="icon-micro"
                           variant="ghost-muted"
@@ -448,12 +455,20 @@ export function ThemeSearchSection({
       >
         <AlertDialogPopup>
           <AlertDialogHeader>
-            <AlertDialogTitle>{uiText("Update “")}{pendingUpdate?.name}”?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {uiText("Update “")}
+              {pendingUpdate?.name}”?
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              {uiText("This replaces its installed variants, including any local edits. Variants no longer in the extension will be removed.")}</AlertDialogDescription>
+              {uiText(
+                "This replaces its installed variants, including any local edits. Variants no longer in the extension will be removed.",
+              )}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogClose render={<Button variant="outline" />}>{uiText("Cancel")}</AlertDialogClose>
+            <AlertDialogClose render={<Button variant="outline" />}>
+              {uiText("Cancel")}
+            </AlertDialogClose>
             <Button
               onClick={() => {
                 const extension = pendingUpdate;
@@ -461,7 +476,8 @@ export function ThemeSearchSection({
                 if (extension) void handleInstall(extension, true);
               }}
             >
-              {uiText("Update theme")}</Button>
+              {uiText("Update theme")}
+            </Button>
           </AlertDialogFooter>
         </AlertDialogPopup>
       </AlertDialog>

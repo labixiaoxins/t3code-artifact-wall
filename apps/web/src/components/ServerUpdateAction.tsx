@@ -97,7 +97,7 @@ export function useServerUpdate() {
       if (!quiet) {
         toastManager.add({
           type: "error",
-          title: uiText("{0} update failed", {"0": serverLabel}),
+          title: uiText("{0} update failed", { "0": serverLabel }),
           description: message,
         });
       }
@@ -106,7 +106,7 @@ export function useServerUpdate() {
     if (!quiet) {
       toastManager.add({
         type: "success",
-        title: uiText("{0} updated", {"0": serverLabel}),
+        title: uiText("{0} updated", { "0": serverLabel }),
         description:
           selfUpdate === "desktop-managed"
             ? `Desktop app relaunched on ${result.value.targetVersion}.`
@@ -278,7 +278,8 @@ export function ServerUpdateAction({
   if (selfUpdate === "desktop-managed" && !desktopAppUpdate) {
     return (
       <span className="text-muted-foreground text-xs">
-        {uiText("Update the desktop app on that machine to update this server.")}</span>
+        {uiText("Update the desktop app on that machine to update this server.")}
+      </span>
     );
   }
 
@@ -304,7 +305,7 @@ export function ServerUpdateAction({
               size="icon-xs"
               variant="ghost-muted"
               className={className}
-              aria-label={uiText("{0} for {1}", {"0": actionLabel, "1": serverLabel})}
+              aria-label={uiText("{0} for {1}", { "0": actionLabel, "1": serverLabel })}
               disabled={manualCommand === null && !canUpdate}
               onClick={onClick}
             />
@@ -360,15 +361,15 @@ export function OutdatedServerUpdateAction({
       if (isAtomCommandInterrupted(result)) return;
       toastManager.add({
         type: "error",
-        title: uiText("{0} update failed", {"0": serverLabel}),
+        title: uiText("{0} update failed", { "0": serverLabel }),
         description: updateFailureMessage(squashAtomCommandFailure(result)),
       });
       return;
     }
     toastManager.add({
       type: "success",
-      title: uiText("{0} updated", {"0": serverLabel}),
-      description: uiText("Reconnected on t3@{0}.", {"0": result.value.targetVersion}),
+      title: uiText("{0} updated", { "0": serverLabel }),
+      description: uiText("Reconnected on t3@{0}.", { "0": result.value.targetVersion }),
     });
   };
   return (

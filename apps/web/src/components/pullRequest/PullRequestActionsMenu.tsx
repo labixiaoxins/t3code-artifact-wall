@@ -138,7 +138,11 @@ export function PullRequestActionsMenu({
             <MenuTrigger
               render={
                 <Button
-                  aria-label={refreshing ? uiText("Refreshing pull request") : uiText("More pull request actions")}
+                  aria-label={
+                    refreshing
+                      ? uiText("Refreshing pull request")
+                      : uiText("More pull request actions")
+                  }
                   size="icon-xs"
                   variant="ghost-muted"
                 />
@@ -167,7 +171,8 @@ export function PullRequestActionsMenu({
         />
         <MenuItem disabled={refreshing} onClick={() => void refreshFromHost()}>
           <RefreshIcon size="sm" refreshing={refreshing} />
-          {uiText("Refresh")}</MenuItem>
+          {uiText("Refresh")}
+        </MenuItem>
         <MenuItem disabled={handoff !== null} onClick={askAboutPullRequest}>
           <MessageCircleQuestionIcon className="mt-1 size-3.5 shrink-0 self-start" />
           <span className="flex min-w-0 flex-col">
@@ -184,7 +189,8 @@ export function PullRequestActionsMenu({
           <span className="flex min-w-0 flex-col">
             <span>{handoff === "explain" ? uiText("Opening...") : uiText("Explain this PR")}</span>
             <span className="text-xs text-muted-foreground">
-              {uiText("A walk through the diff and what to read closely.")}</span>
+              {uiText("A walk through the diff and what to read closely.")}
+            </span>
           </span>
         </MenuItem>
         <MenuItem disabled={handoff !== null || !canFixFindings} onClick={startFixFindings}>
@@ -194,7 +200,11 @@ export function PullRequestActionsMenu({
         {canWriteGuide ? (
           <MenuItem disabled={guideRunning} onClick={writeGuide}>
             <SparklesIcon className="size-3.5" />
-            {guideRunning ? uiText("Writing guide...") : !guideWritten ? uiText("Write guide") : uiText("Rewrite guide")}
+            {guideRunning
+              ? uiText("Writing guide...")
+              : !guideWritten
+                ? uiText("Write guide")
+                : uiText("Rewrite guide")}
           </MenuItem>
         ) : null}
         {pickableEnvironments.length > 0 ? (
@@ -224,7 +234,9 @@ export function PullRequestActionsMenu({
             {showsMergeNow ? (
               <MenuItem
                 closeOnClick={inlineConfirm.isArmed("merge")}
-                aria-label={inlineConfirm.isArmed("merge") ? uiText("Confirm merge?") : uiText("Merge now")}
+                aria-label={
+                  inlineConfirm.isArmed("merge") ? uiText("Confirm merge?") : uiText("Merge now")
+                }
                 disabled={actionPending}
                 {...inlineConfirm.props("merge", () => void perform("merge", selectedMergeMethod))}
               >
@@ -235,7 +247,8 @@ export function PullRequestActionsMenu({
             {autoMergeArmed && can("disable-auto-merge") ? (
               <MenuItem disabled={actionPending} onClick={() => void perform("disable-auto-merge")}>
                 <PullRequestGlyph.merged className="size-3.5" />
-                {uiText("Disable auto-merge")}</MenuItem>
+                {uiText("Disable auto-merge")}
+              </MenuItem>
             ) : showsAutoMerge ? (
               <MenuItem
                 closeOnClick={inlineConfirm.isArmed("enable-auto-merge")}
@@ -294,13 +307,15 @@ export function PullRequestActionsMenu({
         </MenuItem>
         <MenuItem onClick={() => copyReference(detail.url, "PR link")}>
           <LinkIcon className="size-3.5" />
-          {uiText("Copy link")}<MenuShortcut>
+          {uiText("Copy link")}
+          <MenuShortcut>
             {shortcutLabelForCommand(keybindings, "thread.copyReference")}
           </MenuShortcut>
         </MenuItem>
         <MenuItem onClick={() => copyReference(`#${reference.number}`, "PR number")}>
           <CopyIcon className="size-3.5" />
-          {uiText("Copy PR number")}<MenuShortcut>
+          {uiText("Copy PR number")}
+          <MenuShortcut>
             {shortcutLabelForCommand(keybindings, "pullRequest.copyNumber")}
           </MenuShortcut>
         </MenuItem>
@@ -309,13 +324,19 @@ export function PullRequestActionsMenu({
             <MenuSeparator />
             <MenuItem
               closeOnClick={inlineConfirm.isArmed("close")}
-              aria-label={inlineConfirm.isArmed("close") ? uiText("Confirm close?") : uiText("Close pull request")}
+              aria-label={
+                inlineConfirm.isArmed("close")
+                  ? uiText("Confirm close?")
+                  : uiText("Close pull request")
+              }
               variant="destructive"
               disabled={actionPending}
               {...inlineConfirm.props("close", () => void perform("close"))}
             >
               <PullRequestGlyph.closed className="size-3.5" />
-              {inlineConfirm.isArmed("close") ? uiText("Confirm close?") : uiText("Close pull request")}
+              {inlineConfirm.isArmed("close")
+                ? uiText("Confirm close?")
+                : uiText("Close pull request")}
             </MenuItem>
           </>
         ) : detail.state === "closed" && can("reopen") ? (
@@ -323,20 +344,27 @@ export function PullRequestActionsMenu({
             <MenuSeparator />
             <MenuItem disabled={actionPending} onClick={() => void perform("reopen")}>
               <PullRequestGlyph.reopen className="size-3.5" />
-              {uiText("Reopen pull request")}</MenuItem>
+              {uiText("Reopen pull request")}
+            </MenuItem>
           </>
         ) : detail.state === "merged" && can("revert") ? (
           <>
             <MenuSeparator />
             <MenuItem
               closeOnClick={inlineConfirm.isArmed("revert")}
-              aria-label={inlineConfirm.isArmed("revert") ? uiText("Confirm revert?") : uiText("Revert changes")}
+              aria-label={
+                inlineConfirm.isArmed("revert")
+                  ? uiText("Confirm revert?")
+                  : uiText("Revert changes")
+              }
               variant={inlineConfirm.isArmed("revert") ? "destructive" : "default"}
               disabled={actionPending}
               {...inlineConfirm.props("revert", () => void perform("revert"))}
             >
               <RotateCcwIcon className="size-3.5" />
-              {inlineConfirm.isArmed("revert") ? uiText("Confirm revert?") : uiText("Revert changes")}
+              {inlineConfirm.isArmed("revert")
+                ? uiText("Confirm revert?")
+                : uiText("Revert changes")}
             </MenuItem>
           </>
         ) : null}
@@ -351,10 +379,14 @@ export function PullRequestActionsMenu({
               <Trash2Icon className="mt-1 size-3.5 shrink-0 self-start" />
               <span className="flex min-w-0 flex-col">
                 <span>
-                  {pendingAction === "delete-branch" ? uiText("Deleting branch...") : uiText("Delete branch")}
+                  {pendingAction === "delete-branch"
+                    ? uiText("Deleting branch...")
+                    : uiText("Delete branch")}
                 </span>
                 <span className="truncate text-xs text-muted-foreground">
-                  {environmentConnected ? detail.headBranch : uiText("Reconnect to delete this branch")}
+                  {environmentConnected
+                    ? detail.headBranch
+                    : uiText("Reconnect to delete this branch")}
                 </span>
               </span>
             </MenuItem>

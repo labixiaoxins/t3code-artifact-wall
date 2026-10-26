@@ -180,7 +180,8 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
               onClick={onPreviousPendingQuestion}
               disabled={pendingAction.isResponding}
             >
-              {uiText("Previous")}</Button>
+              {uiText("Previous")}
+            </Button>
           )
         ) : null}
         <button
@@ -255,7 +256,8 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
                 if (canOperateThread) onImplementPlanInNewThread();
               }}
             >
-              {uiText("Implement in a new thread")}</MenuItem>
+              {uiText("Implement in a new thread")}
+            </MenuItem>
           </MenuPopup>
         </Menu>
       </div>
@@ -375,7 +377,9 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
               )}
               {...pointerFocusProps}
               aria-pressed={!keepFullHistory}
-              aria-label={uiText("Compact {0} tokens of history before sending", {"0": compactTokens})}
+              aria-label={uiText("Compact {0} tokens of history before sending", {
+                "0": compactTokens,
+              })}
               disabled={!canOperateThread}
               onClick={onToggleKeepFullHistory}
             />

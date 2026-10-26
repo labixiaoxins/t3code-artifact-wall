@@ -140,7 +140,11 @@ export function V2LifecycleRow(props: {
     const relatedThreadId = item.source.type === "run" ? item.source.threadId : item.targetThreadId;
     return (
       <TimelineSystemDivider
-        label={item.source.type === "run" ? uiText("Forked from conversation") : uiText("Conversation fork")}
+        label={
+          item.source.type === "run"
+            ? uiText("Forked from conversation")
+            : uiText("Conversation fork")
+        }
         icon={GitForkIcon}
         actionLabel={item.source.type === "run" ? "Open source conversation" : "Open fork"}
         onAction={() => props.onOpenThread(relatedThreadId)}
@@ -165,7 +169,7 @@ export function V2LifecycleRow(props: {
           <Button
             size={"xs"}
             variant={"outline"}
-            aria-label={uiText("Open {0}", {"0": item.title ?? "created thread"})}
+            aria-label={uiText("Open {0}", { "0": item.title ?? "created thread" })}
             onClick={() => props.onOpenThread(item.targetThreadId)}
           >
             {uiText("Open chat")}
@@ -185,7 +189,7 @@ export function V2LifecycleRow(props: {
         }
         trailing={
           <InlineButton
-            aria-label={uiText("Open {0}", {"0": item.title ?? "created thread"})}
+            aria-label={uiText("Open {0}", { "0": item.title ?? "created thread" })}
             onClick={() => props.onOpenThread(item.targetThreadId)}
           >
             {uiText("Open chat")}
@@ -514,7 +518,7 @@ function SubagentTimelineLink(props: {
             <button
               type={"button"}
               data-v2-item-type={"subagent"}
-              aria-label={uiText("Open {0}", {"0": props.title})}
+              aria-label={uiText("Open {0}", { "0": props.title })}
               aria-description={statusLabel}
               onClick={() => props.onOpenThread(threadId)}
               className={cn(

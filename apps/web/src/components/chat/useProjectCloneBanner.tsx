@@ -80,7 +80,7 @@ export function useProjectCloneBanner(activeProjectRef: ScopedProjectRef | null)
         variant: "info",
         priority: "activity",
         icon: <DownloadIcon />,
-        title: uiText("Cloning {0}", {"0": name}),
+        title: uiText("Cloning {0}", { "0": name }),
         description: projectCloneProgressSummary(activeProjectClone),
         actions: (
           <Button
@@ -92,7 +92,8 @@ export function useProjectCloneBanner(activeProjectRef: ScopedProjectRef | null)
               )
             }
           >
-            {uiText("Cancel")}</Button>
+            {uiText("Cancel")}
+          </Button>
         ),
       };
     }
@@ -110,7 +111,8 @@ export function useProjectCloneBanner(activeProjectRef: ScopedProjectRef | null)
             variant="ghost"
             onClick={() => void removeClonedProject({ environmentId, projectId })}
           >
-            {uiText("Remove project")}</Button>
+            {uiText("Remove project")}
+          </Button>
           <Button
             size="xs"
             variant="ghost"
@@ -120,7 +122,8 @@ export function useProjectCloneBanner(activeProjectRef: ScopedProjectRef | null)
               )
             }
           >
-            {uiText("Retry")}</Button>
+            {uiText("Retry")}
+          </Button>
         </>
       ),
     };

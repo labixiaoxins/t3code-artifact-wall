@@ -71,7 +71,7 @@ export function ComposerCodeBlockLanguagePicker(props: {
               variant="ghost-muted"
               size="xs"
               disabled={props.disabled}
-              aria-label={uiText("Code language: {0}", {"0": codeLanguageLabel(props.language)})}
+              aria-label={uiText("Code language: {0}", { "0": codeLanguageLabel(props.language) })}
             />
           }
         >

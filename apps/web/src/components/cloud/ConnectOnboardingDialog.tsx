@@ -200,7 +200,10 @@ function ConfiguredConnectOnboardingDialog() {
           title={uiText("Set up T3 Connect")}
           description={
             <>
-              {uiText("Mesh your devices together — publish this environment and connect the rest, all in one place.")}</>
+              {uiText(
+                "Mesh your devices together — publish this environment and connect the rest, all in one place.",
+              )}
+            </>
           }
         >
           {steps.length > 1 ? (
@@ -257,13 +260,15 @@ function ConfiguredConnectOnboardingDialog() {
                 checked={dontShowAgain}
                 onCheckedChange={(checked) => setDontShowAgain(checked === true)}
               />
-              {uiText("Don&apos;t show this again") + " "}</label>
+              {uiText("Don&apos;t show this again") + " "}
+            </label>
           }
         >
           {step === "publish" ? (
             <>
               <Button variant="ghost" disabled={isApplying} onClick={() => setStep("devices")}>
-                {uiText("Not now")}</Button>
+                {uiText("Not now")}
+              </Button>
               <Button
                 disabled={isApplying || !canManageRelay || linkStateData === null}
                 onClick={() => void applyPublishSelection()}
@@ -273,7 +278,8 @@ function ConfiguredConnectOnboardingDialog() {
             </>
           ) : (
             <Button disabled={isApplying} onClick={complete}>
-              {uiText("Done")}</Button>
+              {uiText("Done")}
+            </Button>
           )}
         </WizardFooter>
       </WizardPopup>
@@ -306,14 +312,18 @@ function PublishStep({
       <div className="rounded-lg border">
         <OnboardingToggleRow
           title={uiText("Publish this environment")}
-          description={uiText("Make this environment available to your other devices through T3 Connect.")}
+          description={uiText(
+            "Make this environment available to your other devices through T3 Connect.",
+          )}
           checked={exposeEnvironment}
           disabled={disabled}
           onCheckedChange={onExposeEnvironmentChange}
         />
         <OnboardingToggleRow
           title={uiText("Publish agent activity")}
-          description={uiText("Send activity from this environment to your mobile clients for push notifications and Live Activities.")}
+          description={uiText(
+            "Send activity from this environment to your mobile clients for push notifications and Live Activities.",
+          )}
           checked={publishAgentActivity}
           disabled={disabled}
           onCheckedChange={onPublishAgentActivityChange}
@@ -368,7 +378,10 @@ function DevicesStep() {
         showSavedEnvironments
         empty={
           <p className="px-4 py-6 text-center text-sm text-muted-foreground">
-            {uiText("No other environments are published to your account yet. Publish one from another device and it will show up here.")}</p>
+            {uiText(
+              "No other environments are published to your account yet. Publish one from another device and it will show up here.",
+            )}
+          </p>
         }
       />
     </div>

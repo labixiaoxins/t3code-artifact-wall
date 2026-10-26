@@ -223,9 +223,9 @@ export function useMultipleModelSend(input: MultipleModelSendInput) {
           stackedThreadToast({
             type: "success",
             title: uiText("Started {0} {1} in background", {
-                "0": startedCount,
-                "1": startedCount === 1 ? "thread" : "threads",
-              }),
+              "0": startedCount,
+              "1": startedCount === 1 ? "thread" : "threads",
+            }),
           }),
         );
       }
@@ -260,10 +260,9 @@ export function useMultipleModelSend(input: MultipleModelSendInput) {
           stackedThreadToast({
             type: "error",
             title: uiText("A background prompt could not be sent"),
-            description:
-              uiText(
-                "Your newer draft is unchanged. Restore the failed prompt when this composer is empty.",
-              ),
+            description: uiText(
+              "Your newer draft is unchanged. Restore the failed prompt when this composer is empty.",
+            ),
             timeout: 0,
             actionProps: {
               children: "Restore prompt",
@@ -277,10 +276,9 @@ export function useMultipleModelSend(input: MultipleModelSendInput) {
                   )
                 ) {
                   toastManager.update(recoveryToastId, {
-                    description:
-                      uiText(
-                        "Return to the original draft and send or clear its current prompt before restoring.",
-                      ),
+                    description: uiText(
+                      "Return to the original draft and send or clear its current prompt before restoring.",
+                    ),
                   });
                   return;
                 }

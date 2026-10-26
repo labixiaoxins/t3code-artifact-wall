@@ -102,7 +102,7 @@ export function pullRequestContextDisplayState(
 export function pullRequestContextKindLabel(comment: ReviewCommentPresentation): string {
   const state = pullRequestContextDisplayState(comment);
   if (state === null) return uiText("Pull request");
-  return uiText("{0}{1} pull request", {"0": state[0]!.toUpperCase(), "1": state.slice(1)});
+  return uiText("{0}{1} pull request", { "0": state[0]!.toUpperCase(), "1": state.slice(1) });
 }
 
 export function previewAnnotationContextLabel(annotation: PreviewAnnotationPayload): string {

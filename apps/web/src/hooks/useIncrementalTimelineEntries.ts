@@ -34,12 +34,13 @@ export function useIncrementalTimelineEntries(
     projection: TimelineEntriesProjection;
   } | null>(null);
   const state = committed.current;
-  const projection = state?.threadKey === threadKey && sameInput(state.projection.input, input)
-    ? state.projection
-    : deriveTimelineEntriesFromVisibleTurnItemsWithState(
-        input,
-        state?.threadKey === threadKey ? state.projection : null,
-      );
+  const projection =
+    state?.threadKey === threadKey && sameInput(state.projection.input, input)
+      ? state.projection
+      : deriveTimelineEntriesFromVisibleTurnItemsWithState(
+          input,
+          state?.threadKey === threadKey ? state.projection : null,
+        );
   useLayoutEffect(() => {
     committed.current = { threadKey, projection };
   }, [threadKey, projection]);

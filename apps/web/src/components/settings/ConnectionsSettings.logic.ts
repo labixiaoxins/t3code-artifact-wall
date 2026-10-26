@@ -34,7 +34,7 @@ import {
 export function togglePairingScopeSelection(
   current: ReadonlyArray<AuthGrantScope>,
   scope: AuthGrantScope,
-  checked: boolean
+  checked: boolean,
 ): ReadonlyArray<AuthGrantScope> {
   const without = (scopes: ReadonlyArray<AuthGrantScope>) =>
     scopes.filter((currentScope) => currentScope !== scope);
@@ -50,7 +50,7 @@ export function togglePairingScopeSelection(
 }
 
 export function canRevokeOtherClients(
-  clientSessions: ReadonlyArray<{ readonly current: boolean; }> | null
+  clientSessions: ReadonlyArray<{ readonly current: boolean }> | null,
 ): boolean {
   return clientSessions === null || clientSessions.some((session) => !session.current);
 }
@@ -73,7 +73,7 @@ export function isQrShareableEndpoint(endpoint: AdvertisedEndpoint): boolean {
  * then means "not checked", not "not running".
  */
 export function missingTailscaleEndpointDescription(
-  state: Pick<DesktopServerExposureState, "mode" | "tailscaleServeEnabled"> | null
+  state: Pick<DesktopServerExposureState, "mode" | "tailscaleServeEnabled"> | null,
 ): string {
   return state && state.mode !== "network-accessible" && !state.tailscaleServeEnabled
     ? "Turn on Network access to detect Tailscale."
@@ -122,10 +122,10 @@ export function resolveLocalVersionStatusLabel(state: DesktopUpdateState | null)
 
 export type QrEndpointOption = {
   readonly id: string;
-    /**
-     * Stable per endpoint *type* (endpointDefaultPreferenceKey). Multiple
-     * endpoints can share one, so it is only used to match the saved default.
-     */
+  /**
+   * Stable per endpoint *type* (endpointDefaultPreferenceKey). Multiple
+   * endpoints can share one, so it is only used to match the saved default.
+   */
   readonly preferenceKey: string;
   readonly qrShareable: boolean;
 };
@@ -133,7 +133,7 @@ export type QrEndpointOption = {
 export function selectQrEndpointOption<T extends QrEndpointOption>(
   options: ReadonlyArray<T>,
   selectedId: string | null,
-  defaultPreferenceKey: string | null
+  defaultPreferenceKey: string | null,
 ): T | null {
   return (
     (selectedId !== null ? options.find((option) => option.id === selectedId) : undefined) ??
@@ -236,8 +236,8 @@ export function parseManualDesktopSshTarget(input: {
 }
 
 export function parsePairingUrlFields(
-  input: string
-): { readonly host: string; readonly pairingCode: string; } | null {
+  input: string,
+): { readonly host: string; readonly pairingCode: string } | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
 
@@ -292,7 +292,7 @@ export function formatDesktopSshConnectionError(error: unknown): string {
   const rawMessage = error instanceof Error ? error.message : fallback;
   const withoutIpcPrefix = rawMessage.replace(
     /^Error invoking remote method 'desktop:ensure-ssh-environment':\s*/u,
-    ""
+    "",
   );
   const withoutTaggedErrorPrefix = withoutIpcPrefix.replace(/^Ssh[A-Za-z]+Error:\s*/u, "");
   return withoutTaggedErrorPrefix.trim() || fallback;
@@ -300,13 +300,13 @@ export function formatDesktopSshConnectionError(error: unknown): string {
 
 export function sortDesktopPairingLinks(links: ReadonlyArray<ServerPairingLinkRecord>) {
   return [...links].toSorted(
-    (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
+    (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
   );
 }
 
 export function summarizeAuthorizedClients(
   sessions: ReadonlyArray<ServerClientSessionRecord>,
-  links: ReadonlyArray<ServerPairingLinkRecord>
+  links: ReadonlyArray<ServerPairingLinkRecord>,
 ): string {
   const parts = [
     `${sessions.length} ${sessions.length === 1 ? "client" : "clients"}`,
@@ -339,7 +339,7 @@ export function toDesktopPairingLinkRecord(pairingLink: AuthPairingLink): Server
 }
 
 export function toDesktopClientSessionRecord(
-  clientSession: AuthClientSession
+  clientSession: AuthClientSession,
 ): ServerClientSessionRecord {
   return {
     ...clientSession,
@@ -355,12 +355,12 @@ export function toDesktopClientSessionRecord(
 
 export function selectPairingEndpoint(
   endpoints: ReadonlyArray<AdvertisedEndpoint>,
-  defaultEndpointKey?: string | null
+  defaultEndpointKey?: string | null,
 ): AdvertisedEndpoint | null {
   const availableEndpoints = endpoints.filter((endpoint) => endpoint.status !== "unavailable");
   if (defaultEndpointKey) {
     const selectedEndpoint = availableEndpoints.find(
-      (endpoint) => endpointDefaultPreferenceKey(endpoint) === defaultEndpointKey
+      (endpoint) => endpointDefaultPreferenceKey(endpoint) === defaultEndpointKey,
     );
     if (selectedEndpoint) {
       return selectedEndpoint;
@@ -402,7 +402,7 @@ export function endpointDefaultPreferenceKey(endpoint: AdvertisedEndpoint): stri
 
 export function resolveAdvertisedEndpointPairingUrl(
   endpoint: AdvertisedEndpoint,
-  credential: string
+  credential: string,
 ): string {
   if (endpoint.compatibility.hostedHttpsApp === "compatible") {
     return (

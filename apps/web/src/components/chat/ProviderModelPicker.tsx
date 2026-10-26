@@ -266,7 +266,8 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
           </Tooltip>
           {selectedModel?.isUnavailable && !selectedEntries && props.triggerLabel === undefined ? (
             <Badge variant="outline" size="sm">
-              {uiText("Unavailable")}</Badge>
+              {uiText("Unavailable")}
+            </Badge>
           ) : null}
         </span>
         <span aria-hidden="true" className="flex items-center">

@@ -553,13 +553,13 @@ export function buildMultiSelectThreadContextMenuItems(input: {
   hasRunningThread: boolean;
 }): readonly ContextMenuItem<"mark-unread" | "archive" | "delete">[] {
   return [
-    { id: "mark-unread", label: uiText("Mark unread ({0})", {"0": input.count}) },
+    { id: "mark-unread", label: uiText("Mark unread ({0})", { "0": input.count }) },
     {
       id: "archive",
-      label: uiText("Archive ({0})", {"0": input.count}),
+      label: uiText("Archive ({0})", { "0": input.count }),
       disabled: input.hasRunningThread,
     },
-    { id: "delete", label: uiText("Delete ({0})", {"0": input.count}), destructive: true },
+    { id: "delete", label: uiText("Delete ({0})", { "0": input.count }), destructive: true },
   ];
 }
 
@@ -610,13 +610,13 @@ export function buildBulkTitleRegenerationContextMenuItem(input: {
   if (input.actionableCount === 0) {
     return {
       id: "regenerate-title",
-      label: uiText("Regenerating… ({0})", {"0": input.supportedCount}),
+      label: uiText("Regenerating… ({0})", { "0": input.supportedCount }),
       disabled: true,
     };
   }
   return {
     id: "regenerate-title",
-    label: uiText("Regenerate titles ({0})", {"0": input.actionableCount}),
+    label: uiText("Regenerate titles ({0})", { "0": input.actionableCount }),
   };
 }
 
@@ -624,7 +624,7 @@ export function buildBulkUnpinContextMenuItem(input: {
   pinnedCount: number;
 }): ContextMenuItem<"unpin"> | null {
   if (input.pinnedCount === 0) return null;
-  return { id: "unpin", label: uiText("Unpin ({0})", {"0": input.pinnedCount}) };
+  return { id: "unpin", label: uiText("Unpin ({0})", { "0": input.pinnedCount }) };
 }
 
 export interface ThreadStatusPill {

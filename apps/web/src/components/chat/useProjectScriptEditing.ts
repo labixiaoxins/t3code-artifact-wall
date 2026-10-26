@@ -256,7 +256,7 @@ export function useProjectScriptEditing(input: {
     if (result._tag === "Success") {
       toastManager.add({
         type: "success",
-        title: uiText("Deleted action \"{0}\"", {"0": deletedName ?? "Unknown"}),
+        title: uiText('Deleted action "{0}"', { "0": deletedName ?? "Unknown" }),
       });
     } else if (!isAtomCommandInterrupted(result)) {
       const error = squashAtomCommandFailure(result);

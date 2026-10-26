@@ -243,7 +243,9 @@ export function SettingInheritance({
                 <Button
                   size="icon-micro"
                   variant="ghost-muted"
-                  aria-label={uiText("{0}. Show where this value comes from", {"0": overrideSummary})}
+                  aria-label={uiText("{0}. Show where this value comes from", {
+                    "0": overrideSummary,
+                  })}
                 />
               }
             />
@@ -387,13 +389,15 @@ export function SettingInheritance({
                             aria-hidden
                             className="size-3 [[data-panel-open]_&]:rotate-90"
                           />
-                          {uiText("Overridden by") + " "}</CollapsibleTrigger>
+                          {uiText("Overridden by") + " "}
+                        </CollapsibleTrigger>
                       ) : (
                         <span>{uiText("Overridden by")}</span>
                       )}
                       {onClearOverrides ? (
                         <InlineButton onClick={() => onClearOverrides(overriding)}>
-                          {uiText("Reset") + " "}{overriding.length === 1 ? uiText("it") : uiText("all")}
+                          {uiText("Reset") + " "}
+                          {overriding.length === 1 ? uiText("it") : uiText("all")}
                         </InlineButton>
                       ) : null}
                     </div>

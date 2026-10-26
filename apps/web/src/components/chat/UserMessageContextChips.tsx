@@ -68,7 +68,7 @@ function UserMessageMentionChip(props: {
           <ContextChip
             kind="mention"
             render={<button type="button" />}
-            aria-label={uiText("Preview {0}", {"0": props.record.path})}
+            aria-label={uiText("Preview {0}", { "0": props.record.path })}
             data-markdown-copy={props.copyMarkdown}
             onClick={() => {
               if (ctx.threadRef)
@@ -149,7 +149,7 @@ function UserMessagePreviewAnnotationDetails(props: {
         <button
           type="button"
           className="block max-h-64 w-full cursor-zoom-in overflow-hidden border-b border-border/70 bg-muted"
-          aria-label={uiText("Preview {0}", {"0": props.image.name})}
+          aria-label={uiText("Preview {0}", { "0": props.image.name })}
           onClick={() => {
             if (!props.image) return;
             const preview = buildExpandedImagePreview([props.image], props.image.id);
@@ -164,7 +164,8 @@ function UserMessagePreviewAnnotationDetails(props: {
         </button>
       ) : (
         <div className="border-b border-border/70 bg-muted/40 px-3 py-2 text-secondary-label text-xs">
-          {uiText("Screenshot unavailable")}</div>
+          {uiText("Screenshot unavailable")}
+        </div>
       )}
       <div className="min-w-0 px-3 py-2.5">
         <div className="text-message-foreground text-xs font-medium">
@@ -216,7 +217,9 @@ function UserMessagePreviewAnnotationDetails(props: {
             })}
             {(props.record.elements?.length ?? 0) > visibleElements.length ? (
               <div className="text-secondary-label text-3xs">
-                {(props.record.elements?.length ?? 0) - visibleElements.length} {uiText("more selected elements")}</div>
+                {(props.record.elements?.length ?? 0) - visibleElements.length}{" "}
+                {uiText("more selected elements")}
+              </div>
             ) : null}
           </div>
         ) : null}

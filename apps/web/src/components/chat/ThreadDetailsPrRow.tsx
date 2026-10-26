@@ -243,7 +243,9 @@ export function ThreadDetailsPrRow({
 
   const rowTooltip =
     detail === null || statePresentation === null ? (
-      <TooltipPopup side="top">{status?.tooltip ?? uiText("Pull request #{0}", {"0": number})}</TooltipPopup>
+      <TooltipPopup side="top">
+        {status?.tooltip ?? uiText("Pull request #{0}", { "0": number })}
+      </TooltipPopup>
     ) : (
       <TooltipPopup
         side="top"
@@ -291,7 +293,8 @@ export function ThreadDetailsPrRow({
               <div className="flex min-w-0 items-start gap-2 text-destructive">
                 <TriangleAlertIcon aria-hidden className="mt-0.5 size-3 shrink-0 stroke-current" />
                 <div className="min-w-0 flex-1 wrap-break-word">
-                  {uiText("Merge conflicts with") + " "}{detail.baseBranch}
+                  {uiText("Merge conflicts with") + " "}
+                  {detail.baseBranch}
                 </div>
               </div>
             ) : null}
@@ -353,7 +356,7 @@ export function ThreadDetailsPrRow({
                 pending: actionPending,
                 destructive: false,
                 suffix: null,
-                tooltip: uiText("Merge this pull request ({0})", {"0": selectedMergeMethod}),
+                tooltip: uiText("Merge this pull request ({0})", { "0": selectedMergeMethod }),
                 onClick: () => setConfirmingMerge(true),
               }
             : null;
@@ -371,7 +374,7 @@ export function ThreadDetailsPrRow({
               size="sm"
               part={part}
               className="group/watch"
-              aria-label={uiText("Stop watching #{0}", {"0": number})}
+              aria-label={uiText("Stop watching #{0}", { "0": number })}
               onClick={onStopWatching}
             />
           }
@@ -389,7 +392,10 @@ export function ThreadDetailsPrRow({
           />
         </TooltipTrigger>
         <TooltipPopup side="top">
-          {uiText("Watching: the agent wakes when checks finish, someone comments, or the branch conflicts. Click to stop.")}</TooltipPopup>
+          {uiText(
+            "Watching: the agent wakes when checks finish, someone comments, or the branch conflicts. Click to stop.",
+          )}
+        </TooltipPopup>
       </Tooltip>
     ) : null;
 
@@ -474,12 +480,15 @@ export function ThreadDetailsPrRow({
             <AlertDialogHeader>
               <AlertDialogTitle>{uiText("Merge pull request?")}</AlertDialogTitle>
               <AlertDialogDescription>
-                {uiText("This merges #")}{number} {uiText("using") + " "}{selectedMergeMethod}.
+                {uiText("This merges #")}
+                {number} {uiText("using") + " "}
+                {selectedMergeMethod}.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogClose render={<Button variant="outline" size="sm" />}>
-                {uiText("Cancel")}</AlertDialogClose>
+                {uiText("Cancel")}
+              </AlertDialogClose>
               <Button
                 size="sm"
                 disabled={actionPending}
@@ -488,7 +497,8 @@ export function ThreadDetailsPrRow({
                   void perform("merge", selectedMergeMethod);
                 }}
               >
-                {uiText("Merge")}</Button>
+                {uiText("Merge")}
+              </Button>
             </AlertDialogFooter>
           </AlertDialogPopup>
         </AlertDialog>

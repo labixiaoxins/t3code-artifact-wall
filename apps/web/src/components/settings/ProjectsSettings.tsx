@@ -48,7 +48,8 @@ export function ProjectsSettings() {
         unavailable
       ) : (
         <SettingsScopeNotice target="project">
-          {uiText("Choose a project to manage its name, icon, checkouts and actions.")}</SettingsScopeNotice>
+          {uiText("Choose a project to manage its name, icon, checkouts and actions.")}
+        </SettingsScopeNotice>
       )}
     </div>
   );

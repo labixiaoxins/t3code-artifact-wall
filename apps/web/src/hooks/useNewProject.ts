@@ -50,8 +50,10 @@ export function useNewProject() {
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: uiText("Could not create the {0} repository", {"0": label}),
-            description: uiText("{0} Use Publish Repository in the Git menu to try again.", {"0": errorMessage(squashAtomCommandFailure(result))}),
+            title: uiText("Could not create the {0} repository", { "0": label }),
+            description: uiText("{0} Use Publish Repository in the Git menu to try again.", {
+              "0": errorMessage(squashAtomCommandFailure(result)),
+            }),
           }),
         );
       }
@@ -60,7 +62,7 @@ export function useNewProject() {
     toastManager.add(
       stackedThreadToast({
         type: "success",
-        title: uiText("Published to {0}", {"0": label}),
+        title: uiText("Published to {0}", { "0": label }),
         description: result.value.repository.nameWithOwner,
       }),
     );
@@ -92,11 +94,18 @@ export function useNewProject() {
     toastManager.add(
       stackedThreadToast(
         commitError === undefined
-          ? { type: "success", title: uiText("Created {0}", {"0": input.name}), description: workspaceRoot }
+          ? {
+              type: "success",
+              title: uiText("Created {0}", { "0": input.name }),
+              description: workspaceRoot,
+            }
           : {
               type: "warning",
-              title: uiText("Created {0} without a first commit", {"0": input.name}),
-              description: uiText("{0} The project is in {1}.", {"0": commitError, "1": workspaceRoot}),
+              title: uiText("Created {0} without a first commit", { "0": input.name }),
+              description: uiText("{0} The project is in {1}.", {
+                "0": commitError,
+                "1": workspaceRoot,
+              }),
             },
       ),
     );
@@ -116,7 +125,9 @@ export function useNewProject() {
         stackedThreadToast({
           type: "error",
           title: uiText("Failed to open project"),
-          description: uiText("{0} It will appear in the sidebar once this client catches up.", {"0": errorMessage(error)}),
+          description: uiText("{0} It will appear in the sidebar once this client catches up.", {
+            "0": errorMessage(error),
+          }),
         }),
       );
       return null;

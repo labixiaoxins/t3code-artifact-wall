@@ -411,7 +411,8 @@ export function ThemeImportDialog({
           <div className="flex items-center gap-3" aria-hidden>
             <div className="h-px flex-1 bg-border" />
             <span className="text-muted-foreground text-2xs uppercase tracking-wider">
-              {uiText("or import a file")}</span>
+              {uiText("or import a file")}
+            </span>
             <div className="h-px flex-1 bg-border" />
           </div>
 
@@ -451,7 +452,8 @@ export function ThemeImportDialog({
               <div className="space-y-2">
                 <div className="flex items-baseline justify-between gap-3">
                   <label className="text-sm font-medium" htmlFor="theme-json-editor">
-                    {uiText("Theme JSON")}</label>
+                    {uiText("Theme JSON")}
+                  </label>
                 </div>
                 <ThemeJsonEditor id="theme-json-editor" onChange={setJson} value={json} />
               </div>
@@ -467,13 +469,17 @@ export function ThemeImportDialog({
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Button size="sm" onClick={() => resolveConflicts("update")}>
-                      {uiText("Update existing")}</Button>
+                      {uiText("Update existing")}
+                    </Button>
                     <Button size="sm" variant="outline" onClick={() => resolveConflicts("copy")}>
-                      {uiText("Keep both")}</Button>
+                      {uiText("Keep both")}
+                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => setConflicts(null)}>
-                      {uiText("Back")}</Button>
+                      {uiText("Back")}
+                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => onOpenChange(false)}>
-                      {uiText("Cancel")}</Button>
+                      {uiText("Cancel")}
+                    </Button>
                   </div>
                 </div>
               );
@@ -499,10 +505,12 @@ export function ThemeImportDialog({
                 {editorSection()}
                 <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <Button variant="ghost" onClick={() => onOpenChange(false)}>
-                    {uiText("Cancel")}</Button>
+                    {uiText("Cancel")}
+                  </Button>
                   <Button disabled={!json.trim() || isReading} onClick={handleSubmit}>
                     <PlusIcon />
-                    {uiText("Add theme") + " "}</Button>
+                    {uiText("Add theme") + " "}
+                  </Button>
                 </div>
               </div>
             );

@@ -58,7 +58,11 @@ export function costTypeSegments(cost: CategoryCost): readonly ShareSegment[] {
     { label: uiText("Cache read"), value: cost.cacheRead, color: TYPE_COLORS.cacheRead },
     { label: uiText("Cache write"), value: cost.cacheWrite, color: TYPE_COLORS.cacheWrite },
     { label: uiText("Output"), value: cost.output, color: TYPE_COLORS.output },
-    { label: uiText("Other"), value: cost.unsplit >= 0.005 ? cost.unsplit : 0, color: TYPE_COLORS.other },
+    {
+      label: uiText("Other"),
+      value: cost.unsplit >= 0.005 ? cost.unsplit : 0,
+      color: TYPE_COLORS.other,
+    },
   ];
 }
 
@@ -68,7 +72,11 @@ export function tokenTypeSegments(
   return [
     { label: uiText("Input"), value: tokens.uncachedInputTokens, color: TYPE_COLORS.input },
     { label: uiText("Cache read"), value: tokens.cachedInputTokens, color: TYPE_COLORS.cacheRead },
-    { label: uiText("Cache write"), value: tokens.cacheCreationTokens, color: TYPE_COLORS.cacheWrite },
+    {
+      label: uiText("Cache write"),
+      value: tokens.cacheCreationTokens,
+      color: TYPE_COLORS.cacheWrite,
+    },
     { label: uiText("Output"), value: tokens.outputTokens, color: TYPE_COLORS.output },
   ];
 }

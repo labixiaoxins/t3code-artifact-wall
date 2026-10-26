@@ -31,7 +31,14 @@ export function DeviceToolVersions({
       <PopoverTrigger
         aria-label={
           kind
-            ? uiText("{0}: {1}. Show details", {"0": label, "1": version ? `version ${version}` : selected ? "not installed" : "version unknown"})
+            ? uiText("{0}: {1}. Show details", {
+                "0": label,
+                "1": version
+                  ? `version ${version}`
+                  : selected
+                    ? "not installed"
+                    : "version unknown",
+              })
             : undefined
         }
         render={<InlineButton tone="muted" />}
@@ -62,7 +69,9 @@ export function DeviceToolVersions({
                   {!kind ? <p className="text-xs font-medium">{name}</p> : null}
                   <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-xs">
                     <dt className="text-muted-foreground">{uiText("Running")}</dt>
-                    <dd className="text-right font-mono">{tool.runningVersion ?? uiText("Not running")}</dd>
+                    <dd className="text-right font-mono">
+                      {tool.runningVersion ?? uiText("Not running")}
+                    </dd>
                     <dt className="text-muted-foreground">{uiText("Required")}</dt>
                     <dd className="text-right font-mono">{tool.requiredVersion}</dd>
                     <dt className="text-muted-foreground">{uiText("Installed")}</dt>
@@ -74,10 +83,14 @@ export function DeviceToolVersions({
               ))}
           </div>
         ) : (
-          <p className="mt-3 text-xs text-muted-foreground">{uiText("Versions have not been checked.")}</p>
+          <p className="mt-3 text-xs text-muted-foreground">
+            {uiText("Versions have not been checked.")}
+          </p>
         )}
         <p className="mt-4 border-t border-border/50 pt-3 text-xs text-muted-foreground">
-          {owner ? uiText("Managed by {0}. ", {"0": owner}) : ""}{uiText("Tools update automatically on this host when needed.") + " "}</p>
+          {owner ? uiText("Managed by {0}. ", { "0": owner }) : ""}
+          {uiText("Tools update automatically on this host when needed.") + " "}
+        </p>
         {error ? (
           <p role="status" className="mt-2 text-xs text-destructive">
             {error}

@@ -49,7 +49,7 @@ interface Props {
   onToggleDeviceToolbar: () => void;
   nativePictureInPicture: boolean;
   profileName: string | undefined;
-  move?: { readonly label: string; readonly onMove: () => void; };
+  move?: { readonly label: string; readonly onMove: () => void };
 }
 
 const MenuTriggerButton = () => (
@@ -57,7 +57,14 @@ const MenuTriggerButton = () => (
     <TooltipTrigger
       render={
         <MenuTrigger
-          render={<Button variant="ghost" size="icon-xs" type="button" aria-label={uiText("Preview menu")} />}
+          render={
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              type="button"
+              aria-label={uiText("Preview menu")}
+            />
+          }
         />
       }
     >
@@ -85,10 +92,12 @@ export function PreviewMoreMenu({
       <MenuTriggerButton />
       <MenuPopup align="end" sideOffset={6}>
         <MenuItem onClick={actions.hardReload} disabled={disabled}>
-          {uiText("Hard reload")}</MenuItem>
+          {uiText("Hard reload")}
+        </MenuItem>
         {actions.openDevTools ? (
           <MenuItem onClick={actions.openDevTools} disabled={disabled}>
-            {uiText("Open DevTools")}</MenuItem>
+            {uiText("Open DevTools")}
+          </MenuItem>
         ) : null}
         {actions.toggleNativePictureInPicture ? (
           <MenuItem onClick={actions.toggleNativePictureInPicture} disabled={disabled}>
@@ -168,7 +177,9 @@ export function PreviewMoreMenu({
         <MenuGroup>
           {profileName ? (
             <MenuGroupLabel className="max-w-64">
-              <span className="block truncate">{"Profile:" + " "} {profileName}</span>
+              <span className="block truncate">
+                {"Profile:" + " "} {profileName}
+              </span>
             </MenuGroupLabel>
           ) : null}
           <MenuItem onClick={actions.clearCookies}>{uiText("Clear cookies")}</MenuItem>

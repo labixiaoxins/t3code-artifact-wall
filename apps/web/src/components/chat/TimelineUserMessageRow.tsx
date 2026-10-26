@@ -425,7 +425,8 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
           className="me-1 text-2xs text-muted-foreground/70"
           data-user-message-attribution="t3code"
         >
-          {uiText("Sent by T3 Code")}</p>
+          {uiText("Sent by T3 Code")}
+        </p>
       ) : null}
       {row.message.inputIntent === "steer" ||
       row.message.inputIntent === "promoted_queued_to_steer" ? (
@@ -474,7 +475,7 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
                       <button
                         type="button"
                         className="block h-full w-full cursor-zoom-in"
-                        aria-label={uiText("Preview {0}", {"0": image.name})}
+                        aria-label={uiText("Preview {0}", { "0": image.name })}
                         onClick={() => {
                           const preview = buildExpandedImagePreview(regularImages, image.id);
                           if (!preview) return;
@@ -523,7 +524,7 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
                       <div key={file.id} className="flex min-w-0 items-center gap-1">
                         <button
                           type="button"
-                          aria-label={uiText("Preview {0}", {"0": file.name})}
+                          aria-label={uiText("Preview {0}", { "0": file.name })}
                           onClick={() => ctx.onFileOpen(file)}
                           className="focus-visible:ring-ring/70 flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md py-1 text-left text-sm hover:underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:outline-none"
                         >
@@ -536,14 +537,17 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
                               <Button
                                 size="icon-xs"
                                 variant="ghost-muted"
-                                aria-label={uiText("Download {0}", {"0": file.name})}
+                                aria-label={uiText("Download {0}", { "0": file.name })}
                                 onClick={() => ctx.onFileDownload(file)}
                               />
                             }
                           >
                             <DownloadIcon />
                           </TooltipTrigger>
-                          <TooltipPopup side="top">{uiText("Download")}{file.name}</TooltipPopup>
+                          <TooltipPopup side="top">
+                            {uiText("Download")}
+                            {file.name}
+                          </TooltipPopup>
                         </Tooltip>
                       </div>
                     );
@@ -585,7 +589,8 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
           <div className="flex shrink-0 items-center gap-2">
             {folded && senderThreadId ? (
               <InlineButton onClick={() => ctx.onOpenThread(senderThreadId)} tone="muted">
-                {uiText("Open thread")}</InlineButton>
+                {uiText("Open thread")}
+              </InlineButton>
             ) : null}
             <Tooltip>
               <TooltipTrigger render={<p className="text-muted-foreground text-xs tabular-nums" />}>
@@ -644,7 +649,8 @@ function UserMessageIntentMarker({
         }
       >
         <Redo2Icon aria-hidden="true" className="size-3" />
-        {uiText("Steer")}</TooltipTrigger>
+        {uiText("Steer")}
+      </TooltipTrigger>
       <TooltipPopup side="top">
         {intent === "promoted_queued_to_steer"
           ? uiText("Originally queued, then promoted to steer the active turn")

@@ -77,9 +77,9 @@ export function UsageProviderSettings({
           <SettingsRow
             id={"cursor-keychain-usage"}
             title={uiText("Cursor account usage")}
-            description={
-              uiText("Read your existing Cursor CLI login from macOS Keychain to show account history and monthly limits. macOS may ask you to allow access.")
-            }
+            description={uiText(
+              "Read your existing Cursor CLI login from macOS Keychain to show account history and monthly limits. macOS may ask you to allow access.",
+            )}
             control={
               <Switch
                 aria-label={uiText("Cursor account usage")}
@@ -153,13 +153,15 @@ function RemoveUsageProviderButton({
               {"?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {
-                uiText("The hub's management key is deleted from this server. Its accounts leave the Limits view; the hub itself is untouched. Add it again with the URL and key to bring them back.")
-              }
+              {uiText(
+                "The hub's management key is deleted from this server. Its accounts leave the Limits view; the hub itself is untouched. Add it again with the URL and key to bring them back.",
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogClose render={<Button variant={"outline"} />}>{uiText("Cancel")}</AlertDialogClose>
+            <AlertDialogClose render={<Button variant={"outline"} />}>
+              {uiText("Cancel")}
+            </AlertDialogClose>
             <Button
               variant={"destructive"}
               onClick={() => {

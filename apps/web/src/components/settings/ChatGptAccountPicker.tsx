@@ -42,7 +42,8 @@ export function ChatGptAccountPicker({
         <DialogHeader>
           <DialogTitle>{uiText("Reconnect ChatGPT")}</DialogTitle>
           <DialogDescription>
-            {uiText("On OpenAI, sign in with the account you choose here.")}</DialogDescription>
+            {uiText("On OpenAI, sign in with the account you choose here.")}
+          </DialogDescription>
         </DialogHeader>
         <div className="px-6 pb-6">
           <RadioGroup

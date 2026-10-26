@@ -233,8 +233,11 @@ export function useComposerAttachmentIntake(input: {
         const attached = storedFiles[0]!;
         toastManager.add({
           type: "info",
-          title: uiText("Large paste attached as {0}", {"0": attached.name}),
-          description: uiText("{0} · Use {1} to keep a large paste inline.", {"0": formatAttachmentSize(attached.sizeBytes), "1": isMacPlatform(navigator.platform) ? "⌘⇧V" : "Ctrl+Shift+V"}),
+          title: uiText("Large paste attached as {0}", { "0": attached.name }),
+          description: uiText("{0} · Use {1} to keep a large paste inline.", {
+            "0": formatAttachmentSize(attached.sizeBytes),
+            "1": isMacPlatform(navigator.platform) ? "⌘⇧V" : "Ctrl+Shift+V",
+          }),
           data: { hideCopyButton: true },
         });
       }

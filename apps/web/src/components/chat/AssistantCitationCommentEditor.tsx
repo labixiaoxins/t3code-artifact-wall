@@ -48,7 +48,9 @@ export function AssistantCitationCommentEditor({
       <textarea
         ref={inputRef}
         aria-label={uiText("Comment on selected text")}
-        aria-description={uiText("Enter to save the citation comment; Command/Ctrl+Enter to save and send; Shift+Enter for a new line.")}
+        aria-description={uiText(
+          "Enter to save the citation comment; Command/Ctrl+Enter to save and send; Shift+Enter for a new line.",
+        )}
         aria-invalid={commentTooLong || undefined}
         placeholder={uiText("Add an optional comment...")}
         rows={2}
@@ -76,8 +78,9 @@ export function AssistantCitationCommentEditor({
       />
       {commentTooLong ? (
         <p role="status" className="pt-1 text-xs text-destructive">
-          {uiText("Comments can contain up to") + " "}{ASSISTANT_CITATION_MAX_COMMENT_LENGTH.toLocaleString()}{" "}
-          {uiText("characters.") + " "}</p>
+          {uiText("Comments can contain up to") + " "}
+          {ASSISTANT_CITATION_MAX_COMMENT_LENGTH.toLocaleString()} {uiText("characters.") + " "}
+        </p>
       ) : null}
       <div className="mt-2 flex items-center justify-end gap-2">
         <Button
@@ -86,7 +89,8 @@ export function AssistantCitationCommentEditor({
           onPointerDown={(event) => event.preventDefault()}
           onClick={onCancel}
         >
-          {uiText("Cancel")}</Button>
+          {uiText("Cancel")}
+        </Button>
         <Button
           size="xs"
           disabled={commentTooLong}

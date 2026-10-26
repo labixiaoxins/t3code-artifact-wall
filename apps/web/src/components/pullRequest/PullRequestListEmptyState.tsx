@@ -76,12 +76,14 @@ export function PullRequestListEmptyState({
         <EmptyHeader>
           <EmptyTitle>{uiText("No projects in this workspace")}</EmptyTitle>
           <EmptyDescription>
-            {uiText("Add a project, and the pull requests from its repository appear here.")}</EmptyDescription>
+            {uiText("Add a project, and the pull requests from its repository appear here.")}
+          </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
           <Button size="sm" onClick={() => openCommandPalette({ open: "add-project" })}>
             <PlusIcon className="size-3.5" />
-            {uiText("Add project") + " "}</Button>
+            {uiText("Add project") + " "}
+          </Button>
         </EmptyContent>
       </Empty>
     );
@@ -102,15 +104,20 @@ export function PullRequestListEmptyState({
         <BranchMark joined={false} />
         <EmptyHeader>
           <EmptyTitle>
-            {uiText("Nothing matches “")}{query.length > 48 ? `${query.slice(0, 48)}…` : query}”
+            {uiText("Nothing matches “")}
+            {query.length > 48 ? `${query.slice(0, 48)}…` : query}”
           </EmptyTitle>
           <EmptyDescription>
-            {uiText("The hosts were searched for it. Try fewer words, or search by number, author or branch.")}</EmptyDescription>
+            {uiText(
+              "The hosts were searched for it. Try fewer words, or search by number, author or branch.",
+            )}
+          </EmptyDescription>
         </EmptyHeader>
         <div className="flex flex-wrap justify-center gap-2">
           <Button size="sm" variant="outline" onClick={onClearQuery}>
             <SearchIcon className="size-3.5" />
-            {uiText("Clear search") + " "}</Button>
+            {uiText("Clear search") + " "}
+          </Button>
           <Button size="sm" variant="outline" disabled={refreshing} onClick={onRefresh}>
             <RefreshIcon size="sm" refreshing={refreshing} />
             {refreshing ? uiText("Checking...") : uiText("Check again")}
@@ -124,7 +131,9 @@ export function PullRequestListEmptyState({
     <Empty>
       <BranchMark joined={false} />
       <EmptyHeader>
-        <EmptyTitle>{filtered ? uiText("Nothing under these filters") : uiText("No pull requests")}</EmptyTitle>
+        <EmptyTitle>
+          {filtered ? uiText("Nothing under these filters") : uiText("No pull requests")}
+        </EmptyTitle>
         <EmptyDescription>
           {filtered
             ? uiText("Widen the state, involvement or project filter to see more.")

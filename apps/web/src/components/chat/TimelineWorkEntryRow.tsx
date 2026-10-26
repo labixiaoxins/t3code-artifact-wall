@@ -251,7 +251,8 @@ function WorkEntryLogRow(props: WorkEntryRowProps) {
               onClick={() => onRetryWorkspacePreparation(retryRunId)}
             >
               <RotateCcwIcon aria-hidden />
-              {uiText("Retry")}</Button>
+              {uiText("Retry")}
+            </Button>
           </div>
         ) : null}
       </WorkLogRow>
@@ -417,7 +418,9 @@ function WorkEntryLogRow(props: WorkEntryRowProps) {
                   extraRemarkPlugins={[
                     [
                       remarkThoughtPreview,
-                      workEntry.toolLifecycleStatus === "inProgress" ? uiText("Thinking") : uiText("Thought"),
+                      workEntry.toolLifecycleStatus === "inProgress"
+                        ? uiText("Thinking")
+                        : uiText("Thought"),
                     ],
                   ]}
                 />
@@ -454,14 +457,15 @@ function WorkEntryLogRow(props: WorkEntryRowProps) {
             <button
               type="button"
               className="shrink-0 rounded-sm text-sm text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-              aria-label={uiText("Open {0}", {"0": createdThread.title ?? "created thread"})}
+              aria-label={uiText("Open {0}", { "0": createdThread.title ?? "created thread" })}
               onClick={(event) => {
                 event.stopPropagation();
                 ctx.onOpenThread(createdThread.targetThreadId);
               }}
               onKeyDown={stopRowToggle}
             >
-              {uiText("Open chat")}</button>
+              {uiText("Open chat")}
+            </button>
           ) : null}
           {notifiedSubagentThreadId ? (
             <InlineButton
@@ -472,7 +476,8 @@ function WorkEntryLogRow(props: WorkEntryRowProps) {
               }}
               onKeyDown={stopRowToggle}
             >
-              {uiText("Open subagent")}</InlineButton>
+              {uiText("Open subagent")}
+            </InlineButton>
           ) : null}
           {showFailedIndicator &&
           !showDestructiveRowStyle &&

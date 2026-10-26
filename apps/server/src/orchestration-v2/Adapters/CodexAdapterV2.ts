@@ -6795,16 +6795,15 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                   }),
                 ),
               ),
-              Effect.map(
-                (response): OrchestrationV2ProviderThread =>
-                  providerThreadFromCodexThread({
-                    appThreadId: threadInput.threadId,
-                    idAllocator,
-                    ownerNodeId: null,
-                    providerSessionId: input.providerSessionId,
-                    providerInstanceId: adapterOptions.instanceId,
-                    thread: response.thread,
-                  }),
+              Effect.map((response): OrchestrationV2ProviderThread =>
+                providerThreadFromCodexThread({
+                  appThreadId: threadInput.threadId,
+                  idAllocator,
+                  ownerNodeId: null,
+                  providerSessionId: input.providerSessionId,
+                  providerInstanceId: adapterOptions.instanceId,
+                  thread: response.thread,
+                }),
               ),
               Effect.mapError(
                 (cause) =>

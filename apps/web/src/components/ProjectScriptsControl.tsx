@@ -213,7 +213,7 @@ export default function ProjectScriptsControl({
                   variant={"ghost"}
                   size={"icon-xs"}
                   className={"size-6"}
-                  aria-label={uiText("Edit {0}", {"0": script.name})}
+                  aria-label={uiText("Edit {0}", { "0": script.name })}
                   onPointerDown={(event) => {
                     event.preventDefault();
                     event.stopPropagation();
@@ -234,7 +234,9 @@ export default function ProjectScriptsControl({
       {importMenuItems}
       <MenuItem density={presentation === "menu" ? "touch" : "default"} onClick={openAddDialog}>
         <PlusIcon className={"size-4"} />
-        <MenuItemLabel>{isPanel ? uiText("Add project script") : uiText("Add action")}</MenuItemLabel>
+        <MenuItemLabel>
+          {isPanel ? uiText("Add project script") : uiText("Add action")}
+        </MenuItemLabel>
       </MenuItem>
     </>
   );
@@ -301,7 +303,7 @@ export default function ProjectScriptsControl({
                   part={"primary"}
                   panel={isPanel}
                   className={isPanel ? undefined : "w-7 sm:w-6 @3xl/header-actions:w-auto!"}
-                  aria-label={uiText("Run {0}", {"0": primaryScript.name})}
+                  aria-label={uiText("Run {0}", { "0": primaryScript.name })}
                   // The tooltip wrapper replaces data-slot="button", so themed
                   // toolbar styling needs its own hook.
                   data-toolbar-control={""}
@@ -325,7 +327,7 @@ export default function ProjectScriptsControl({
             </TooltipTrigger>
             <TooltipPopup side={"top"}>
               {onRunScript
-                ? uiText("Run {0}", {"0": primaryScript.name})
+                ? uiText("Run {0}", { "0": primaryScript.name })
                 : uiText("Pair this client again with permission to run terminal commands.")}
             </TooltipPopup>
           </Tooltip>
@@ -418,7 +420,9 @@ export default function ProjectScriptsControl({
             }
           >
             <MenuTrigger
-              render={<Button size={"xs"} variant={"outline"} aria-label={uiText("Project actions")} />}
+              render={
+                <Button size={"xs"} variant={"outline"} aria-label={uiText("Project actions")} />
+              }
             >
               <WrenchIcon className={"size-3.5"} />
               <span
@@ -457,7 +461,9 @@ export default function ProjectScriptsControl({
               {isPanel ? uiText("Add project script") : uiText("Add action")}
             </span>
           </TooltipTrigger>
-          <TooltipPopup side={"top"}>{isPanel ? uiText("Add project script") : uiText("Add action")}</TooltipPopup>
+          <TooltipPopup side={"top"}>
+            {isPanel ? uiText("Add project script") : uiText("Add action")}
+          </TooltipPopup>
         </Tooltip>
       )}
 

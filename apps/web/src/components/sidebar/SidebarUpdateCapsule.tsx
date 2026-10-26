@@ -47,11 +47,15 @@ function useUpdateRunMachineViews(run: UpdateEverythingRun): ReadonlyArray<Updat
 
 function localStatusLabel(run: UpdateEverythingRun, local: UpdateRunLocalState, now: number) {
   if (run.phase === "countdown" && run.restartAt !== null) {
-    return uiText("restarts in {0}s", {"0": Math.max(0, Math.ceil((run.restartAt - now) / 1000))});
+    return uiText("restarts in {0}s", {
+      "0": Math.max(0, Math.ceil((run.restartAt - now) / 1000)),
+    });
   }
   if (run.phase === "installing") return uiText("restarting");
   if (local?.status === "downloading") {
-    return uiText("downloading{0}", {"0": local.percent === null ? "" : ` ${Math.floor(local.percent)}%`});
+    return uiText("downloading{0}", {
+      "0": local.percent === null ? "" : ` ${Math.floor(local.percent)}%`,
+    });
   }
   return uiText("restarts after the servers");
 }
@@ -138,7 +142,8 @@ export function SidebarUpdateCapsule({
             <div className="flex items-center justify-between gap-3">
               <span>{uiText("This app")}</span>
               <Button size="xs" variant="outline" onClick={() => void onRestart()}>
-                {uiText("Restart to update")}</Button>
+                {uiText("Restart to update")}
+              </Button>
             </div>
           ) : null}
           {machines.map(({ machine, status }) => (
@@ -166,10 +171,12 @@ export function SidebarUpdateCapsule({
             <div className="mt-1 flex justify-end gap-1">
               {view.action === "retry" ? (
                 <Button size="xs" variant="outline" onClick={runAction}>
-                  {uiText("Retry")}</Button>
+                  {uiText("Retry")}
+                </Button>
               ) : null}
               <Button size="xs" variant="ghost" onClick={dismissSettledUpdateRunMachines}>
-                {uiText("Dismiss")}</Button>
+                {uiText("Dismiss")}
+              </Button>
             </div>
           ) : null}
         </div>

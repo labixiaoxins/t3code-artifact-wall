@@ -63,12 +63,15 @@ export function ProviderWizardAuthenticationStep({
                   ? uiText("Discovering sign-in methods…")
                   : (query.error ??
                     auth?.message ??
-                    uiText("No in-app sign-in advertised. Follow the provider's docs to finish setup."))
+                    uiText(
+                      "No in-app sign-in advertised. Follow the provider's docs to finish setup.",
+                    ))
               }
               control={
                 isDiscovering ? (
                   <Button disabled size="sm" variant="outline">
-                    {uiText("Sign in")}</Button>
+                    {uiText("Sign in")}
+                  </Button>
                 ) : provider?.setup?.documentationUrl ? (
                   <Button
                     size="sm"
@@ -77,7 +80,8 @@ export function ProviderWizardAuthenticationStep({
                       <a href={provider.setup.documentationUrl} target="_blank" rel="noreferrer" />
                     }
                   >
-                    {uiText("Open docs")}</Button>
+                    {uiText("Open docs")}
+                  </Button>
                 ) : undefined
               }
             />

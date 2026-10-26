@@ -15,7 +15,7 @@ function timeOfDayLabel(date: Date, timestampFormat: TimestampFormat): string {
 
 export function resolveSnoozePresets(
   now: Date,
-  timestampFormat: TimestampFormat
+  timestampFormat: TimestampFormat,
 ): ReadonlyArray<SnoozePreset> {
   return resolveSharedSnoozePresets(now).map((preset) => {
     const wake = parseTimestampDate(preset.snoozedUntil);

@@ -17,5 +17,9 @@ export function deriveLogicalProjectKey(
   project: Parameters<typeof keyFromSettings>[0],
   options?: { readonly groupScratchProjects?: boolean },
 ) {
-  return keyFromSettings(project, { sidebarProjectGroupingMode: "repository", sidebarProjectGroupingOverrides: {} }, options);
+  return keyFromSettings(
+    project,
+    { sidebarProjectGroupingMode: "repository", sidebarProjectGroupingOverrides: {} },
+    options,
+  );
 }

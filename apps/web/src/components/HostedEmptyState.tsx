@@ -50,7 +50,8 @@ export function HostedEmptyState() {
           <EmptyContent>
             {localEnvironmentOff ? (
               <Button render={<Link to="/settings/connections" />} size="sm">
-                {uiText("Open Connections")}</Button>
+                {uiText("Open Connections")}
+              </Button>
             ) : (
               <ol className="w-full space-y-4 text-left">
                 {cloudEnabled ? <T3ConnectSteps /> : <PairingSteps />}
@@ -79,10 +80,12 @@ function T3ConnectSteps() {
         {isSignedIn ? (
           <p className="flex items-center gap-1.5 text-muted-foreground">
             <CheckIcon className="size-4" />
-            {uiText("Signed in") + " "}</p>
+            {uiText("Signed in") + " "}
+          </p>
         ) : (
           <Button size="sm" disabled={!isLoaded} onClick={openAuthPrompt}>
-            {uiText("Sign in")}</Button>
+            {uiText("Sign in")}
+          </Button>
         )}
       </SetupStep>
       <SetupStep number={2}>

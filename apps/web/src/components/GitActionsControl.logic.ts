@@ -176,7 +176,7 @@ export function buildMenuItems(
     pushItem,
     {
       id: "pr",
-      label: uiText("Create {0}", {"0": terminology.shortLabel}),
+      label: uiText("Create {0}", { "0": terminology.shortLabel }),
       disabled: !canCreatePr,
       icon: "pr",
       kind: "open_dialog",
@@ -192,7 +192,12 @@ export function resolveQuickAction(
   hasPrimaryRemote = true,
 ): GitQuickAction {
   if (isBusy) {
-    return { label: uiText("Commit"), disabled: true, kind: "show_hint", hint: "Git action in progress." };
+    return {
+      label: uiText("Commit"),
+      disabled: true,
+      kind: "show_hint",
+      hint: "Git action in progress.",
+    };
   }
 
   if (!gitStatus) {
@@ -227,10 +232,15 @@ export function resolveQuickAction(
       return { label: uiText("Commit"), disabled: false, kind: "run_action", action: "commit" };
     }
     if (hasOpenPr || isDefaultRef) {
-      return { label: uiText("Commit & push"), disabled: false, kind: "run_action", action: "commit_push" };
+      return {
+        label: uiText("Commit & push"),
+        disabled: false,
+        kind: "run_action",
+        action: "commit_push",
+      };
     }
     return {
-      label: uiText("Commit, push & {0}", {"0": terminology.shortLabel}),
+      label: uiText("Commit, push & {0}", { "0": terminology.shortLabel }),
       disabled: false,
       kind: "run_action",
       action: "commit_push_pr",
@@ -270,7 +280,7 @@ export function resolveQuickAction(
       };
     }
     return {
-      label: uiText("Push & create {0}", {"0": terminology.shortLabel}),
+      label: uiText("Push & create {0}", { "0": terminology.shortLabel }),
       disabled: false,
       kind: "run_action",
       action: "create_pr",
@@ -304,7 +314,7 @@ export function resolveQuickAction(
       };
     }
     return {
-      label: uiText("Push & create {0}", {"0": terminology.shortLabel}),
+      label: uiText("Push & create {0}", { "0": terminology.shortLabel }),
       disabled: false,
       kind: "run_action",
       action: "create_pr",
@@ -322,7 +332,7 @@ export function resolveQuickAction(
 
   if (hasDefaultBranchDelta && !isDefaultRef) {
     return {
-      label: uiText("Create {0}", {"0": terminology.shortLabel}),
+      label: uiText("Create {0}", { "0": terminology.shortLabel }),
       disabled: false,
       kind: "run_action",
       action: "create_pr",
@@ -364,27 +374,33 @@ export function resolveDefaultBranchActionDialogCopy(input: {
     if (input.includesCommit) {
       return {
         title: uiText("Commit & push to default ref?"),
-        description: uiText("This action will commit and push changes{0}", {"0": suffix}),
+        description: uiText("This action will commit and push changes{0}", { "0": suffix }),
         continueLabel: `Commit & push to ${branchLabel}`,
       };
     }
     return {
       title: uiText("Push to default ref?"),
-      description: uiText("This action will push local commits{0}", {"0": suffix}),
+      description: uiText("This action will push local commits{0}", { "0": suffix }),
       continueLabel: `Push to ${branchLabel}`,
     };
   }
 
   if (input.includesCommit) {
     return {
-      title: uiText("Commit, push & create {0} from default ref?", {"0": terminology.shortLabel}),
-      description: uiText("This action will commit, push, and create a {0}{1}", {"0": terminology.singular, "1": suffix}),
+      title: uiText("Commit, push & create {0} from default ref?", { "0": terminology.shortLabel }),
+      description: uiText("This action will commit, push, and create a {0}{1}", {
+        "0": terminology.singular,
+        "1": suffix,
+      }),
       continueLabel: `Commit, push & create ${terminology.shortLabel}`,
     };
   }
   return {
-    title: uiText("Push & create {0} from default ref?", {"0": terminology.shortLabel}),
-    description: uiText("This action will push local commits and create a {0}{1}", {"0": terminology.singular, "1": suffix}),
+    title: uiText("Push & create {0} from default ref?", { "0": terminology.shortLabel }),
+    description: uiText("This action will push local commits and create a {0}{1}", {
+      "0": terminology.singular,
+      "1": suffix,
+    }),
     continueLabel: `Push & create ${terminology.shortLabel}`,
   };
 }

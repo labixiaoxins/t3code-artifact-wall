@@ -151,7 +151,9 @@ export function SavedBackendListRow({
       toastManager.add({
         type: "success",
         title: uiText("MCP URL copied"),
-        description: uiText("Add it to an agent, e.g. claude mcp add --transport http t3 {0}", {"0": url}),
+        description: uiText("Add it to an agent, e.g. claude mcp add --transport http t3 {0}", {
+          "0": url,
+        }),
       });
     },
     onError: (error) => {
@@ -275,7 +277,7 @@ export function SavedBackendListRow({
             onClick={() => setRoutesOpen((open) => !open)}
             className="inline-flex shrink-0 items-center gap-0.5 rounded-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
           >
-            {routeCount === 1 ? uiText("Routes") : uiText("{0} routes", {"0": routeCount})}
+            {routeCount === 1 ? uiText("Routes") : uiText("{0} routes", { "0": routeCount })}
             <ChevronRightIcon
               aria-hidden
               className={cn(
@@ -294,7 +296,8 @@ export function SavedBackendListRow({
             onClick={() => setPermissionsOpen((open) => !open)}
             className="inline-flex shrink-0 items-center gap-0.5 rounded-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
           >
-            {uiText("Permissions")}<ChevronRightIcon
+            {uiText("Permissions")}
+            <ChevronRightIcon
               aria-hidden
               className={cn(
                 "size-3 shrink-0 transition-transform duration-150 motion-reduce:transition-none",
@@ -390,7 +393,11 @@ export function SavedBackendListRow({
           }
         />
         <TooltipPopup side="top">
-          {blocked ? uiText("Client not supported") : enabled ? uiText("Switch off") : uiText("Switch on")}
+          {blocked
+            ? uiText("Client not supported")
+            : enabled
+              ? uiText("Switch off")
+              : uiText("Switch on")}
         </TooltipPopup>
       </Tooltip>
       <Menu>
@@ -401,7 +408,7 @@ export function SavedBackendListRow({
               variant="ghost-muted"
               size="icon-xs"
               disabled={isRemoving}
-              aria-label={uiText("More actions for {0}", {"0": environment.label})}
+              aria-label={uiText("More actions for {0}", { "0": environment.label })}
             />
           }
         >
@@ -417,7 +424,9 @@ export function SavedBackendListRow({
             {routesOpen ? uiText("Hide routes") : uiText("Routes")}
           </MenuItem>
           {mcpUrl ? (
-            <MenuItem onClick={() => copyMcpUrl(mcpUrl, { url: mcpUrl })}>{uiText("Copy MCP URL")}</MenuItem>
+            <MenuItem onClick={() => copyMcpUrl(mcpUrl, { url: mcpUrl })}>
+              {uiText("Copy MCP URL")}
+            </MenuItem>
           ) : null}
           {errorTraceId ? (
             <MenuItem onClick={() => copyTraceId(errorTraceId)}>{uiText("Copy trace ID")}</MenuItem>
@@ -589,11 +598,17 @@ function ConfiguredCloudLinkRow({ canManageRelay }: { readonly canManageRelay: b
                 ? reachability?.status === "unreachable"
                   ? "T3 Connect is on, but other devices cannot reach this environment."
                   : reachability?.status === "reachable"
-                    ? uiText("This environment is available to your other devices through T3 Connect.")
+                    ? uiText(
+                        "This environment is available to your other devices through T3 Connect.",
+                      )
                     : "T3 Connect is on. Reachability has not been checked yet."
                 : managedTunnelOutOfSync
-                  ? uiText("T3 Connect is out of sync. This environment is linked only to publish agent activity, so other devices cannot connect. Turn T3 Connect on to repair it.")
-                  : uiText("Make this environment available to your other devices through T3 Connect.")
+                  ? uiText(
+                      "T3 Connect is out of sync. This environment is linked only to publish agent activity, so other devices cannot connect. Turn T3 Connect on to repair it.",
+                    )
+                  : uiText(
+                      "Make this environment available to your other devices through T3 Connect.",
+                    )
           }
           status={operationError ?? primaryCloudLinkState.error ?? reachabilityStatus}
           control={
@@ -614,12 +629,16 @@ function ConfiguredCloudLinkRow({ canManageRelay }: { readonly canManageRelay: b
       ) : linkRevoked ? (
         <SettingsRow
           title={searchableSetting("t3-connect").title}
-          description={uiText("This environment was removed from T3 Connect. Run `t3 connect link` on the host to link it again.")}
+          description={uiText(
+            "This environment was removed from T3 Connect. Run `t3 connect link` on the host to link it again.",
+          )}
         />
       ) : null}
       <SettingsRow
         title={searchableSetting("publish-agent-activity").title}
-        description={uiText("Send activity to mobile notifications and Live Activities without T3 Connect.")}
+        description={uiText(
+          "Send activity to mobile notifications and Live Activities without T3 Connect.",
+        )}
         control={
           <CloudLinkSwitch
             ariaLabel="Publish agent activity to mobile clients"
@@ -639,7 +658,9 @@ function ConfiguredCloudLinkRow({ canManageRelay }: { readonly canManageRelay: b
       {managedTunnelActive ? (
         <SettingsRow
           title={searchableSetting("hold-webhooks-while-offline").title}
-          description={uiText("Keep webhook requests for up to 24 hours while this environment is offline, then deliver them. Off: T3 Connect only forwards requests and stores nothing.")}
+          description={uiText(
+            "Keep webhook requests for up to 24 hours while this environment is offline, then deliver them. Off: T3 Connect only forwards requests and stores nothing.",
+          )}
           control={
             <CloudLinkSwitch
               ariaLabel="Hold webhook requests while this environment is offline"
@@ -667,7 +688,9 @@ export function CloudLinkRow({
     return (
       <SettingsRow
         title="T3 Connect"
-        description={uiText("To edit these settings, pair this connection with both View relay and Manage relay permissions.")}
+        description={uiText(
+          "To edit these settings, pair this connection with both View relay and Manage relay permissions.",
+        )}
       />
     );
   }
@@ -684,7 +707,9 @@ function EmptyRemoteEnvironments({ cloudEnabled = true }: { readonly cloudEnable
         <EmptyTitle>{uiText("No saved remote environments")}</EmptyTitle>
         <EmptyDescription>
           {cloudEnabled
-            ? uiText("Click “Add environment” to pair another environment, or connect one from T3 Connect.")
+            ? uiText(
+                "Click “Add environment” to pair another environment, or connect one from T3 Connect.",
+              )
             : uiText("Click “Add environment” to pair another environment.")}
         </EmptyDescription>
       </EmptyHeader>

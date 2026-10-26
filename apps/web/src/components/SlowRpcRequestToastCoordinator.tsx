@@ -23,7 +23,8 @@ function SlowRequestDetails({ requests }: { requests: ReadonlyArray<SlowRpcAckRe
         >
           <div className="wrap-break-word font-medium text-foreground">{request.tag}</div>
           <div className="mt-0.5 text-3xs opacity-75">
-            {uiText("Started") + " "}{new Date(request.startedAt).toLocaleTimeString()}
+            {uiText("Started") + " "}
+            {new Date(request.startedAt).toLocaleTimeString()}
           </div>
         </li>
       ))}

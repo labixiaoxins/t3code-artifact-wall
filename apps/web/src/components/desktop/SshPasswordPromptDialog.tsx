@@ -215,7 +215,8 @@ function ActiveSshPasswordPrompt({
             {isExpired ? uiText("Dismiss") : uiText("Cancel")}
           </Button>
           <Button disabled={isResponding || isExpired} form={formId} type="submit">
-            {uiText("Continue")}</Button>
+            {uiText("Continue")}
+          </Button>
         </DialogFooter>
       </DialogPopup>
     </Dialog>

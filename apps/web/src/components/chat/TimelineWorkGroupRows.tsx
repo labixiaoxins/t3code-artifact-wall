@@ -294,7 +294,8 @@ export function WorkingTimelineRow({ row }: { row: Extract<TimelineRow, { kind: 
     <CompactingLabel />
   ) : row.createdAt ? (
     <>
-      {uiText("Working for")}<WorkingTimer createdAt={row.createdAt} />
+      {uiText("Working for")}
+      <WorkingTimer createdAt={row.createdAt} />
     </>
   ) : (
     "Working..."
@@ -355,7 +356,8 @@ function CompactingLabel() {
   return (
     <span className="inline-flex items-center gap-1.5">
       <Minimize2Icon aria-hidden="true" className="size-3" />
-      {uiText("Compacting…")}</span>
+      {uiText("Compacting…")}
+    </span>
   );
 }
 
@@ -508,7 +510,10 @@ export function LiveWorkEntryTimelineRow({
       )}
       aria-label={
         failed
-          ? uiText("{0}{1}, tool call failed", {"0": thoughtLine ? `${thoughtLine} ` : "", "1": threadLabel?.text ?? label})
+          ? uiText("{0}{1}, tool call failed", {
+              "0": thoughtLine ? `${thoughtLine} ` : "",
+              "1": threadLabel?.text ?? label,
+            })
           : undefined
       }
       aria-expanded={row.expanded}
@@ -561,7 +566,9 @@ export function LiveWorkEntryTimelineRow({
               text={row.entry.detail ?? label}
               cwd={ctx.markdownCwd}
               parseRawHtml={false}
-              extraRemarkPlugins={[[remarkThoughtPreview, row.active ? uiText("Thinking") : uiText("Thought")]]}
+              extraRemarkPlugins={[
+                [remarkThoughtPreview, row.active ? uiText("Thinking") : uiText("Thought")],
+              ]}
             />
           ) : threadLabel ? (
             <ThreadReadLabel
@@ -616,7 +623,9 @@ function WorkGroupHeader(props: {
   return (
     <WorkLogButton
       ref={props.active && !props.failed ? observeVisibleAnimation : undefined}
-      aria-label={props.failed ? uiText("{0}, tool call failed", {"0": props.label}) : props.label}
+      aria-label={
+        props.failed ? uiText("{0}, tool call failed", { "0": props.label }) : props.label
+      }
       aria-expanded={props.expanded}
       onClick={props.onToggle}
       icon={

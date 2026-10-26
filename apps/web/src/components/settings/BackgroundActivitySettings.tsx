@@ -59,7 +59,9 @@ const BACKGROUND_ACTIVITY_PROFILE_OPTION_LABELS: Record<BackgroundActivityProfil
 
 const BACKGROUND_ACTIVITY_PROFILE_DESCRIPTIONS: Record<BackgroundActivityProfile, string> = {
   balanced: uiText("Pauses probes for idle clients, locked hosts, or low power mode."),
-  performance: uiText("Allows scoped background probes while any subscribed client remains connected."),
+  performance: uiText(
+    "Allows scoped background probes while any subscribed client remains connected.",
+  ),
   "battery-saver": uiText("Also pauses background probes when the host or client is on battery."),
 };
 
@@ -126,7 +128,8 @@ function BackgroundActivityAdvancedDialog({
         <DialogHeader>
           <DialogTitle>{uiText("Background Activity")}</DialogTitle>
           <DialogDescription>
-            {uiText("Tune the shared power policy and the background intervals that feed it.")}</DialogDescription>
+            {uiText("Tune the shared power policy and the background intervals that feed it.")}
+          </DialogDescription>
         </DialogHeader>
         <DialogPanel>
           <fieldset
@@ -137,7 +140,10 @@ function BackgroundActivityAdvancedDialog({
               <div className="min-w-0 space-y-1">
                 <div className="text-sm font-medium">{uiText("Shared policy")}</div>
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  {uiText("Controls whether background work may run after a subscribed interval fires.")}</p>
+                  {uiText(
+                    "Controls whether background work may run after a subscribed interval fires.",
+                  )}
+                </p>
               </div>
               <Select
                 value={activeProfile}
@@ -180,7 +186,8 @@ function BackgroundActivityAdvancedDialog({
                   {searchableSetting("git-fetch-interval").title}
                 </div>
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  {uiText("Refresh remote branch status in the background.")}</p>
+                  {uiText("Refresh remote branch status in the background.")}
+                </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <NumberField
@@ -217,7 +224,10 @@ function BackgroundActivityAdvancedDialog({
               <div className="min-w-0 space-y-1">
                 <div className="text-sm font-medium">{uiText("Provider health interval")}</div>
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  {uiText("Refresh provider availability, versions, and auth state. Model catalog updates follow Provider update checks.")}</p>
+                  {uiText(
+                    "Refresh provider availability, versions, and auth state. Model catalog updates follow Provider update checks.",
+                  )}
+                </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <NumberField
@@ -241,9 +251,13 @@ function BackgroundActivityAdvancedDialog({
                   }
                 >
                   <NumberFieldGroup>
-                    <NumberFieldDecrement aria-label={uiText("Decrease provider health interval")} />
+                    <NumberFieldDecrement
+                      aria-label={uiText("Decrease provider health interval")}
+                    />
                     <NumberFieldInput aria-label={uiText("Provider health interval in seconds")} />
-                    <NumberFieldIncrement aria-label={uiText("Increase provider health interval")} />
+                    <NumberFieldIncrement
+                      aria-label={uiText("Increase provider health interval")}
+                    />
                   </NumberFieldGroup>
                 </NumberField>
                 <span className="text-xs text-muted-foreground">{uiText("seconds")}</span>
@@ -254,7 +268,8 @@ function BackgroundActivityAdvancedDialog({
               <div className="min-w-0 space-y-1">
                 <div className="text-sm font-medium">{uiText("Host power monitor")}</div>
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  {uiText("Poll host power state while clients are active.")}</p>
+                  {uiText("Poll host power state while clients are active.")}
+                </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <NumberField
@@ -278,9 +293,15 @@ function BackgroundActivityAdvancedDialog({
                   }
                 >
                   <NumberFieldGroup>
-                    <NumberFieldDecrement aria-label={uiText("Decrease active host power interval")} />
-                    <NumberFieldInput aria-label={uiText("Active host power interval in seconds")} />
-                    <NumberFieldIncrement aria-label={uiText("Increase active host power interval")} />
+                    <NumberFieldDecrement
+                      aria-label={uiText("Decrease active host power interval")}
+                    />
+                    <NumberFieldInput
+                      aria-label={uiText("Active host power interval in seconds")}
+                    />
+                    <NumberFieldIncrement
+                      aria-label={uiText("Increase active host power interval")}
+                    />
                   </NumberFieldGroup>
                 </NumberField>
                 <span className="text-xs text-muted-foreground">{uiText("seconds")}</span>
@@ -291,7 +312,8 @@ function BackgroundActivityAdvancedDialog({
               <div className="min-w-0 space-y-1">
                 <div className="text-sm font-medium">{uiText("Idle host monitor")}</div>
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  {uiText("Poll host power state when no foreground client is active.")}</p>
+                  {uiText("Poll host power state when no foreground client is active.")}
+                </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <NumberField
@@ -315,9 +337,13 @@ function BackgroundActivityAdvancedDialog({
                   }
                 >
                   <NumberFieldGroup>
-                    <NumberFieldDecrement aria-label={uiText("Decrease idle host power interval")} />
+                    <NumberFieldDecrement
+                      aria-label={uiText("Decrease idle host power interval")}
+                    />
                     <NumberFieldInput aria-label={uiText("Idle host power interval in seconds")} />
-                    <NumberFieldIncrement aria-label={uiText("Increase idle host power interval")} />
+                    <NumberFieldIncrement
+                      aria-label={uiText("Increase idle host power interval")}
+                    />
                   </NumberFieldGroup>
                 </NumberField>
                 <span className="text-xs text-muted-foreground">{uiText("seconds")}</span>
@@ -357,7 +383,8 @@ function BackgroundActivityAdvancedDialog({
             disabled={!canWriteSettings}
             onClick={() => updateSettings(resetBackgroundActivitySettings())}
           >
-            {uiText("Reset all")}</Button>
+            {uiText("Reset all")}
+          </Button>
           <Button onClick={() => onOpenChange(false)}>{uiText("Done")}</Button>
         </DialogFooter>
       </DialogPopup>
@@ -396,7 +423,10 @@ export function BackgroundActivitySettingsRow() {
         <span className="inline-flex items-center gap-1.5">
           {searchableSetting("background-activity").title}
           <PolicyTooltip>
-            {uiText("This shared policy gates background work such as Git refreshes and provider health probes after their individual intervals elapse.")}</PolicyTooltip>
+            {uiText(
+              "This shared policy gates background work such as Git refreshes and provider health probes after their individual intervals elapse.",
+            )}
+          </PolicyTooltip>
         </span>
       }
       description={backgroundActivityDescription}
@@ -429,7 +459,9 @@ export function BackgroundActivitySettingsRow() {
             >
               <SelectValue>
                 {(value: BackgroundActivityProfileOption | null) =>
-                  value === null ? uiText("Mixed") : BACKGROUND_ACTIVITY_PROFILE_OPTION_LABELS[value]
+                  value === null
+                    ? uiText("Mixed")
+                    : BACKGROUND_ACTIVITY_PROFILE_OPTION_LABELS[value]
                 }
               </SelectValue>
             </SelectTrigger>
@@ -446,7 +478,9 @@ export function BackgroundActivitySettingsRow() {
               <SelectItem hideIndicator value="advanced" disabled={!isEnvironmentScope}>
                 {isEnvironmentScope
                   ? BACKGROUND_ACTIVITY_PROFILE_OPTION_LABELS.advanced
-                  : uiText("{0} (one environment)", {"0": BACKGROUND_ACTIVITY_PROFILE_OPTION_LABELS.advanced})}
+                  : uiText("{0} (one environment)", {
+                      "0": BACKGROUND_ACTIVITY_PROFILE_OPTION_LABELS.advanced,
+                    })}
               </SelectItem>
             </SelectPopup>
           </Select>

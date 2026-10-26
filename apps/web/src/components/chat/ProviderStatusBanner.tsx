@@ -70,7 +70,9 @@ export function getProviderStatusMessage(status: ServerProvider): string {
   if (status.message) return status.message;
   const providerName = status.displayName?.trim() || formatProviderDriverKindLabel(status.driver);
   if (!status.installed && hasProviderSetup(status)) {
-    return uiText("Open provider setup to install {0} on this environment.", {"0": formatProviderDriverKindLabel(status.driver)});
+    return uiText("Open provider setup to install {0} on this environment.", {
+      "0": formatProviderDriverKindLabel(status.driver),
+    });
   }
   if (status.auth.status === "unauthenticated") {
     if (hasProviderSetup(status)) {
@@ -131,12 +133,16 @@ export const ProviderStatusBanner = memo(function ProviderStatusBanner({
           </Tooltip>
           {onOpenProviderSetup && hasProviderSetup(status) ? (
             <InlineButton onClick={() => onOpenProviderSetup(status.instanceId)}>
-              {uiText("Open provider setup")}</InlineButton>
+              {uiText("Open provider setup")}
+            </InlineButton>
           ) : null}
         </AlertDescription>
         <AlertAction>
           <Button
-            aria-label={uiText("Dismiss {0} provider {1}", {"0": providerName, "1": status.status})}
+            aria-label={uiText("Dismiss {0} provider {1}", {
+              "0": providerName,
+              "1": status.status,
+            })}
             onClick={onDismiss}
             size="icon-xs"
             variant="ghost-muted"

@@ -209,7 +209,8 @@ function PullRequestRowImpl({
                     <span className="sr-only">{uiText("matched in the description")}</span>
                     <SearchIcon aria-hidden className="size-3 shrink-0" />
                     <span aria-hidden className="hidden truncate @xs/pr-row-meta:block">
-                      {uiText("matched in the description")}</span>
+                      {uiText("matched in the description")}
+                    </span>
                   </TooltipTrigger>
                   <TooltipPopup side="top">{uiText("Matched in the description")}</TooltipPopup>
                 </Tooltip>

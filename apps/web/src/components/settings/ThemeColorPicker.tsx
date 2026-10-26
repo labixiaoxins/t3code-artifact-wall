@@ -178,7 +178,7 @@ function ThemeColorPickerPanel({
           onInteractionEnd={flushPendingCommit}
         />
         <ColorHueSlider
-          label={uiText("{0} hue", {"0": label})}
+          label={uiText("{0} hue", { "0": label })}
           value={hsv.h}
           onChange={(h) => commitHsv({ ...hsv, h })}
           onInteractionEnd={flushPendingCommit}
@@ -194,7 +194,7 @@ function ThemeColorPickerPanel({
                 style={{ backgroundColor: currentColor }}
               />
               <input
-                aria-label={uiText("{0} picker hex value", {"0": label})}
+                aria-label={uiText("{0} picker hex value", { "0": label })}
                 className="h-8 min-w-0 flex-1 bg-transparent font-mono text-xs text-foreground outline-none"
                 onBlur={() => {
                   setIsEditingText(false);
@@ -216,7 +216,7 @@ function ThemeColorPickerPanel({
             </span>
             <span className="flex min-w-0 items-center rounded-lg border border-input bg-background px-2 focus-within:border-ring">
               <input
-                aria-label={uiText("{0} picker RGB value", {"0": label})}
+                aria-label={uiText("{0} picker RGB value", { "0": label })}
                 className="h-8 min-w-0 flex-1 bg-transparent font-mono text-xs text-foreground outline-none"
                 onBlur={() => {
                   setIsEditingText(false);
@@ -257,7 +257,7 @@ function ThemeColorPicker({
             <PopoverTrigger
               render={
                 <button
-                  aria-label={uiText("Choose {0} color", {"0": label})}
+                  aria-label={uiText("Choose {0} color", { "0": label })}
                   className="relative flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border border-foreground/30 transition-transform hover:scale-105 focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-ring"
                   onFocus={onInteract}
                   onPointerDown={onInteract}
@@ -272,7 +272,7 @@ function ThemeColorPicker({
             />
           }
         />
-        <TooltipPopup side="top">{uiText("Choose {0} color", {"0": label})}</TooltipPopup>
+        <TooltipPopup side="top">{uiText("Choose {0} color", { "0": label })}</TooltipPopup>
       </Tooltip>
       <PopoverPopup
         align="end"
@@ -323,7 +323,7 @@ export const ThemeColorField = memo(function ThemeColorField({
         <TooltipTrigger
           render={
             <button
-              aria-label={uiText("{0} {1} usage", {"0": selected ? "Hide" : "Show", "1": label})}
+              aria-label={uiText("{0} {1} usage", { "0": selected ? "Hide" : "Show", "1": label })}
               aria-pressed={selected}
               className="flex min-w-0 flex-1 cursor-pointer items-center rounded-md text-left text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
               onClick={() => onToggleSelected?.(role)}
@@ -333,7 +333,9 @@ export const ThemeColorField = memo(function ThemeColorField({
             </button>
           }
         />
-        <TooltipPopup side="top">{uiText("{0} where {1} is used", {"0": selected ? "Hide" : "Show", "1": label})}</TooltipPopup>
+        <TooltipPopup side="top">
+          {uiText("{0} where {1} is used", { "0": selected ? "Hide" : "Show", "1": label })}
+        </TooltipPopup>
       </Tooltip>
       <div className="ml-auto flex shrink-0 items-center gap-2">
         <ThemeColorPicker
@@ -344,7 +346,7 @@ export const ThemeColorField = memo(function ThemeColorField({
         />
         <Input
           aria-invalid={!isColorValue}
-          aria-label={uiText("{0} hex value", {"0": label})}
+          aria-label={uiText("{0} hex value", { "0": label })}
           className="w-28 shrink-0"
           font="mono"
           id={`${role}-hex`}

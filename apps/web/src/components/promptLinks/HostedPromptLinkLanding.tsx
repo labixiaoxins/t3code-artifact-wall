@@ -138,7 +138,9 @@ function HostedPromptLinkLanding({
       />
       {prompt !== null && prompt.hiddenCharacters > 0 ? (
         <Alert className={"mt-5"} variant={"error"}>
-          <AlertTitle>{uiText("This prompt had hidden characters, it may be malicious")}</AlertTitle>
+          <AlertTitle>
+            {uiText("This prompt had hidden characters, it may be malicious")}
+          </AlertTitle>
           <AlertDescription>
             {uiText("T3 Code removed")}
             {prompt.hiddenCharacters}

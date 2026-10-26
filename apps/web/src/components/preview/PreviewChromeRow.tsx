@@ -277,7 +277,9 @@ export function PreviewChromeRow({
                   size="icon-xs"
                   onClick={onPictureInPicture}
                   aria-label={
-                    pictureInPicture ? uiText("Close floating preview") : uiText("Float preview over chat")
+                    pictureInPicture
+                      ? uiText("Close floating preview")
+                      : uiText("Float preview over chat")
                   }
                   aria-pressed={pictureInPicture ? "true" : "false"}
                   type="button"
@@ -288,7 +290,9 @@ export function PreviewChromeRow({
               <PictureInPicture2 className={cn(pictureInPicture && "text-primary")} />
             </TooltipTrigger>
             <TooltipPopup>
-              {pictureInPicture ? uiText("Close floating preview") : uiText("Float preview over chat")}
+              {pictureInPicture
+                ? uiText("Close floating preview")
+                : uiText("Float preview over chat")}
             </TooltipPopup>
           </Tooltip>
         ) : null}

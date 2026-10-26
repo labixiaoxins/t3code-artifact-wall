@@ -60,7 +60,8 @@ export {
   workEntryIndicatesToolFailure,
 } from "@t3tools/client-runtime/work-log/presentation";
 
-export type WorkLogToolLifecycleStatus = "idle"
+export type WorkLogToolLifecycleStatus =
+  | "idle"
   | "inProgress"
   | "completed"
   | "failed"
@@ -124,7 +125,8 @@ export type TimelineAttempt = Pick<
   "id" | "runId" | "attemptOrdinal" | "rootNodeId" | "status" | "completedAt"
 >;
 
-export type TimelineEntry = ( {
+export type TimelineEntry = (
+  | {
       readonly id: string;
       readonly kind: "message";
       readonly createdAt: string;
@@ -212,7 +214,7 @@ export function workEntryIndicatesToolNeutralStatus(entry: WorkLogEntry): boolea
 
 export function isLatestRunSettled(
   latestRun: Pick<ThreadRunSummary, "runId" | "startedAt" | "completedAt" | "status"> | null,
-  runtime: Pick<ThreadRuntimeSummary, "status" | "activeRunId"> | null
+  runtime: Pick<ThreadRuntimeSummary, "status" | "activeRunId"> | null,
 ): boolean {
   if (latestRun === null) return false;
   if (
@@ -232,34 +234,34 @@ export function deriveActiveWorkStartedAt(
     "runId" | "startedAt" | "requestedAt" | "completedAt" | "status"
   > | null,
   runtime: Pick<ThreadRuntimeSummary, "status" | "activeRunId" | "activityStartedAt"> | null,
-  sendStartedAt: string | null
+  sendStartedAt: string | null,
 ): string | null {
   const startedAt = resolveThreadWorkingStartedAt({ latestRun, runtime });
   return startedAt ?? (runtime?.activeRunId == null ? sendStartedAt : null);
 }
 
 export function derivePendingApprovals(
-  approvals: ReadonlyArray<ThreadPendingApproval>
+  approvals: ReadonlyArray<ThreadPendingApproval>,
 ): ThreadPendingApproval[] {
   return [...approvals].toSorted((left, right) => left.createdAt.localeCompare(right.createdAt));
 }
 
 export function derivePendingUserInputs(
-  inputs: ReadonlyArray<ThreadPendingUserInput>
+  inputs: ReadonlyArray<ThreadPendingUserInput>,
 ): ThreadPendingUserInput[] {
   return [...inputs].toSorted((left, right) => left.createdAt.localeCompare(right.createdAt));
 }
 
 export function deriveActivePlanState(
   projection: ThreadStructure | null,
-  latestRunId: RunId | undefined
+  latestRunId: RunId | undefined,
 ): ActivePlanState | null {
   if (projection === null) return null;
   const plans = projection.plans
     .filter((plan) => plan.kind === "todo_list")
     .filter((plan) => plan.status !== "superseded");
   const runOrdinals = new Map<RunId | null, number>(
-    projection.runs.map((run) => [run.id, run.ordinal])
+    projection.runs.map((run) => [run.id, run.ordinal]),
   );
   const plan =
     plans.findLast((candidate) => candidate.runId === latestRunId) ??
@@ -269,7 +271,7 @@ export function deriveActivePlanState(
         (runOrdinals.get(candidate.runId) ?? -1) >= (runOrdinals.get(latest.runId) ?? -1)
           ? candidate
           : latest,
-      null
+      null,
     );
   if (plan === null || plan.steps.length === 0) return null;
   return {
@@ -289,17 +291,17 @@ export function selectComposerTasksPlan(
   projection: ThreadStructure | null,
   plan: ActivePlanState | null,
   activeRunId: RunId | null,
-  activeRunSettled: boolean
+  activeRunSettled: boolean,
 ): ActivePlanState | null {
   if (projection === null || plan === null) return null;
   if (activeRunId !== null && !activeRunSettled && plan.runId === activeRunId) return plan;
   if (plan.steps.every((step) => step.status === "completed")) return null;
   const planProviderThreadId = projection.runs.find(
-    (run) => run.id === plan.runId
+    (run) => run.id === plan.runId,
   )?.providerThreadId;
   if (planProviderThreadId === undefined || planProviderThreadId === null) return null;
   const planDriver = projection.providerThreads.find(
-    (providerThread) => providerThread.id === planProviderThreadId
+    (providerThread) => providerThread.id === planProviderThreadId,
   )?.driver;
   if (planDriver !== "claudeAgent") return null;
   let latestStartedRun: OrchestrationV2ThreadProjection["runs"][number] | null = null;
@@ -317,12 +319,12 @@ export function selectComposerTasksPlan(
 
 function planItemTime(
   projection: ThreadStructure,
-  plan: Pick<OrchestrationV2PlanArtifact, "id" | "runId">
+  plan: Pick<OrchestrationV2PlanArtifact, "id" | "runId">,
 ): string {
   const item = projection.turnItems.findLast(
     (candidate) =>
       (candidate.type === "proposed_plan" || candidate.type === "todo_list") &&
-      candidate.planId === plan.id
+      candidate.planId === plan.id,
   );
   if (item?.type === "proposed_plan" || item?.type === "todo_list") {
     return DateTime.formatIso(item.updatedAt);
@@ -330,13 +332,13 @@ function planItemTime(
   // Without a plan item, the plan's run dates it; the thread's own timestamps move while a reply streams.
   const run = projection.runs.find((candidate) => candidate.id === plan.runId);
   return DateTime.formatIso(
-    run?.completedAt ?? run?.startedAt ?? run?.requestedAt ?? projection.thread.createdAt
+    run?.completedAt ?? run?.startedAt ?? run?.requestedAt ?? projection.thread.createdAt,
   );
 }
 
 function toLatestProposedPlanState(
   projection: ThreadStructure,
-  plan: Extract<OrchestrationV2PlanArtifact, { readonly kind: "proposed_plan"; }>
+  plan: Extract<OrchestrationV2PlanArtifact, { readonly kind: "proposed_plan" }>,
 ): LatestProposedPlanState {
   const updatedAt = planItemTime(projection, plan);
   return {
@@ -351,7 +353,7 @@ function toLatestProposedPlanState(
 
 export function findLatestProposedPlan(
   projection: ThreadStructure | null,
-  latestRunId: RunId | string | null | undefined
+  latestRunId: RunId | string | null | undefined,
 ): LatestProposedPlanState | null {
   if (projection === null) return null;
   const plans = projection.plans.filter((plan) => plan.kind === "proposed_plan");
@@ -360,7 +362,7 @@ export function findLatestProposedPlan(
     .toSorted(
       (left, right) =>
         planItemTime(projection, left).localeCompare(planItemTime(projection, right)) ||
-        left.id.localeCompare(right.id)
+        left.id.localeCompare(right.id),
     )
     .at(-1);
   return plan === undefined ? null : toLatestProposedPlanState(projection, plan);
@@ -397,7 +399,7 @@ function projectedItemCreatedAt(row: OrchestrationV2ProjectedTurnItem): string {
 }
 
 function projectedWorkEntryStatus(
-  item: OrchestrationV2TurnItem
+  item: OrchestrationV2TurnItem,
 ): NonNullable<WorkLogEntry["toolLifecycleStatus"]> {
   switch (item.status) {
     case "pending":
@@ -436,8 +438,8 @@ function projectedWorkEntryTone(item: OrchestrationV2TurnItem): WorkLogEntry["to
 }
 
 export function providerErrorPresentation(
-  item: Extract<OrchestrationV2TurnItem, { readonly type: "error"; }>
-): { readonly label: string; readonly detail: string; } {
+  item: Extract<OrchestrationV2TurnItem, { readonly type: "error" }>,
+): { readonly label: string; readonly detail: string } {
   if (item.retry === undefined) {
     return {
       label:
@@ -631,12 +633,12 @@ export interface TimelineEntriesProjection {
 }
 
 export function deriveTimelineEntriesFromVisibleTurnItems(
-  input: TimelineEntriesInput
+  input: TimelineEntriesInput,
 ): TimelineEntry[] {
   const committedMessageIds = new Set<string>();
   const entries: TimelineEntry[] = [];
   const attemptByRootNodeId = new Map(
-    (input.attempts ?? []).map((attempt) => [attempt.rootNodeId, attempt] as const)
+    (input.attempts ?? []).map((attempt) => [attempt.rootNodeId, attempt] as const),
   );
   const nodeById = new Map((input.nodes ?? []).map((node) => [node.id, node] as const));
   const planById = new Map((input.plans ?? []).map((plan) => [plan.id, plan] as const));
@@ -662,8 +664,8 @@ export function deriveTimelineEntriesFromVisibleTurnItems(
     input.visibleTurnItems.flatMap(({ item }) =>
       item.type === "user_input_request" && item.questionAnswer
         ? [`async-answer:${item.questionAnswer.requestId}`]
-        : []
-    )
+        : [],
+    ),
   );
   for (const row of input.visibleTurnItems) {
     const { item } = row;
@@ -820,7 +822,7 @@ export function deriveTimelineEntriesFromVisibleTurnItems(
       message,
     };
     const insertionIndex = entries.findIndex(
-      (candidate) => candidate.createdAt > message.createdAt
+      (candidate) => candidate.createdAt > message.createdAt,
     );
     if (insertionIndex === -1) {
       entries.push(entry);
@@ -844,11 +846,11 @@ export function deriveTimelineEntriesFromVisibleTurnItems(
   return entries;
 }
 
-type AttachmentResource = Extract<AssetResource, { readonly _tag: "attachment"; }>;
+type AttachmentResource = Extract<AssetResource, { readonly _tag: "attachment" }>;
 const EMPTY_IMAGE_RESOURCES = Object.freeze<ReadonlyArray<AttachmentResource>>([]);
 
 export function selectMessageImageResources(
-  attachments: ChatMessage["attachments"]
+  attachments: ChatMessage["attachments"],
 ): ReadonlyArray<AttachmentResource> {
   const attachmentIds = new Set<string>();
   for (const attachment of attachments ?? []) {
@@ -864,7 +866,7 @@ export function selectMessageImageResources(
 
 export function selectHandoffImageResources(
   messages: ReadonlyArray<Pick<ChatMessage, "id" | "role" | "attachments">> | undefined,
-  handoffs: Readonly<Record<string, ReadonlyArray<string>>>
+  handoffs: Readonly<Record<string, ReadonlyArray<string>>>,
 ): ReadonlyArray<AttachmentResource> {
   if (Object.keys(handoffs).length === 0) return EMPTY_IMAGE_RESOURCES;
   const attachmentIds = new Set<string>();
@@ -887,7 +889,7 @@ export function createMessageAttachmentPreviewProjector() {
   const messagesBySource = new WeakMap<ChatMessage, ChatMessage>();
   return (
     message: ChatMessage,
-    previewUrlFor: (attachment: ChatAttachment) => string | undefined
+    previewUrlFor: (attachment: ChatAttachment) => string | undefined,
   ): ChatMessage => {
     const source = message.attachments;
     if (!source || source.length === 0) return message;
@@ -942,7 +944,7 @@ export function isStreamingMessageTextUpdate(previous: ChatMessage, next: ChatMe
 
 export function isStreamingTurnItemTextUpdate(
   previous: OrchestrationV2ProjectedTurnItem,
-  next: OrchestrationV2ProjectedTurnItem
+  next: OrchestrationV2ProjectedTurnItem,
 ): boolean {
   const { item: previousItem, ...previousSource } = previous;
   const { item: nextItem, ...nextSource } = next;
@@ -965,7 +967,7 @@ export function isStreamingTurnItemTextUpdate(
 
 function reuseTimelineEntries(
   input: TimelineEntriesInput,
-  previous: TimelineEntriesProjection
+  previous: TimelineEntriesProjection,
 ): TimelineEntry[] | null {
   const before = previous.input;
   if (
@@ -996,7 +998,7 @@ function reuseTimelineEntries(
       .some(
         ({ item }) =>
           (item.type === "user_input_request" && item.questionAnswer !== undefined) ||
-          (item.type === "user_message" && item.messageId.startsWith("async-answer:"))
+          (item.type === "user_message" && item.messageId.startsWith("async-answer:")),
       )
   )
     return null;
@@ -1032,7 +1034,7 @@ function reuseTimelineEntries(
       ...deriveTimelineEntriesFromVisibleTurnItems({
         ...input,
         visibleTurnItems: input.visibleTurnItems.slice(before.visibleTurnItems.length),
-      })
+      }),
     );
   }
   return entries;
@@ -1040,7 +1042,7 @@ function reuseTimelineEntries(
 
 export function deriveTimelineEntriesFromVisibleTurnItemsWithState(
   input: TimelineEntriesInput,
-  previous: TimelineEntriesProjection | null = null
+  previous: TimelineEntriesProjection | null = null,
 ): TimelineEntriesProjection {
   const reused = previous === null ? null : reuseTimelineEntries(input, previous);
   if (reused !== null) return { input, entries: reused };
@@ -1050,8 +1052,8 @@ export function deriveTimelineEntriesFromVisibleTurnItemsWithState(
   }
   const previousMessages = new Map(
     previous.entries.flatMap((entry) =>
-      entry.kind === "message" ? [[entry.id, entry] as const] : []
-    )
+      entry.kind === "message" ? [[entry.id, entry] as const] : [],
+    ),
   );
   return {
     input,
@@ -1101,7 +1103,7 @@ export function deriveRevertTurnCountByUserMessageId(input: {
           ? input.threadStartCheckpointReady
             ? 0
             : undefined
-          : readyTurnCountByRunId.get(previousRunId)
+          : readyTurnCountByRunId.get(previousRunId),
       );
       previousRunId = runId;
     }
@@ -1121,14 +1123,14 @@ export function deriveRevertTurnCountByUserMessageId(input: {
 
 export function findRevertCheckpoint(
   checkpoints: ReadonlyArray<OrchestrationV2Checkpoint>,
-  turnCount: number
+  turnCount: number,
 ): OrchestrationV2Checkpoint | undefined {
   return checkpoints.findLast(
     (checkpoint) =>
       checkpoint.status === "ready" &&
       (turnCount === 0
         ? checkpoint.ordinalWithinScope === 0 && checkpoint.appRunOrdinal === null
-        : checkpoint.appRunOrdinal === turnCount)
+        : checkpoint.appRunOrdinal === turnCount),
   );
 }
 
@@ -1150,7 +1152,7 @@ export function derivePhase(runtime: ThreadStructureRuntime | null): SessionPhas
  */
 export function deriveCanInterruptRunningThread(
   hasActiveThread: boolean,
-  runtime: ThreadStructureRuntime | null
+  runtime: ThreadStructureRuntime | null,
 ): boolean {
   return (
     hasActiveThread &&

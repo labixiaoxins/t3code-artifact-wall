@@ -369,21 +369,25 @@ export function WorktreeSetupCard({
           onClick={() => setDetailsOpen((open) => !open)}
         >
           <MorphIcon aria-hidden icon={detailsOpen ? ChevronDown : ChevronRight} />
-          {uiText("Details") + " "}</Button>
+          {uiText("Details") + " "}
+        </Button>
         {showTerminal ? (
           <Button type="button" size="xs" variant="ghost-muted" onClick={onOpenTerminal}>
             <TerminalIcon aria-hidden />
-            {uiText("Open terminal") + " "}</Button>
+            {uiText("Open terminal") + " "}
+          </Button>
         ) : null}
         {onWorkLocally ? (
           <Button type="button" size="xs" variant="ghost-muted" onClick={onWorkLocally}>
             <LaptopIcon aria-hidden />
-            {uiText("Work locally") + " "}</Button>
+            {uiText("Work locally") + " "}
+          </Button>
         ) : null}
         {onCancel && running ? (
           <Button type="button" size="xs" variant="ghost-muted" onClick={onCancel}>
             <XIcon aria-hidden />
-            {uiText("Cancel") + " "}</Button>
+            {uiText("Cancel") + " "}
+          </Button>
         ) : null}
       </div>
       {detailsOpen ? <SetupDetails snapshot={snapshot} /> : null}

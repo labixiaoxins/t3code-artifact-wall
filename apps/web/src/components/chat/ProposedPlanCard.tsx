@@ -185,7 +185,8 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
               onClick={openSaveDialog}
               disabled={!canWriteFiles || !workspaceRoot || isSavingToWorkspace}
             >
-              {uiText("Save to workspace")}</MenuItem>
+              {uiText("Save to workspace")}
+            </MenuItem>
           </MenuPopup>
         </Menu>
       </div>
@@ -282,7 +283,8 @@ function SavePlanToWorkspaceForm({
       <DialogHeader>
         <DialogTitle>{uiText("Save plan to workspace")}</DialogTitle>
         <DialogDescription>
-          {uiText("Enter a path relative to") + " "}<code>{workspaceRoot ?? uiText("the workspace")}</code>.
+          {uiText("Enter a path relative to") + " "}
+          <code>{workspaceRoot ?? uiText("the workspace")}</code>.
         </DialogDescription>
       </DialogHeader>
       <DialogPanel>
@@ -300,7 +302,8 @@ function SavePlanToWorkspaceForm({
       </DialogPanel>
       <DialogFooter>
         <Button variant="outline" size="sm" onClick={onCancel} disabled={saving}>
-          {uiText("Cancel")}</Button>
+          {uiText("Cancel")}
+        </Button>
         <Button size="sm" onClick={() => onSave(savePath)} disabled={!canWriteFiles || saving}>
           {saving ? uiText("Saving...") : uiText("Save")}
         </Button>

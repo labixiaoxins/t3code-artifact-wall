@@ -96,10 +96,15 @@ function UpdateEverythingDialogContent({
         {running > 0 ? (
           <p className="pt-2 text-sm">
             {stopped === 0
-              ? uiText("{0} will be interrupted and can resume after the restart.", {"0": threads})
+              ? uiText("{0} will be interrupted and can resume after the restart.", {
+                  "0": threads,
+                })
               : continuing === 0
-                ? uiText("{0} will be interrupted.", {"0": threads})
-                : uiText("{0} will be interrupted. {1} can resume after the restart.", {"0": threads, "1": continuing})}
+                ? uiText("{0} will be interrupted.", { "0": threads })
+                : uiText("{0} will be interrupted. {1} can resume after the restart.", {
+                    "0": threads,
+                    "1": continuing,
+                  })}
           </p>
         ) : null}
         {skipped.length > 0 ? (
@@ -109,7 +114,9 @@ function UpdateEverythingDialogContent({
         ) : null}
       </AlertDialogHeader>
       <AlertDialogFooter>
-        <AlertDialogClose render={<Button variant="outline" />}>{uiText("Cancel")}</AlertDialogClose>
+        <AlertDialogClose render={<Button variant="outline" />}>
+          {uiText("Cancel")}
+        </AlertDialogClose>
         <Button onClick={onConfirm}>{uiText("Update")}</Button>
       </AlertDialogFooter>
     </>

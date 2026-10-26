@@ -108,7 +108,9 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
           </TooltipTrigger>
           <TooltipPopup side={"bottom"}>
             {terminalAvailable
-              ? uiText("Toggle terminal drawer{0}", {"0": terminalShortcutLabel ? ` (${terminalShortcutLabel})` : ""})
+              ? uiText("Toggle terminal drawer{0}", {
+                  "0": terminalShortcutLabel ? ` (${terminalShortcutLabel})` : "",
+                })
               : uiText("Terminal drawer is unavailable")}
           </TooltipPopup>
         </Tooltip>
@@ -131,7 +133,9 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
           </TooltipTrigger>
           <TooltipPopup side={"bottom"}>
             {rightPanelAvailable
-              ? uiText("Toggle right panel{0}", {"0": rightPanelShortcutLabel ? ` (${rightPanelShortcutLabel})` : ""})
+              ? uiText("Toggle right panel{0}", {
+                  "0": rightPanelShortcutLabel ? ` (${rightPanelShortcutLabel})` : "",
+                })
               : rightPanelUnavailableLabel}
           </TooltipPopup>
         </Tooltip>

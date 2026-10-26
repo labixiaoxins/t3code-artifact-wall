@@ -1,4 +1,8 @@
-import { filterKeybindingRows, buildKeybindingCommandOptions, commandLabel } from "./KeybindingsSettings.logic";
+import {
+  filterKeybindingRows,
+  buildKeybindingCommandOptions,
+  commandLabel,
+} from "./KeybindingsSettings.logic";
 import { DEFAULT_RESOLVED_KEYBINDINGS } from "@t3tools/shared/keybindings";
 import { assert, describe, expect, it } from "vite-plus/test";
 import type { ResolvedKeybindingsConfig } from "@t3tools/contracts";
@@ -32,10 +36,10 @@ describe("KeybindingsSettings.logic", () => {
     ]);
 
     expect(after.filter((row) => row.command === "terminal.toggle").map((row) => row.id)).toEqual(
-      before.filter((row) => row.command === "terminal.toggle").map((row) => row.id)
+      before.filter((row) => row.command === "terminal.toggle").map((row) => row.id),
     );
     expect(after.find((row) => row.command === "chat.new")?.id).not.toBe(
-      before.find((row) => row.command === "chat.new")?.id
+      before.find((row) => row.command === "chat.new")?.id,
     );
   });
 
@@ -57,7 +61,7 @@ describe("KeybindingsSettings.logic", () => {
     expect(new Set(rows.map((row) => row.id)).size).toBe(4);
     expect(rows.find((row) => row.command === "chat.new")?.conflicts).toEqual(["Terminal: Toggle"]);
     expect(buildKeybindingRows(bindings.slice(1)).map((row) => row.id)).toEqual(
-      rows.map((row) => row.id)
+      rows.map((row) => row.id),
     );
   });
 
@@ -65,14 +69,14 @@ describe("KeybindingsSettings.logic", () => {
     expect(
       keybindingFromKeyboardEvent(
         { key: "K", code: "KeyK", metaKey: true, ctrlKey: false, altKey: false, shiftKey: true },
-        "MacIntel"
-      )
+        "MacIntel",
+      ),
     ).toBe("mod+shift+k");
     expect(
       keybindingFromKeyboardEvent(
         { key: "K", code: "KeyK", metaKey: false, ctrlKey: true, altKey: false, shiftKey: true },
-        "Win32"
-      )
+        "Win32",
+      ),
     ).toBe("mod+shift+k");
   });
 
@@ -87,8 +91,8 @@ describe("KeybindingsSettings.logic", () => {
           altKey: false,
           shiftKey: false,
         },
-        "MacIntel"
-      )
+        "MacIntel",
+      ),
     ).toBeNull();
   });
 
@@ -107,8 +111,8 @@ describe("KeybindingsSettings.logic", () => {
           altKey: false,
           shiftKey: true,
         },
-        "MacIntel"
-      )
+        "MacIntel",
+      ),
     ).toBe(expected);
   });
 
@@ -148,7 +152,7 @@ describe("KeybindingsSettings.logic", () => {
       expect(
         resolveShortcutCommand(pressed, [{ command: "chat.new", shortcut }], {
           platform: "MacIntel",
-        })
+        }),
       ).toBe("chat.new");
     }
   });
@@ -164,8 +168,8 @@ describe("KeybindingsSettings.logic", () => {
           altKey: false,
           shiftKey: false,
         },
-        "MacIntel"
-      )
+        "MacIntel",
+      ),
     ).toBe("mod+m");
   });
 
@@ -178,7 +182,7 @@ describe("KeybindingsSettings.logic", () => {
         ctrlKey: false,
         altKey: true,
         shiftKey: false,
-      })
+      }),
     ).toBe("mod+alt+space");
 
     expect(
@@ -189,7 +193,7 @@ describe("KeybindingsSettings.logic", () => {
           type: "not",
           node: { type: "identifier", name: "terminalFocus" },
         },
-      })
+      }),
     ).toBe("editorFocus && !terminalFocus");
 
     expect(parseWhenExpressionDraft("editorFocus && (!terminalFocus || modelPickerOpen)")).toEqual({
@@ -265,12 +269,14 @@ describe("KeybindingsSettings.logic", () => {
         rowId: rows[0]?.id ?? "",
         key: "mod+n",
         when: "",
-      })
+      }),
     ).toEqual(["Chat: New Local"]);
   });
 
-it("exposes inbox.next as a searchable editable command without shortcut conflicts", () => {
-    expect(filterKeybindingRows(buildKeybindingRows(DEFAULT_RESOLVED_KEYBINDINGS), "待我处理")).toContainEqual(
+  it("exposes inbox.next as a searchable editable command without shortcut conflicts", () => {
+    expect(
+      filterKeybindingRows(buildKeybindingRows(DEFAULT_RESOLVED_KEYBINDINGS), "待我处理"),
+    ).toContainEqual(
       expect.objectContaining({
         command: "inbox.next",
         key: "mod+shift+i",

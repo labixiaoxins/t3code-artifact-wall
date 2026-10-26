@@ -56,7 +56,8 @@ export function PullRequestCopyableCode({
             isCopied ? "opacity-100" : "opacity-0",
           )}
         >
-          {uiText("Copied")}</span>
+          {uiText("Copied")}
+        </span>
       </TooltipTrigger>
       <TooltipPopup variant="code" side={tooltipSide}>
         {`${isCopied ? "Copied" : copyLabel}: ${value}`}

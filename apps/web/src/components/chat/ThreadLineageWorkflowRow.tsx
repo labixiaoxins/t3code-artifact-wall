@@ -74,7 +74,7 @@ function WorkflowMemberRow({
           render={
             <ThreadDetailsControl
               part="row"
-              aria-label={uiText("Open {0} chat", {"0": member.title})}
+              aria-label={uiText("Open {0} chat", { "0": member.title })}
               disabled={!canOpen}
               onClick={() => canOpen && onOpen(threadId)}
             />
@@ -152,7 +152,7 @@ export function ThreadLineageWorkflowRow({
                     variant="ghost"
                     part="icon"
                     tone="destructive"
-                    aria-label={uiText("Stop workflow {0}", {"0": label})}
+                    aria-label={uiText("Stop workflow {0}", { "0": label })}
                     disabled={stopDisabled}
                     onClick={onStop}
                   />
@@ -197,7 +197,11 @@ export function ThreadLineageWorkflowRow({
                   variant="panel"
                   tone={phase.state === "running" ? "emphasized" : "muted"}
                   expanded={open}
-                  aria-label={uiText("{0} {1} phase, {2}", {"0": open ? "Collapse" : "Expand", "1": phase.title, "2": status})}
+                  aria-label={uiText("{0} {1} phase, {2}", {
+                    "0": open ? "Collapse" : "Expand",
+                    "1": phase.title,
+                    "2": status,
+                  })}
                   onClick={() => setPhaseOpen((phases) => new Map(phases).set(phase.index, !open))}
                   accessory={
                     <>
@@ -248,7 +252,9 @@ export function ThreadLineageWorkflowRow({
             />
           ))}
           {phases.length === 0 && group.unphasedMembers.length === 0 ? (
-            <li className="px-2.5 py-1.5 text-2xs text-muted-foreground/70">{uiText("No agents yet")}</li>
+            <li className="px-2.5 py-1.5 text-2xs text-muted-foreground/70">
+              {uiText("No agents yet")}
+            </li>
           ) : null}
         </ul>
       ) : null}

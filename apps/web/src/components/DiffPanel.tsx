@@ -145,7 +145,11 @@ function DiffFileCollapseToggle({
             size={"icon-micro"}
             variant={"ghost"}
             className={"-ms-0.5"}
-            aria-label={collapsed ? uiText("Expand {0}", {"0": filePath}) : uiText("Collapse {0}", {"0": filePath})}
+            aria-label={
+              collapsed
+                ? uiText("Expand {0}", { "0": filePath })
+                : uiText("Collapse {0}", { "0": filePath })
+            }
             aria-expanded={!collapsed}
             disabled={unavailable}
             onClick={(event) => {
@@ -160,7 +164,9 @@ function DiffFileCollapseToggle({
           icon={collapsed ? ChevronRight : ChevronDown}
         />
       </TooltipTrigger>
-      <TooltipPopup side={"top"}>{collapsed ? uiText("Expand diff") : uiText("Collapse diff")}</TooltipPopup>
+      <TooltipPopup side={"top"}>
+        {collapsed ? uiText("Expand diff") : uiText("Collapse diff")}
+      </TooltipPopup>
     </Tooltip>
   );
 }
@@ -673,7 +679,7 @@ export default function DiffPanel({
           <DropdownMenuTrigger
             render={<Button size={"xs"} variant={"secondary"} />}
             className={"max-w-full"}
-            aria-label={uiText("Diff scope: {0}", {"0": selectedScopeLabel})}
+            aria-label={uiText("Diff scope: {0}", { "0": selectedScopeLabel })}
           >
             <span className={"truncate"}>{selectedScopeLabel}</span>
             <ChevronDownIcon className={"size-3.5 shrink-0 opacity-70"} />
@@ -724,7 +730,10 @@ export default function DiffPanel({
             className={
               "flex min-w-0 max-w-full items-center gap-2 overflow-hidden text-xs text-muted-foreground"
             }
-            aria-label={uiText("Comparing {0} against {1}", {"0": selectedGitSource.headRef ?? "HEAD", "1": selectedGitSource.baseRef})}
+            aria-label={uiText("Comparing {0} against {1}", {
+              "0": selectedGitSource.headRef ?? "HEAD",
+              "1": selectedGitSource.baseRef,
+            })}
           >
             {/* The head ref keeps 3rem while the row has room; below that the
                 base-ref button keeps 2.25rem so its menu stays reachable. */}
@@ -762,7 +771,9 @@ export default function DiffPanel({
               <ComboboxTrigger
                 render={<Button variant={"ghost-muted"} size={"xs"} />}
                 className={"min-w-9 max-w-48 shrink"}
-                aria-label={uiText("Change comparison target. Currently {0}", {"0": selectedGitSource.baseRef})}
+                aria-label={uiText("Change comparison target. Currently {0}", {
+                  "0": selectedGitSource.baseRef,
+                })}
               >
                 <span className={"min-w-0 truncate"}>{selectedGitSource.baseRef}</span>
                 <ChevronDownIcon className={"size-3.5 shrink-0 opacity-70"} />
@@ -818,7 +829,9 @@ export default function DiffPanel({
                               onPointerDown={(event) => event.stopPropagation()}
                             >
                               <Switch
-                                aria-label={uiText("Use remote version of {0}", {"0": choice.label})}
+                                aria-label={uiText("Use remote version of {0}", {
+                                  "0": choice.label,
+                                })}
                                 checked={useRemote}
                                 className={"[--thumb-size:--spacing(3)]"}
                                 onCheckedChange={(checked) => {
@@ -892,7 +905,11 @@ export default function DiffPanel({
                   type={"button"}
                   size={"icon-sm"}
                   variant={"ghost"}
-                  aria-label={allDiffFilesCollapsed ? uiText("Expand all files") : uiText("Collapse all files")}
+                  aria-label={
+                    allDiffFilesCollapsed
+                      ? uiText("Expand all files")
+                      : uiText("Collapse all files")
+                  }
                   onClick={toggleDiffFileCollapse}
                 />
               }
@@ -930,7 +947,11 @@ export default function DiffPanel({
           <TooltipTrigger
             render={
               <Toggle
-                aria-label={wordWrap ? uiText("Disable diff line wrapping") : uiText("Enable diff line wrapping")}
+                aria-label={
+                  wordWrap
+                    ? uiText("Disable diff line wrapping")
+                    : uiText("Enable diff line wrapping")
+                }
                 variant={"ghost"}
                 size={"sm"}
                 pressed={wordWrap}
@@ -951,7 +972,9 @@ export default function DiffPanel({
             render={
               <Toggle
                 aria-label={
-                  diffIgnoreWhitespace ? uiText("Show whitespace changes") : uiText("Hide whitespace changes")
+                  diffIgnoreWhitespace
+                    ? uiText("Show whitespace changes")
+                    : uiText("Hide whitespace changes")
                 }
                 variant={"ghost"}
                 size={"sm"}
@@ -965,7 +988,9 @@ export default function DiffPanel({
             <PilcrowIcon className={"size-3.5"} />
           </TooltipTrigger>
           <TooltipPopup side={"top"}>
-            {diffIgnoreWhitespace ? uiText("Show whitespace changes") : uiText("Hide whitespace changes")}
+            {diffIgnoreWhitespace
+              ? uiText("Show whitespace changes")
+              : uiText("Hide whitespace changes")}
           </TooltipPopup>
         </Tooltip>
         {diffFileKeys.length > 0 && (

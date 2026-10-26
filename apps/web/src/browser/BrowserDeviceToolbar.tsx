@@ -34,7 +34,7 @@ const SELECT_ITEMS = [
 ];
 
 interface Props {
-  readonly setting: Exclude<PreviewViewportSetting, { readonly _tag: "fill"; }>;
+  readonly setting: Exclude<PreviewViewportSetting, { readonly _tag: "fill" }>;
   readonly width: number;
   readonly aspectRatio: number | null;
   readonly onAspectRatioChange: (aspectRatio: number | null) => void;
@@ -80,7 +80,7 @@ export function BrowserDeviceToolbar({
         setPending(false);
         setCustomSize(null);
       },
-      () => setPending(false)
+      () => setPending(false),
     );
   };
 
@@ -114,7 +114,7 @@ export function BrowserDeviceToolbar({
           : { x: 0, y: numeric - setting.height },
         1,
         axis === "width" ? "east" : "south",
-        aspectRatio
+        aspectRatio,
       );
       return { width: String(resized.width), height: String(resized.height) };
     });
@@ -131,7 +131,7 @@ export function BrowserDeviceToolbar({
     if (!preset) return;
     apply(
       resolvePreviewViewport({ mode: "preset", preset: preset.id }),
-      aspectRatio === null ? null : preset.width / preset.height
+      aspectRatio === null ? null : preset.width / preset.height,
     );
   };
 
@@ -143,7 +143,7 @@ export function BrowserDeviceToolbar({
       : setting;
     apply(
       { ...source, width: source.height, height: source.width },
-      aspectRatio === null ? null : 1 / aspectRatio
+      aspectRatio === null ? null : 1 / aspectRatio,
     );
   };
 
@@ -175,7 +175,8 @@ export function BrowserDeviceToolbar({
     >
       {width >= 560 ? (
         <span className="mr-0.5 shrink-0 text-2xs font-medium text-muted-foreground">
-          {uiText("Dimensions")}</span>
+          {uiText("Dimensions")}
+        </span>
       ) : null}
       <Select
         modal={false}
@@ -234,7 +235,7 @@ export function BrowserDeviceToolbar({
                 current ?? {
                   width: String(setting.width),
                   height: String(setting.height),
-                }
+                },
             )
           }
           onChange={(event) => updateCustomDimension("width", event.target.value)}
@@ -259,7 +260,7 @@ export function BrowserDeviceToolbar({
                 current ?? {
                   width: String(setting.width),
                   height: String(setting.height),
-                }
+                },
             )
           }
           onChange={(event) => updateCustomDimension("height", event.target.value)}
@@ -277,7 +278,9 @@ export function BrowserDeviceToolbar({
               size="icon-xs"
               type="button"
               aria-label={
-                aspectRatio === null ? uiText("Lock viewport aspect ratio") : uiText("Unlock viewport aspect ratio")
+                aspectRatio === null
+                  ? uiText("Lock viewport aspect ratio")
+                  : uiText("Unlock viewport aspect ratio")
               }
               aria-pressed={aspectRatio !== null}
               disabled={pending || !customValid}

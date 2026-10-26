@@ -253,7 +253,10 @@ function UnknownWhenVariableWarning({
 
   return (
     <WarningTooltipIcon label={label} focusable={focusable} className="size-4.5">
-      {uiText("T3 Code does not recognize this condition yet. It can still be saved, but it may not match unless the runtime provides it.")}</WarningTooltipIcon>
+      {uiText(
+        "T3 Code does not recognize this condition yet. It can still be saved, but it may not match unless the runtime provides it.",
+      )}
+    </WarningTooltipIcon>
   );
 }
 
@@ -266,7 +269,9 @@ function KeybindingConflictWarning({ labels }: { labels: ReadonlyArray<string> }
 
   return (
     <WarningTooltipIcon label={description}>
-      {description} {uiText("The most recent matching binding wins when both conditions can apply.") + " "}</WarningTooltipIcon>
+      {description}{" "}
+      {uiText("The most recent matching binding wins when both conditions can apply.") + " "}
+    </WarningTooltipIcon>
   );
 }
 
@@ -360,12 +365,13 @@ function WhenExpressionNodeEditor({
         <Toggle
           pressed={condition.negated}
           onPressedChange={(pressed) => onChange(setConditionNegated(node, pressed))}
-          aria-label={uiText("Negate {0}", {"0": condition.identifier})}
+          aria-label={uiText("Negate {0}", { "0": condition.identifier })}
           variant="outline"
           size="compact"
           className="min-w-10"
         >
-          {uiText("Not")}</Toggle>
+          {uiText("Not")}
+        </Toggle>
         <WhenVariableSelect
           value={condition.identifier}
           variables={variables}
@@ -399,7 +405,8 @@ function WhenExpressionNodeEditor({
             size="compact"
             className="min-w-10"
           >
-            {uiText("Not")}</Toggle>
+            {uiText("Not")}
+          </Toggle>
           {onRemove ? (
             <WhenExpressionRemoveButton
               label={whenNodeRemoveLabel(node, depth)}
@@ -503,10 +510,12 @@ function WhenExpressionNodeEditor({
         </Select>
         <Button type="button" variant="outline" size="compact" onClick={addCondition}>
           <PlusIcon className="size-3.5" />
-          {uiText("Condition") + " "}</Button>
+          {uiText("Condition") + " "}
+        </Button>
         <Button type="button" variant="outline" size="compact" onClick={addGroup}>
           <PlusIcon className="size-3.5" />
-          {uiText("Group") + " "}</Button>
+          {uiText("Group") + " "}
+        </Button>
         {onRemove ? (
           <WhenExpressionRemoveButton
             label={whenNodeRemoveLabel(node, depth)}
@@ -604,10 +613,12 @@ function WhenExpressionBuilder({
         <div className="flex shrink-0 items-center gap-2">
           <Button type="button" variant="outline" size="compact" onClick={addRootCondition}>
             <PlusIcon className="size-3.5" />
-            {uiText("Condition") + " "}</Button>
+            {uiText("Condition") + " "}
+          </Button>
           <Button type="button" variant="outline" size="compact" onClick={addRootGroup}>
             <PlusIcon className="size-3.5" />
-            {uiText("Group") + " "}</Button>
+            {uiText("Group") + " "}
+          </Button>
         </div>
       </div>
 
@@ -649,16 +660,19 @@ function WhenExpressionBuilder({
             <div className="flex flex-wrap gap-2">
               <Button type="button" size="compact" onClick={addRootCondition}>
                 <PlusIcon className="size-3.5" />
-                {uiText("Condition") + " "}</Button>
+                {uiText("Condition") + " "}
+              </Button>
               <Button type="button" variant="outline" size="compact" onClick={addRootGroup}>
                 <PlusIcon className="size-3.5" />
-                {uiText("Group") + " "}</Button>
+                {uiText("Group") + " "}
+              </Button>
             </div>
           </div>
         )}
         {parseError ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg border border-destructive/30 bg-background/75 p-4 text-center text-xs text-destructive backdrop-blur-xs">
-            {uiText("Fix the expression above to continue editing visually.")}</div>
+            {uiText("Fix the expression above to continue editing visually.")}
+          </div>
         ) : null}
       </div>
     </div>
@@ -798,7 +812,10 @@ function KeybindingKeyControl({
         <button
           type="button"
           onClick={() => setDraft({ isRecording: true })}
-          aria-label={uiText("Edit shortcut for {0}: {1}", {"0": commandLabel(row.command), "1": formatShortcutLabel(row.binding.shortcut)})}
+          aria-label={uiText("Edit shortcut for {0}: {1}", {
+            "0": commandLabel(row.command),
+            "1": formatShortcutLabel(row.binding.shortcut),
+          })}
           className={cn(
             "inline-flex h-8 cursor-pointer items-center rounded-md border border-transparent px-1.5 sm:h-7 outline-none transition-colors hover:border-border/70 hover:bg-accent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/24",
             pillClassName,
@@ -810,7 +827,7 @@ function KeybindingKeyControl({
         <Input
           data-keybinding-capture=""
           autoFocus={isRecording}
-          aria-label={uiText("Keybinding for {0}", {"0": commandLabel(row.command)})}
+          aria-label={uiText("Keybinding for {0}", { "0": commandLabel(row.command) })}
           value={isRecording ? "" : keyDraft}
           placeholder={isRecording ? uiText("Press shortcut") : uiText("Unassigned")}
           size="sm"
@@ -851,7 +868,7 @@ function WhenClauseControl({
             className="min-w-0 shrink"
           />
         }
-        aria-label={uiText("Edit when clause for {0}", {"0": label})}
+        aria-label={uiText("Edit when clause for {0}", { "0": label })}
       >
         <span className="truncate font-mono">{expression || uiText("Always")}</span>
         <ChevronDownIcon className="size-3.5 shrink-0 opacity-60" />
@@ -892,7 +909,7 @@ function KeybindingRowMenu({
             variant="ghost-muted"
             size="icon-sm"
             disabled={isSaving}
-            aria-label={uiText("Actions for {0}", {"0": commandLabel(row.command)})}
+            aria-label={uiText("Actions for {0}", { "0": commandLabel(row.command) })}
           />
         }
       >
@@ -901,11 +918,13 @@ function KeybindingRowMenu({
       <MenuPopup align="end">
         {canReset ? (
           <MenuItem disabled={isSaving} onClick={() => onReset(row)}>
-            {uiText("Reset to default")}</MenuItem>
+            {uiText("Reset to default")}
+          </MenuItem>
         ) : null}
         {canRemove ? (
           <MenuItem variant="destructive" disabled={isSaving} onClick={() => onRemove(row)}>
-            {uiText("Remove")}</MenuItem>
+            {uiText("Remove")}
+          </MenuItem>
         ) : null}
       </MenuPopup>
     </Menu>
@@ -1116,7 +1135,7 @@ function NewKeybindingKeyInput({
     <Input
       data-keybinding-capture=""
       autoFocus={autoFocus}
-      aria-label={uiText("Keybinding for {0}", {"0": draft.commandLabelText})}
+      aria-label={uiText("Keybinding for {0}", { "0": draft.commandLabelText })}
       value={draft.isRecording ? "" : draft.keyDraft}
       placeholder={draft.isRecording ? uiText("Press shortcut") : uiText("Unassigned")}
       size="sm"
@@ -1444,7 +1463,8 @@ export function KeybindingsSettingsPanel() {
             onClick={() => setIsAddingBinding(true)}
           >
             <PlusIcon aria-hidden className="size-4" />
-            {uiText("Add keybinding") + " "}</Button>
+            {uiText("Add keybinding") + " "}
+          </Button>
           <Tooltip>
             <TooltipTrigger
               render={
@@ -1496,7 +1516,8 @@ export function KeybindingsSettingsPanel() {
         ) : (
           <SettingsGroup>
             <div className="px-4 py-12 text-center text-sm text-muted-foreground">
-              {uiText("No keybindings match your search.")}</div>
+              {uiText("No keybindings match your search.")}
+            </div>
           </SettingsGroup>
         )}
       </div>

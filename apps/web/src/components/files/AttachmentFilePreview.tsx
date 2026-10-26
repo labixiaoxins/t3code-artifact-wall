@@ -316,7 +316,13 @@ export function AttachmentFilePreview(props: {
         ) : null}
         {content ? (
           <FileSurfaceAction
-            label={isCopied ? uiText("Copied") : content.truncated ? uiText("Copy preview") : uiText("Copy contents")}
+            label={
+              isCopied
+                ? uiText("Copied")
+                : content.truncated
+                  ? uiText("Copy preview")
+                  : uiText("Copy contents")
+            }
             onPress={() => copyToClipboard(content.text, undefined)}
           >
             <MorphIcon className={"size-3.5"} icon={isCopied ? Check : Copy} />
@@ -345,7 +351,9 @@ export function AttachmentFilePreview(props: {
       {content?.truncated ? (
         <FileSurfaceNotice>
           {uiText("Preview limited to the first 1 MB")}
-          {props.sizeBytes > 0 ? uiText(" of a {0} byte file", {"0": props.sizeBytes.toLocaleString()}) : ""}
+          {props.sizeBytes > 0
+            ? uiText(" of a {0} byte file", { "0": props.sizeBytes.toLocaleString() })
+            : ""}
           {". Save the file to read it in full."}
         </FileSurfaceNotice>
       ) : null}

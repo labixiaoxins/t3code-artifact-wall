@@ -142,14 +142,19 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
         </ComposerBanner.Actions>
       </ComposerBanner.Row>
       <ComposerBanner.Scroll>
-        <ComposerBanner.Children render={<ul role={"list"} />} aria-label={uiText("Stashed prompts")}>
+        <ComposerBanner.Children
+          render={<ul role={"list"} />}
+          aria-label={uiText("Stashed prompts")}
+        >
           {entries.length === 0 ? (
             <ComposerBanner.Row render={<li />}>
               <ComposerBanner.Icon />
               <ComposerBanner.Content className={"text-muted-foreground"}>
                 {uiText("Nothing stashed yet.")}
                 {stashShortcutLabel
-                  ? uiText(" Press {0} with a prompt in the composer to stash it.", {"0": stashShortcutLabel})
+                  ? uiText(" Press {0} with a prompt in the composer to stash it.", {
+                      "0": stashShortcutLabel,
+                    })
                   : null}
               </ComposerBanner.Content>
             </ComposerBanner.Row>
@@ -179,7 +184,9 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
                       "min-w-0 flex-1 cursor-pointer truncate text-left text-foreground/80 outline-none before:absolute before:inset-0 before:rounded-sm focus-visible:before:ring-2 focus-visible:before:ring-inset focus-visible:before:ring-ring"
                     }
                     data-stash-restore={entry.id}
-                    aria-label={uiText("Restore stashed prompt: {0}", {"0": stashEntrySnippet(entry)})}
+                    aria-label={uiText("Restore stashed prompt: {0}", {
+                      "0": stashEntrySnippet(entry),
+                    })}
                     onPointerDown={(event) => event.preventDefault()}
                     onClick={() => onRestore(entry)}
                   >

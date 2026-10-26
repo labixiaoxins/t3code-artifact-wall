@@ -31,7 +31,7 @@ const processProbeFailure: ProcessRunner.ProcessRunner["Service"]["run"] = (inpu
         method: "spawn",
         description: "PowerShell is not installed in the test environment",
       }),
-    })
+    }),
   );
 
 const layerNoProc = FileSystem.layerNoop({});
@@ -39,7 +39,7 @@ const layerNoProc = FileSystem.layerNoop({});
 const layerProbeFailure = (
   run: ProcessRunner.ProcessRunner["Service"]["run"],
   fetch: typeof globalThis.fetch = globalThis.fetch,
-  fileSystem: Layer.Layer<FileSystem.FileSystem> = layerNoProc
+  fileSystem: Layer.Layer<FileSystem.FileSystem> = layerNoProc,
 ) =>
   PortScanner.layer.pipe(
     Layer.provide(
@@ -47,9 +47,9 @@ const layerProbeFailure = (
         fileSystem,
         Layer.succeed(ProcessRunner.ProcessRunner, { run }),
         Layer.succeed(HostProcess.Platform, "linux"),
-        FetchHttpClient.layer.pipe(Layer.provide(Layer.succeed(FetchHttpClient.Fetch, fetch)))
-      )
-    )
+        FetchHttpClient.layer.pipe(Layer.provide(Layer.succeed(FetchHttpClient.Fetch, fetch))),
+      ),
+    ),
   );
 
 const LSOF_TEST_PORT = 43_123;
@@ -60,7 +60,7 @@ const ownedScanner = (processIds: ReadonlyArray<number> = [1234]) =>
       threadId: "scanner-thread",
       terminalId: "scanner-terminal",
       processIds,
-    })
+    }),
   );
 
 const layerLsofScanner = (input: {
@@ -87,10 +87,10 @@ const layerLsofScanner = (input: {
         }),
         Layer.succeed(HostProcess.Platform, "linux"),
         FetchHttpClient.layer.pipe(
-          Layer.provide(Layer.succeed(FetchHttpClient.Fetch, input.fetch))
-        )
-      )
-    )
+          Layer.provide(Layer.succeed(FetchHttpClient.Fetch, input.fetch)),
+        ),
+      ),
+    ),
   );
 
 effectIt.effect("keeps a full configured URL when the discovered server root fails", () => {
@@ -105,7 +105,7 @@ effectIt.effect("keeps a full configured URL when the discovered server root fai
         : new Response("not found", {
             status: 404,
             headers: { "content-type": "text/html" },
-          })
+          }),
     );
   }) as typeof globalThis.fetch;
   const layer = layerLsofScanner({ pid: () => 1234, fetch: fetchFn });
@@ -169,7 +169,7 @@ effectIt.effect("projects configured paths independently for simultaneous subscr
     return Promise.resolve(
       url === docsUrl || url === adminUrl
         ? new Response("app", { headers: { "content-type": "text/html" } })
-        : new Response("not found", { status: 404 })
+        : new Response("not found", { status: 404 }),
     );
   }) as typeof globalThis.fetch;
   const layer = layerLsofScanner({ pid: () => 1234, fetch: fetchFn });
@@ -179,10 +179,10 @@ effectIt.effect("projects configured paths independently for simultaneous subscr
     const docsSnapshots: ReadonlyArray<DiscoveredLocalServer>[] = [];
     const adminSnapshots: ReadonlyArray<DiscoveredLocalServer>[] = [];
     yield* scanner.subscribe({ configuredUrls: [docsUrl], initialSnapshot: [] }, (servers) =>
-      Effect.sync(() => docsSnapshots.push(servers))
+      Effect.sync(() => docsSnapshots.push(servers)),
     );
     yield* scanner.subscribe({ configuredUrls: [adminUrl], initialSnapshot: [] }, (servers) =>
-      Effect.sync(() => adminSnapshots.push(servers))
+      Effect.sync(() => adminSnapshots.push(servers)),
     );
     yield* scanner.retain;
 
@@ -196,14 +196,14 @@ effectIt.effect(
   () => {
     const firstSubscriberUrls = Array.from(
       { length: CONFIGURED_LOCAL_SERVER_URLS_MAX_ITEMS },
-      (_, index) => `http://localhost:${LSOF_TEST_PORT}/app-${index}`
+      (_, index) => `http://localhost:${LSOF_TEST_PORT}/app-${index}`,
     );
     const secondSubscriberUrl = `http://localhost:${LSOF_TEST_PORT}/app-${CONFIGURED_LOCAL_SERVER_URLS_MAX_ITEMS}`;
     const fetchFn = ((input: Parameters<typeof globalThis.fetch>[0]) =>
       Promise.resolve(
         String(input) === secondSubscriberUrl
           ? new Response("app", { headers: { "content-type": "text/html" } })
-          : new Response("not found", { status: 404 })
+          : new Response("not found", { status: 404 }),
       )) as typeof globalThis.fetch;
     const layer = layerLsofScanner({ pid: () => 1234, fetch: fetchFn });
 
@@ -212,17 +212,17 @@ effectIt.effect(
       const secondSnapshots: ReadonlyArray<DiscoveredLocalServer>[] = [];
       yield* scanner.subscribe(
         { configuredUrls: firstSubscriberUrls, initialSnapshot: [] },
-        () => Effect.void
+        () => Effect.void,
       );
       yield* scanner.subscribe(
         { configuredUrls: [secondSubscriberUrl], initialSnapshot: [] },
-        (servers) => Effect.sync(() => secondSnapshots.push(servers))
+        (servers) => Effect.sync(() => secondSnapshots.push(servers)),
       );
       yield* scanner.retain;
 
       expect(secondSnapshots.at(-1)?.[0]?.url).toBe(secondSubscriberUrl);
     }).pipe(Effect.scoped, Effect.provide(layer));
-  }
+  },
 );
 
 effectIt.effect("stops probing a subscriber's configured paths after its scope closes", () => {
@@ -235,7 +235,7 @@ effectIt.effect("stops probing a subscriber's configured paths after its scope c
     return Promise.resolve(
       url === docsUrl || url === adminUrl
         ? new Response("app", { headers: { "content-type": "text/html" } })
-        : new Response("not found", { status: 404 })
+        : new Response("not found", { status: 404 }),
     );
   }) as typeof globalThis.fetch;
   const layer = layerLsofScanner({ pid: () => 1234, fetch: fetchFn });
@@ -248,7 +248,7 @@ effectIt.effect("stops probing a subscriber's configured paths after its scope c
       .pipe(Effect.provideService(Scope.Scope, docsScope));
     yield* scanner.subscribe(
       { configuredUrls: [adminUrl], initialSnapshot: [] },
-      () => Effect.void
+      () => Effect.void,
     );
     yield* scanner.retain;
     yield* Scope.close(docsScope, Exit.void);
@@ -283,7 +283,7 @@ effectIt.effect("falls back to HTTPS and does not follow redirects while probing
   const redirects: Array<string | undefined> = [];
   const fetchFn = (async (
     input: Parameters<typeof globalThis.fetch>[0],
-    init?: Parameters<typeof globalThis.fetch>[1]
+    init?: Parameters<typeof globalThis.fetch>[1],
   ) => {
     redirects.push(init?.redirect);
     if (String(input).startsWith("http:")) throw new TypeError("TLS listener");
@@ -376,7 +376,7 @@ effectIt.effect(
         });
       expect(yield* scanner.scan()).toHaveLength(1);
     }).pipe(Effect.provide(layer));
-  }
+  },
 );
 
 const PROC_NET_TCP = `  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode
@@ -425,7 +425,7 @@ effectIt.effect(
     });
     const fetchFn = (() =>
       Promise.resolve(
-        new Response("hello", { headers: { "content-type": "text/html" } })
+        new Response("hello", { headers: { "content-type": "text/html" } }),
       )) as typeof globalThis.fetch;
     const layer = layerProbeFailure(
       (input) => {
@@ -433,7 +433,7 @@ effectIt.effect(
         return processProbeFailure(input);
       },
       fetchFn,
-      fileSystem
+      fileSystem,
     );
 
     return Effect.gen(function* () {
@@ -449,13 +449,13 @@ effectIt.effect(
       yield* scanner.scan();
       expect(fdWalks).toEqual(["77", "4242", "77", "4242", "77", "4242"]);
     }).pipe(Effect.provide(layer));
-  }
+  },
 );
 
 effectIt.effect("ignores a partial Windows netstat snapshot when one query exits nonzero", () => {
   const fetchFn = (() =>
     Promise.resolve(
-      new Response("hello", { headers: { "content-type": "text/html" } })
+      new Response("hello", { headers: { "content-type": "text/html" } }),
     )) as typeof globalThis.fetch;
   const layer = PortScanner.layer.pipe(
     Layer.provide(
@@ -479,9 +479,9 @@ effectIt.effect("ignores a partial Windows netstat snapshot when one query exits
           },
         }),
         Layer.succeed(HostProcess.Platform, "win32"),
-        FetchHttpClient.layer.pipe(Layer.provide(Layer.succeed(FetchHttpClient.Fetch, fetchFn)))
-      )
-    )
+        FetchHttpClient.layer.pipe(Layer.provide(Layer.succeed(FetchHttpClient.Fetch, fetchFn))),
+      ),
+    ),
   );
 
   return Effect.gen(function* () {

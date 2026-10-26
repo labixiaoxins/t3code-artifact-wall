@@ -140,9 +140,11 @@ export function AddUsageLimitSourceDialog({
               onOpenChange(false);
             }}
           >
-            {uiText("Cancel")}</Button>
+            {uiText("Cancel")}
+          </Button>
           <Button onClick={save} disabled={!canSave}>
-            {uiText("Add hub")}</Button>
+            {uiText("Add hub")}
+          </Button>
         </DialogFooter>
       </DialogPopup>
     </Dialog>

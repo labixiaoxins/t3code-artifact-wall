@@ -57,8 +57,8 @@ function queuedImageResources(projection: ThreadQueueProjection | undefined) {
     attachments.flatMap((attachment) =>
       attachment.type === "image"
         ? [{ _tag: "attachment" as const, attachmentId: attachment.id }]
-        : []
-    )
+        : [],
+    ),
   );
 }
 
@@ -79,7 +79,7 @@ export function QueuedRunsControl({
   readonly onCancelEdit: () => void;
 }) {
   const projection = useThreadProjection(
-    scopeThreadRef(props.environmentId, props.threadId)
+    scopeThreadRef(props.environmentId, props.threadId),
   )?.projection;
   const reorder = useAtomCommand(threadEnvironment.reorderQueuedRun);
   const promote = useAtomCommand(threadEnvironment.promoteQueuedRun);
@@ -103,7 +103,7 @@ export function QueuedRunsControl({
   const queuedImageAttachmentResources = queuedImageResources(projection);
   const queuedImageAttachmentUrls = useAssetUrls(
     props.environmentId,
-    queuedImageAttachmentResources
+    queuedImageAttachmentResources,
   );
   const workflow = projection ? deriveThreadQueueWorkflowState(projection) : null;
   const queued = workflow?.queuedRuns ?? [];
@@ -114,10 +114,10 @@ export function QueuedRunsControl({
     queuedImageAttachmentUrls.flatMap((url, index) => {
       const resource = queuedImageAttachmentResources[index];
       return url && resource ? [[resource.attachmentId, url] as const] : [];
-    })
+    }),
   );
   const optimisticQueued = props.optimisticMessages.filter(
-    (message) => message.inputIntent === "queued_turn" && !acknowledgedMessageIds.has(message.id)
+    (message) => message.inputIntent === "queued_turn" && !acknowledgedMessageIds.has(message.id),
   );
   const items = [
     ...queued.map(({ run, text, attachments }, serverIndex) => ({
@@ -232,14 +232,19 @@ export function QueuedRunsControl({
     <ComposerBanner.Attachment>
       <ComposerBanner.Root
         role="region"
-        aria-label={uiText("{0} queued message{1}", {"0": items.length, "1": items.length === 1 ? "" : "s"})}
+        aria-label={uiText("{0} queued message{1}", {
+          "0": items.length,
+          "1": items.length === 1 ? "" : "s",
+        })}
         aria-live="polite"
         data-chat-composer-collapsed-controls="true"
         className="relative z-0"
       >
         <ComposerBanner.Row
           render={<button type="button" />}
-          aria-label={expanded ? uiText("Collapse queued messages") : uiText("Expand queued messages")}
+          aria-label={
+            expanded ? uiText("Collapse queued messages") : uiText("Expand queued messages")
+          }
           aria-expanded={expanded}
           aria-controls={queueListId}
           onPointerDown={(event) => event.preventDefault()}
@@ -248,7 +253,9 @@ export function QueuedRunsControl({
           <ComposerBanner.Icon>
             <ListOrderedIcon />
           </ComposerBanner.Icon>
-          <ComposerBanner.Content className="text-muted-foreground">{uiText("Queued")}</ComposerBanner.Content>
+          <ComposerBanner.Content className="text-muted-foreground">
+            {uiText("Queued")}
+          </ComposerBanner.Content>
           <ComposerBanner.Actions>
             <ComposerBanner.Count>{items.length}</ComposerBanner.Count>
             <ComposerBanner.ToggleIcon expanded={expanded} />
@@ -259,8 +266,8 @@ export function QueuedRunsControl({
             {items.map((item) => {
               const previewText = assistantCitationsToPlainText(
                 replaceComposerContextReferences(item.text, (reference) =>
-                  reference.kind === "image" && item.thumbnails.length > 0 ? "" : reference.label
-                )
+                  reference.kind === "image" && item.thumbnails.length > 0 ? "" : reference.label,
+                ),
               ).trim();
               const rowRunId = item.runId;
               const rowServerIndex = item.serverIndex;
@@ -275,7 +282,7 @@ export function QueuedRunsControl({
                   className={cn(
                     "relative rounded-sm",
                     isEditing && "bg-accent text-accent-foreground",
-                    dragState !== null && dragState.runId === item.runId && "opacity-50"
+                    dragState !== null && dragState.runId === item.runId && "opacity-50",
                   )}
                   draggable={rowDraggable}
                   onDragStart={(event) => {
@@ -328,7 +335,9 @@ export function QueuedRunsControl({
                       <Button
                         size="icon-xs"
                         variant="ghost-muted"
-                        aria-label={uiText("Reorder queued message (drag, or press the arrow keys)")}
+                        aria-label={uiText(
+                          "Reorder queued message (drag, or press the arrow keys)",
+                        )}
                         className="cursor-grab active:cursor-grabbing disabled:cursor-default"
                         disabled={busyRunId !== null}
                         onPointerDown={() => {
@@ -351,7 +360,9 @@ export function QueuedRunsControl({
                     ) : null}
                   </ComposerBanner.Icon>
                   <ComposerBanner.Content className="text-foreground/80">
-                    {isEditing ? <span className="sr-only">{uiText("Editing queued message:")}</span> : null}
+                    {isEditing ? (
+                      <span className="sr-only">{uiText("Editing queued message:")}</span>
+                    ) : null}
                     {item.pending ? (
                       <Clock3Icon
                         aria-label={uiText("Saving queued message")}
@@ -398,7 +409,8 @@ export function QueuedRunsControl({
                         aria-label={uiText("Cancel editing queued message")}
                         onClick={props.onCancelEdit}
                       >
-                        {uiText("Cancel")}</Button>
+                        {uiText("Cancel")}
+                      </Button>
                     ) : (
                       <>
                         <Tooltip>
@@ -425,7 +437,12 @@ export function QueuedRunsControl({
                             <PencilIcon />
                           </TooltipTrigger>
                           <TooltipPopup>
-                            {uiText ("Edit in the composer{0}",{"0": item.serverIndex === queued.length - 1 &&props.editShortcutLabel ? ` (${props.editShortcutLabel})` : ""})}
+                            {uiText("Edit in the composer{0}", {
+                              "0":
+                                item.serverIndex === queued.length - 1 && props.editShortcutLabel
+                                  ? ` (${props.editShortcutLabel})`
+                                  : "",
+                            })}
                           </TooltipPopup>
                         </Tooltip>
                         <Tooltip>

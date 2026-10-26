@@ -119,8 +119,12 @@ export function PullRequestGuideTab({
           {failure ??
             query.error ??
             (running
-              ? uiText("An agent is reading the change. A large one takes a few minutes. You can leave; you will be told when it is ready.")
-              : uiText("A guide is a tour of the change: stops through the code in reading order, with the calls only a maintainer can make."))}
+              ? uiText(
+                  "An agent is reading the change. A large one takes a few minutes. You can leave; you will be told when it is ready.",
+                )
+              : uiText(
+                  "A guide is a tour of the change: stops through the code in reading order, with the calls only a maintainer can make.",
+                ))}
         </p>
         {writeButton(failure === null ? "Write guide" : "Try again", "sm")}
       </div>

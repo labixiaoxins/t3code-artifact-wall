@@ -184,7 +184,10 @@ export const ExpandedImageDialog = memo(function ExpandedImageDialog({
           if (event.target === event.currentTarget) onClose();
         }}
       >
-        <DialogTitle className="sr-only">{uiText("Expanded") + " "}{mediaLabel} {uiText("preview")}</DialogTitle>
+        <DialogTitle className="sr-only">
+          {uiText("Expanded") + " "}
+          {mediaLabel} {uiText("preview")}
+        </DialogTitle>
         <Button
           type="button"
           ref={closeButtonRef}
@@ -192,7 +195,7 @@ export const ExpandedImageDialog = memo(function ExpandedImageDialog({
           variant="media-close"
           className="absolute right-0 top-0 z-20"
           onClick={onClose}
-          aria-label={uiText("Close {0} preview", {"0": mediaLabel})}
+          aria-label={uiText("Close {0} preview", { "0": mediaLabel })}
         >
           <XIcon />
         </Button>

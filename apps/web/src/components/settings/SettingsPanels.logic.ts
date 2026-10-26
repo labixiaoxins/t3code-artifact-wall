@@ -25,7 +25,7 @@ export function isProjectGroupingEnabled(mode: SidebarProjectGroupingMode): bool
 
 export function projectGroupingModeFromToggle(
   enabled: boolean,
-  lastEnabledMode: SidebarProjectGroupingMode = "repository"
+  lastEnabledMode: SidebarProjectGroupingMode = "repository",
 ): SidebarProjectGroupingMode {
   if (!enabled) return "separate";
   return lastEnabledMode === "repository_path" ? "repository_path" : "repository";
@@ -52,28 +52,30 @@ export function rememberEnabledProjectGroupingMode(mode: SidebarProjectGroupingM
 
 export function hasChangedBackgroundActivitySettings(
   settings: Pick<
-    UnifiedSettings, "backgroundActivity"
+    UnifiedSettings,
+    | "backgroundActivity"
     | "backgroundActivityProfile"
     | "automaticGitFetchInterval"
     | "providerHealthRefreshInterval"
-  >
+  >,
 ): boolean {
   return (
     !Equal.equals(settings.backgroundActivity, DEFAULT_UNIFIED_SETTINGS.backgroundActivity) ||
     settings.backgroundActivityProfile !== DEFAULT_UNIFIED_SETTINGS.backgroundActivityProfile ||
     !Equal.equals(
       settings.automaticGitFetchInterval,
-      DEFAULT_UNIFIED_SETTINGS.automaticGitFetchInterval
+      DEFAULT_UNIFIED_SETTINGS.automaticGitFetchInterval,
     ) ||
     !Equal.equals(
       settings.providerHealthRefreshInterval,
-      DEFAULT_UNIFIED_SETTINGS.providerHealthRefreshInterval
+      DEFAULT_UNIFIED_SETTINGS.providerHealthRefreshInterval,
     )
   );
 }
 
 type TypographySettings = Pick<
-  UnifiedSettings, "fontFamilySans"
+  UnifiedSettings,
+  | "fontFamilySans"
   | "fontFamilyComposer"
   | "fontFamilyCode"
   | "fontFamilyTerminal"
@@ -105,7 +107,8 @@ export function getChangedTypographySettingLabels(settings: TypographySettings):
 }
 
 export type BrowserDefaultSettings = Pick<
-  UnifiedSettings, "browserDefaultViewport"
+  UnifiedSettings,
+  | "browserDefaultViewport"
   | "browserDefaultZoomFactor"
   | "browserDefaultAppearance"
   | "browserRecordingFrameRate"
@@ -120,7 +123,7 @@ export type BrowserDefaultSettings = Pick<
 
 function isSamePreviewViewport(
   left: PreviewViewportSetting,
-  right: PreviewViewportSetting
+  right: PreviewViewportSetting,
 ): boolean {
   if (left._tag !== right._tag) return false;
   if (left._tag === "fill" || right._tag === "fill") return true;
@@ -134,7 +137,7 @@ export function getChangedBrowserSettingLabels(settings: BrowserDefaultSettings)
   return [
     ...(isSamePreviewViewport(
       settings.browserDefaultViewport,
-      DEFAULT_UNIFIED_SETTINGS.browserDefaultViewport
+      DEFAULT_UNIFIED_SETTINGS.browserDefaultViewport,
     )
       ? []
       : ["Browser viewport"]),
@@ -167,7 +170,7 @@ export function getChangedBrowserSettingLabels(settings: BrowserDefaultSettings)
 }
 
 export function resolveBackgroundActivityProfileOption(
-  settings: ServerSettings
+  settings: ServerSettings,
 ): BackgroundActivityProfile | "advanced" {
   const resolved = resolveServerBackgroundActivitySettings(settings);
   const normalized = normalizeBackgroundActivitySettings({
@@ -191,7 +194,7 @@ export function resolveBackgroundActivityProfileOption(
 
 export function backgroundActivitySharedPolicySettings(
   settings: ServerSettings,
-  profile: BackgroundActivityProfile
+  profile: BackgroundActivityProfile,
 ): BackgroundActivitySettings {
   const normalized = normalizeServerBackgroundActivitySettings(settings);
   return {
@@ -206,7 +209,8 @@ export function buildProviderInstanceUpdatePatch(input: {
   readonly settings: Pick<ServerSettings, "providerInstances">;
   readonly instanceId: ProviderInstanceId;
   readonly instance: ProviderInstanceConfig;
-  readonly textGenerationModelSelection?: ServerSettings["textGenerationModelSelection"]
+  readonly textGenerationModelSelection?:
+    | ServerSettings["textGenerationModelSelection"]
     | undefined;
 }): Partial<UnifiedSettings> {
   return {
@@ -223,7 +227,8 @@ export function buildProviderInstanceUpdatePatch(input: {
 export const PROVIDER_HEALTH_INTERVAL_STEP_SECONDS = 30;
 
 type BackgroundActivityOverridePatch = Partial<{
-  [K in keyof BackgroundActivitySettings["overrides"]]: BackgroundActivitySettings["overrides"][K]
+  [K in keyof BackgroundActivitySettings["overrides"]]:
+    | BackgroundActivitySettings["overrides"][K]
     | undefined;
 }>;
 
@@ -241,7 +246,7 @@ export function normalizeIntervalSeconds(value: number | null, minimum = 0): num
 export function backgroundActivityOverrideSettings(
   current: BackgroundActivitySettings,
   resolved: ReturnType<typeof resolveServerBackgroundActivitySettings>,
-  overrides: BackgroundActivityOverridePatch
+  overrides: BackgroundActivityOverridePatch,
 ) {
   const nextOverrides: BackgroundActivityOverridePatch = {
     automaticGitFetchInterval: resolved.automaticGitFetchInterval,

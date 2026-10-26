@@ -148,8 +148,12 @@ export function MediaActions({
         items.push({ id: "copy-url", label: uiText("Copy URL") });
       }
       if (source.onOpenFile)
-        items.push({ id: "open-file", label: uiText("Open in file viewer"), disabled: !canReadMedia });
-      items.push({ id: "save", label: uiText("Save {0}", {"0": noun}), disabled: unavailable });
+        items.push({
+          id: "open-file",
+          label: uiText("Open in file viewer"),
+          disabled: !canReadMedia,
+        });
+      items.push({ id: "save", label: uiText("Save {0}", { "0": noun }), disabled: unavailable });
       if (source.kind === "image") {
         items.push({
           id: "copy-image",

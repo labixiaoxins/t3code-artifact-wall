@@ -120,7 +120,7 @@ export function GitHubAccountSettings({
               <Switch
                 checked={enabled}
                 disabled={saving}
-                aria-label={uiText("Use GitHub on {0}", {"0": group.host})}
+                aria-label={uiText("Use GitHub on {0}", { "0": group.host })}
                 onCheckedChange={(checked) => void save(group.host, { enabled: checked })}
               />
             </div>
@@ -138,7 +138,10 @@ export function GitHubAccountSettings({
                       });
                     }}
                   >
-                    <SelectTrigger size={"sm"} aria-label={uiText("GitHub account for {0}", {"0": group.host})}>
+                    <SelectTrigger
+                      size={"sm"}
+                      aria-label={uiText("GitHub account for {0}", { "0": group.host })}
+                    >
                       <SelectValue>
                         {(value: string) =>
                           value === ACTIVE_ACCOUNT ? (
@@ -179,7 +182,7 @@ export function GitHubAccountSettings({
                           <RedactedLogin
                             revealed={revealed}
                             account={account}
-                            label={uiText("Account {0}", {"0": index + 1})}
+                            label={uiText("Account {0}", { "0": index + 1 })}
                           />
                         </SelectItem>
                       ))}
@@ -191,7 +194,9 @@ export function GitHubAccountSettings({
             {stalePin ? (
               <div className={"flex items-center justify-between gap-3"}>
                 <p className={"text-xs text-warning"}>
-                  {uiText("The chosen login is no longer signed in, so the active gh login is used.")}
+                  {uiText(
+                    "The chosen login is no longer signed in, so the active gh login is used.",
+                  )}
                 </p>
                 <Button
                   size={"xs"}
@@ -220,9 +225,9 @@ export function GitHubAccountSettings({
             {group.environmentVariable ? (
               <p className={"text-xs text-warning"}>
                 {group.environmentVariable}
-                {
-                  uiText("is set on the server, so it overrides the account chosen here until it is unset.")
-                }
+                {uiText(
+                  "is set on the server, so it overrides the account chosen here until it is unset.",
+                )}
               </p>
             ) : null}
           </div>

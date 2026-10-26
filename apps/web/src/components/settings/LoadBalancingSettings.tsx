@@ -78,7 +78,10 @@ export function LoadBalancingSettings({
       }
     >
       <p className="px-3 py-2.5 text-xs text-muted-foreground sm:px-4">
-        {uiText("New threads in shared projects start on the machine with the most free CPU and memory, weighted by each machine's preference.")}</p>
+        {uiText(
+          "New threads in shared projects start on the machine with the most free CPU and memory, weighted by each machine's preference.",
+        )}
+      </p>
       {environments.map((environment) => (
         <EnvironmentRow
           key={environment.environmentId}
@@ -105,7 +108,7 @@ export function LoadBalancingSettings({
             <SelectTrigger
               size="xs"
               className="w-32"
-              aria-label={uiText("{0} load preference", {"0": environment.label})}
+              aria-label={uiText("{0} load preference", { "0": environment.label })}
             >
               <SelectValue />
             </SelectTrigger>

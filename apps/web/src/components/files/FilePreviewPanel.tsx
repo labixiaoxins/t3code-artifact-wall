@@ -150,7 +150,7 @@ const RENDER_TABLE_STORAGE_KEY = "t3code.renderTable";
 type FilePostRender = <LAnnotation>(
   fileContainer: HTMLElement,
   instance: FileInstance<LAnnotation, undefined>,
-  phase: PostRenderPhase
+  phase: PostRenderPhase,
 ) => void;
 
 function WorkspaceImagePreview(props: {
@@ -188,7 +188,8 @@ function WorkspaceImagePreview(props: {
     return (
       <MediaActions source={actionsSource}>
         <div className="flex min-h-0 flex-1 items-center justify-center px-6 text-center text-xs leading-relaxed text-destructive">
-          {uiText("Unable to load workspace image.")}</div>
+          {uiText("Unable to load workspace image.")}
+        </div>
       </MediaActions>
     );
   }
@@ -243,7 +244,8 @@ function WorkspaceBrowserPreview(props: {
   if (assetUrl._tag === "Failure") {
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center px-6 text-center text-xs leading-relaxed text-destructive">
-        {uiText("Unable to load file preview.")}</div>
+        {uiText("Unable to load file preview.")}
+      </div>
     );
   }
   if (assetUrl._tag !== "Success") {
@@ -424,7 +426,7 @@ interface FileRevealState {
 function useFileLineReveal(
   relativePath: string | null,
   revealLine: number | null,
-  revealRequestId: number
+  revealRequestId: number,
 ): FilePostRender {
   const [revealStatesByPath] = useState(() => new Map<string, FileRevealState>());
 
@@ -586,14 +588,14 @@ function useFileLineReveal(
 const createFileEditor: EditorFactory<FileCommentAnnotationGroup, undefined> = (
   editorType,
   options,
-  editStateKey
+  editStateKey,
 ) => new Editor(editorType, options, editStateKey);
 
 function editableFileContents(
   environmentId: EnvironmentId,
   cwd: string,
   relativePath: string,
-  contents: string
+  contents: string,
 ): FileContents {
   return {
     name: relativePath,
@@ -691,7 +693,7 @@ function EditableFileSurface({
   // The editor owns the draft, so its own edits echoing back through the file
   // query keep the file identity. Only a change from elsewhere replaces it.
   const [externalFile, setExternalFile] = useState(() =>
-    editableFileContents(environmentId, cwd, relativePath, contents)
+    editableFileContents(environmentId, cwd, relativePath, contents),
   );
   const [editedContents, setEditedContents] = useState<string | null>(null);
   if (contents !== (editedContents ?? externalFile.contents)) {
@@ -734,7 +736,7 @@ function EditableFileSurface({
             endLine: entry.endLine,
             text: entry.text,
             contents: file.contents,
-          })
+          }),
         );
       }
     }
@@ -766,7 +768,7 @@ function EditableFileSurface({
           endLine: entry.endLine,
           text,
           contents,
-        })
+        }),
       );
     }
     setLineAnnotations((current) =>
@@ -776,10 +778,10 @@ function EditableFileSurface({
           entries: annotation.metadata.entries.map((annotationEntry) =>
             annotationEntry.id === entryId
               ? { ...annotationEntry, kind: "comment", text }
-              : annotationEntry
+              : annotationEntry,
           ),
         },
-      }))
+      })),
     );
   };
 
@@ -800,7 +802,7 @@ function EditableFileSurface({
         return entries.length > 0 ? [{ ...annotation, metadata: { entries } }] : [];
       });
       const existingIndex = withoutDraft.findIndex(
-        (annotation) => annotation.lineNumber === endLine
+        (annotation) => annotation.lineNumber === endLine,
       );
       if (existingIndex < 0) {
         return [
@@ -817,12 +819,12 @@ function EditableFileSurface({
               ...annotation,
               metadata: { entries: [...annotation.metadata.entries, draftEntry] },
             }
-          : annotation
+          : annotation,
       );
     });
   };
   const hasOpenCommentForm = lineAnnotations.some((annotation) =>
-    annotation.metadata.entries.some((entry) => entry.kind === "draft")
+    annotation.metadata.entries.some((entry) => entry.kind === "draft"),
   );
   useEffect(() => {
     const root = surfaceRef.current;
@@ -922,7 +924,8 @@ function RenderedMarkdownSurface({
   readOnly,
   onPendingChange,
 }: Omit<
-  EditableFileSurfaceProps, "resolvedTheme"
+  EditableFileSurfaceProps,
+  | "resolvedTheme"
   | "composerDraftTarget"
   | "revealLine"
   | "revealRequestId"
@@ -1033,7 +1036,7 @@ export default function FilePreviewPanel({
     environmentId,
     cwd,
     relativePath,
-    attachment === undefined && relativePath !== null
+    attachment === undefined && relativePath !== null,
   );
   const attemptedPath = file.readError?.resolvedPath ?? file.readError?.operationPath;
   // A chat link cannot tell a folder from a file, so a folder arrives here as
@@ -1072,23 +1075,23 @@ export default function FilePreviewPanel({
   const [renderMarkdownPreferred, setRenderMarkdownPreferred] = useLocalStorage(
     RENDER_MARKDOWN_STORAGE_KEY,
     false,
-    Schema.Boolean
+    Schema.Boolean,
   );
   const [renderBrowserFilePreferred, setRenderBrowserFilePreferred] = useLocalStorage(
     RENDER_BROWSER_FILE_STORAGE_KEY,
     true,
-    Schema.Boolean
+    Schema.Boolean,
   );
   const [renderTablePreferred, setRenderTablePreferred] = useLocalStorage(
     RENDER_TABLE_STORAGE_KEY,
     true,
-    Schema.Boolean
+    Schema.Boolean,
   );
   // Paired with the path on purpose: each file surface counts its reveals from
   // one, so a bare id would let a dismissed reveal on one file swallow the first
   // reveal on the next.
-  const [handledReveal, setHandledReveal] = useState<{ path: string; requestId: number; } | null>(
-    null
+  const [handledReveal, setHandledReveal] = useState<{ path: string; requestId: number } | null>(
+    null,
   );
   const breadcrumbRef = useRef<HTMLDivElement>(null);
   const isMarkdown = previewPath ? isMarkdownPreviewFile(previewPath) : false;
@@ -1200,7 +1203,7 @@ export default function FilePreviewPanel({
           type: "error",
           title: uiText("Unable to open file in browser"),
           description: error instanceof Error ? error.message : uiText("An error occurred."),
-        })
+        }),
       );
     })();
   };
@@ -1210,7 +1213,8 @@ export default function FilePreviewPanel({
       return (
         <div className="flex min-h-0 flex-1 items-center justify-center gap-2 text-sm text-muted-foreground">
           <Spinner className="size-4" />
-          {uiText("Checking file access...")}</div>
+          {uiText("Checking file access...")}
+        </div>
       );
     }
     return (
@@ -1268,7 +1272,7 @@ export default function FilePreviewPanel({
                 setHandledReveal(
                   pressed && relativePath !== null
                     ? { path: relativePath, requestId: revealRequestId }
-                    : null
+                    : null,
                 );
               }}
             >
@@ -1288,7 +1292,10 @@ export default function FilePreviewPanel({
             </FileSurfaceAction>
           ) : null}
           {canOpenInBrowser ? (
-            <FileSurfaceAction label={uiText("Open file in preview browser")} onPress={handleOpenInBrowser}>
+            <FileSurfaceAction
+              label={uiText("Open file in preview browser")}
+              onPress={handleOpenInBrowser}
+            >
               <Globe2 className="size-3.5" />
             </FileSurfaceAction>
           ) : null}
@@ -1305,7 +1312,8 @@ export default function FilePreviewPanel({
       ) : null}
       {relativePath && !attachment && !isHostFile && !canWriteFiles && !fileAccess.isPending ? (
         <div className="shrink-0 border-b px-3 py-1.5 text-2xs text-muted-foreground">
-          {uiText("Read-only connection. Unsaved edits are kept until write access returns.")}</div>
+          {uiText("Read-only connection. Unsaved edits are kept until write access returns.")}
+        </div>
       ) : null}
       {previewPath &&
       attachment === undefined &&
@@ -1313,7 +1321,9 @@ export default function FilePreviewPanel({
       !renderBrowserFile &&
       file.data?.truncated ? (
         <div className="shrink-0 border-b border-warning/20 bg-warning-surface px-3 py-1.5 text-2xs text-warning-foreground">
-          {uiText("Preview limited to the first 1 MB of a")}{file.data.byteLength.toLocaleString()} {uiText("byte file.")}</div>
+          {uiText("Preview limited to the first 1 MB of a")}
+          {file.data.byteLength.toLocaleString()} {uiText("byte file.")}
+        </div>
       ) : null}
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div
@@ -1384,14 +1394,16 @@ export default function FilePreviewPanel({
                 </p>
                 {attemptedPath ? (
                   <p className="text-muted-foreground">
-                    {uiText("Attempted path")}<code className="block break-all font-mono text-foreground select-all">
+                    {uiText("Attempted path")}
+                    <code className="block break-all font-mono text-foreground select-all">
                       {attemptedPath}
                     </code>
                   </p>
                 ) : null}
                 {!isHostFile ? (
                   <p className="text-muted-foreground">
-                    {uiText("Workspace folder:")}<code className="break-all font-mono select-all">
+                    {uiText("Workspace folder:")}
+                    <code className="break-all font-mono select-all">
                       {file.readError?.cwd ?? cwd}
                     </code>
                     {". Check the link's path or locate the file in Files."}
@@ -1455,7 +1467,7 @@ export default function FilePreviewPanel({
               "flex min-h-0 shrink-0 bg-background",
               previewPath
                 ? "w-[min(22rem,46%)] min-w-64 border-l border-border/60"
-                : "min-w-0 flex-1"
+                : "min-w-0 flex-1",
             )}
           >
             <FileBrowserPanel

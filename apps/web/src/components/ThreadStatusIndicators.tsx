@@ -89,7 +89,7 @@ export function useLinkedThreadPullRequest(
   linkedPullRequest: ThreadLinkedPullRequest | null | undefined,
   enabled = true,
   pullRequests?: ReadonlyArray<ThreadPullRequestLink>,
-  branchPullRequest?: ThreadLinkedPullRequest | null
+  branchPullRequest?: ThreadLinkedPullRequest | null,
 ): LinkedThreadPullRequestStatus | null {
   const supportsLinks = useSupportsMultiplePullRequests(environmentId);
   const current = supportsLinks ? resolveThreadCurrentPullRequestLink(pullRequests ?? []) : null;
@@ -103,13 +103,13 @@ export function useLinkedThreadPullRequest(
   const queried = useEnvironmentQuery(
     !enabled || environmentId === null || reference === null
       ? null
-      : linkedPullRequestDetailAtom({ environmentId, input: reference })
+      : linkedPullRequestDetailAtom({ environmentId, input: reference }),
   );
   const detail = useSharedPullRequestSummary(
     environmentId,
     reference,
     queried.data,
-    queried.dataUpdatedAt
+    queried.dataUpdatedAt,
   );
 
   if (current !== null) return currentStatus;
@@ -127,7 +127,7 @@ function linkedPullRequestReference(fallback: ThreadLinkedPullRequest) {
 }
 
 export function linkedPullRequestSnapshotStatus(
-  link: ThreadPullRequestLink
+  link: ThreadPullRequestLink,
 ): LinkedThreadPullRequestStatus | null {
   const snapshot = link.snapshot;
   if (snapshot === null) return null;
@@ -177,7 +177,10 @@ function resolveThreadPullRequestBadgePresentation({
     return {
       Icon: PullRequestGlyph.stack,
       toneClassName: aggregate.toneClassName,
-      label: uiText("Stack of {0} pull requests, {1}", {"0": badge.layers, "1": aggregate.label.toLowerCase()}),
+      label: uiText("Stack of {0} pull requests, {1}", {
+        "0": badge.layers,
+        "1": aggregate.label.toLowerCase(),
+      }),
       text: badge.layers,
     };
   }
@@ -189,7 +192,11 @@ function resolveThreadPullRequestBadgePresentation({
     return {
       Icon: aggregate.Icon,
       toneClassName: aggregate.toneClassName,
-      label: uiText("{0}, and {1} more linked; overall {2}", {"0": tooltip, "1": badge.others, "2": aggregate.label.toLowerCase()}),
+      label: uiText("{0}, and {1} more linked; overall {2}", {
+        "0": tooltip,
+        "1": badge.others,
+        "2": aggregate.label.toLowerCase(),
+      }),
       text: `+${badge.others + 1}`,
     };
   }
@@ -211,7 +218,7 @@ export function ThreadPullRequestBadgeControl({
   onOpenList,
   onOpenPullRequest,
 }: {
-  render: ReactElement<{ render?: useRender.RenderProp; }>;
+  render: ReactElement<{ render?: useRender.RenderProp }>;
   badge: ThreadPullRequestBadge | null;
   pullRequests: ReadonlyArray<ThreadPullRequestLink>;
   number?: number | undefined;
@@ -248,7 +255,7 @@ function PullRequestBadge({
   onOpenList,
   onOpenPullRequest,
 }: {
-  render: ReactElement<{ render?: useRender.RenderProp; }>;
+  render: ReactElement<{ render?: useRender.RenderProp }>;
   presentation: NonNullable<ReturnType<typeof resolveThreadPullRequestBadgePresentation>>;
   opensList: boolean;
   url: string | undefined;
@@ -326,7 +333,7 @@ export function ThreadPullRequestsMiniList({
   onOpenPullRequest?: (event: MouseEvent<HTMLAnchorElement>, url: string) => void;
 }) {
   const lines = pullRequestListLines(
-    resolveThreadPullRequestChains(visibleThreadPullRequests(pullRequests))
+    resolveThreadPullRequestChains(visibleThreadPullRequests(pullRequests)),
   );
   if (lines.length === 0) return null;
   return (
@@ -385,7 +392,9 @@ function ThreadPullRequestMiniListItem({
         className={cn("size-3 shrink-0", presentation?.toneClassName ?? "stroke-muted-foreground")}
       />
       <span className="shrink-0 font-mono tabular-nums">
-        {"#"}{number}</span>
+        {"#"}
+        {number}
+      </span>
       <span className="min-w-0 truncate text-foreground/75">{title}</span>
       {children}
     </>
@@ -412,7 +421,7 @@ function ThreadPullRequestMiniListItem({
 
 export function prStatusIndicator(
   pr: ThreadPr,
-  provider: VcsStatusResult["sourceControlProvider"] | null | undefined
+  provider: VcsStatusResult["sourceControlProvider"] | null | undefined,
 ): PrStatusIndicator | null {
   if (!pr) return null;
   const { shortLabel } = sourceControlClients.get(provider?.kind).changeRequest;
@@ -442,7 +451,7 @@ export function ChangeRequestStatusIcon({
   return <presentation.Icon className={className} />;
 }
 
-export function PrStatusTooltipContent({ status }: { status: PrStatusIndicator; }) {
+export function PrStatusTooltipContent({ status }: { status: PrStatusIndicator }) {
   return (
     <span className="flex max-w-[min(34rem,calc(100vw-2rem))] items-stretch overflow-hidden whitespace-nowrap">
       <span className="shrink-0 pr-2 font-medium">{status.tooltipLead}</span>
@@ -484,14 +493,14 @@ export const threadChangeRequestSnapshotsAtom = Atom.make<
 >(new Map()).pipe(Atom.keepAlive, Atom.withLabel("sidebar:thread-change-request-snapshots"));
 
 function isTerminalChangeRequestState(
-  state: NonNullable<ThreadPr>["state"]
+  state: NonNullable<ThreadPr>["state"],
 ): state is "merged" | "closed" {
   return state === "merged" || state === "closed";
 }
 
 function sourceControlProvidersEqual(
   left: VcsStatusResult["sourceControlProvider"] | undefined,
-  right: VcsStatusResult["sourceControlProvider"] | undefined
+  right: VcsStatusResult["sourceControlProvider"] | undefined,
 ): boolean {
   if (left === right) return true;
   if (left == null || right == null) return left == null && right == null;
@@ -500,7 +509,7 @@ function sourceControlProvidersEqual(
 
 function linkedPullRequestsEqual(
   left: ThreadLinkedPullRequest | null | undefined,
-  right: ThreadLinkedPullRequest | null | undefined
+  right: ThreadLinkedPullRequest | null | undefined,
 ): boolean {
   if (left == null || right == null) return left == null && right == null;
   return (
@@ -513,7 +522,7 @@ function linkedPullRequestsEqual(
 
 export function threadChangeRequestSnapshotsEqual(
   left: ThreadChangeRequestSnapshot,
-  right: ThreadChangeRequestSnapshot
+  right: ThreadChangeRequestSnapshot,
 ): boolean {
   return (
     left.branch === right.branch &&
@@ -702,7 +711,7 @@ export function resolveDisplayedThreadPrProvider(input: {
 }
 
 export function terminalStatusFromRunningIds(
-  runningTerminalIds: ReadonlyArray<string>
+  runningTerminalIds: ReadonlyArray<string>,
 ): TerminalStatusIndicator | null {
   if (runningTerminalIds.length === 0) {
     return null;
@@ -750,7 +759,7 @@ export function ThreadTerminalStatusButton({
             data-testid={`sidebar-terminal-status-${threadRef.threadId}`}
             className={cn(
               "inline-flex shrink-0 cursor-pointer items-center justify-center rounded-sm outline-none hover:opacity-80 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-              status?.colorClass
+              status?.colorClass,
             )}
             onPointerDown={(event) => event.stopPropagation()}
             onKeyDown={(event) => event.stopPropagation()}
@@ -869,11 +878,11 @@ export function ThreadRowLeadingStatus({
   const { leaseLiveStatus, rowRef } = useSidebarRowSubscriptionLease(false);
   // A new ref callback would detach and reattach the row, and each reattach sets lease state.
   const statusRef = useStableCallback((node: HTMLSpanElement | null) =>
-    rowRef(node?.parentElement ?? null)
+    rowRef(node?.parentElement ?? null),
   );
   const threadRef = scopeThreadRef(thread.environmentId, thread.id);
   const localLastVisitedAt = useUiStateStore(
-    (state) => state.threadLastVisitedAtById[scopedThreadKey(threadRef)]
+    (state) => state.threadLastVisitedAtById[scopedThreadKey(threadRef)],
   );
   const lastVisitedAt = resolveThreadLastVisitedAt(thread.lastVisitedAt, localLastVisitedAt);
   const threadProject = useProject(scopeProjectRef(thread.environmentId, thread.projectId));
@@ -882,7 +891,7 @@ export function ThreadRowLeadingStatus({
   const linkedPullRequest = useLinkedThreadPullRequest(
     thread.environmentId,
     thread.linkedPullRequest,
-    leaseLiveStatus
+    leaseLiveStatus,
   );
   const gitStatus = useEnvironmentQuery(
     leaseLiveStatus &&
@@ -893,11 +902,11 @@ export function ThreadRowLeadingStatus({
           environmentId: thread.environmentId,
           input: { cwd: gitCwd, includeRemote: false },
         })
-      : null
+      : null,
   );
   const visibleGitStatus = useRetainedValue(
     JSON.stringify([thread.environmentId, gitCwd]),
-    gitStatus.data
+    gitStatus.data,
   );
   const displayedPrInput = {
     threadBranch: thread.branch,
@@ -949,7 +958,7 @@ export function ThreadRowLeadingStatus({
       {pendingLink ? (
         <PullRequestGlyph.pullRequest
           className="size-3 text-muted-foreground"
-          aria-label={uiText("PR #{0}, status pending", {"0": pendingLink.number})}
+          aria-label={uiText("PR #{0}, status pending", { "0": pendingLink.number })}
         />
       ) : null}
       {threadStatus ? <ThreadStatusLabel status={threadStatus} /> : null}
@@ -957,7 +966,7 @@ export function ThreadRowLeadingStatus({
   );
 }
 
-export function ThreadRowTrailingStatus({ thread }: { thread: SidebarThreadSummary; }) {
+export function ThreadRowTrailingStatus({ thread }: { thread: SidebarThreadSummary }) {
   const runningTerminalIds = useThreadRunningTerminalIds({
     environmentId: thread.environmentId,
     threadId: thread.id,
@@ -1049,7 +1058,7 @@ export function ThreadSearchPullRequestNumber({
     thread.linkedPullRequest,
     enabled && matched,
     thread.pullRequests,
-    thread.branchPullRequest
+    thread.branchPullRequest,
   );
   if (!matched) return null;
   const badge = supportsMultiplePullRequests
@@ -1064,7 +1073,7 @@ export function ThreadSearchPullRequestNumber({
     current ??
     [thread.linkedPullRequest, thread.branchPullRequest].find(
       (reference) =>
-        reference != null && pullRequestMatchesSearchQuery({ linkedPullRequest: reference }, query)
+        reference != null && pullRequestMatchesSearchQuery({ linkedPullRequest: reference }, query),
     );
   const presentation = resolveThreadPullRequestBadgePresentation({
     badge,
@@ -1088,7 +1097,7 @@ export function ThreadSearchPullRequestNumber({
         "inline-flex shrink-0 items-center gap-0.5 text-xs tabular-nums",
         settled
           ? cn("text-secondary-label transition-colors", state && settledPrHoverColorClass(state))
-          : presentation.toneClassName
+          : presentation.toneClassName,
       )}
     >
       {/* text-current opts out of the command palette's muted icon color. */}

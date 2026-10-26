@@ -74,7 +74,9 @@ function RefreshFilesButton(props: { isPending: boolean; onRefresh: () => void }
       >
         <RefreshIcon refreshing={props.isPending} />
       </TooltipTrigger>
-      <TooltipPopup>{props.isPending ? uiText("Refreshing…") : uiText("Refresh files")}</TooltipPopup>
+      <TooltipPopup>
+        {props.isPending ? uiText("Refreshing…") : uiText("Refresh files")}
+      </TooltipPopup>
     </Tooltip>
   );
 }
@@ -547,7 +549,9 @@ export default function FileBrowserPanel({
               />
             </TooltipTrigger>
             <TooltipPopup>
-              {expandAll || allDirectoriesExpanded ? uiText("Collapse all folders") : uiText("Expand all folders")}
+              {expandAll || allDirectoriesExpanded
+                ? uiText("Collapse all folders")
+                : uiText("Expand all folders")}
             </TooltipPopup>
           </Tooltip>
         ) : null}
@@ -558,11 +562,13 @@ export default function FileBrowserPanel({
           onClick={handleRefresh}
           className="p-4 text-left text-xs leading-relaxed text-destructive"
         >
-          {error ?? pathSearch.error} {uiText("Click to retry.") + " "}</button>
+          {error ?? pathSearch.error} {uiText("Click to retry.") + " "}
+        </button>
       ) : null}
       {query.trim() && pathSearch.truncated && !pathSearch.isPending ? (
         <div className="px-3 py-1 text-xs text-muted-foreground">
-          {uiText("More matches available. Refine your search.")}</div>
+          {uiText("More matches available. Refine your search.")}
+        </div>
       ) : null}
       {(!ready || pathSearch.isPending) && (
         <div
@@ -573,17 +579,19 @@ export default function FileBrowserPanel({
               : "px-3 py-1 text-xs text-muted-foreground"
           }
         >
-          {uiText("Loading files…")}</div>
+          {uiText("Loading files…")}
+        </div>
       )}
       {hasNoSearchMatches ? (
         ready && !isPending && !pathSearch.isPending && !error && !pathSearch.error ? (
           <div role="status" className="px-3 py-4 text-xs text-muted-foreground">
-            {uiText("No matching files.")}</div>
+            {uiText("No matching files.")}
+          </div>
         ) : null
       ) : (
         <FileTree
           model={model}
-          aria-label={uiText("{0} files", {"0": projectName})}
+          aria-label={uiText("{0} files", { "0": projectName })}
           className="min-h-0 flex-1 overflow-hidden"
           style={pierreTreeStyle(resolvedTheme)}
         />

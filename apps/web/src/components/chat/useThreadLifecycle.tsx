@@ -539,7 +539,11 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
   const threadStatusLine = activeThreadSnoozed ? (
     <ThreadStatusLine
       icon={<AlarmClockIcon />}
-      label={snoozedUntil ? uiText("Snoozed, {0}", { "0": formatRelativeTimeUntilLabel(snoozedUntil) }) : uiText("Snoozed")}
+      label={
+        snoozedUntil
+          ? uiText("Snoozed, {0}", { "0": formatRelativeTimeUntilLabel(snoozedUntil) })
+          : uiText("Snoozed")
+      }
       clockMinute={nowMinute}
       actionLabel={isUnsnoozing ? "Waking..." : "Wake now"}
       actionDisabled={!canOperateThread || isUnsnoozing}
@@ -548,7 +552,11 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
   ) : activeThreadSettled ? (
     <ThreadStatusLine
       icon={<CheckCircle2Icon />}
-      label={settledAt ? uiText("Settled {0}", { "0": formatRelativeTimeLabel(settledAt) }) : uiText("Settled")}
+      label={
+        settledAt
+          ? uiText("Settled {0}", { "0": formatRelativeTimeLabel(settledAt) })
+          : uiText("Settled")
+      }
       clockMinute={nowMinute}
       actionLabel={isUnsettling ? "Un-settling..." : uiText("Un-settle")}
       actionDisabled={!canOperateThread || isUnsettling}

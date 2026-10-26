@@ -18,11 +18,11 @@ interface Props {
   readonly activeDirection: BrowserViewportResizeDirection | null;
   readonly onPointerDown: (
     direction: BrowserViewportResizeDirection,
-    event: ReactPointerEvent<HTMLButtonElement>
+    event: ReactPointerEvent<HTMLButtonElement>,
   ) => void;
   readonly onKeyDown: (
     direction: BrowserViewportResizeDirection,
-    event: ReactKeyboardEvent<HTMLButtonElement>
+    event: ReactKeyboardEvent<HTMLButtonElement>,
   ) => void;
 }
 
@@ -58,7 +58,7 @@ function ResizeHandle(props: {
   return (
     <button
       type="button"
-      aria-label={uiText("{0}. Use arrow keys to resize.", {"0": label})}
+      aria-label={uiText("{0}. Use arrow keys to resize.", { "0": label })}
       className={cn(EDGE_BUTTON_CLASS, kind === "corner" && "z-30", cursorClassName)}
       style={style}
       onPointerDown={(event) => onPointerDown(direction, event)}
@@ -70,7 +70,7 @@ function ResizeHandle(props: {
           kind === "vertical" && "h-8 w-1.5",
           kind === "horizontal" && "h-1.5 w-8",
           kind === "corner" && "size-3",
-          active && "text-foreground"
+          active && "text-foreground",
         )}
       >
         {kind === "vertical" ? (

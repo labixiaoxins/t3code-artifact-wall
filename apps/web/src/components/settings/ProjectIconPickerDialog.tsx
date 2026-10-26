@@ -128,8 +128,14 @@ export function ProjectIconPickerDialog({
 
           {mode !== "emoji" ? (
             <div>
-              <div className="mb-2 text-xs font-medium text-muted-foreground">{uiText("Color")}</div>
-              <div className="flex flex-wrap gap-1.5" role="group" aria-label={uiText("Icon color")}>
+              <div className="mb-2 text-xs font-medium text-muted-foreground">
+                {uiText("Color")}
+              </div>
+              <div
+                className="flex flex-wrap gap-1.5"
+                role="group"
+                aria-label={uiText("Icon color")}
+              >
                 {PROJECT_ICON_COLORS.map((option) => (
                   <button
                     key={option.value}
@@ -179,7 +185,9 @@ export function ProjectIconPickerDialog({
                 </div>
               </ScrollArea>
               {icons.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">{uiText("No icons found.")}</p>
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  {uiText("No icons found.")}
+                </p>
               ) : null}
             </>
           ) : mode === "monogram" ? (
@@ -191,7 +199,8 @@ export function ProjectIconPickerDialog({
               />
               <div className="flex-1 space-y-2">
                 <label htmlFor="project-monogram" className="text-sm font-medium">
-                  {uiText("Letters")}</label>
+                  {uiText("Letters")}
+                </label>
                 <Input
                   id="project-monogram"
                   value={letters}
@@ -201,7 +210,8 @@ export function ProjectIconPickerDialog({
                   autoComplete="off"
                 />
                 <p id="project-monogram-hint" className="text-xs text-muted-foreground">
-                  {uiText("One or two letters or numbers.")}</p>
+                  {uiText("One or two letters or numbers.")}
+                </p>
               </div>
             </div>
           ) : (
@@ -227,7 +237,8 @@ export function ProjectIconPickerDialog({
               </ScrollArea>
               <div>
                 <div className="mb-2 text-xs font-medium text-muted-foreground">
-                  {uiText("Or paste any emoji")}</div>
+                  {uiText("Or paste any emoji")}
+                </div>
                 <Input
                   value={customEmoji}
                   aria-label={uiText("Custom emoji")}
@@ -245,9 +256,11 @@ export function ProjectIconPickerDialog({
         </DialogPanel>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {uiText("Cancel")}</Button>
+            {uiText("Cancel")}
+          </Button>
           <Button onClick={save} disabled={mode === "monogram" && !validMonogram}>
-            {uiText("Save icon")}</Button>
+            {uiText("Save icon")}
+          </Button>
         </DialogFooter>
       </DialogPopup>
     </Dialog>

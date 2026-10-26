@@ -32,7 +32,9 @@ export function TerminalContextInlineChip(props: TerminalContextInlineChipProps)
               {terminalLabel}
             </span>
             <span className={"ml-auto shrink-0 text-secondary-label text-xs"}>
-              {lineStart === lineEnd ? uiText("Line {0}", {"0": lineStart}) : uiText("Lines {0}–{1}", {"0": lineStart, "1": lineEnd})}
+              {lineStart === lineEnd
+                ? uiText("Line {0}", { "0": lineStart })
+                : uiText("Lines {0}–{1}", { "0": lineStart, "1": lineEnd })}
             </span>
           </div>
           <pre
@@ -55,11 +57,17 @@ export function TerminalContextInlineChip(props: TerminalContextInlineChipProps)
       {...(expired ? { state: "invalid" as const } : {})}
       icon={<TerminalIcon />}
       label={label}
-      aria-label={uiText("Terminal excerpt, {0}{1}", {"0": label, "1": expired ? ", expired" : ""})}
+      aria-label={uiText("Terminal excerpt, {0}{1}", {
+        "0": label,
+        "1": expired ? ", expired" : "",
+      })}
       data-terminal-context-expired={expired ? "true" : undefined}
       tooltip={
         expired
-          ? uiText("Terminal context expired. Remove and re-add {0} to include it in your message.", {"0": label})
+          ? uiText(
+              "Terminal context expired. Remove and re-add {0} to include it in your message.",
+              { "0": label },
+            )
           : detailsMode === "none"
             ? undefined
             : text

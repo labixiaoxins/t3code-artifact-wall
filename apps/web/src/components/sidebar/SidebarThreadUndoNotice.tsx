@@ -20,7 +20,7 @@ export function SidebarThreadUndoNotice() {
       <AlertDescription>
         {notice.action} {notice.count} {noun},{" "}
         <InlineButton onClick={undoLatestThreadAction}>
-          {shortcut ? uiText("{0} to undo", {"0": shortcut}) : uiText("Undo")}
+          {shortcut ? uiText("{0} to undo", { "0": shortcut }) : uiText("Undo")}
         </InlineButton>
       </AlertDescription>
     </Alert>

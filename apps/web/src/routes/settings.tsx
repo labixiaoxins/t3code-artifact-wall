@@ -39,7 +39,8 @@ function RestoreDeviceDefaultsButton({ onRestored }: { onRestored: () => void })
       onClick={() => void restoreDefaults()}
     >
       <RotateCcwIcon className="mx-1 size-3.5" />
-      {uiText("Restore device defaults") + " "}</Button>
+      {uiText("Restore device defaults") + " "}
+    </Button>
   );
 }
 
@@ -64,8 +65,13 @@ function SettingsScopeBoundary({ pathname, children }: { pathname: string; child
         eligibleEnvironmentIds={autoSettlementAvailability.eligibleEnvironmentIds}
       >
         {autoSettlementAvailability.eligibleEnvironmentIds.length > 0
-          ? uiText("{0} requires a supporting environment. Choose one to continue.", {"0": searchTarget.title})
-          : uiText("{0} requires a supporting environment. Connect or update an environment to continue.", {"0": searchTarget.title})}
+          ? uiText("{0} requires a supporting environment. Choose one to continue.", {
+              "0": searchTarget.title,
+            })
+          : uiText(
+              "{0} requires a supporting environment. Connect or update an environment to continue.",
+              { "0": searchTarget.title },
+            )}
       </SettingsScopeNotice>
     );
   }
@@ -82,7 +88,10 @@ function SettingsScopeBoundary({ pathname, children }: { pathname: string; child
         : "all";
     return (
       <SettingsScopeNotice target={target} targetId={hash}>
-        {uiText("{0} is not available for the selected target. Choose its owning scope to continue.", {"0": searchTarget.title})}
+        {uiText(
+          "{0} is not available for the selected target. Choose its owning scope to continue.",
+          { "0": searchTarget.title },
+        )}
       </SettingsScopeNotice>
     );
   }
@@ -99,7 +108,9 @@ function SettingsScopeBoundary({ pathname, children }: { pathname: string; child
     return (
       <SettingsPageContainer>
         <p className="text-sm text-muted-foreground">
-          {uiText("Reconnect") + " "}{scope.label} {uiText("to change its settings.") + " "}</p>
+          {uiText("Reconnect") + " "}
+          {scope.label} {uiText("to change its settings.") + " "}
+        </p>
       </SettingsPageContainer>
     );
   }

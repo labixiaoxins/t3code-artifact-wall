@@ -24,7 +24,10 @@ export function HtmlRenderDialog(props: {
         className="row-start-1"
         initialFocus={closeButtonRef}
       >
-        <DialogTitle className="sr-only">{uiText("Expanded") + " "}{props.title} {uiText("preview")}</DialogTitle>
+        <DialogTitle className="sr-only">
+          {uiText("Expanded") + " "}
+          {props.title} {uiText("preview")}
+        </DialogTitle>
         <div className="relative w-[92vw]">
           <Button
             ref={closeButtonRef}

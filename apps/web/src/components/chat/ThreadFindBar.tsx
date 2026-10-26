@@ -98,7 +98,8 @@ export function ThreadFindBar(props: ThreadFindBarProps) {
           </span>
           {props.status === "error" ? (
             <Button size="xs" variant="ghost" onClick={props.onRetry}>
-              {uiText("Retry")}</Button>
+              {uiText("Retry")}
+            </Button>
           ) : null}
           <Button
             size="icon-xs"
@@ -118,7 +119,12 @@ export function ThreadFindBar(props: ThreadFindBarProps) {
           >
             <ChevronDownIcon />
           </Button>
-          <Button size="icon-xs" variant="ghost" aria-label={uiText("Close find")} onClick={props.onClose}>
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            aria-label={uiText("Close find")}
+            onClick={props.onClose}
+          >
             <XIcon />
           </Button>
         </InputGroupAddon>

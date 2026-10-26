@@ -78,7 +78,10 @@ export function PullRequestComposer({
         render={<Button size="icon" variant="glass" />}
         aria-label={
           pendingComments.length > 0
-            ? uiText("Review pull request, {0} {1} pending", {"0": pendingComments.length, "1": pendingComments.length === 1 ? "comment" : "comments"})
+            ? uiText("Review pull request, {0} {1} pending", {
+                "0": pendingComments.length,
+                "1": pendingComments.length === 1 ? "comment" : "comments",
+              })
             : reviewStarted || !canComment
               ? uiText("Review pull request")
               : uiText("Comment on pull request")
@@ -116,12 +119,16 @@ export function PullRequestComposer({
             >
               <Toggle value="comment">{uiText("Comment")}</Toggle>
               <Toggle value="review">
-                {pendingComments.length > 0 ? uiText("Review ({0})", {"0": pendingComments.length}) : uiText("Review")}
+                {pendingComments.length > 0
+                  ? uiText("Review ({0})", { "0": pendingComments.length })
+                  : uiText("Review")}
               </Toggle>
             </ToggleGroup>
           ) : (
             <PopoverTitle>
-              {mode === "review" ? uiText("Review pull request") : uiText("Comment on pull request")}
+              {mode === "review"
+                ? uiText("Review pull request")
+                : uiText("Comment on pull request")}
             </PopoverTitle>
           )}
           <div className="flex items-center gap-1">

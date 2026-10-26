@@ -20,7 +20,7 @@ interface Props {
   visible: boolean;
   onSendAnnotation?: (
     annotation: PreviewAnnotationPayload,
-    image: ComposerImageAttachment | null
+    image: ComposerImageAttachment | null,
   ) => void;
 }
 

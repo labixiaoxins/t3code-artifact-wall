@@ -114,7 +114,8 @@ export function V2EventTimelineRow({ row }: { row: Extract<TimelineRow, { kind: 
           ) : null}
           {visibility === "inherited" ? (
             <p className="mt-1 font-mono text-3xs text-muted-foreground/65">
-              {uiText("From")}{sourceThreadId}
+              {uiText("From")}
+              {sourceThreadId}
             </p>
           ) : null}
           <div className={presentation.detail ? "mt-2" : undefined}>
@@ -189,7 +190,8 @@ export function V2EventTimelineRow({ row }: { row: Extract<TimelineRow, { kind: 
           ) : null}
           {visibility === "inherited" ? (
             <p className="mt-1 font-mono text-3xs text-muted-foreground/65">
-              {uiText("From")}{sourceThreadId}
+              {uiText("From")}
+              {sourceThreadId}
             </p>
           ) : null}
           <div className="mt-2">

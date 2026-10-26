@@ -344,18 +344,21 @@ export function ReviewThreadCard({
                 />
                 <div className="mt-2 flex justify-end gap-2">
                   <Button size="xs" variant="ghost" onClick={() => setReplying(false)}>
-                    {uiText("Cancel")}</Button>
+                    {uiText("Cancel")}
+                  </Button>
                   <Button
                     size="xs"
                     disabled={pending || reply.trim().length === 0}
                     onClick={() => void send()}
                   >
-                    {uiText("Reply")}</Button>
+                    {uiText("Reply")}
+                  </Button>
                 </div>
               </div>
             ) : (
               <Button size="xs" variant="ghost" className="mt-2" onClick={() => setReplying(true)}>
-                {uiText("Reply")}</Button>
+                {uiText("Reply")}
+              </Button>
             )
           ) : null}
         </>

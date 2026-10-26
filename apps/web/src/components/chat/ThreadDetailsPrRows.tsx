@@ -125,7 +125,7 @@ export function ThreadDetailsPrRows({
         className="w-full active:scale-100"
       >
         <MorphIcon aria-hidden className="size-4 shrink-0" icon={expanded ? Minus : Plus} />
-        {expanded ? uiText("Show less") : uiText("Show {0} more", {"0": rest.length})}
+        {expanded ? uiText("Show less") : uiText("Show {0} more", { "0": rest.length })}
       </ThreadDetailsControl>
     </>
   );

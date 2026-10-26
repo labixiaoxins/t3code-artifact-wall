@@ -19,7 +19,13 @@ export function LegacyThreadMigrationToast() {
       toastIdRef.current = toastManager.add({
         type: "loading",
         title: uiText("Restoring your threads…"),
-        description: uiText("Migrating {0} {1} from the previous version. You can keep working while this finishes.", {"0": migration.totalThreadCount.toLocaleString(), "1": migration.totalThreadCount === 1 ? "thread" : "threads"}),
+        description: uiText(
+          "Migrating {0} {1} from the previous version. You can keep working while this finishes.",
+          {
+            "0": migration.totalThreadCount.toLocaleString(),
+            "1": migration.totalThreadCount === 1 ? "thread" : "threads",
+          },
+        ),
         timeout: 0,
       });
       return;

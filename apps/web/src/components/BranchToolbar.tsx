@@ -260,7 +260,9 @@ const RunContextSelector = memo(function RunContextSelector({
             />
           )}
         </TooltipTrigger>
-        <TooltipPopup>{autoEnvironmentLabel ?? activeEnvironment?.label ?? uiText("Run on")}</TooltipPopup>
+        <TooltipPopup>
+          {autoEnvironmentLabel ?? activeEnvironment?.label ?? uiText("Run on")}
+        </TooltipPopup>
       </Tooltip>
       {workspaceIcon}
     </span>
@@ -272,7 +274,9 @@ const RunContextSelector = memo(function RunContextSelector({
       {icon}
       <ComposerContextLabel displayMode={displayMode}>
         {autoEnvironmentLabel ??
-          (showEnvironmentIndicator ? (activeEnvironment?.label ?? uiText("Run on")) : workspaceLabel)}
+          (showEnvironmentIndicator
+            ? (activeEnvironment?.label ?? uiText("Run on"))
+            : workspaceLabel)}
       </ComposerContextLabel>
     </>
   );

@@ -292,7 +292,8 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
                 role="status"
                 className="px-2 py-6 text-center text-xs text-sidebar-muted-foreground"
               >
-                {uiText("No settings found")}</p>
+                {uiText("No settings found")}
+              </p>
             ) : null}
             {isSearching ? (
               <SidebarMenu

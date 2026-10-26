@@ -102,7 +102,9 @@ export function DeviceHostsSettings(props: { environmentId: EnvironmentId | null
       toastManager.add({
         type: "error",
         title: uiText("Device hosts not saved on all environments"),
-        description: uiText("Could not update {0}.", {"0": failed.map((environment) => environment.label).join(", ")}),
+        description: uiText("Could not update {0}.", {
+          "0": failed.map((environment) => environment.label).join(", "),
+        }),
       });
     }
   };
@@ -136,7 +138,9 @@ export function DeviceHostsSettings(props: { environmentId: EnvironmentId | null
       title={uiText("Device hosts")}
       serverScoped
       settingKeys={["deviceHosts"]}
-      description={uiText("Add remote machines with simulator or emulator runtimes installed, and the selected environments will connect over SSH and set up device tools automatically.")}
+      description={uiText(
+        "Add remote machines with simulator or emulator runtimes installed, and the selected environments will connect over SSH and set up device tools automatically.",
+      )}
       control={
         <Button
           size="sm"
@@ -149,13 +153,15 @@ export function DeviceHostsSettings(props: { environmentId: EnvironmentId | null
             setEditing({ kind: "ssh", id: randomUUID(), label: "", target: "" });
           }}
         >
-          <PlusIcon className="size-3.5" /> {uiText("Add host") + " "}</Button>
+          <PlusIcon className="size-3.5" /> {uiText("Add host") + " "}
+        </Button>
       }
     >
       <div className="pt-3 pb-2">
         {!props.environmentId ? (
           <p className="text-sm text-muted-foreground">
-            {uiText("Connect a selected environment to manage device hosts.")}</p>
+            {uiText("Connect a selected environment to manage device hosts.")}
+          </p>
         ) : (
           <>
             {hostEnvironments.length > 1 && groupedHosts === null ? (
@@ -480,7 +486,8 @@ function DeviceHostList({
                           {result.versions}
                           {result.check?.status === "local" ? (
                             <p className="text-xs text-muted-foreground">
-                              {uiText("Already available locally")}</p>
+                              {uiText("Already available locally")}
+                            </p>
                           ) : (
                             <DeviceHostAvailability
                               platforms={
@@ -499,7 +506,9 @@ function DeviceHostList({
                 first.versions
               )}
               {!compact && check?.status === "local" ? (
-                <p className="mt-1 text-xs text-muted-foreground">{uiText("Already available locally")}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {uiText("Already available locally")}
+                </p>
               ) : null}
               {!compact && error ? (
                 <div className="mt-1" role="status">
@@ -547,7 +556,8 @@ function DeviceHostList({
               <MenuPopup align="end">
                 <MenuItem onClick={() => onEdit(host)}>{uiText("Edit")}</MenuItem>
                 <MenuItem variant="destructive" onClick={() => onRemove(host)}>
-                  {uiText("Remove")}</MenuItem>
+                  {uiText("Remove")}
+                </MenuItem>
                 {compact
                   ? retryable.map((result) => (
                       <MenuItem
@@ -557,8 +567,8 @@ function DeviceHostList({
                           retryHost(result.environmentId, result.host.id, result.environmentId)
                         }
                       >
-                        {retrying === result.environmentId ? "Retrying" : uiText("Retry")} {uiText("from")}{" "}
-                        {result.label}
+                        {retrying === result.environmentId ? "Retrying" : uiText("Retry")}{" "}
+                        {uiText("from")} {result.label}
                         {result.address ? ` (${result.address})` : null}
                       </MenuItem>
                     ))
@@ -576,7 +586,11 @@ function DeviceHostList({
                 else void testConnection(host);
               }}
             >
-              {canRetry ? (retrying === host.id ? uiText("Retrying…") : uiText("Retry")) : uiText("Test connection")}
+              {canRetry
+                ? retrying === host.id
+                  ? uiText("Retrying…")
+                  : uiText("Retry")
+                : uiText("Test connection")}
             </Button>
           </div>
         );

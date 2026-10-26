@@ -47,7 +47,8 @@ export function KeybindingsConfigWarning({
             );
           }}
         >
-          {uiText("Open keybindings.json")}</Button>
+          {uiText("Open keybindings.json")}
+        </Button>
       </span>
     </>
   );

@@ -84,7 +84,7 @@ export function UsageModelDialog({
           </div>
           <DialogDescription>
             {presentation.label}
-            {costUnknown ? "" : uiText(" · {0} of cost", {"0": formatPercent(model.costShare)})}
+            {costUnknown ? "" : uiText(" · {0} of cost", { "0": formatPercent(model.costShare) })}
           </DialogDescription>
         </DialogHeader>
         <DialogPanel>

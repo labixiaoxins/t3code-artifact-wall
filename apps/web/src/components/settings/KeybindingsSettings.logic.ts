@@ -24,7 +24,7 @@ const usageCommandOrder = new Map<KeybindingCommand, number>(
   [
     "usage.open" as const,
     ...[...METRIC_OPTIONS, ...WINDOW_OPTIONS].map((option) => option.command),
-  ].map((command, index) => [command, index])
+  ].map((command, index) => [command, index]),
 );
 
 const firstUsageCommand = METRIC_OPTIONS[0].command;
@@ -32,13 +32,13 @@ const firstUsageCommand = METRIC_OPTIONS[0].command;
 function compareCommands(
   left: KeybindingCommand,
   right: KeybindingCommand,
-  key: (command: KeybindingCommand) => string
+  key: (command: KeybindingCommand) => string,
 ): number {
   const leftRank = usageCommandOrder.get(left);
   const rightRank = usageCommandOrder.get(right);
   if (leftRank !== undefined && rightRank !== undefined) return leftRank - rightRank;
   return key(leftRank === undefined ? left : firstUsageCommand).localeCompare(
-    key(rightRank === undefined ? right : firstUsageCommand)
+    key(rightRank === undefined ? right : firstUsageCommand),
   );
 }
 
@@ -75,7 +75,7 @@ for (const binding of DEFAULT_RESOLVED_KEYBINDINGS) {
 
 export const DEFAULT_WHEN_VARIABLE =
   [...DEFAULT_WHEN_VARIABLES].find(
-    (identifier) => identifier !== "true" && identifier !== "false"
+    (identifier) => identifier !== "true" && identifier !== "false",
   ) ?? "terminalFocus";
 const KNOWN_WHEN_VARIABLES = new Set(DEFAULT_WHEN_VARIABLES);
 
@@ -118,8 +118,8 @@ function wrapWhenExpression(node: KeybindingWhenNode): string {
 }
 
 export function parseWhenExpressionDraft(
-  expression: string
-): { ok: true; value: KeybindingWhenNode | undefined; } | { ok: false; message: string; } {
+  expression: string,
+): { ok: true; value: KeybindingWhenNode | undefined } | { ok: false; message: string } {
   const trimmed = expression.trim();
   if (trimmed.length === 0) return { ok: true, value: undefined };
 
@@ -145,14 +145,14 @@ function sourceForBinding(binding: ResolvedKeybindingRule): KeybindingSource {
     (entry) =>
       entry.command === binding.command &&
       shortcutToKeybindingInput(entry.shortcut) === bindingKey &&
-      whenAstToExpression(entry.whenAst) === bindingWhen
+      whenAstToExpression(entry.whenAst) === bindingWhen,
   );
 
   return isDefault ? "Default" : "Custom";
 }
 
 function defaultBindingForBinding(
-  binding: ResolvedKeybindingRule
+  binding: ResolvedKeybindingRule,
 ): ResolvedKeybindingRule | undefined {
   const bindingKey = shortcutToKeybindingInput(binding.shortcut);
   const bindingWhen = whenAstToExpression(binding.whenAst);
@@ -162,11 +162,11 @@ function defaultBindingForBinding(
       (entry) =>
         entry.command === binding.command &&
         shortcutToKeybindingInput(entry.shortcut) === bindingKey &&
-        whenAstToExpression(entry.whenAst) === bindingWhen
+        whenAstToExpression(entry.whenAst) === bindingWhen,
     ) ??
     DEFAULT_RESOLVED_KEYBINDINGS.find(
       (entry) =>
-        entry.command === binding.command && whenAstToExpression(entry.whenAst) === bindingWhen
+        entry.command === binding.command && whenAstToExpression(entry.whenAst) === bindingWhen,
     ) ??
     DEFAULT_RESOLVED_KEYBINDINGS.find((entry) => entry.command === binding.command)
   );
@@ -182,7 +182,7 @@ function conflictsWithWhen(leftWhen: string, rightWhen: string): boolean {
 
 export function keybindingConflictLabels(
   rows: ReadonlyArray<KeybindingRow>,
-  input: { readonly rowId: string; readonly key: string; readonly when: string; }
+  input: { readonly rowId: string; readonly key: string; readonly when: string },
 ): ReadonlyArray<string> {
   if (input.key.trim().length === 0) return [];
   const conflicts: Array<string> = [];
@@ -214,12 +214,16 @@ const KEYBINDING_GROUPS = [
   { id: "composer", title: uiText("Composer"), prefixes: ["composer", "modelPicker"] },
   { id: "terminal", title: uiText("Terminal"), prefixes: ["terminal"] },
   { id: "preview", title: uiText("Preview & diff"), prefixes: ["preview", "diff"] },
-  { id: "appearance", title: uiText("Appearance"), prefixes: ["theme", "appearance", "themeEditor"] },
+  {
+    id: "appearance",
+    title: uiText("Appearance"),
+    prefixes: ["theme", "appearance", "themeEditor"],
+  },
   { id: "scripts", title: uiText("Project scripts"), prefixes: ["script"] },
 ] as const;
 const OTHER_KEYBINDING_GROUP = { id: "other", title: uiText("Other") } as const;
 
-function keybindingGroupFor(command: KeybindingCommand): { id: string; title: string; } {
+function keybindingGroupFor(command: KeybindingCommand): { id: string; title: string } {
   const prefix = String(command).split(".")[0] ?? "";
   return (
     KEYBINDING_GROUPS.find((group) => (group.prefixes as ReadonlyArray<string>).includes(prefix)) ??
@@ -228,7 +232,7 @@ function keybindingGroupFor(command: KeybindingCommand): { id: string; title: st
 }
 
 export function groupKeybindingRows(
-  rows: ReadonlyArray<KeybindingRow>
+  rows: ReadonlyArray<KeybindingRow>,
 ): ReadonlyArray<KeybindingGroup> {
   const rowsByGroup = new Map<string, Array<KeybindingRow>>();
   for (const row of rows) {
@@ -244,7 +248,7 @@ export function groupKeybindingRows(
 }
 
 export function buildKeybindingRows(
-  keybindings: ResolvedKeybindingsConfig
+  keybindings: ResolvedKeybindingsConfig,
 ): ReadonlyArray<KeybindingRow> {
   const rowsById = new Map<string, KeybindingRow>();
   for (const binding of keybindings) {
@@ -290,7 +294,7 @@ export function buildKeybindingRows(
 // changes receive the same props and skip rendering.
 export function filterKeybindingRows(
   rows: ReadonlyArray<KeybindingRow>,
-  query: string
+  query: string,
 ): ReadonlyArray<KeybindingRow> {
   const normalizedQuery = query.trim().toLowerCase();
   if (normalizedQuery.length === 0) return rows;
@@ -307,7 +311,7 @@ export function filterKeybindingRows(
 
 function collectWhenIdentifiersFromNode(
   node: KeybindingWhenNode | undefined,
-  identifiers: Set<string>
+  identifiers: Set<string>,
 ): void {
   if (!node) return;
   switch (node.type) {
@@ -339,7 +343,7 @@ export function buildWhenVariableOptions(): ReadonlyArray<WhenVariableOption> {
   return [...KNOWN_WHEN_VARIABLES].toSorted((left, right) => {
     const leftCoreIndex = CORE_WHEN_VARIABLES.indexOf(left as (typeof CORE_WHEN_VARIABLES)[number]);
     const rightCoreIndex = CORE_WHEN_VARIABLES.indexOf(
-      right as (typeof CORE_WHEN_VARIABLES)[number]
+      right as (typeof CORE_WHEN_VARIABLES)[number],
     );
     if (leftCoreIndex !== -1 || rightCoreIndex !== -1) {
       return (
@@ -352,7 +356,7 @@ export function buildWhenVariableOptions(): ReadonlyArray<WhenVariableOption> {
 }
 
 export function buildKeybindingCommandOptions(
-  keybindings: ResolvedKeybindingsConfig
+  keybindings: ResolvedKeybindingsConfig,
 ): ReadonlyArray<KeybindingCommandOption> {
   const commands = new Set<KeybindingCommand>(STATIC_KEYBINDING_COMMANDS);
   for (const binding of keybindings) {
@@ -363,7 +367,8 @@ export function buildKeybindingCommandOptions(
 
 export function commandLabel(command: KeybindingCommand): string {
   if (command === "inbox.next") return "待我处理：下一条";
-  if (command === "composer.sendAlternate") return uiText("Composer: Opposite Queue or Steer Action");
+  if (command === "composer.sendAlternate")
+    return uiText("Composer: Opposite Queue or Steer Action");
   if (command === "composer.sendBackground") return uiText("Composer: Start in Background");
   if (command === "composer.sendAndNewThread") return uiText("Composer: Send and Start New Thread");
   if (command === "thread.steerQueuedMessage") return "Queue: Send First Queued Message";
@@ -379,7 +384,10 @@ export function commandLabel(command: KeybindingCommand): string {
   if (raw.startsWith("script.") && raw.endsWith(".run")) {
     return `${"Run Script"}: ${titleCaseCommandSegment(raw.slice("script.".length, -".run".length))}`;
   }
-  return raw.split(".").map((part) =>titleCaseCommandSegment(part)).join(": ");
+  return raw
+    .split(".")
+    .map((part) => titleCaseCommandSegment(part))
+    .join(": ");
 }
 
 function titleCaseCommandSegment(segment: string): string {
@@ -393,7 +401,7 @@ function titleCaseCommandSegment(segment: string): string {
 }
 
 function recordedLayoutShortcutKey(
-  event: Pick<KeyboardEvent, "key" | "code" | "shiftKey" | "altKey">
+  event: Pick<KeyboardEvent, "key" | "code" | "shiftKey" | "altKey">,
 ): string {
   const physicalKey = shortcutKeyFromEvent(event);
   const layoutKey = event.key.toLowerCase();
@@ -439,10 +447,10 @@ export function keybindingFromKeyboardEvent(
   platform: string,
   options?: {
     readonly layoutCharacter?: boolean;
-  }
+  },
 ): string | null {
   const keyToken = normalizeShortcutKeyToken(
-    options?.layoutCharacter ? recordedLayoutShortcutKey(event) : shortcutKeyFromEvent(event)
+    options?.layoutCharacter ? recordedLayoutShortcutKey(event) : shortcutKeyFromEvent(event),
   );
   if (!keyToken) return null;
 

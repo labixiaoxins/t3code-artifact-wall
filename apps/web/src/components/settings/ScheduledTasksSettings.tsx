@@ -303,7 +303,7 @@ export function scheduleLabel(schedule: ScheduledTaskSchedule): string {
       : weekdays.length === 5 && weekdays.every((day) => day >= 1 && day <= 5)
         ? "Weekdays"
         : weekdays.map((day) => WEEKDAY_LABELS[day]).join(", ");
-  return uiText("{0} at {1}", {"0": days, "1": schedule.timeOfDay});
+  return uiText("{0} at {1}", { "0": days, "1": schedule.timeOfDay });
 }
 
 /**
@@ -321,10 +321,10 @@ function relativeLabel(value: string | null, nowMs: number): string {
   }
   const minutes = Math.ceil(diffMs / 60000);
   if (minutes < 2) return uiText("in under a minute");
-  if (minutes < 60) return uiText("in {0}m", {"0": minutes});
+  if (minutes < 60) return uiText("in {0}m", { "0": minutes });
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return uiText("in {0}h", {"0": hours});
-  return uiText("in {0}d", {"0": Math.round(hours / 24)});
+  if (hours < 24) return uiText("in {0}h", { "0": hours });
+  return uiText("in {0}d", { "0": Math.round(hours / 24) });
 }
 
 // The clock is the label's own minute tick: the React Compiler caches a
@@ -553,7 +553,9 @@ function ScheduledTaskEnvironmentList({
       {taskId && linkedState?.tasks && linkedState.error === null && !linkedTask ? (
         <SettingsRow
           title={uiText("Task unavailable")}
-          description={uiText("This task no longer exists or is outside the selected project scope.")}
+          description={uiText(
+            "This task no longer exists or is outside the selected project scope.",
+          )}
           role={"status"}
         />
       ) : null}
@@ -633,10 +635,15 @@ function ScheduledTaskEnvironmentSection({
       {!connected ? (
         <SettingsRow
           title={uiText("Environment disconnected")}
-          description={uiText("Reconnect {0} to view its scheduled tasks.", {"0": environment.label})}
+          description={uiText("Reconnect {0} to view its scheduled tasks.", {
+            "0": environment.label,
+          })}
         />
       ) : tasksQuery.error ? (
-        <SettingsRow title={uiText("Could not load scheduled tasks")} description={tasksQuery.error} />
+        <SettingsRow
+          title={uiText("Could not load scheduled tasks")}
+          description={tasksQuery.error}
+        />
       ) : !tasks ? (
         <SettingsRow title={uiText("Loading scheduled tasks…")} role={"status"} />
       ) : (
@@ -644,7 +651,9 @@ function ScheduledTaskEnvironmentSection({
           {taskId && !linkedTask ? (
             <SettingsRow
               title={uiText("Task unavailable")}
-              description={uiText("This task no longer exists or is outside the selected project scope.")}
+              description={uiText(
+                "This task no longer exists or is outside the selected project scope.",
+              )}
               role={"status"}
             />
           ) : null}
@@ -748,7 +757,7 @@ function ScheduledTaskRow({
           <Switch
             checked={task.enabled}
             disabled={busy || !canOperate}
-            aria-label={uiText("Enable {0}", {"0": task.title})}
+            aria-label={uiText("Enable {0}", { "0": task.title })}
             onCheckedChange={() => void act("toggle")}
           />
           <Menu>
@@ -758,7 +767,7 @@ function ScheduledTaskRow({
                   size={"icon-sm"}
                   variant={"ghost"}
                   disabled={busy || !canOperate}
-                  aria-label={uiText("Actions for {0}", {"0": task.title})}
+                  aria-label={uiText("Actions for {0}", { "0": task.title })}
                 />
               }
             >
@@ -843,7 +852,9 @@ function WebhookDeliveriesDialog({
             {uiText("Deliveries ·")}
             {task.title}
           </DialogTitle>
-          <DialogDescription>{uiText("Recent requests to this task's webhook URL.")}</DialogDescription>
+          <DialogDescription>
+            {uiText("Recent requests to this task's webhook URL.")}
+          </DialogDescription>
         </DialogHeader>
         <DialogPanel>
           {error ? <p className={"text-sm text-destructive"}>{error}</p> : null}
@@ -882,7 +893,9 @@ function WebhookDeliveriesDialog({
                 </p>
               ) : null}
               <DeliveryBlock
-                title={selected.pendingWindow ? "Scheduled run" : uiText("Prompt sent to the agent")}
+                title={
+                  selected.pendingWindow ? "Scheduled run" : uiText("Prompt sent to the agent")
+                }
               >
                 {selected.renderedPrompt ??
                   (selected.pendingWindow
@@ -903,7 +916,9 @@ function WebhookDeliveriesDialog({
               {selected.query ? (
                 <DeliveryBlock title={uiText("Query")}>{selected.query}</DeliveryBlock>
               ) : null}
-              <DeliveryBlock title={selected.bodyTruncated ? uiText("Body (truncated)") : uiText("Body")}>
+              <DeliveryBlock
+                title={selected.bodyTruncated ? uiText("Body (truncated)") : uiText("Body")}
+              >
                 {selected.body || uiText("(empty)")}
               </DeliveryBlock>
             </div>
@@ -1006,7 +1021,9 @@ function WebhookEndpointField({
   const [rotating, setRotating] = useState(false);
   const endpoint = task?.webhook;
   if (!task || !endpoint) {
-    return <p className={"text-sm text-muted-foreground"}>{uiText("The URL appears after you save.")}</p>;
+    return (
+      <p className={"text-sm text-muted-foreground"}>{uiText("The URL appears after you save.")}</p>
+    );
   }
   const { address: url, copyable, note } = webhookAddress(endpoint, httpBaseUrl);
   const rotateUrl = async () => {
@@ -1300,9 +1317,9 @@ function ScheduledTaskEditorForm({
       <DialogHeader>
         <DialogTitle>{draft.editingId ? uiText("Edit task") : uiText("New task")}</DialogTitle>
         <DialogDescription>
-          {
-            uiText("Run a prompt automatically — on an interval, at a fixed time, or when a webhook is called.")
-          }
+          {uiText(
+            "Run a prompt automatically — on an interval, at a fixed time, or when a webhook is called.",
+          )}
         </DialogDescription>
       </DialogHeader>
 
@@ -1443,7 +1460,9 @@ function ScheduledTaskEditorForm({
                 <SelectPopup>
                   <SelectItem value={"worktree"}>{uiText("Create a new worktree")}</SelectItem>
                   <SelectItem value={"root"}>{uiText("Use the project checkout")}</SelectItem>
-                  <SelectItem value={"existing_worktree"}>{uiText("Use a specific checkout")}</SelectItem>
+                  <SelectItem value={"existing_worktree"}>
+                    {uiText("Use a specific checkout")}
+                  </SelectItem>
                 </SelectPopup>
               </Select>
             </Field>
@@ -1514,9 +1533,9 @@ function ScheduledTaskEditorForm({
             {task?.schedule.type === "interval" &&
             task.schedule.everyMs < MIN_SCHEDULED_TASK_INTERVAL_MS ? (
               <p className={"text-sm text-muted-foreground"} role={"status"}>
-                {
-                  uiText("This task uses a legacy interval below one minute. Saving updates it to at least one minute.")
-                }
+                {uiText(
+                  "This task uses a legacy interval below one minute. Saving updates it to at least one minute.",
+                )}
               </p>
             ) : null}
             {/* Wraps the toggle below the label when both don't fit, as on phones. */}
@@ -1548,9 +1567,9 @@ function ScheduledTaskEditorForm({
               <div className={"space-y-4"}>
                 <WebhookEndpointField environmentId={environmentId} task={liveTask} />
                 <p className={"text-xs text-muted-foreground"}>
-                  {
-                    uiText("Each request runs the prompt. Use {{body.path}}, {{headers.name}}, {{query.name}}, {{body}} or {{request}} in the prompt; only what it names reaches the agent.")
-                  }
+                  {uiText(
+                    "Each request runs the prompt. Use {{body.path}}, {{headers.name}}, {{query.name}}, {{body}} or {{request}} in the prompt; only what it names reaches the agent.",
+                  )}
                 </p>
                 <Field
                   label={uiText("Skip requests older than")}
@@ -1633,7 +1652,9 @@ function ScheduledTaskEditorForm({
                 </p>
                 <div className={"flex items-center justify-between gap-4"}>
                   <div className={"min-w-0 space-y-1"}>
-                    <Label htmlFor={"scheduled-task-signature"}>{uiText("Require signature")}</Label>
+                    <Label htmlFor={"scheduled-task-signature"}>
+                      {uiText("Require signature")}
+                    </Label>
                     <p className={"text-sm text-muted-foreground"}>
                       {uiText("Reject requests without a valid HMAC-SHA256 signature of the body.")}
                     </p>

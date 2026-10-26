@@ -40,7 +40,8 @@ export function usageAliasCell(targets: readonly UsagePriceTarget[], model: stri
   if (targets.some((target) => target.aliases === null))
     return { value: "", placeholder: uiText("Unavailable") };
   const values = targets.map((target) => modelAlias(target, model) ?? "");
-  if (values.some((value) => value !== values[0])) return { value: "", placeholder: uiText("Mixed") };
+  if (values.some((value) => value !== values[0]))
+    return { value: "", placeholder: uiText("Mixed") };
   return { value: values[0] ?? "", placeholder: uiText("None") };
 }
 
@@ -55,7 +56,8 @@ export function usagePriceCell(
   );
   if (targets.some((target) => target.prices === null))
     return { value: "", placeholder: uiText("Unavailable") };
-  if (values.some((value) => value !== values[0])) return { value: "", placeholder: uiText("Mixed") };
+  if (values.some((value) => value !== values[0]))
+    return { value: "", placeholder: uiText("Mixed") };
   return {
     value: values[0] ?? "",
     placeholder: values[0] === null ? "Automatic" : optional ? "Input rate" : "0.00",

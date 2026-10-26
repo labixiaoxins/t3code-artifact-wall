@@ -594,7 +594,8 @@ export function BranchToolbarBranchSelector({
             <SourceControlIcon className="size-3.5 shrink-0 text-muted-foreground" />
             <span className="flex min-w-0 flex-col items-start">
               <span className="truncate font-medium">
-                {uiText("Checkout") + " "}{sourceControlPresentation.terminology.singular}
+                {uiText("Checkout") + " "}
+                {sourceControlPresentation.terminology.singular}
               </span>
               <span className="truncate text-muted-foreground text-xs">{prReference}</span>
             </span>
@@ -611,7 +612,10 @@ export function BranchToolbarBranchSelector({
           value={itemValue}
           onClick={() => selectPickerItem(itemValue)}
         >
-          <span className="truncate">{uiText("Create new ref &quot;")}{newRefName}&quot;</span>
+          <span className="truncate">
+            {uiText("Create new ref &quot;")}
+            {newRefName}&quot;
+          </span>
         </ComboboxItem>
       );
     }

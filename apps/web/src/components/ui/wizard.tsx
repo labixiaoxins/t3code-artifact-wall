@@ -99,7 +99,11 @@ export function WizardSteps({
                 "bg-card text-foreground shadow-xs ring-1 ring-inset ring-black/5 hover:bg-card dark:shadow-none dark:ring-white/5",
             )}
             aria-current={index === currentStep ? "step" : undefined}
-            aria-label={uiText("{0}, step {1}{2}", {"0": step, "1": index + 1, "2": index < currentStep && summaries?.[index] ? `, ${summaries?.[index]}` : ""})}
+            aria-label={uiText("{0}, step {1}{2}", {
+              "0": step,
+              "1": index + 1,
+              "2": index < currentStep && summaries?.[index] ? `, ${summaries?.[index]}` : "",
+            })}
             onClick={onStepChange ? () => onStepChange(index) : undefined}
           >
             <span

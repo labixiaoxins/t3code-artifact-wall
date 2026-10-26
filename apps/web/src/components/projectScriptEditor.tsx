@@ -207,11 +207,18 @@ export function ProjectScriptEditorDialog({
       <AlertDialog open={deleteConfirmOpen && canEditActions} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogPopup>
           <AlertDialogHeader>
-            <AlertDialogTitle>{uiText("Delete action \"")}{deleteName}"?</AlertDialogTitle>
-            <AlertDialogDescription>{uiText("This action cannot be undone.")}</AlertDialogDescription>
+            <AlertDialogTitle>
+              {uiText('Delete action "')}
+              {deleteName}"?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {uiText("This action cannot be undone.")}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogClose render={<Button variant="outline" />}>{uiText("Cancel")}</AlertDialogClose>
+            <AlertDialogClose render={<Button variant="outline" />}>
+              {uiText("Cancel")}
+            </AlertDialogClose>
             <Button
               variant="destructive"
               disabled={!canEditActions}
@@ -226,7 +233,8 @@ export function ProjectScriptEditorDialog({
                 onDelete(request.scriptId);
               }}
             >
-              {uiText("Delete action")}</Button>
+              {uiText("Delete action")}
+            </Button>
           </AlertDialogFooter>
         </AlertDialogPopup>
       </AlertDialog>
@@ -414,7 +422,10 @@ function ProjectScriptEditorForm({
       <DialogHeader>
         <DialogTitle>{isEditing ? uiText("Edit Action") : uiText("Add Action")}</DialogTitle>
         <DialogDescription>
-          {uiText("Actions are project-scoped commands you can run from the top bar or keybindings.")}</DialogDescription>
+          {uiText(
+            "Actions are project-scoped commands you can run from the top bar or keybindings.",
+          )}
+        </DialogDescription>
       </DialogHeader>
       <DialogPanel>
         <form id={formId} onSubmit={submit}>
@@ -481,7 +492,12 @@ function ProjectScriptEditorForm({
                 onKeyDown={captureKeybinding}
               />
               <p className="text-xs text-muted-foreground">
-                {uiText("Press a shortcut. Use") + " "}<code>Backspace</code> {uiText("to clear. Shortcuts are environment-wide. Projects using the same action share its shortcut.") + " "}</p>
+                {uiText("Press a shortcut. Use") + " "}
+                <code>Backspace</code>{" "}
+                {uiText(
+                  "to clear. Shortcuts are environment-wide. Projects using the same action share its shortcut.",
+                ) + " "}
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="script-command">{uiText("Command")}</Label>
@@ -501,7 +517,8 @@ function ProjectScriptEditorForm({
                 onChange={(event) => setPreviewUrl(event.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                {uiText("Open this URL in the in-app preview when this action runs.")}</p>
+                {uiText("Open this URL in the in-app preview when this action runs.")}
+              </p>
             </div>
             <label className="flex items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2 text-sm dark:border-transparent dark:bg-white/[0.035]">
               <span>{uiText("Run automatically on worktree creation")}</span>
@@ -554,12 +571,18 @@ function ProjectScriptEditorForm({
             disabled={isSaving || !canEditActions}
             onClick={() => onRequestDelete(name)}
           >
-            {uiText("Delete")}</Button>
+            {uiText("Delete")}
+          </Button>
         )}
         <Button type="button" variant="outline" onClick={close}>
-          {uiText("Cancel")}</Button>
+          {uiText("Cancel")}
+        </Button>
         <Button form={formId} type="submit" disabled={isSaving || !canEditActions}>
-          {isSaving ? uiText("Saving…") : isEditing ? uiText("Save changes") : uiText("Save action")}
+          {isSaving
+            ? uiText("Saving…")
+            : isEditing
+              ? uiText("Save changes")
+              : uiText("Save action")}
         </Button>
       </DialogFooter>
     </>

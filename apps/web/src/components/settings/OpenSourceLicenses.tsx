@@ -83,7 +83,7 @@ function LicenseNoticeRow({
           </CollapsibleTrigger>
           {entry.sourceUrl ? (
             <Button
-              aria-label={uiText("View project source for {0}", {"0": entry.name})}
+              aria-label={uiText("View project source for {0}", { "0": entry.name })}
               className="me-3 shrink-0 sm:me-4"
               render={<a href={entry.sourceUrl} rel="noreferrer noopener" target="_blank" />}
               size="icon-micro"
@@ -118,8 +118,8 @@ function LicenseCount({
   return (
     <p className="whitespace-nowrap text-xs font-normal text-muted-foreground tabular-nums">
       {filteredCount === totalCount
-        ? uiText("{0} notices", {"0": String(totalCount)})
-        : uiText("{0} of {1}", {"0": String(filteredCount), "1": String(totalCount)})}
+        ? uiText("{0} notices", { "0": String(totalCount) })
+        : uiText("{0} of {1}", { "0": String(filteredCount), "1": String(totalCount) })}
     </p>
   );
 }
@@ -199,13 +199,16 @@ function LicenseManifestError({ message, onRetry }: { message: string; onRetry: 
   return (
     <div className="flex flex-col items-start gap-3 px-3 py-5 sm:px-4">
       <div className="flex flex-col gap-1">
-        <h3 className="text-sm font-medium text-foreground">{uiText("Open-source notices are unavailable")}</h3>
+        <h3 className="text-sm font-medium text-foreground">
+          {uiText("Open-source notices are unavailable")}
+        </h3>
         <p className="max-w-[70ch] text-pretty text-xs leading-normal text-muted-foreground/80">
           {message}
         </p>
       </div>
       <Button type="button" size="xs" variant="outline" onClick={onRetry}>
-        {uiText("Try again")}</Button>
+        {uiText("Try again")}
+      </Button>
     </div>
   );
 }
@@ -274,14 +277,16 @@ export function OpenSourceLicensesPanel() {
               })
             ) : (
               <p className="px-3 py-8 text-center text-sm/6 text-muted-foreground sm:px-4">
-                {uiText("No licenses match that search.")}</p>
+                {uiText("No licenses match that search.")}
+              </p>
             )}
           </div>
         ) : state.status === "error" ? (
           <LicenseManifestError message={state.message} onRetry={retry} />
         ) : (
           <p className="px-3 py-5 text-sm/6 text-muted-foreground sm:px-4">
-            {uiText("Loading open-source notices…")}</p>
+            {uiText("Loading open-source notices…")}
+          </p>
         )}
       </SettingsSection>
     </SettingsPageContainer>

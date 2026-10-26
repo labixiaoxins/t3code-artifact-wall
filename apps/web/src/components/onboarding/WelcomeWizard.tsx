@@ -190,7 +190,10 @@ export function WelcomeWizard({
         } else if (importedThreadCount > 0) {
           toastManager.add({
             type: "success",
-            title: uiText("Imported {0} {1}", {"0": importedThreadCount, "1": importedThreadCount === 1 ? "thread" : "threads"}),
+            title: uiText("Imported {0} {1}", {
+              "0": importedThreadCount,
+              "1": importedThreadCount === 1 ? "thread" : "threads",
+            }),
           });
         }
         return true;
@@ -442,9 +445,9 @@ function ConnectionStep({
         }
       >
         <p className={"min-w-0 text-xs leading-relaxed text-muted-foreground"}>
-          {
-            uiText("T3 Code collects anonymous usage data to help us improve it. To read more about how your data is used and how to opt out, see our")
-          }
+          {uiText(
+            "T3 Code collects anonymous usage data to help us improve it. To read more about how your data is used and how to opt out, see our",
+          )}
           <a
             className={"underline underline-offset-2 hover:text-foreground"}
             href={PRIVACY_POLICY_URL}
@@ -1473,9 +1476,9 @@ function ImportStep({
   return (
     <StepShell
       title={uiText("Import your projects")}
-      description={
-        uiText("Import projects and conversations from Claude Code and Codex on your selected computers.")
-      }
+      description={uiText(
+        "Import projects and conversations from Claude Code and Codex on your selected computers.",
+      )}
     >
       {candidates.length > 0 ? (
         <div
@@ -1579,7 +1582,10 @@ function ImportStep({
         >
           {isImporting
             ? uiText("Importing…")
-            : uiText("Import {0} {1}", {"0": selected.length, "1": selected.length === 1 ? "project" : "projects"})}
+            : uiText("Import {0} {1}", {
+                "0": selected.length,
+                "1": selected.length === 1 ? "project" : "projects",
+              })}
         </Button>
       </div>
     </StepShell>
@@ -1642,7 +1648,9 @@ function ImportCandidateList({
                   "size-3.5 shrink-0 text-muted-foreground transition-transform group-data-panel-open:rotate-90"
                 }
               />
-              <span className={"truncate text-sm text-muted-foreground"}>{uiText("Other folders")}</span>
+              <span className={"truncate text-sm text-muted-foreground"}>
+                {uiText("Other folders")}
+              </span>
               <span className={"ml-auto shrink-0 text-xs text-muted-foreground tabular-nums"}>
                 {other.length} {other.length === 1 ? uiText("folder") : uiText("folders")}
               </span>

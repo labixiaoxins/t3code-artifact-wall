@@ -118,7 +118,11 @@ function ChangeBreakdownGrid({
       {total ? (
         <>
           <div className="col-span-3 border-t border-border" />
-          <BreakdownRow label={uiText("Total")} additions={total.additions} deletions={total.deletions} />
+          <BreakdownRow
+            label={uiText("Total")}
+            additions={total.additions}
+            deletions={total.deletions}
+          />
         </>
       ) : null}
     </div>

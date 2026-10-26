@@ -390,7 +390,11 @@ export function AcpSessionManagementSection(props: {
                   disabled={!canRead || loading || projectId === null}
                   onClick={() => void loadSessions()}
                 >
-                  {loading ? uiText("Loading") : sessions.length === 0 ? uiText("List sessions") : uiText("Refresh")}
+                  {loading
+                    ? uiText("Loading")
+                    : sessions.length === 0
+                      ? uiText("List sessions")
+                      : uiText("Refresh")}
                 </Button>
               </>
             ) : null}
@@ -445,7 +449,9 @@ export function AcpSessionManagementSection(props: {
                           }
                           onClick={() => void deleteNativeSession(session)}
                         >
-                          {deletingSessionId === session.sessionId ? uiText("Deleting") : uiText("Delete")}
+                          {deletingSessionId === session.sessionId
+                            ? uiText("Deleting")
+                            : uiText("Delete")}
                         </Button>
                       ) : null}
                     </div>
@@ -486,7 +492,11 @@ export function AcpSessionManagementSection(props: {
               disabled={!canRead || loadingProviders || projectId === null}
               onClick={() => void loadProviders()}
             >
-              {loadingProviders ? uiText("Loading") : providers.length === 0 ? uiText("List providers") : uiText("Refresh")}
+              {loadingProviders
+                ? uiText("Loading")
+                : providers.length === 0
+                  ? uiText("List providers")
+                  : uiText("Refresh")}
             </Button>
           </div>
 
@@ -558,7 +568,9 @@ export function AcpSessionManagementSection(props: {
                           }
                           onClick={() => void saveProvider(provider)}
                         >
-                          {savingProviderId === provider.providerId ? uiText("Saving") : uiText("Save")}
+                          {savingProviderId === provider.providerId
+                            ? uiText("Saving")
+                            : uiText("Save")}
                         </Button>
                         {!provider.required && provider.current !== null ? (
                           <Button
@@ -581,7 +593,10 @@ export function AcpSessionManagementSection(props: {
                           if (value !== null) updateDraft({ apiType: value });
                         }}
                       >
-                        <SelectTrigger aria-label={uiText("{0} protocol", {"0": provider.providerId})} size={"sm"}>
+                        <SelectTrigger
+                          aria-label={uiText("{0} protocol", { "0": provider.providerId })}
+                          size={"sm"}
+                        >
                           <SelectValue>{draft.apiType}</SelectValue>
                         </SelectTrigger>
                         <SelectPopup>
@@ -595,7 +610,7 @@ export function AcpSessionManagementSection(props: {
                       <Input
                         size={"sm"}
                         type={"url"}
-                        aria-label={uiText("{0} base URL", {"0": provider.providerId})}
+                        aria-label={uiText("{0} base URL", { "0": provider.providerId })}
                         placeholder={"https://api.example.com"}
                         value={draft.baseUrl}
                         disabled={props.readOnly || savingProviderId !== null}
@@ -605,8 +620,12 @@ export function AcpSessionManagementSection(props: {
                     <Input
                       size={"sm"}
                       type={"password"}
-                      aria-label={uiText("{0} write-only headers JSON", {"0": provider.providerId})}
-                      placeholder={uiText("Write-only headers JSON, e.g. {\"Authorization\":\"Bearer …\"}")}
+                      aria-label={uiText("{0} write-only headers JSON", {
+                        "0": provider.providerId,
+                      })}
+                      placeholder={uiText(
+                        'Write-only headers JSON, e.g. {"Authorization":"Bearer …"}',
+                      )}
                       value={draft.headers}
                       disabled={props.readOnly || savingProviderId !== null}
                       onValueChange={(value) => updateDraft({ headers: value })}

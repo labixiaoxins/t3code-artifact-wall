@@ -97,7 +97,7 @@ export function useAutoBalanceUpdateBanner(
         <PopoverTrigger
           render={<InlineButton />}
           className="max-w-full"
-          aria-label={uiText("{0}. View machines", {"0": title})}
+          aria-label={uiText("{0}. View machines", { "0": title })}
         >
           <span className="min-w-0 truncate">{title}</span>
         </PopoverTrigger>
@@ -116,7 +116,7 @@ export function useAutoBalanceUpdateBanner(
                 ) : (
                   <div className="text-muted-foreground">
                     {machine.connected
-                      ? uiText("Ready to update to {0}", {"0": machine.targetVersion})
+                      ? uiText("Ready to update to {0}", { "0": machine.targetVersion })
                       : uiText("Reconnect this machine to update")}
                   </div>
                 )}
@@ -138,7 +138,10 @@ export function useAutoBalanceUpdateBanner(
               ? uiText("Retry")
               : targets.length === machines.length
                 ? uiText("Update all")
-                : uiText("Update {0} {1}", {"0": targets.length, "1": targets.length === 1 ? "machine" : "machines"})
+                : uiText("Update {0} {1}", {
+                    "0": targets.length,
+                    "1": targets.length === 1 ? "machine" : "machines",
+                  })
           }
         />
       ) : undefined,

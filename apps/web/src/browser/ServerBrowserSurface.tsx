@@ -45,7 +45,7 @@ import { observeResize } from "~/lib/observeResize";
 export interface ServerBrowserHandle {
   readonly navigate: (url: string) => void;
   readonly history: (delta: -1 | 1) => void;
-  readonly reload: (options?: { readonly ignoreCache?: boolean; }) => void;
+  readonly reload: (options?: { readonly ignoreCache?: boolean }) => void;
   readonly viewport: (setting: PreviewViewportSetting) => void;
   readonly canvas: () => HTMLCanvasElement | null;
 }
@@ -67,8 +67,8 @@ const MULTI_CLICK_MS = 500;
 const MULTI_CLICK_SLOP_PX = 4;
 const WHEEL_LINE_PX = 16;
 
-type MouseInput = Extract<PreviewStreamInput, { type: "mouse"; }>;
-type WheelInput = Extract<PreviewStreamInput, { type: "wheel"; }>;
+type MouseInput = Extract<PreviewStreamInput, { type: "mouse" }>;
+type WheelInput = Extract<PreviewStreamInput, { type: "wheel" }>;
 
 interface PagePoint {
   readonly x: number;
@@ -121,7 +121,7 @@ async function copyPageText(text: string) {
 function offerDownload(download: PreviewStreamDownload) {
   const id = toastManager.add({
     type: "info",
-    title: uiText("Downloaded {0}", {"0": download.fileName}),
+    title: uiText("Downloaded {0}", { "0": download.fileName }),
     actionProps: {
       children: uiText("Save"),
       onClick: () => {
@@ -171,7 +171,7 @@ export function ServerBrowserSurface(props: {
   const keySentRef = useRef(false);
   const clientRef = useRef<PreviewStreamClient | null>(null);
   const viewportRef = useRef<PreviewStreamViewport | null>(null);
-  const sizeRef = useRef<{ width: number; height: number; } | null>(null);
+  const sizeRef = useRef<{ width: number; height: number } | null>(null);
   const hasFrameRef = useRef(false);
   const controlRef = useRef<PreviewStreamControl | null>(null);
   const [control, setControl] = useState<PreviewStreamControl | null>(null);
@@ -188,7 +188,7 @@ export function ServerBrowserSurface(props: {
         type: "error",
         title: uiText("Could not send the files to the page"),
         description: cause instanceof Error ? cause.message : undefined,
-      })
+      }),
     );
   };
   const unauthorizedRef = useRef(0);
@@ -208,14 +208,14 @@ export function ServerBrowserSurface(props: {
   } | null>(null);
   const touchRef = useRef<TouchGesture | null>(null);
   const probeRef = useRef<TouchProbe | null>(null);
-  const lastProbeRef = useRef<{ x: number; y: number; editable: boolean; at: number; } | null>(null);
+  const lastProbeRef = useRef<{ x: number; y: number; editable: boolean; at: number } | null>(null);
   const firstFrame = useEffectEvent(() => onFirstFrame?.());
   const viewportChanged = useEffectEvent((viewport: PreviewStreamViewport) =>
-    onViewport?.(viewport)
+    onViewport?.(viewport),
   );
   const controlChanged = useEffectEvent((next: PreviewStreamControl | null) => onControl?.(next));
   const popupOpened = useEffectEvent((popupTabId: string) => onPopup?.(popupTabId));
-  const [cap, setCap] = useState<{ width: number; height: number; } | null>(null);
+  const [cap, setCap] = useState<{ width: number; height: number } | null>(null);
 
   // These read only refs, so each is cached once. The stream effect keys on
   // clearInput and would reconnect if it changed.
@@ -311,7 +311,7 @@ export function ServerBrowserSurface(props: {
       viewport: (setting) => send({ type: "viewport", setting }),
       canvas: () => (!pdfUrl && hasFrameRef.current ? canvasRef.current : null),
     }),
-    [pdfUrl, send]
+    [pdfUrl, send],
   );
 
   useEffect(() => {
@@ -332,7 +332,7 @@ export function ServerBrowserSurface(props: {
           : {
               width: Math.max(width, current?.width ?? 0),
               height: Math.max(height, current?.height ?? 0),
-            }
+            },
       );
     };
     const measure = () => {
@@ -435,10 +435,10 @@ export function ServerBrowserSurface(props: {
           }
           refreshTimer = setTimeout(
             () => refreshPreviewStreamAccess(environmentId),
-            refusals === 1 ? 0 : 1000 * 2 ** (refusals - 1)
+            refusals === 1 ? 0 : 1000 * 2 ** (refusals - 1),
           );
         },
-      }
+      },
     );
     clientRef.current = client;
     return () => {
@@ -494,7 +494,7 @@ export function ServerBrowserSurface(props: {
     () => () => {
       if (inputFrameRef.current !== null) cancelAnimationFrame(inputFrameRef.current);
     },
-    []
+    [],
   );
 
   const handlePointer = (event: PointerEvent<HTMLCanvasElement>) => {
@@ -549,7 +549,7 @@ export function ServerBrowserSurface(props: {
             point,
             (touch.lastX - clientX) * point.scale,
             (touch.lastY - clientY) * point.scale,
-            0
+            0,
           );
         touch.lastX = clientX;
         touch.lastY = clientY;
@@ -583,7 +583,7 @@ export function ServerBrowserSurface(props: {
       clientX,
       clientY,
       type !== "pointerdown" &&
-        (cancelled || type === "pointerup" || previous !== 0 || event.buttons !== 0)
+        (cancelled || type === "pointerup" || previous !== 0 || event.buttons !== 0),
     );
     if (!point) return;
     const at = { x: point.x, y: point.y, modifiers: previewStreamModifiers(event) };
@@ -716,7 +716,7 @@ export function ServerBrowserSurface(props: {
       <div
         className={cn(
           "visible relative z-20 flex shrink-0 items-center justify-between gap-2 border-border bg-background px-2 py-1",
-          controlPosition === "bottom" ? "order-last border-t" : "border-b"
+          controlPosition === "bottom" ? "order-last border-t" : "border-b",
         )}
       >
         <span role="status" className="text-xs text-muted-foreground">
@@ -799,7 +799,8 @@ export function ServerBrowserSurface(props: {
             aria-label={uiText("Choose files for the page")}
           >
             <p className="text-sm">
-              {uiText("The page asks for")}{fileChooser.multiple ? uiText("files") : uiText("a file")}
+              {uiText("The page asks for")}
+              {fileChooser.multiple ? uiText("files") : uiText("a file")}
               {"."}
             </p>
             <input
@@ -816,9 +817,11 @@ export function ServerBrowserSurface(props: {
             />
             <div className="flex justify-end gap-2">
               <Button variant="outline" size="sm" onClick={() => answerFileChooser([])}>
-                {uiText("Cancel")}</Button>
+                {uiText("Cancel")}
+              </Button>
               <Button size="sm" onClick={() => fileInputRef.current?.click()}>
-                {uiText("Choose")}{fileChooser.multiple ? uiText("files") : uiText("file")}
+                {uiText("Choose")}
+                {fileChooser.multiple ? uiText("files") : uiText("file")}
               </Button>
             </div>
           </div>
@@ -845,7 +848,8 @@ export function ServerBrowserSurface(props: {
                     size="sm"
                     onClick={() => send({ type: "dialog", accept: false })}
                   >
-                    {uiText("Dismiss")}</Button>
+                    {uiText("Dismiss")}
+                  </Button>
                   <Button
                     size="sm"
                     onClick={() =>
@@ -856,7 +860,8 @@ export function ServerBrowserSurface(props: {
                       })
                     }
                   >
-                    {uiText("Accept")}</Button>
+                    {uiText("Accept")}
+                  </Button>
                 </div>
               </>
             ) : (
@@ -872,14 +877,16 @@ export function ServerBrowserSurface(props: {
           </p>
           <CommandBlock command={hostSetup.command} className="w-full max-w-md text-left" />
           <Button variant="outline" size="sm" onClick={() => setHostSetup(null)}>
-            {uiText("Try again")}</Button>
+            {uiText("Try again")}
+          </Button>
         </div>
       ) : null}
       {visible && accessDenied ? (
         // The page can be invisible beneath an empty or unreachable state; reconnect must remain reachable.
         <div className="visible absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-background p-3 text-center">
           <p role="alert" className="text-xs text-muted-foreground">
-            {uiText("Browser connection was refused.")}</p>
+            {uiText("Browser connection was refused.")}
+          </p>
           <Button
             variant="outline"
             size="sm"
@@ -889,7 +896,8 @@ export function ServerBrowserSurface(props: {
               refreshPreviewStreamAccess(environmentId);
             }}
           >
-            {uiText("Reconnect")}</Button>
+            {uiText("Reconnect")}
+          </Button>
         </div>
       ) : null}
     </div>
@@ -906,7 +914,7 @@ interface AgentCursorPlacement {
 function placeAgentCursor(
   pointer: PreviewStreamPointer,
   canvas: HTMLCanvasElement | null,
-  viewport: PreviewStreamViewport | null
+  viewport: PreviewStreamViewport | null,
 ): AgentCursorPlacement | null {
   if (!canvas || !viewport || canvas.width < 1 || canvas.height < 1) return null;
   const box = { width: canvas.clientWidth, height: canvas.clientHeight };

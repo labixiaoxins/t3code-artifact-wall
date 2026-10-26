@@ -36,7 +36,7 @@ function describeModelCapabilities(model: ServerProviderModel): string[] {
       descriptor.id === "fastMode" ||
       (descriptor.id === "serviceTier" &&
         descriptor.type === "select" &&
-        descriptor.options.some((option) => option.id === "fast" || option.label === "Fast"))
+        descriptor.options.some((option) => option.id === "fast" || option.label === "Fast")),
   );
   if (hasFastMode) labels.push("Fast mode");
   if (descriptors.some((descriptor) => descriptor.id === "thinking")) labels.push("Thinking");
@@ -47,7 +47,7 @@ function describeModelCapabilities(model: ServerProviderModel): string[] {
         (descriptor.id === "reasoningEffort" ||
           descriptor.id === "effort" ||
           descriptor.id === "reasoning" ||
-          descriptor.id === "variant")
+          descriptor.id === "variant"),
     )
   ) {
     labels.push("Reasoning");
@@ -55,13 +55,13 @@ function describeModelCapabilities(model: ServerProviderModel): string[] {
   return labels;
 }
 
-function groupModelsForDisplay<T extends { readonly slug: string; readonly isCustom: boolean; }>(
+function groupModelsForDisplay<T extends { readonly slug: string; readonly isCustom: boolean }>(
   models: ReadonlyArray<T>,
   options: {
     readonly favoriteModels: ReadonlySet<string>;
     readonly hiddenModels: ReadonlySet<string>;
     readonly modelOrder: ReadonlyArray<string>;
-  }
+  },
 ): T[] {
   const ordered = sortModelsForProviderInstance(models, {
     favoriteModels: options.favoriteModels,
@@ -78,7 +78,7 @@ function groupModelsForDisplay<T extends { readonly slug: string; readonly isCus
 
 function nextHiddenModelsForBulkToggle(
   models: ReadonlyArray<Pick<ServerProviderModel, "slug" | "isCustom">>,
-  hiddenModels: ReadonlyArray<string>
+  hiddenModels: ReadonlyArray<string>,
 ): string[] {
   const builtInSlugs = models.filter((model) => !model.isCustom).map((model) => model.slug);
   const builtInSlugSet = new Set(builtInSlugs);
@@ -104,7 +104,7 @@ interface ProviderModelsSectionProps {
   readonly onChange: (next: ReadonlyArray<CustomModelDefinition>) => void;
   readonly onHiddenModelsChange: (
     next: ReadonlyArray<string>,
-    affectedModels?: ReadonlyArray<string>
+    affectedModels?: ReadonlyArray<string>,
   ) => void;
   readonly onFavoriteModelsChange: (next: ReadonlyArray<string>) => void;
   readonly onToggleFavorite: (model: string) => void;
@@ -143,7 +143,7 @@ export function ProviderModelsSection({
   });
   const favoriteCount = displayModels.filter((model) => favoriteModelSet.has(model.slug)).length;
   const hiddenCount = displayModels.filter(
-    (model) => !model.isCustom && hiddenModelSet.has(model.slug)
+    (model) => !model.isCustom && hiddenModelSet.has(model.slug),
   ).length;
   const showFilter = models.length > FILTER_THRESHOLD;
   const normalizedFilter = filter.trim().toLowerCase();
@@ -152,7 +152,7 @@ export function ProviderModelsSection({
     ? displayModels.filter(
         (model) =>
           model.name.toLowerCase().includes(normalizedFilter) ||
-          model.slug.toLowerCase().includes(normalizedFilter)
+          model.slug.toLowerCase().includes(normalizedFilter),
       )
     : displayModels;
 
@@ -161,7 +161,7 @@ export function ProviderModelsSection({
     const slug = scrollToSlugRef.current;
     if (slug === null) return;
     const row = listRef.current?.querySelector<HTMLElement>(
-      `[data-model-slug="${CSS.escape(slug)}"]`
+      `[data-model-slug="${CSS.escape(slug)}"]`,
     );
     if (!row) return;
     scrollToSlugRef.current = null;
@@ -227,7 +227,7 @@ export function ProviderModelsSection({
     if (!canWritePreferences || hidden === hiddenModelSet.has(slug)) return;
     onHiddenModelsChange(
       hidden ? [...hiddenModels, slug] : hiddenModels.filter((model) => model !== slug),
-      [slug]
+      [slug],
     );
   };
 
@@ -315,7 +315,7 @@ export function ProviderModelsSection({
               onClick={() =>
                 onHiddenModelsChange(
                   nextHiddenModelsForBulkToggle(models, hiddenModels),
-                  builtInModels.map((model) => model.slug)
+                  builtInModels.map((model) => model.slug),
                 )
               }
             >
@@ -323,11 +323,15 @@ export function ProviderModelsSection({
             </Button>
           ) : null}
           <span className="text-xs text-muted-foreground">
-            {models.length} {uiText("model")}{models.length === 1 ? "" : "s"}
+            {models.length} {uiText("model")}
+            {models.length === 1 ? "" : "s"}
             {favoriteCount > 0
-              ? uiText(" · {0} favorite{1}", {"0": favoriteCount, "1": favoriteCount === 1 ? "" : "s"})
+              ? uiText(" · {0} favorite{1}", {
+                  "0": favoriteCount,
+                  "1": favoriteCount === 1 ? "" : "s",
+                })
               : ""}
-            {hiddenCount > 0 ? uiText(" · {0} hidden", {"0": hiddenCount}) : ""}
+            {hiddenCount > 0 ? uiText(" · {0} hidden", { "0": hiddenCount }) : ""}
           </span>
         </div>
         {driverKind !== "antigravity" && !isAdding ? (
@@ -339,7 +343,8 @@ export function ProviderModelsSection({
             onClick={() => setIsAdding(true)}
           >
             <PlusIcon className="size-3" />
-            {uiText("Add custom model")}</Button>
+            {uiText("Add custom model")}
+          </Button>
         ) : null}
       </div>
       <div
@@ -348,7 +353,9 @@ export function ProviderModelsSection({
       >
         {visibleModels.length === 0 ? (
           <p className="px-2 py-2 text-xs text-muted-foreground">
-            {isFiltering ? uiText("No models match.") : uiText("No models reported for this provider yet.")}
+            {isFiltering
+              ? uiText("No models match.")
+              : uiText("No models reported for this provider yet.")}
           </p>
         ) : null}
         {visibleModels.map((model, index) => {
@@ -413,9 +420,11 @@ export function ProviderModelsSection({
           />
           <div className="flex shrink-0 gap-2">
             <Button size="sm" variant="outline" onClick={handleAdd}>
-              {uiText("Add")}</Button>
+              {uiText("Add")}
+            </Button>
             <Button size="sm" variant="ghost" onClick={cancelAdd}>
-              {uiText("Cancel")}</Button>
+              {uiText("Cancel")}
+            </Button>
           </div>
         </div>
       ) : null}
@@ -471,7 +480,7 @@ function ProviderModelRow({
       data-model-slug={model.slug}
       className={cn(
         "grid h-7 grid-cols-[1.5rem_minmax(0,1fr)_auto_minmax(5.5rem,auto)_auto] items-center gap-2 rounded-md px-2 transition-colors hover:bg-muted/30",
-        isHidden && "opacity-50"
+        isHidden && "opacity-50",
       )}
     >
       <Tooltip>
@@ -482,7 +491,11 @@ function ProviderModelRow({
               variant="ghost-muted"
               disabled={!canWritePreferences}
               onClick={() => onToggleFavorite(model.slug)}
-              aria-label={uiText("{0} {1} {2} favorites", {"0": isFavorite ? "Remove" : "Add", "1": model.name, "2": isFavorite ? "from" : "to"})}
+              aria-label={uiText("{0} {1} {2} favorites", {
+                "0": isFavorite ? "Remove" : "Add",
+                "1": model.name,
+                "2": isFavorite ? "from" : "to",
+              })}
             />
           }
         >
@@ -533,7 +546,7 @@ function ProviderModelRow({
                     variant="ghost-muted"
                     disabled={!canWritePreferences || !canMoveUp}
                     onClick={() => onMove(model.slug, -1)}
-                    aria-label={uiText("Move {0} up", {"0": model.name})}
+                    aria-label={uiText("Move {0} up", { "0": model.name })}
                   />
                 }
               >
@@ -549,7 +562,7 @@ function ProviderModelRow({
                     variant="ghost-muted"
                     disabled={!canWritePreferences || !canMoveDown}
                     onClick={() => onMove(model.slug, 1)}
-                    aria-label={uiText("Move {0} down", {"0": model.name})}
+                    aria-label={uiText("Move {0} down", { "0": model.name })}
                   />
                 }
               >
@@ -568,7 +581,7 @@ function ProviderModelRow({
                     size="icon-micro"
                     variant="ghost-muted"
                     disabled={!canManageCustomModels}
-                    aria-label={uiText("Edit {0}", {"0": model.slug})}
+                    aria-label={uiText("Edit {0}", { "0": model.slug })}
                     onClick={() => onToggleEdit(model.slug)}
                   />
                 }
@@ -584,7 +597,7 @@ function ProviderModelRow({
                     size="icon-micro"
                     variant="ghost-muted"
                     disabled={!canManageCustomModels}
-                    aria-label={uiText("Remove {0}", {"0": model.slug})}
+                    aria-label={uiText("Remove {0}", { "0": model.slug })}
                     onClick={() => onRemove(model.slug)}
                   />
                 }
@@ -605,7 +618,7 @@ function ProviderModelRow({
             checked={!isHidden}
             disabled={!canWritePreferences || model.isCustom}
             onCheckedChange={(checked) => onSetHidden(model.slug, !checked)}
-            aria-label={uiText("Show {0} in the model picker", {"0": model.name})}
+            aria-label={uiText("Show {0} in the model picker", { "0": model.name })}
           />
         </TooltipTrigger>
         <TooltipPopup side="top">{pickerTooltip}</TooltipPopup>

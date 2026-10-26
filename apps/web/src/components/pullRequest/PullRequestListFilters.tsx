@@ -182,7 +182,9 @@ function PullRequestFilterRadioGroup<Value extends string>({
             <span className="flex min-w-0 items-center gap-2">
               <PullRequestFilterOptionIcon option={option} />
               <span className="min-w-0 flex-1 truncate">{option.label}</span>
-              {option.unavailable ? <span className="shrink-0">{uiText("· Unavailable")}</span> : null}
+              {option.unavailable ? (
+                <span className="shrink-0">{uiText("· Unavailable")}</span>
+              ) : null}
               <MenuRadioItemIndicator />
             </span>
           </MenuRadioItem>
@@ -289,7 +291,8 @@ function PullRequestAuthorFilter({
           <MenuRadioItem value="">
             <span className="flex min-w-0 items-center gap-2">
               <LayersIcon aria-hidden className="size-3.5" />
-              {uiText("Anyone") + " "}</span>
+              {uiText("Anyone") + " "}
+            </span>
           </MenuRadioItem>
           {visible.map((option) => (
             <MenuRadioItem key={option.actor.login.toLowerCase()} value={option.actor.login}>
@@ -297,7 +300,8 @@ function PullRequestAuthorFilter({
                 <PullRequestActorAvatar actor={option.actor} />
                 <span className="min-w-0 flex-1 truncate">{option.actor.login}</span>
                 <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                  {option.mergedCount} {uiText("merges loaded") + " "}</span>
+                  {option.mergedCount} {uiText("merges loaded") + " "}
+                </span>
               </span>
             </MenuRadioItem>
           ))}
@@ -330,7 +334,7 @@ function PullRequestLabelFilter({
         <TagIcon aria-hidden className="size-3.5" />
         <span className="flex-1">{uiText("Labels")}</span>
         <span className="text-xs text-muted-foreground">
-          {value.length === 0 ? uiText("Any") : uiText("{0} selected", {"0": value.length})}
+          {value.length === 0 ? uiText("Any") : uiText("{0} selected", { "0": value.length })}
         </span>
       </MenuSubTrigger>
       <MenuSubPopup>

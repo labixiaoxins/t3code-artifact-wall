@@ -192,7 +192,11 @@ export function PolicyTooltip({ children }: { readonly children: string }) {
       <TooltipTrigger
         delay={200}
         render={
-          <Button size="icon-micro" variant="ghost-muted" aria-label={uiText("Background policy details")}>
+          <Button
+            size="icon-micro"
+            variant="ghost-muted"
+            aria-label={uiText("Background policy details")}
+          >
             <InfoIcon className="size-3.5" />
           </Button>
         }
@@ -536,7 +540,7 @@ export function SettingResetButton({
           <Button
             size="icon-micro"
             variant="ghost-muted"
-            aria-label={uiText("Reset {0} to default", {"0": label})}
+            aria-label={uiText("Reset {0} to default", { "0": label })}
             disabled={disabled}
             onClick={(event) => {
               event.stopPropagation();

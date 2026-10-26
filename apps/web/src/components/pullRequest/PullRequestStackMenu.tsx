@@ -137,7 +137,11 @@ export function PullRequestStackMenu({
                   <Button
                     variant="ghost"
                     size="xs"
-                    aria-label={uiText("Stack {0}, layer {1} of {2}", {"0": stack.number, "1": position, "2": stack.layers.length})}
+                    aria-label={uiText("Stack {0}, layer {1} of {2}", {
+                      "0": stack.number,
+                      "1": position,
+                      "2": stack.layers.length,
+                    })}
                   />
                 }
               >
@@ -148,14 +152,20 @@ export function PullRequestStackMenu({
             }
           />
           <TooltipPopup>
-            {uiText("View stack #")}{stack.number}{uiText(", layer") + " "}{position} {uiText("of") + " "}{stack.layers.length}
+            {uiText("View stack #")}
+            {stack.number}
+            {uiText(", layer") + " "}
+            {position} {uiText("of") + " "}
+            {stack.layers.length}
             {notice ? ` · ${notice}` : null}
           </TooltipPopup>
         </Tooltip>
         <MenuPopup align="start">
           <MenuGroup>
             <PullRequestStackHeader number={stack.number} notice={notice} stale={!!onRetry} />
-            {onRetry ? <MenuItem onClick={onRetry}>{uiText("Retry stack refresh")}</MenuItem> : null}
+            {onRetry ? (
+              <MenuItem onClick={onRetry}>{uiText("Retry stack refresh")}</MenuItem>
+            ) : null}
             <PullRequestStackLayers
               stack={stack}
               reference={reference}
@@ -176,7 +186,8 @@ export function PullRequestStackMenu({
               {canMerge ? (
                 <MenuItem disabled={mergeDisabled} onClick={() => setConfirmation("merge")}>
                   <PullRequestGlyph.merged aria-hidden />
-                  {uiText("Merge stack (")}{mergeLayers.length})
+                  {uiText("Merge stack (")}
+                  {mergeLayers.length})
                 </MenuItem>
               ) : null}
               {canRebase ? (
@@ -185,11 +196,13 @@ export function PullRequestStackMenu({
                   onClick={() => setConfirmation("update-branch")}
                 >
                   <RefreshCwIcon aria-hidden />
-                  {uiText("Rebase stack") + " "}</MenuItem>
+                  {uiText("Rebase stack") + " "}
+                </MenuItem>
               ) : null}
               {mergeHasClosed || mergeLayers.some((layer) => layer.isDraft) ? (
                 <p className="px-2 py-1 text-xs text-muted-foreground">
-                  {uiText("Every layer being merged must be open and ready for review.")}</p>
+                  {uiText("Every layer being merged must be open and ready for review.")}
+                </p>
               ) : null}
             </>
           ) : null}
@@ -207,12 +220,15 @@ export function PullRequestStackMenu({
                   onClick={() => setConfirmation("merge")}
                 >
                   <PullRequestGlyph.merged aria-hidden className="size-3.5" />
-                  {uiText("Merge stack") + " "}</Button>
+                  {uiText("Merge stack") + " "}
+                </Button>
               </span>
             }
           />
           <TooltipPopup>
-            {uiText("Merge stack through #")}{reference.number} {uiText("into") + " "}{stack.base} ({mergeLayers.length}{" "}
+            {uiText("Merge stack through #")}
+            {reference.number} {uiText("into") + " "}
+            {stack.base} ({mergeLayers.length}{" "}
             {mergeLayers.length === 1 ? uiText("pull request") : uiText("pull requests")})
           </TooltipPopup>
         </Tooltip>
@@ -227,13 +243,19 @@ export function PullRequestStackMenu({
           <DialogHeader>
             <DialogTitle>
               {confirmation === "merge"
-                ? uiText("Merge {0} pull requests?", {"0": mergeLayers.length})
-                : uiText("Rebase {0} pull requests?", {"0": unmerged.length})}
+                ? uiText("Merge {0} pull requests?", { "0": mergeLayers.length })
+                : uiText("Rebase {0} pull requests?", { "0": unmerged.length })}
             </DialogTitle>
             <DialogDescription>
               {confirmation === "merge"
-                ? uiText("Merge #{0} and its unmerged layers below into {1} using {2}. {3} checks their rules before merging or queueing them and rebases the remaining stack after merging.", {"0": reference.number, "1": stack.base, "2": mergeMethod, "3": hostLabel})
-                : uiText("Rebase the remote branches from bottom to top onto {0}. This rewrites branch history and may restart checks. If a layer fails, earlier updates remain.", {"0": stack.base})}
+                ? uiText(
+                    "Merge #{0} and its unmerged layers below into {1} using {2}. {3} checks their rules before merging or queueing them and rebases the remaining stack after merging.",
+                    { "0": reference.number, "1": stack.base, "2": mergeMethod, "3": hostLabel },
+                  )
+                : uiText(
+                    "Rebase the remote branches from bottom to top onto {0}. This rewrites branch history and may restart checks. If a layer fails, earlier updates remain.",
+                    { "0": stack.base },
+                  )}
             </DialogDescription>
           </DialogHeader>
           <DialogPanel>
@@ -250,7 +272,8 @@ export function PullRequestStackMenu({
           </DialogPanel>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmation(null)}>
-              {uiText("Cancel")}</Button>
+              {uiText("Cancel")}
+            </Button>
             <Button onClick={() => void run()}>
               {confirmation === "merge" ? uiText("Merge stack") : uiText("Rebase stack")}
             </Button>

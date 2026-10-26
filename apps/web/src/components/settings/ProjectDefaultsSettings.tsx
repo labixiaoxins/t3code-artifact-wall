@@ -133,7 +133,11 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
   const setModel = (value: ModelSelection | null) => {
     const reason = value ? modelDisabledReason(value.instanceId, value.model) : null;
     if (reason) {
-      toastManager.add({ type: "error", title: uiText("Default model not saved"), description: reason });
+      toastManager.add({
+        type: "error",
+        title: uiText("Default model not saved"),
+        description: reason,
+      });
       return;
     }
     updateSettings({ defaultModelSelection: value });
@@ -339,7 +343,9 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
             description={
               isProjectScope
                 ? uiText("How new worktrees in this project populate git submodules.")
-                : uiText("How new worktrees populate git submodules. Projects and their t3.json can override it.")
+                : uiText(
+                    "How new worktrees populate git submodules. Projects and their t3.json can override it.",
+                  )
             }
             resetAction={
               !isProjectScope && settings.worktreeSubmodules !== null ? (
@@ -388,8 +394,12 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
             title={uiText("Automatically pull")}
             description={
               isProjectScope
-                ? uiText("Keeps this project's default branch current when the checkout has no local changes or commits.")
-                : uiText("Keeps the default branch current when the checkout has no local changes or commits. Projects can override it.")
+                ? uiText(
+                    "Keeps this project's default branch current when the checkout has no local changes or commits.",
+                  )
+                : uiText(
+                    "Keeps the default branch current when the checkout has no local changes or commits. Projects can override it.",
+                  )
             }
             resetAction={
               settings.defaultAutoPull ? (
@@ -414,7 +424,9 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
             settingKeys={["removeAgentCreditsOnMerge"]}
             mixed={mixedAgentCredits}
             {...searchableSetting("remove-agent-credits-on-merge")}
-            description={uiText("Remove recognized agent credit lines from GitHub merge and squash messages, keeping human co-authors. Includes auto-merge. Excludes merge queues, stack merges, and existing commits.")}
+            description={uiText(
+              "Remove recognized agent credit lines from GitHub merge and squash messages, keeping human co-authors. Includes auto-merge. Excludes merge queues, stack merges, and existing commits.",
+            )}
             resetAction={
               settings.removeAgentCreditsOnMerge ? (
                 <SettingResetButton
@@ -443,7 +455,9 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
             description={
               isProjectScope
                 ? uiText("Pull requests in this project start with this method.")
-                : uiText("Pull requests start with this method. Last selected reuses whatever you chose most recently on this device.")
+                : uiText(
+                    "Pull requests start with this method. Last selected reuses whatever you chose most recently on this device.",
+                  )
             }
             resetAction={
               settings.pullRequestMergeMethod !== null ? (

@@ -55,7 +55,10 @@ function MobileClientRow({ device }: { readonly device: RelayClientDeviceRecord 
           enabled={device.notifications.enabled}
           label={uiText("Push notifications")}
         />
-        <MobileClientStatusBadge enabled={device.liveActivities.enabled} label={uiText("Live Activities")} />
+        <MobileClientStatusBadge
+          enabled={device.liveActivities.enabled}
+          label={uiText("Live Activities")}
+        />
       </div>
       <p className="mt-1.5 text-xs leading-4.5 text-muted-foreground/80">
         {mobileClientNotificationDetail(device)}
@@ -95,7 +98,10 @@ function EmptyMobileClients() {
       <EmptyHeader>
         <EmptyTitle>{uiText("No mobile clients")}</EmptyTitle>
         <EmptyDescription>
-          {uiText("Install T3 Code on your phone and sign in to T3 Connect to get push notifications and Live Activities.")}</EmptyDescription>
+          {uiText(
+            "Install T3 Code on your phone and sign in to T3 Connect to get push notifications and Live Activities.",
+          )}
+        </EmptyDescription>
       </EmptyHeader>
     </Empty>
   );
@@ -127,11 +133,13 @@ export function MobileClientsUserProfilePage() {
           >
             <div>
               <p className="font-medium text-destructive-foreground">
-                {uiText("Could not load mobile clients")}</p>
+                {uiText("Could not load mobile clients")}
+              </p>
               <p className="mt-0.5 text-xs text-muted-foreground">{devicesState.error}</p>
             </div>
             <Button size="xs" variant="outline" onClick={devicesState.refresh}>
-              {uiText("Try again")}</Button>
+              {uiText("Try again")}
+            </Button>
           </div>
         ) : null}
 

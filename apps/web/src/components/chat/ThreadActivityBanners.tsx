@@ -77,14 +77,16 @@ export function goalBannerItem(input: {
             variant="ghost"
             onClick={() => void onSendCommand("/goal resume", "Failed to resume goal.")}
           >
-            {uiText("Resume")}</Button>
+            {uiText("Resume")}
+          </Button>
         ) : null}
         <Button
           size="xs"
           variant="ghost"
           onClick={() => void onSendCommand("/goal clear", "Failed to clear goal.")}
         >
-          {uiText("Clear")}</Button>
+          {uiText("Clear")}
+        </Button>
       </>
     ),
   };
@@ -173,7 +175,9 @@ export function branchMismatchBannerItem(input: {
     icon: <GitBranchIcon />,
     title: (
       <span className="flex min-w-0 items-baseline gap-1.5">
-        <span className="shrink-0 font-normal text-muted-foreground">{uiText("Branch changed — was")}</span>
+        <span className="shrink-0 font-normal text-muted-foreground">
+          {uiText("Branch changed — was")}
+        </span>
         <Tooltip>
           <TooltipTrigger
             render={
@@ -183,8 +187,8 @@ export function branchMismatchBannerItem(input: {
             }
           />
           <TooltipPopup side="top">
-            {uiText("This thread last ran on")}{mismatch.threadBranch}. Sending will continue on{" "}
-            {mismatch.currentBranch}.
+            {uiText("This thread last ran on")}
+            {mismatch.threadBranch}. Sending will continue on {mismatch.currentBranch}.
           </TooltipPopup>
         </Tooltip>
       </span>

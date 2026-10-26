@@ -45,7 +45,9 @@ export function buildDraftActionMenuItems(options: {
       icon: "copy",
       disabled: !options.hasPath && !options.hasBranch,
       children: [
-        ...(options.hasPath ? [{ id: "copy-path" as const, label: uiText("Path"), icon: "folder" }] : []),
+        ...(options.hasPath
+          ? [{ id: "copy-path" as const, label: uiText("Path"), icon: "folder" }]
+          : []),
         ...(options.hasBranch
           ? [{ id: "copy-branch" as const, label: uiText("Branch"), icon: "git-branch" }]
           : []),
@@ -110,7 +112,7 @@ export function buildThreadActionMenuItems(
       ? [
           {
             id: "new-thread-on-branch" as const,
-            label: uiText("New thread on {0}", {"0": state.branch}),
+            label: uiText("New thread on {0}", { "0": state.branch }),
             icon: "message-square-plus",
           },
         ]

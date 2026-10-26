@@ -95,7 +95,8 @@ export function PairingRouteSurface({
       <form className="mt-6 space-y-4" onSubmit={(event) => void handleSubmit(event)}>
         <div className="space-y-2">
           <label className="text-sm font-medium" htmlFor="pairing-token">
-            {uiText("Pairing token")}</label>
+            {uiText("Pairing token")}
+          </label>
           <Input
             id="pairing-token"
             autoCapitalize="none"
@@ -126,7 +127,8 @@ export function PairingRouteSurface({
             size="sm"
             variant="outline"
           >
-            {uiText("Reload app")}</Button>
+            {uiText("Reload app")}
+          </Button>
         </div>
       </form>
 
@@ -222,28 +224,35 @@ export function HostedPairingRouteSurface() {
 
       {request ? (
         <div className="mt-5 rounded-lg border border-border/70 bg-background/55 px-3 py-3 text-xs leading-relaxed text-muted-foreground">
-          {uiText("Host:") + " "}<span className="font-mono text-foreground/80">{request.host}</span>
+          {uiText("Host:") + " "}
+          <span className="font-mono text-foreground/80">{request.host}</span>
         </div>
       ) : null}
 
       {status === "error" ? (
         <Alert variant="error" className="mt-5">
           <AlertDescription>
-            {uiText("Verify the backend is reachable from this browser, supports CORS for hosted clients, and is served over HTTPS when opening this page from HTTPS.")}</AlertDescription>
+            {uiText(
+              "Verify the backend is reachable from this browser, supports CORS for hosted clients, and is served over HTTPS when opening this page from HTTPS.",
+            )}
+          </AlertDescription>
         </Alert>
       ) : null}
 
       <div className="mt-6 flex flex-wrap gap-2">
         {status === "pairing" ? (
           <Button disabled size="sm">
-            {uiText("Pairing...")}</Button>
+            {uiText("Pairing...")}
+          </Button>
         ) : canRetry ? (
           <Button size="sm" onClick={() => void submitHostedPairingRequest()}>
-            {uiText("Try again")}</Button>
+            {uiText("Try again")}
+          </Button>
         ) : null}
         {status === "paired" ? (
           <Button size="sm" variant="outline" onClick={() => (window.location.href = "/")}>
-            {uiText("Open app")}</Button>
+            {uiText("Open app")}
+          </Button>
         ) : null}
       </div>
     </StandalonePage>

@@ -35,9 +35,15 @@ function endpointStatus(url: string, check: EndpointCheck | undefined) {
   if (result === null) return { label: uiText("Checking…"), dot: "bg-warning" };
   switch (result._tag) {
     case "Accepted":
-      return { label: uiText("Connected · {0} ms", {"0": Math.round(result.latencyMs)}), dot: "bg-success" };
+      return {
+        label: uiText("Connected · {0} ms", { "0": Math.round(result.latencyMs) }),
+        dot: "bg-success",
+      };
     case "Rejected":
-      return { label: uiText("Rejected · HTTP {0}", {"0": result.status}), dot: "bg-destructive" };
+      return {
+        label: uiText("Rejected · HTTP {0}", { "0": result.status }),
+        dot: "bg-destructive",
+      };
     case "Unreachable":
       return { label: result.timedOut ? "Timed out" : "Unreachable", dot: "bg-destructive" };
   }
@@ -140,9 +146,9 @@ function TelemetryExportForm() {
         }}
       >
         <p className={"text-xs text-muted-foreground"}>
-          {
-            uiText("Send traces, metrics, and logs to an OTLP HTTP receiver. Restart the server to apply. Environment variables override these settings.")
-          }
+          {uiText(
+            "Send traces, metrics, and logs to an OTLP HTTP receiver. Restart the server to apply. Environment variables override these settings.",
+          )}
         </p>
         {!canEdit && (
           <p className={"text-xs text-muted-foreground"}>
@@ -172,7 +178,9 @@ function TelemetryExportForm() {
                   size={"sm"}
                   type={"url"}
                   pattern={"[Hh][Tt][Tt][Pp][Ss]?://.*"}
-                  title={uiText("Enter an HTTP or HTTPS endpoint, or leave empty to disable export.")}
+                  title={uiText(
+                    "Enter an HTTP or HTTPS endpoint, or leave empty to disable export.",
+                  )}
                   placeholder={`http://localhost:4318/v1/${signal}`}
                   value={values[key]}
                   disabled={saving || !canEdit}

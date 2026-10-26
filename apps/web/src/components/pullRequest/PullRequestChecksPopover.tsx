@@ -105,11 +105,15 @@ function ChecksBody({
                     if (!check.url) return;
                     void openLink(check.url).catch((error: unknown) => {
                       console.error(error);
-                      toastManager.add({ type: "error", title: uiText("Unable to open check details") });
+                      toastManager.add({
+                        type: "error",
+                        title: uiText("Unable to open check details"),
+                      });
                     });
                   }}
                 >
-                  {uiText("Details")}</button>
+                  {uiText("Details")}
+                </button>
               )}
             </li>
           ))}
@@ -167,8 +171,8 @@ export function PullRequestChecksPopover({
         nativeButton={variant === "count"}
         aria-label={
           variant === "count"
-            ? uiText("Open checks: {0}", {"0": summary ?? presentation.label})
-            : uiText("Checks: {0}", {"0": presentation.label})
+            ? uiText("Open checks: {0}", { "0": summary ?? presentation.label })
+            : uiText("Checks: {0}", { "0": presentation.label })
         }
         render={
           variant === "count" ? (
@@ -191,7 +195,9 @@ export function PullRequestChecksPopover({
                 {checks.length - incompleteCount}/{checks.length}
               </span>
             ) : failedCount > 0 ? (
-              <span className="tabular-nums">{failedCount} {uiText("failed")}</span>
+              <span className="tabular-nums">
+                {failedCount} {uiText("failed")}
+              </span>
             ) : null}
           </>
         ) : null}
@@ -201,7 +207,8 @@ export function PullRequestChecksPopover({
         {summary === null ? null : <p className="mb-2 text-muted-foreground text-xs">{summary}</p>}
         {stale ? (
           <p className="text-muted-foreground text-xs">
-            {uiText("Check details are out of date. Refresh the pull request to update them.")}</p>
+            {uiText("Check details are out of date. Refresh the pull request to update them.")}
+          </p>
         ) : checks !== undefined ? (
           <ChecksBody checks={checks} threadRef={threadRef} />
         ) : environmentId !== undefined && reference !== undefined ? (

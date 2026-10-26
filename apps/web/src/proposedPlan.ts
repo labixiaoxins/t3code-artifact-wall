@@ -81,7 +81,7 @@ export function buildPlanImplementationThreadTitle(planMarkdown: string): string
   if (!title) {
     return uiText("Implement plan");
   }
-  return uiText("Implement {0}", {"0": title});
+  return uiText("Implement {0}", { "0": title });
 }
 
 export function buildProposedPlanMarkdownFilename(planMarkdown: string): string {

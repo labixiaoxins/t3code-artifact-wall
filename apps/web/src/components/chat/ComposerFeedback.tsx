@@ -40,7 +40,8 @@ export function feedbackBannerItem(
             );
           }}
         >
-          {uiText("Copy ID")}</Button>
+          {uiText("Copy ID")}
+        </Button>
       ) : undefined,
     ...(submission.status !== "uploading"
       ? { dismissLabel: "Dismiss feedback notice", onDismiss }

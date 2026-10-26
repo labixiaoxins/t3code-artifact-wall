@@ -120,7 +120,12 @@ export const ComposerTasksBadge = memo(function ComposerTasksBadge({
     <ComposerBanner.Row
       render={<button type="button" />}
       aria-expanded={expanded}
-      aria-label={uiText("{0}: {1} of {2} complete. Current task: {3}", {"0": expanded ? "Collapse tasks" : "Tasks", "1": progress.completedSteps, "2": progress.totalSteps, "3": progress.step})}
+      aria-label={uiText("{0}: {1} of {2} complete. Current task: {3}", {
+        "0": expanded ? "Collapse tasks" : "Tasks",
+        "1": progress.completedSteps,
+        "2": progress.totalSteps,
+        "3": progress.step,
+      })}
       data-composer-tasks-badge="true"
       onClick={onToggle}
       onPointerDown={(event) => event.preventDefault()}
@@ -164,7 +169,10 @@ export const ComposerTasksContent = memo(function ComposerTasksContent({
         <ComposerBanner.Scroll data-composer-tasks-scroll="true">
           <ComposerBanner.Children
             render={<ul role="list" />}
-            aria-label={uiText("Task list. {0} of {1} complete.", {"0": progress.completedSteps, "1": progress.totalSteps})}
+            aria-label={uiText("Task list. {0} of {1} complete.", {
+              "0": progress.completedSteps,
+              "1": progress.totalSteps,
+            })}
             data-composer-tasks-list="true"
           >
             {keyedTaskSteps(steps).map(({ key, step }) => (

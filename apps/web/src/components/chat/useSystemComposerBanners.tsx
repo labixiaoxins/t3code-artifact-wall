@@ -201,7 +201,8 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
             )
           }
         >
-          {uiText("Disconnect server")}</Button>
+          {uiText("Disconnect server")}
+        </Button>
       ) : undefined;
     const environmentReconnecting =
       unavailableConnection !== null &&
@@ -233,7 +234,8 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
                   )
                 }
               >
-                {uiText("Reconnect")}</Button>
+                {uiText("Reconnect")}
+              </Button>
             ) : null}
             {disconnectAction}
           </>
@@ -265,7 +267,8 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
                     type="button"
                     className="block max-w-full cursor-help truncate rounded-sm text-left"
                   >
-                    {uiText("Server update available")}</button>
+                    {uiText("Server update available")}
+                  </button>
                 }
               />
               <TooltipPopup side="top">

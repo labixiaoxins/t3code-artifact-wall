@@ -32,7 +32,8 @@ export function NoProjectsHero() {
               <div className="mt-6 flex justify-center gap-2">
                 <Button size="sm" onClick={() => openCommandPalette({ open: "add-project" })}>
                   <PlusIcon className="size-4" />
-                  {uiText("Add project") + " "}</Button>
+                  {uiText("Add project") + " "}
+                </Button>
                 {scratchTargetEnvironmentId === null ? null : (
                   <Button
                     size="sm"
@@ -40,7 +41,8 @@ export function NoProjectsHero() {
                     onClick={() => void startScratchThread(scratchTargetEnvironmentId)}
                   >
                     <MessageSquareDashedIcon className="size-4" />
-                    {uiText("Start without a project") + " "}</Button>
+                    {uiText("Start without a project") + " "}
+                  </Button>
                 )}
               </div>
             </EmptyHeader>

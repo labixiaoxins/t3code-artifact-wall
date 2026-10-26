@@ -66,7 +66,7 @@ function AccountChip({ email }: { readonly email: string }) {
   return (
     <span
       role={"img"}
-      aria-label={uiText("Account {0}", {"0": accountInitials(email)})}
+      aria-label={uiText("Account {0}", { "0": accountInitials(email) })}
       className={
         "inline-flex size-4 shrink-0 items-center justify-center rounded-full text-3xs leading-none font-semibold"
       }
@@ -182,7 +182,9 @@ function SegmentPopover({
       <div className={"flex flex-col gap-1 border-t border-border/60 pt-2.5"}>
         {account.plan ? <Row label={uiText("Plan")}>{account.plan}</Row> : null}
         {where ? (
-          <Row label={account.environments.length > 0 ? uiText("Signed in") : uiText("Via")}>{where}</Row>
+          <Row label={account.environments.length > 0 ? uiText("Signed in") : uiText("Via")}>
+            {where}
+          </Row>
         ) : null}
       </div>
       <div className={"flex flex-col gap-1 border-t border-border/60 pt-2.5"}>

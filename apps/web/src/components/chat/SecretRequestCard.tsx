@@ -139,7 +139,8 @@ function PendingSecretRequestForm(props: {
           />
         </div>
         <Button type="submit" disabled={submitting || secret.trim().length === 0}>
-          {uiText("Save securely")}</Button>
+          {uiText("Save securely")}
+        </Button>
       </div>
       {error !== null ? (
         <p id={errorId} role="alert" className="text-xs text-destructive">
@@ -161,7 +162,8 @@ function PendingSecretRequestForm(props: {
           disabled={submitting}
           onClick={() => void send({ type: "decline" })}
         >
-          {uiText("Decline")}</Button>
+          {uiText("Decline")}
+        </Button>
       </div>
     </form>
   );

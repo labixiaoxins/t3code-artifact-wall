@@ -695,7 +695,7 @@ export function buildPullRequestTimeline(
       id: commit.oid,
       at: commit.committedDate,
       kind: "commit" as const,
-      title: uiText("Commit {0}", {"0": commit.oid.slice(0, 7)}),
+      title: uiText("Commit {0}", { "0": commit.oid.slice(0, 7) }),
       body: commit.messageHeadline || null,
       markdown: false,
       url: null,

@@ -202,7 +202,7 @@ export function ThreadAutomationsPanel(props: {
                     size={"icon-xs"}
                     variant={"ghost"}
                     part={"icon"}
-                    aria-label={uiText("Edit {0}", {"0": task.title})}
+                    aria-label={uiText("Edit {0}", { "0": task.title })}
                     onClick={() =>
                       void navigate({
                         to: "/settings/scheduled-tasks",
@@ -225,7 +225,7 @@ export function ThreadAutomationsPanel(props: {
                       size={"icon-xs"}
                       variant={"ghost"}
                       part={"icon"}
-                      aria-label={uiText("Run {0} now", {"0": task.title})}
+                      aria-label={uiText("Run {0} now", { "0": task.title })}
                       disabled={
                         !canOperate || busyTaskId !== null || task.lastRunStatus === "running"
                       }
@@ -241,7 +241,11 @@ export function ThreadAutomationsPanel(props: {
             <Switch
               checked={task.enabled}
               disabled={!canOperate || busyTaskId !== null}
-              aria-label={task.enabled ? uiText("Pause {0}", {"0": task.title}) : uiText("Resume {0}", {"0": task.title})}
+              aria-label={
+                task.enabled
+                  ? uiText("Pause {0}", { "0": task.title })
+                  : uiText("Resume {0}", { "0": task.title })
+              }
               onCheckedChange={(enabled) => void toggleEnabled(task, enabled)}
             />
           </li>

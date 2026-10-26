@@ -210,11 +210,14 @@ function SourceStatusBadge({
 function LastSampleLabel({ sampledAt }: { sampledAt: DateTime.Utc | null }) {
   const relative = useRelativeTimeState(sampledAt ? DateTime.formatIso(sampledAt) : null);
   if (relative.status !== "relative") {
-    return <span className="text-2xs text-muted-foreground/55">{uiText("Waiting for sample")}</span>;
+    return (
+      <span className="text-2xs text-muted-foreground/55">{uiText("Waiting for sample")}</span>
+    );
   }
   return (
     <span className="text-2xs text-muted-foreground/60">
-      {uiText("Updated") + " "}<span className="font-mono tabular-nums">{relative.value}</span>
+      {uiText("Updated") + " "}
+      <span className="font-mono tabular-nums">{relative.value}</span>
       {relative.suffix ? ` ${relative.suffix}` : ""}
     </span>
   );
@@ -274,7 +277,8 @@ function AggregateCard({
           {label}
         </div>
         <div className="rounded-md bg-muted/55 px-1.5 py-0.5 font-mono text-3xs tabular-nums text-muted-foreground/70">
-          {aggregate.processCount} {aggregate.processCount === 1 ? uiText("process") : uiText("processes")}
+          {aggregate.processCount}{" "}
+          {aggregate.processCount === 1 ? uiText("process") : uiText("processes")}
         </div>
       </div>
       <div className="mt-3.5 grid grid-cols-2 gap-x-4 gap-y-2.5">
@@ -395,11 +399,14 @@ function ResourceHistoryChart({
     <div className="border-t border-border/60 px-4 py-4 sm:px-5">
       <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-3xs text-muted-foreground/65">
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-1.5 w-3 rounded-full bg-foreground/70" /> {uiText("CPU average") + " "}</span>
+          <span className="h-1.5 w-3 rounded-full bg-foreground/70" /> {uiText("CPU average") + " "}
+        </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-1.5 w-3 rounded-full bg-info/70" /> {uiText("I/O reads") + " "}</span>
+          <span className="h-1.5 w-3 rounded-full bg-info/70" /> {uiText("I/O reads") + " "}
+        </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-1.5 w-3 rounded-full bg-warning/80" /> {uiText("I/O writes") + " "}</span>
+          <span className="h-1.5 w-3 rounded-full bg-warning/80" /> {uiText("I/O writes") + " "}
+        </span>
       </div>
       <div className="flex h-32 items-end gap-1 overflow-hidden rounded-lg border border-border/40 bg-muted/8 px-2 pt-3 pb-2">
         {buckets.map((bucket) => {
@@ -440,10 +447,22 @@ function ResourceHistoryChart({
               />
               <TooltipPopup side="top" className="text-left">
                 <div className="space-y-0.5">
-                  <div>{uiText("CPU avg") + " "}{bucket.avgCpuPercent.toFixed(1)}%</div>
-                  <div>{uiText("CPU peak") + " "}{bucket.maxCpuPercent.toFixed(1)}%</div>
-                  <div>{uiText("Read") + " "}{formatBytes(bucket.ioReadBytes)}</div>
-                  <div>{uiText("Write") + " "}{formatBytes(bucket.ioWriteBytes)}</div>
+                  <div>
+                    {uiText("CPU avg") + " "}
+                    {bucket.avgCpuPercent.toFixed(1)}%
+                  </div>
+                  <div>
+                    {uiText("CPU peak") + " "}
+                    {bucket.maxCpuPercent.toFixed(1)}%
+                  </div>
+                  <div>
+                    {uiText("Read") + " "}
+                    {formatBytes(bucket.ioReadBytes)}
+                  </div>
+                  <div>
+                    {uiText("Write") + " "}
+                    {formatBytes(bucket.ioWriteBytes)}
+                  </div>
                 </div>
               </TooltipPopup>
             </Tooltip>
@@ -475,7 +494,9 @@ function ProcessTreeName({
           size="icon-micro"
           variant="ghost-muted"
           onClick={() => onToggle(process)}
-          aria-label={collapsed ? uiText("Expand {0}", {"0": name}) : uiText("Collapse {0}", {"0": name})}
+          aria-label={
+            collapsed ? uiText("Expand {0}", { "0": name }) : uiText("Collapse {0}", { "0": name })
+          }
         >
           <MorphIcon className="size-3.5" icon={collapsed ? ChevronRight : ChevronDown} />
         </Button>
@@ -593,7 +614,8 @@ function ProcessTable({
             {visible.length === 0 ? (
               <tr>
                 <td colSpan={11} className="px-4 py-5 text-xs text-muted-foreground sm:px-5">
-                  {uiText("Waiting for the native process monitor.")}</td>
+                  {uiText("Waiting for the native process monitor.")}
+                </td>
               </tr>
             ) : null}
             {visible.map((process) => (
@@ -694,7 +716,8 @@ function HistoryProcessTable({
             {processes.length === 0 ? (
               <tr>
                 <td colSpan={9} className="px-4 py-5 text-xs text-muted-foreground sm:px-5">
-                  {uiText("No retained process samples in this window.")}</td>
+                  {uiText("No retained process samples in this window.")}
+                </td>
               </tr>
             ) : null}
             {processes.map((process) => (
@@ -772,7 +795,8 @@ function AttributionTable({ entries }: { entries: ReadonlyArray<ResourceAttribut
           {entries.length === 0 ? (
             <tr>
               <td colSpan={6} className="px-4 py-5 text-xs text-muted-foreground sm:px-5">
-                {uiText("No instrumented application I/O has been recorded yet.")}</td>
+                {uiText("No instrumented application I/O has been recorded yet.")}
+              </td>
             </tr>
           ) : null}
           {entries.map((entry) => (
@@ -896,7 +920,7 @@ export function ResourceTelemetryDiagnostics({
         if (result.value.signaled) return;
         toastManager.add({
           type: "error",
-          title: uiText("Could not send {0}", {"0": signal}),
+          title: uiText("Could not send {0}", { "0": signal }),
           description: Option.getOrElse(
             result.value.message,
             () => `Failed to send ${signal} to process ${process.identity.pid}.`,
@@ -906,7 +930,7 @@ export function ResourceTelemetryDiagnostics({
       .catch((error: unknown) => {
         toastManager.add({
           type: "error",
-          title: uiText("Could not send {0}", {"0": signal}),
+          title: uiText("Could not send {0}", { "0": signal }),
           description: error instanceof Error ? error.message : `Failed to send ${signal}.`,
         });
       })
@@ -984,13 +1008,18 @@ export function ResourceTelemetryDiagnostics({
           <div className="flex flex-col gap-3 border-b border-border/60 bg-linear-to-r from-muted/45 via-muted/20 to-transparent px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
             <div>
               <div className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground/70">
-                {uiText("T3 system footprint")}</div>
+                {uiText("T3 system footprint")}
+              </div>
               <p className="mt-1 max-w-xl text-xs leading-relaxed text-muted-foreground">
-                {uiText("Live native counters for the server, providers, terminals, desktop processes, and the monitor itself.")}</p>
+                {uiText(
+                  "Live native counters for the server, providers, terminals, desktop processes, and the monitor itself.",
+                )}
+              </p>
             </div>
             <div className="flex items-center gap-2 text-3xs text-muted-foreground/65">
               <span className="size-1.5 rounded-full bg-success" />
-              {uiText("Sampling every") + " "}{snapshot ? formatSampleInterval(snapshot.sampleIntervalMs) : "..."}
+              {uiText("Sampling every") + " "}
+              {snapshot ? formatSampleInterval(snapshot.sampleIntervalMs) : "..."}
             </div>
           </div>
           <div className="grid grid-cols-2 divide-x divide-y divide-border/55 md:grid-cols-3">
@@ -1080,7 +1109,8 @@ export function ResourceTelemetryDiagnostics({
           collectorNeedsRetry ? (
             <Button size="xs" variant="outline" disabled={isRetrying} onClick={retryCollector}>
               <RefreshIcon size="xs" refreshing={isRetrying} />
-              {uiText("Retry monitor") + " "}</Button>
+              {uiText("Retry monitor") + " "}
+            </Button>
           ) : null
         }
       >
@@ -1090,7 +1120,8 @@ export function ResourceTelemetryDiagnostics({
               <span className="flex size-6 items-center justify-center rounded-md bg-muted/60">
                 <BatteryIcon className="size-3.5" />
               </span>
-              {uiText("Host state") + " "}</div>
+              {uiText("Host state") + " "}
+            </div>
             {hasHostPowerSignal && snapshot ? (
               <>
                 <DetailRow
@@ -1143,9 +1174,13 @@ export function ResourceTelemetryDiagnostics({
             ) : (
               <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 px-4 py-5">
                 <div className="text-sm font-medium text-foreground">
-                  {uiText("Desktop host signals not connected")}</div>
+                  {uiText("Desktop host signals not connected")}
+                </div>
                 <p className="mt-1.5 max-w-sm text-2xs leading-relaxed text-muted-foreground/70">
-                  {uiText("Power, idle, lock, and thermal state are supplied by the desktop host. Process telemetry remains fully active in this browser session.")}</p>
+                  {uiText(
+                    "Power, idle, lock, and thermal state are supplied by the desktop host. Process telemetry remains fully active in this browser session.",
+                  )}
+                </p>
               </div>
             )}
           </div>
@@ -1154,11 +1189,18 @@ export function ResourceTelemetryDiagnostics({
               <span className="flex size-6 items-center justify-center rounded-md bg-muted/60">
                 <GaugeIcon className="size-3.5" />
               </span>
-              {uiText("Collection health") + " "}</div>
+              {uiText("Collection health") + " "}
+            </div>
             {snapshot ? (
               <>
-                <HealthSource label={uiText("Native process monitor")} health={snapshot.health.native} />
-                <HealthSource label={uiText("Electron main process")} health={snapshot.health.desktop} />
+                <HealthSource
+                  label={uiText("Native process monitor")}
+                  health={snapshot.health.native}
+                />
+                <HealthSource
+                  label={uiText("Electron main process")}
+                  health={snapshot.health.desktop}
+                />
                 <DetailRow
                   label={uiText("Collection time")}
                   value={formatDurationMicros(snapshot.health.collectionDurationMicros)}
@@ -1187,11 +1229,15 @@ export function ResourceTelemetryDiagnostics({
                       })}`,
                   })}
                 />
-                <DetailRow label={uiText("Restarts")} value={String(snapshot.health.restartCount)} />
+                <DetailRow
+                  label={uiText("Restarts")}
+                  value={String(snapshot.health.restartCount)}
+                />
               </>
             ) : (
               <div className="py-4 text-xs text-muted-foreground">
-                {uiText("Waiting for collector health.")}</div>
+                {uiText("Waiting for collector health.")}
+              </div>
             )}
           </div>
         </div>
@@ -1233,7 +1279,8 @@ export function ResourceTelemetryDiagnostics({
         headerAction={
           snapshot ? (
             <span className="text-3xs text-muted-foreground/55">
-              {uiText("Identity:") + " "}<span className="font-mono">{uiText("PID + start time")}</span>
+              {uiText("Identity:") + " "}
+              <span className="font-mono">{uiText("PID + start time")}</span>
             </span>
           ) : null
         }
@@ -1252,12 +1299,17 @@ export function ResourceTelemetryDiagnostics({
         title={uiText("Instrumented application I/O")}
         icon={<DatabaseIcon className="size-4 text-muted-foreground" />}
         headerAction={
-          <span className="text-3xs text-muted-foreground/55">{uiText("Logical bytes by operation")}</span>
+          <span className="text-3xs text-muted-foreground/55">
+            {uiText("Logical bytes by operation")}
+          </span>
         }
       >
         <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-xs/5">
           <div className="bg-muted/15 px-4 py-3 text-2xs leading-relaxed text-muted-foreground sm:px-5">
-            {uiText("Native counters identify which process is reading or writing. These application-level counters identify known T3 operations so process spikes can be correlated with specific persistence and logging paths.")}</div>
+            {uiText(
+              "Native counters identify which process is reading or writing. These application-level counters identify known T3 operations so process spikes can be correlated with specific persistence and logging paths.",
+            )}
+          </div>
           <AttributionTable entries={snapshot?.attribution.entries ?? []} />
         </div>
       </SettingsSection>

@@ -46,7 +46,7 @@ interface ChatHeaderProps {
   activeThreadTitle: string;
   isServerThread: boolean;
   activeProject: EnvironmentProject | null;
-  parentThreadLink: { threadId: ThreadId; title: string; } | null;
+  parentThreadLink: { threadId: ThreadId; title: string } | null;
   onOpenThread: (threadId: ThreadId) => void;
   rightPanelOpen: boolean;
   onNewThreadInProject: () => void;
@@ -56,7 +56,7 @@ interface ChatHeaderProps {
 function resolveRenameCommit(input: {
   readonly title: string;
   readonly originalTitle: string;
-}): { action: "commit"; title: string; } | { action: "reject-empty"; } | { action: "noop"; } {
+}): { action: "commit"; title: string } | { action: "reject-empty" } | { action: "noop" } {
   const trimmed = input.title.trim();
   if (trimmed.length === 0) return { action: "reject-empty" };
   if (trimmed === input.originalTitle) return { action: "noop" };
@@ -88,7 +88,7 @@ export const ChatHeader = memo(function ChatHeader({
   const activeThreadRef = scopeThreadRef(activeThreadEnvironmentId, activeThreadId);
   const canOperateThread = useEnvironmentScope(
     activeThreadEnvironmentId,
-    AuthOrchestrationOperateScope
+    AuthOrchestrationOperateScope,
   );
   const updateThreadMetadata = useOrchestrationCommand(threadEnvironment.updateMetadata, {
     reportFailure: false,
@@ -131,7 +131,7 @@ export const ChatHeader = memo(function ChatHeader({
             (ellipsis?.getBoundingClientRect().width ?? 0)
           );
         },
-        gap * (list.children.length - 1)
+        gap * (list.children.length - 1),
       );
       setCollapseParentTitle(width > list.clientWidth);
     };
@@ -208,7 +208,7 @@ export const ChatHeader = memo(function ChatHeader({
       titleMenuTimerRef.current = null;
     },
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- A pending title menu belongs to the thread that was clicked, so switching threads drops it.
-    [activeThreadEnvironmentId, activeThreadId]
+    [activeThreadEnvironmentId, activeThreadId],
   );
   const openTitleMenuNow = () => {
     cancelPendingTitleMenu();
@@ -274,7 +274,7 @@ export const ChatHeader = memo(function ChatHeader({
       className={cn(
         "@container/quota-header flex min-w-0 flex-1 items-center gap-2 sm:gap-3",
         rightPanelOpen ? "pr-10" : "pr-24",
-        "max-md:pr-36"
+        "max-md:pr-36",
       )}
       onContextMenu={handleHeaderContextMenu}
     >
@@ -301,7 +301,10 @@ export const ChatHeader = memo(function ChatHeader({
                     {activeProjectName}
                   </WorkspaceBreadcrumbText>
                 </TooltipTrigger>
-                <TooltipPopup side="top">{uiText("New thread in")}{activeProjectName}</TooltipPopup>
+                <TooltipPopup side="top">
+                  {uiText("New thread in")}
+                  {activeProjectName}
+                </TooltipPopup>
               </Tooltip>
             </WorkspaceBreadcrumbItem>
             <WorkspaceBreadcrumbSeparator>
@@ -412,7 +415,7 @@ export const ChatHeader = memo(function ChatHeader({
           )}
         </WorkspaceBreadcrumbItem>
       </WorkspaceBreadcrumb>
-    <QuotaTopbar />
+      <QuotaTopbar />
     </div>
   );
 });

@@ -637,7 +637,9 @@ function ManagedCodexSetup({
     !handoff && auth?.phase === "waiting" && url ? (
       <div className={"flex w-full flex-col gap-3 text-xs leading-relaxed text-muted-foreground"}>
         <p>
-          {uiText("If sign-in doesn't return to T3 Code, paste the URL from the final localhost page.")}
+          {uiText(
+            "If sign-in doesn't return to T3 Code, paste the URL from the final localhost page.",
+          )}
         </p>
         <form
           className={"flex flex-col gap-2 sm:flex-row sm:items-center"}
@@ -1030,7 +1032,9 @@ export function CodexManagedRuntimeFields({
               aria-label={uiText("Codex binary path")}
               value={executablePath}
               title={executablePath}
-              placeholder={installation.error ? uiText("Could not read runtime path") : uiText("Not installed")}
+              placeholder={
+                installation.error ? uiText("Could not read runtime path") : uiText("Not installed")
+              }
               disabled
             />
           </div>

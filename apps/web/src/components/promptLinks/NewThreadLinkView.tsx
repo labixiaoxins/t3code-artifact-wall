@@ -211,7 +211,7 @@ export function NewThreadLinkView({ link }: { readonly link: NewThreadLink }) {
     if (link.kind === "pull-request") {
       setState({
         status: "failed",
-        title: uiText("Cloning {0}/{1}", {"0": repository.owner, "1": repository.name}),
+        title: uiText("Cloning {0}/{1}", { "0": repository.owner, "1": repository.name }),
         message: "Open this link again when the clone finishes.",
       });
       return;
@@ -289,25 +289,31 @@ export function NewThreadLinkView({ link }: { readonly link: NewThreadLink }) {
               setState({ status: "opening" });
             }}
           >
-            {uiText("Open it again")}</Button>
+            {uiText("Open it again")}
+          </Button>
         </LinkPage>
       );
     case "failed":
       return (
-        <LinkPage title={state.title ?? uiText("Could not open the link")} description={state.message} />
+        <LinkPage
+          title={state.title ?? uiText("Could not open the link")}
+          description={state.message}
+        />
       );
     case "missing-repository": {
       const name = `${state.repository.owner}/${state.repository.name}`;
       return (
         <LinkPage
-          title={uiText("You don't have {0}", {"0": name})}
+          title={uiText("You don't have {0}", { "0": name })}
           description={uiText("Clone it to work on it here, or start without a project.")}
         >
           <Button size="sm" onClick={() => void cloneRepository(state.repository)}>
-            {uiText("Clone") + " "}{name}
+            {uiText("Clone") + " "}
+            {name}
           </Button>
           <Button size="sm" variant="outline" onClick={openWithoutProject}>
-            {uiText("Use without project")}</Button>
+            {uiText("Use without project")}
+          </Button>
         </LinkPage>
       );
     }
@@ -346,8 +352,10 @@ function PullRequestLinkCheckout({
   const { owner, name, number } = link.pullRequest;
   return (
     <LinkPage
-      title={uiText("Check out {0}/{1}#{2}?", {"0": owner, "1": name, "2": number})}
-      description={uiText("This puts the pull request's code in a new worktree and runs your project's setup script on it.")}
+      title={uiText("Check out {0}/{1}#{2}?", { "0": owner, "1": name, "2": number })}
+      description={uiText(
+        "This puts the pull request's code in a new worktree and runs your project's setup script on it.",
+      )}
     >
       <Button
         size="sm"

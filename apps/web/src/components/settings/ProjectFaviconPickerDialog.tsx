@@ -110,7 +110,7 @@ export function ProjectFaviconPickerDialog(props: {
                       .finally(() => setIsPickingExternal(false));
                   }}
                 >
-                  {uiText("Open in {0}", {"0": fileManagerName})}
+                  {uiText("Open in {0}", { "0": fileManagerName })}
                 </CommandFooterAction>
               ) : null
             }

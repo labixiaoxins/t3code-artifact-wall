@@ -137,7 +137,7 @@ function WorkflowMemberRow(props: {
             ) : (
               <button
                 type="button"
-                aria-label={uiText("Open {0}", {"0": member.title})}
+                aria-label={uiText("Open {0}", { "0": member.title })}
                 aria-description={member.status}
                 onClick={() => props.onOpenThread(threadId)}
                 className={cn(

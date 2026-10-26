@@ -95,7 +95,9 @@ export function SnapShotContentsButton({
               render={
                 <Button
                   aria-label={
-                    includesAccessibility ? uiText("View accessibility data") : uiText("No accessibility data")
+                    includesAccessibility
+                      ? uiText("View accessibility data")
+                      : uiText("No accessibility data")
                   }
                   className={className}
                   onClick={(event) => event.stopPropagation()}
@@ -120,10 +122,14 @@ export function SnapShotContentsButton({
             />
           ) : includesAccessibility ? (
             <div className="rounded-md border border-border/70 bg-muted/45 p-2.5 text-muted-foreground text-xs leading-4">
-              {uiText("Structured accessibility elements were included, but they have no readable names or values.")}</div>
+              {uiText(
+                "Structured accessibility elements were included, but they have no readable names or values.",
+              )}
+            </div>
           ) : (
             <div className="rounded-md border border-border/70 bg-muted/45 p-2.5 text-muted-foreground text-xs leading-4">
-              {uiText("The app or capture backend did not provide verified accessibility data.")}</div>
+              {uiText("The app or capture backend did not provide verified accessibility data.")}
+            </div>
           )}
         </div>
       </PopoverPopup>

@@ -140,7 +140,8 @@ export function PullRequestLinkPreview({
                   <span className="min-w-0 truncate">{authorLabel}</span>
                   <span aria-hidden>·</span>
                   <span className="shrink-0">
-                    {uiText("opened") + " "}<RelativeTime timestamp={detail.createdAt} />
+                    {uiText("opened") + " "}
+                    <RelativeTime timestamp={detail.createdAt} />
                   </span>
                 </div>
               </div>

@@ -48,9 +48,15 @@ const PACE: Record<
     readonly icon: typeof GaugeIcon;
   }
 > = {
-  ahead: { label: uiText("Ahead of pace: spending faster than the window elapses"), icon: TrendingUpIcon },
+  ahead: {
+    label: uiText("Ahead of pace: spending faster than the window elapses"),
+    icon: TrendingUpIcon,
+  },
   on: { label: uiText("On pace with the window"), icon: GaugeIcon },
-  under: { label: uiText("Under pace: headroom left for the rest of the window"), icon: TrendingDownIcon },
+  under: {
+    label: uiText("Under pace: headroom left for the rest of the window"),
+    icon: TrendingDownIcon,
+  },
 };
 
 export function barColor(driver: ServerProvider["driver"]): string {
@@ -174,7 +180,7 @@ function WindowBar({
           <span className={"text-foreground"}>
             {remaining}
             {uiText("% left")}
-            {timeLeft !== null ? uiText(" · {0}% of the window left", {"0": timeLeft}) : ""}
+            {timeLeft !== null ? uiText(" · {0}% of the window left", { "0": timeLeft }) : ""}
           </span>
           {timeLeft !== null ? (
             <span className={"text-muted-foreground"}>
@@ -302,13 +308,15 @@ export function ResetCreditDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>{uiText("Use a reset credit?")}</AlertDialogTitle>
           <AlertDialogDescription>
-            {
-              uiText("This redeems one credit on your account and clears the current rate-limit windows. It cannot be undone.")
-            }
+            {uiText(
+              "This redeems one credit on your account and clears the current rate-limit windows. It cannot be undone.",
+            )}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogClose render={<Button variant={"outline"} />}>{uiText("Cancel")}</AlertDialogClose>
+          <AlertDialogClose render={<Button variant={"outline"} />}>
+            {uiText("Cancel")}
+          </AlertDialogClose>
           <Button disabled={disabled} onClick={onConfirm}>
             {uiText("Use credit")}
           </Button>

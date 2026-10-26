@@ -12,7 +12,7 @@ function SettingsProvidersRoute() {
     return (
       <p className="p-8 text-sm text-muted-foreground">
         {scope.kind === "environment"
-          ? uiText("Reconnect {0} to set up its providers.", {"0": scope.label})
+          ? uiText("Reconnect {0} to set up its providers.", { "0": scope.label })
           : uiText("Connect an environment to set up its providers.")}
       </p>
     );

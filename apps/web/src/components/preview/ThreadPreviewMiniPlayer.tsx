@@ -115,7 +115,7 @@ export function ThreadPreviewMiniPlayer({ threadRef, miniPlayer }: Props) {
   );
 }
 
-function BrowserMiniPlayer({ threadRef, tabId, miniPlayer }: Props & { readonly tabId: string; }) {
+function BrowserMiniPlayer({ threadRef, tabId, miniPlayer }: Props & { readonly tabId: string }) {
   const httpBaseUrl = useEnvironmentHttpBaseUrl(threadRef.environmentId);
   const previewState = useThreadPreviewState(threadRef);
   const snapshot = previewState.sessions[tabId] ?? null;
@@ -127,7 +127,7 @@ function BrowserMiniPlayer({ threadRef, tabId, miniPlayer }: Props & { readonly 
   const desktopOverlay = previewState.desktopByTabId[tabId] ?? null;
   const layoutZoomFactor = useBrowserLayoutZoomFactor(desktopOverlay?.zoomFactor ?? 1);
   const fittedSourceContent = useBrowserSurfaceStore(
-    (state) => state.byTabId[runtimeTabId]?.fittedSourceContent ?? null
+    (state) => state.byTabId[runtimeTabId]?.fittedSourceContent ?? null,
   );
   const nativeServerTab = useRendersServerTabNatively(threadRef.environmentId, snapshot);
   const serverTab = snapshot?.runtime === "server" && !nativeServerTab;
@@ -141,7 +141,7 @@ function BrowserMiniPlayer({ threadRef, tabId, miniPlayer }: Props & { readonly 
       : resolvePreviewMiniPlayerSourceSize(
           snapshot?.viewport ?? FILL_PREVIEW_VIEWPORT,
           fittedSourceContent,
-          layoutZoomFactor
+          layoutZoomFactor,
         );
 
   const openInPanel = () => {
@@ -168,7 +168,9 @@ function BrowserMiniPlayer({ threadRef, tabId, miniPlayer }: Props & { readonly 
     } catch (error) {
       toastManager.add({
         type: "error",
-        title: serverTab ? "Unable to pop out preview" : uiText("Unable to update popped-out preview"),
+        title: serverTab
+          ? "Unable to pop out preview"
+          : uiText("Unable to update popped-out preview"),
         description: error instanceof Error ? error.message : uiText("An error occurred."),
       });
     }
@@ -201,7 +203,9 @@ function BrowserMiniPlayer({ threadRef, tabId, miniPlayer }: Props & { readonly 
                   variant={poppedOut ? "secondary" : "ghost"}
                   size="icon-xs"
                   aria-label={
-                    poppedOut ? uiText("Close popped-out preview") : uiText("Pop preview into separate window")
+                    poppedOut
+                      ? uiText("Close popped-out preview")
+                      : uiText("Pop preview into separate window")
                   }
                   disabled={!serverTab && !desktopOverlay?.hasWebContents}
                   onPointerDown={(event) => event.stopPropagation()}
@@ -251,7 +255,8 @@ function BrowserMiniPlayer({ threadRef, tabId, miniPlayer }: Props & { readonly 
             />
             {!desktopOverlay?.hasWebContents ? (
               <div className="pointer-events-none absolute inset-0 z-[49] flex items-center justify-center rounded-[inherit] bg-muted text-xs text-muted-foreground">
-                {uiText("Reconnecting preview…")}</div>
+                {uiText("Reconnecting preview…")}
+              </div>
             ) : null}
           </>
         )
@@ -264,12 +269,12 @@ function DeviceMiniPlayer({
   threadRef,
   source,
   miniPlayer,
-}: Props & { readonly source: Extract<PreviewMiniPlayerSource, { kind: "device"; }>; }) {
+}: Props & { readonly source: Extract<PreviewMiniPlayerSource, { kind: "device" }> }) {
   const { state: deviceState } = useDeviceState(threadRef.environmentId);
   const [screen, setScreen] = useState<DeviceScreenSize | null>(null);
   const sourceSize = resolveDeviceMiniPlayerSourceSize(source.platform, screen);
   const device = deviceState.devices.find(
-    (entry) => entry.hostId === source.hostId && entry.id === source.deviceId
+    (entry) => entry.hostId === source.hostId && entry.id === source.deviceId,
   );
   const hostLabel =
     deviceState.hosts.find((host) => host.id === source.hostId)?.label ?? "Device host";
@@ -392,7 +397,7 @@ function MiniPlayerShell({
 
   const beginGesture = (
     event: ReactPointerEvent<HTMLElement>,
-    direction: BrowserViewportResizeDirection | null
+    direction: BrowserViewportResizeDirection | null,
   ) => {
     if (event.button !== 0 || !frame) return;
     gestureRef.current = {
@@ -424,8 +429,8 @@ function MiniPlayerShell({
           { x: gesture.frame.x + delta.x, y: gesture.frame.y + delta.y },
           container,
           gesture.frame,
-          obstacles
-        )
+          obstacles,
+        ),
       );
       return;
     }
@@ -495,7 +500,7 @@ function MiniPlayerShell({
                   "block size-2 rounded-full shadow-sm ring-1 ring-background/70",
                   recording
                     ? "bg-destructive motion-safe:animate-status-pulse"
-                    : "bg-foreground/25"
+                    : "bg-foreground/25",
                 )}
               />
             </div>

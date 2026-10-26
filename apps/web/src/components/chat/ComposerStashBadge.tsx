@@ -36,7 +36,7 @@ export const ComposerStashBadge = memo(function ComposerStashBadge(props: {
       <ComposerBanner.Row
         render={<button type="button" />}
         data-prompt-stash-badge="true"
-        aria-label={uiText("Stashed prompts: {0}. Open stash.", {"0": props.count})}
+        aria-label={uiText("Stashed prompts: {0}. Open stash.", { "0": props.count })}
         aria-expanded={props.menuOpen}
         className={cn(
           "transition-colors duration-200",

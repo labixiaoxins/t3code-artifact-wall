@@ -317,13 +317,15 @@ export const OpenInPicker = memo(function OpenInPicker({
     <>
       {remote.mode === "remote-unavailable" ? (
         <MenuItem density={presentation === "menu" ? "touch" : "default"} disabled>
-          {uiText("No SSH route to") + " "}{environmentLabel}
+          {uiText("No SSH route to") + " "}
+          {environmentLabel}
         </MenuItem>
       ) : (
         <>
           {options.length === 0 && (
             <MenuItem density={presentation === "menu" ? "touch" : "default"} disabled>
-              {uiText("No installed editors found")}</MenuItem>
+              {uiText("No installed editors found")}
+            </MenuItem>
           )}
           {options.map(({ label, Icon, value, kind }) => (
             <MenuItem
@@ -347,7 +349,8 @@ export const OpenInPicker = memo(function OpenInPicker({
           ))}
           {remote.mode === "remote-links" && !remoteHintSeen && (
             <MenuItem density={presentation === "menu" ? "touch" : "default"} disabled>
-              {uiText("Opens over SSH. Needs your key on") + " "}{environmentLabel}
+              {uiText("Opens over SSH. Needs your key on") + " "}
+              {environmentLabel}
             </MenuItem>
           )}
         </>
@@ -365,7 +368,10 @@ export const OpenInPicker = memo(function OpenInPicker({
             onClick={() => openInEditor(preferredEditor)}
           >
             <primaryOption.Icon className={cn("size-4", getOpenInIconClass(primaryOption.kind))} />
-            <MenuItemLabel>{uiText("Open in") + " "}{primaryOption.label}</MenuItemLabel>
+            <MenuItemLabel>
+              {uiText("Open in") + " "}
+              {primaryOption.label}
+            </MenuItemLabel>
             {openFavoriteEditorShortcutLabel && (
               <MenuShortcut>{openFavoriteEditorShortcutLabel}</MenuShortcut>
             )}

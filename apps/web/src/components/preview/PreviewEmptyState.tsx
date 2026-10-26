@@ -41,7 +41,10 @@ export function PreviewEmptyState({
         </EmptyMedia>
         <EmptyTitle>{uiText("No preview yet")}</EmptyTitle>
         <EmptyDescription>
-          {uiText("Type a URL above, or run a dev script. Browser-ready localhost servers will show up here automatically.")}</EmptyDescription>
+          {uiText(
+            "Type a URL above, or run a dev script. Browser-ready localhost servers will show up here automatically.",
+          )}
+        </EmptyDescription>
       </Empty>
     );
   }
@@ -85,7 +88,8 @@ export function PreviewEmptyState({
               ))}
             </DiscoveryList>
             <p className="px-1 text-xs text-muted-foreground">
-              {uiText("Select a live local server to open it in this browser tab.")}</p>
+              {uiText("Select a live local server to open it in this browser tab.")}
+            </p>
           </div>
         ) : null}
       </div>

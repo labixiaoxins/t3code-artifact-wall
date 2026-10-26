@@ -30,16 +30,21 @@ export function PreviewFileNotShown({
       <div className="mx-auto flex w-full max-w-xl flex-1 flex-col px-8 py-12 sm:py-16">
         <ErrorIcon className="mb-6 size-12 text-muted-foreground/70" />
         <h1 className="mb-3 text-2xl font-semibold leading-tight text-foreground">
-          {uiText("This file can&rsquo;t be shown here")}</h1>
+          {uiText("This file can&rsquo;t be shown here")}
+        </h1>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          <span className="font-semibold text-foreground">{fileName}</span> {uiText("from") + " "}{host} {uiText("was downloaded instead.") + " "}</p>
+          <span className="font-semibold text-foreground">{fileName}</span> {uiText("from") + " "}
+          {host} {uiText("was downloaded instead.") + " "}
+        </p>
         <div className="mt-auto flex items-center gap-2 pt-8">
           <div className="flex-1" />
           <Button type="button" variant="outline" size="sm" onClick={onOpen}>
-            {uiText("Open in browser")}</Button>
+            {uiText("Open in browser")}
+          </Button>
           {downloadUrl ? (
             <Button type="button" size="sm" render={<a href={downloadUrl} download={fileName} />}>
-              {uiText("Download")}</Button>
+              {uiText("Download")}
+            </Button>
           ) : null}
         </div>
       </div>
@@ -58,7 +63,8 @@ export function PreviewUnreachable({ url, code, description, onReload, move }: P
       <div className="mx-auto flex w-full max-w-xl flex-1 flex-col px-8 py-12 sm:py-16">
         <ErrorIcon className="mb-6 size-12 text-muted-foreground/70" />
         <h1 className="mb-3 text-2xl font-semibold leading-tight text-foreground">
-          {uiText("This site can&rsquo;t be reached")}</h1>
+          {uiText("This site can&rsquo;t be reached")}
+        </h1>
         <p className="text-sm leading-relaxed text-muted-foreground">
           <span className="font-semibold text-foreground">{host}</span>: {friendly}.
         </p>
@@ -70,7 +76,11 @@ export function PreviewUnreachable({ url, code, description, onReload, move }: P
               <li>{uiText("Checking your connection")}</li>
               <li>{uiText("Confirming the dev server is running")}</li>
               {move ? (
-                <li>{uiText("Opening it in the environment&rsquo;s browser, which reaches its network")}</li>
+                <li>
+                  {uiText(
+                    "Opening it in the environment&rsquo;s browser, which reaches its network",
+                  )}
+                </li>
               ) : null}
               <li>{uiText("Checking the proxy and the firewall")}</li>
             </ul>
@@ -97,7 +107,8 @@ export function PreviewUnreachable({ url, code, description, onReload, move }: P
             </Button>
           ) : null}
           <Button type="button" size="sm" onClick={onReload}>
-            {uiText("Reload")}</Button>
+            {uiText("Reload")}
+          </Button>
         </div>
       </div>
     </div>

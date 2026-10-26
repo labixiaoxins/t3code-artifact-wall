@@ -883,7 +883,7 @@ export function PullRequestSummaryTab({
       </Section>
 
       <Section
-        title={uiText("Comments ({0})", {"0": detail.commentCount})}
+        title={uiText("Comments ({0})", { "0": detail.commentCount })}
         actions={
           <div className={"flex shrink-0 items-center gap-1"}>
             <Menu>
@@ -892,7 +892,9 @@ export function PullRequestSummaryTab({
                 aria-label={uiText("Filter comments")}
               >
                 <ListFilterIcon aria-hidden className={"size-3"} />
-                {filteredOutCount > 0 ? uiText("{0} hidden", {"0": filteredOutCount}) : uiText("Filter")}
+                {filteredOutCount > 0
+                  ? uiText("{0} hidden", { "0": filteredOutCount })
+                  : uiText("Filter")}
               </MenuTrigger>
               <MenuPopup align={"end"}>
                 <MenuGroup>
@@ -957,7 +959,7 @@ export function PullRequestSummaryTab({
               <p className={"py-2 text-xs text-muted-foreground"}>
                 {filteredOutCount === 1
                   ? uiText("The only comment is hidden by the filter.")
-                  : uiText("All {0} comments are hidden by the filter.", {"0": filteredOutCount})}
+                  : uiText("All {0} comments are hidden by the filter.", { "0": filteredOutCount })}
               </p>
             ) : (
               <div className={"space-y-3"}>

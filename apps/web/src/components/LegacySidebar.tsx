@@ -1715,8 +1715,10 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
         },
       });
     };
-    const hasOverflowingThreads = visibleProjectThreads.some((thread, index) =>
-      index >= sidebarThreadPreviewCount && scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)) !== activeRootThreadKey,
+    const hasOverflowingThreads = visibleProjectThreads.some(
+      (thread, index) =>
+        index >= sidebarThreadPreviewCount &&
+        scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)) !== activeRootThreadKey,
     );
     const previewThreads =
       isThreadListExpanded || !hasOverflowingThreads
@@ -2356,7 +2358,8 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
           stackedThreadToast({
             type: "error",
             title: uiText("Failed to delete threads"),
-            description: firstError instanceof Error ? firstError.message : uiText("An error occurred."),
+            description:
+              firstError instanceof Error ? firstError.message : uiText("An error occurred."),
           }),
         );
       }
@@ -3806,7 +3809,9 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
     </SidebarContent>
   );
 });
-export default function LegacySidebar(props: { routeReveal?: import("./sidebar/routeReveal").SidebarRouteReveal }) {
+export default function LegacySidebar(props: {
+  routeReveal?: import("./sidebar/routeReveal").SidebarRouteReveal;
+}) {
   const projects = useProjects();
   const liveSidebarThreads = useThreadShells();
   const archiveEnvironmentIds = useMemo(
@@ -4245,8 +4250,10 @@ export default function LegacySidebar(props: { routeReveal?: import("./sidebar/r
           return [];
         }
         const isThreadListExpanded = expandedThreadListsByProject.has(project.projectKey);
-        const hasOverflowingThreads = projectThreads.some((thread, index) =>
-          index >= sidebarThreadPreviewCount && scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)) !== activeThreadKey,
+        const hasOverflowingThreads = projectThreads.some(
+          (thread, index) =>
+            index >= sidebarThreadPreviewCount &&
+            scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)) !== activeThreadKey,
         );
         const previewThreads =
           isThreadListExpanded || !hasOverflowingThreads
@@ -4594,14 +4601,20 @@ export default function LegacySidebar(props: { routeReveal?: import("./sidebar/r
     setProjectExpanded,
     setSidebarProjectScopeKey,
   ]);
-  const fallbackRouteReveal = useRef({ observedKey: null as string | null, pendingKey: null as string | null });
+  const fallbackRouteReveal = useRef({
+    observedKey: null as string | null,
+    pendingKey: null as string | null,
+  });
   const routeReveal = props.routeReveal ?? fallbackRouteReveal.current;
   const mountRevealOwed = useRef(true);
-  const routeRowRendered = routeThreadKey !== null && visibleSidebarThreadKeys.includes(routeThreadKey);
+  const routeRowRendered =
+    routeThreadKey !== null && visibleSidebarThreadKeys.includes(routeThreadKey);
   const revealRouteRow = useStableCallback(() => {
     const pendingKey = pendingSidebarRouteReveal(routeReveal, routeThreadKey);
     if (pendingKey === null && (!mountRevealOwed.current || routeThreadKey === null)) return;
-    const activeRow = document.querySelector('[data-sidebar="content"] [data-thread-item] [data-active="true"]');
+    const activeRow = document.querySelector(
+      '[data-sidebar="content"] [data-thread-item] [data-active="true"]',
+    );
     if (!activeRow) return;
     completeSidebarRouteReveal(routeReveal);
     mountRevealOwed.current = false;
