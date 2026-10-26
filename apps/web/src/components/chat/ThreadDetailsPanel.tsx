@@ -1,4 +1,5 @@
 import type { ThreadStructure } from "@t3tools/client-runtime/state/shell";
+import { RunInspector } from "./RunInspector";
 import { uiText } from "~/i18n";
 import { ContinuationHistoryPanel } from "./ContinuationHistoryPanel";
 import { ArtifactWall } from "./ArtifactWall";
@@ -93,6 +94,7 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
   const availableTabs: InspectorTab[] = [
     ...(hasArtifacts ? (["artifacts"] as const) : []),
     ...(hasHistory ? (["history"] as const) : []),
+    ...(!props.draftId ? (["run"] as const) : []),
     "project",
   ];
   const [storedTab, setStoredTab] = useInspectorTab();
@@ -102,6 +104,7 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
   const tabLabels: Record<InspectorTab, string> = {
     artifacts: artifactCount?.key === countKey ? `产物 ${artifactCount.count}` : "产物",
     history: "续聊",
+    run: uiText("Run"),
     project: "项目",
   };
   const branchToolbarProps = {
@@ -162,6 +165,9 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
               active={tab === "artifacts"}
               onCount={(count) => setArtifactCount({ key: countKey, count })}
             />
+          ) : null}
+          {tab === "run" ? (
+            <RunInspector environmentId={props.environmentId} threadId={props.threadId} />
           ) : null}
           {tab === "project" ? (
             <>

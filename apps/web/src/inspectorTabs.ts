@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 
-export type InspectorTab = "artifacts" | "history" | "project";
-export const INSPECTOR_TABS: readonly InspectorTab[] = ["artifacts", "history", "project"];
+export type InspectorTab = "artifacts" | "history" | "run" | "project";
+export const INSPECTOR_TABS: readonly InspectorTab[] = ["artifacts", "history", "run", "project"];
 export const INSPECTOR_TAB_STORAGE_KEY = "t3code:inspector-tab:v1";
 
 export function parseInspectorTab(raw: string | null): InspectorTab | null {

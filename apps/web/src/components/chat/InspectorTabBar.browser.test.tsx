@@ -7,7 +7,7 @@ import {
 } from "../../inspectorTabs";
 import { InspectorTabBar } from "./InspectorTabBar";
 
-const LABELS = { artifacts: "产物 3", history: "续聊", project: "项目" } as const;
+const LABELS = { artifacts: "产物 3", history: "续聊", run: "运行", project: "项目" } as const;
 
 function Harness({ available }: { available: Parameters<typeof resolveInspectorTab>[1] }) {
   const [stored, setStored] = useInspectorTab();
@@ -30,7 +30,7 @@ describe("inspector tabs", () => {
     localStorage.removeItem(INSPECTOR_TAB_STORAGE_KEY);
     {
       await using screen = await render(
-        <Harness available={["artifacts", "history", "project"]} />,
+        <Harness available={["artifacts", "history", "run", "project"]} />,
         {
           // Pure component test: nothing here navigates.
           router: false,
@@ -44,9 +44,12 @@ describe("inspector tabs", () => {
       expect(screen.container.querySelector("[data-testid=body]")!.textContent).toBe("history");
     }
     expect(localStorage.getItem(INSPECTOR_TAB_STORAGE_KEY)).toBe("history");
-    await using again = await render(<Harness available={["artifacts", "history", "project"]} />, {
-      router: false,
-    });
+    await using again = await render(
+      <Harness available={["artifacts", "history", "run", "project"]} />,
+      {
+        router: false,
+      },
+    );
     expect(pressed(again.container)).toEqual(["续聊"]);
   });
 
@@ -56,4 +59,19 @@ describe("inspector tabs", () => {
     expect(screen.container.querySelector("[data-testid=body]")!.textContent).toBe("project");
     localStorage.removeItem(INSPECTOR_TAB_STORAGE_KEY);
   });
+});
+
+it("opens the run tab without removing existing inspector entries", async () => {
+  localStorage.removeItem(INSPECTOR_TAB_STORAGE_KEY);
+  await using screen = await render(
+    <Harness available={["artifacts", "history", "run", "project"]} />,
+  );
+  const run = [
+    ...screen.container.querySelectorAll<HTMLButtonElement>("[aria-label=检查器] button"),
+  ].find((button) => button.textContent === "运行")!;
+  run.click();
+  await expect.poll(() => pressed(screen.container)).toEqual(["运行"]);
+  expect(screen.container.querySelector("[data-testid=body]")!.textContent).toBe("run");
+  expect(screen.container.querySelectorAll("[aria-label=检查器] button")).toHaveLength(4);
+  localStorage.removeItem(INSPECTOR_TAB_STORAGE_KEY);
 });
