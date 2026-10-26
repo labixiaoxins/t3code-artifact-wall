@@ -1,3 +1,4 @@
+import * as ElectronWindow from "../../electron/ElectronWindow.ts";
 import { assert, describe, it } from "@effect/vitest";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as HostProcess from "@t3tools/shared/HostProcess";
