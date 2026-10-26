@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { useAtomCommand } from "~/state/use-atom-command";
 import type {
@@ -94,20 +95,20 @@ function CommentIdentity({
     ? sourceControlClients.get(detail.provider).authorProfileUrl(actor.login, detail.url)
     : null;
   return (
-    <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-1 text-xs">
-      <PullRequestActorLabel actor={actor} profileUrl={profileUrl} className="max-w-full" />
+    <div className={"flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-1 text-xs"}>
+      <PullRequestActorLabel actor={actor} profileUrl={profileUrl} className={"max-w-full"} />
       <Tooltip>
         <TooltipTrigger
           render={
             comment.url ? (
               <a
                 href={comment.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-foreground hover:underline"
+                target={"_blank"}
+                rel={"noopener noreferrer"}
+                className={"text-muted-foreground hover:text-foreground hover:underline"}
               />
             ) : (
-              <span className="text-muted-foreground" />
+              <span className={"text-muted-foreground"} />
             )
           }
         >
@@ -117,7 +118,7 @@ function CommentIdentity({
         </TooltipTrigger>
         <TooltipPopup>
           {new Date(comment.createdAt).toLocaleString()}
-          {comment.url ? " · Open comment on host" : ""}
+          {comment.url ? uiText("· Open comment on host") : ""}
         </TooltipPopup>
       </Tooltip>
     </div>
@@ -135,12 +136,12 @@ function CommentLocation({
   if (!path) return null;
   const label = `${path}${thread?.line ? `:${thread.line}` : ""}`;
   return (
-    <div className="mt-2 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+    <div className={"mt-2 flex min-w-0 items-center gap-2 text-xs text-muted-foreground"}>
       <Tooltip>
-        <TooltipTrigger render={<span className="truncate font-mono" />}>{label}</TooltipTrigger>
+        <TooltipTrigger render={<span className={"truncate font-mono"} />}>{label}</TooltipTrigger>
         <TooltipPopup>{label}</TooltipPopup>
       </Tooltip>
-      {thread?.isOutdated ? <span className="shrink-0">Outdated</span> : null}
+      {thread?.isOutdated ? <span className={"shrink-0"}>{uiText("Outdated")}</span> : null}
     </div>
   );
 }
@@ -178,7 +179,7 @@ function CommentBody({
         cwd={editing.cwd}
         environmentId={editing.environmentId}
         threadRef={editing.threadRef}
-        label="Edit comment"
+        label={uiText("Edit comment")}
         saving={editing.saving}
         onSave={(body) => editing.onSave(comment, body)}
         onCancel={() => editing.onEdit(null)}
@@ -189,14 +190,17 @@ function CommentBody({
     <div className={cn("flex items-start gap-1", className)}>
       <PullRequestCommentBody
         key={comment.id}
-        className="min-w-0 flex-1"
+        className={"min-w-0 flex-1"}
         text={comment.body}
         cwd={editing.cwd}
         environmentId={editing.environmentId}
         threadRef={editing.threadRef}
       />
       {editing.canEdit(comment) ? (
-        <PullRequestEditButton aria-label="Edit comment" onClick={() => editing.onEdit(comment)} />
+        <PullRequestEditButton
+          aria-label={uiText("Edit comment")}
+          onClick={() => editing.onEdit(comment)}
+        />
       ) : null}
     </div>
   );
@@ -229,18 +233,24 @@ function CollapsedComment({
   const statusTriggerRef = useRef<HTMLButtonElement>(null);
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <article className="group rounded-lg border border-border/60 [contain-intrinsic-block-size:44px] [content-visibility:auto]">
-        <div className="p-3">
-          <div className="flex flex-wrap items-baseline gap-2">
+      <article
+        className={
+          "group rounded-lg border border-border/60 [contain-intrinsic-block-size:44px] [content-visibility:auto]"
+        }
+      >
+        <div className={"p-3"}>
+          <div className={"flex flex-wrap items-baseline gap-2"}>
             <CommentIdentity comment={comment} detail={detail} />
             {replyCount > 0 ? (
-              <span className="shrink-0 py-1 text-xs text-muted-foreground">
+              <span className={"shrink-0 py-1 text-xs text-muted-foreground"}>
                 {replyCount} {replyCount === 1 ? "reply" : "replies"}
               </span>
             ) : null}
             <CollapsibleTrigger
               ref={statusTriggerRef}
-              className="flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+              className={
+                "flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+              }
             >
               {label}
               <ChevronDownIcon
@@ -253,7 +263,9 @@ function CollapsedComment({
           <CommentLocation comment={comment} thread={thread} />
           {!open && body ? (
             <CollapsibleTrigger
-              className="mt-2 block w-full truncate text-left text-xs text-muted-foreground hover:text-foreground"
+              className={
+                "mt-2 block w-full truncate text-left text-xs text-muted-foreground hover:text-foreground"
+              }
               onClick={() => statusTriggerRef.current?.focus({ preventScroll: true })}
             >
               {body
@@ -269,15 +281,15 @@ function CollapsedComment({
         </div>
         <CollapsiblePanel>
           {open ? (
-            <div className="px-3 pb-3">
+            <div className={"px-3 pb-3"}>
               {body === null && !editing.canEdit(comment) ? null : (
-                <CommentBody className="mt-2" comment={comment} editing={editing} />
+                <CommentBody className={"mt-2"} comment={comment} editing={editing} />
               )}
-              {replies ? <div className="mt-3">{replies}</div> : null}
+              {replies ? <div className={"mt-3"}>{replies}</div> : null}
             </div>
           ) : null}
         </CollapsiblePanel>
-        {moreReplies ? <div className="px-3 pb-3">{moreReplies}</div> : null}
+        {moreReplies ? <div className={"px-3 pb-3"}>{moreReplies}</div> : null}
       </article>
     </Collapsible>
   );
@@ -293,12 +305,16 @@ function MetaRow({
   children: ReactNode;
 }) {
   return (
-    <div className="grid min-h-7 min-w-0 grid-cols-[6rem_minmax(0,1fr)] items-center gap-2 text-xs sm:min-h-6">
-      <span className="flex items-center gap-1.5 text-muted-foreground">
+    <div
+      className={
+        "grid min-h-7 min-w-0 grid-cols-[6rem_minmax(0,1fr)] items-center gap-2 text-xs sm:min-h-6"
+      }
+    >
+      <span className={"flex items-center gap-1.5 text-muted-foreground"}>
         {icon}
         {label}
       </span>
-      <span className="min-w-0 text-foreground">{children}</span>
+      <span className={"min-w-0 text-foreground"}>{children}</span>
     </div>
   );
 }
@@ -346,9 +362,13 @@ function Section({
     >
       <div
         ref={headingRef}
-        className="sticky top-0 z-10 flex w-full items-center bg-background pr-4"
+        className={"sticky top-0 z-10 flex w-full items-center bg-background pr-4"}
       >
-        <CollapsibleTrigger className="flex min-w-0 flex-1 items-center gap-1.5 px-4 py-3 text-left text-xs font-medium text-muted-foreground hover:text-foreground">
+        <CollapsibleTrigger
+          className={
+            "flex min-w-0 flex-1 items-center gap-1.5 px-4 py-3 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
+          }
+        >
           <span>{title}</span>
           <ChevronRightIcon
             aria-hidden
@@ -361,7 +381,7 @@ function Section({
         {actions}
       </div>
       <CollapsiblePanel keepMounted={keepMounted}>
-        <div className="px-4 pb-4">{children}</div>
+        <div className={"px-4 pb-4"}>{children}</div>
       </CollapsiblePanel>
     </Collapsible>
   );
@@ -432,13 +452,18 @@ export function PullRequestSummaryTab({
   const showOldestCommentsButton =
     hiddenConversationCount > 0 ? (
       <Button
-        size="sm"
-        variant="outline"
-        className="w-full"
+        size={"sm"}
+        variant={"outline"}
+        className={"w-full"}
         onClick={() => setShown({ url: detail.url, count: shownConversations + COMMENT_PAGE })}
       >
-        Show {Math.min(hiddenConversationCount, COMMENT_PAGE)} older conversation
-        {hiddenConversationCount === 1 ? "" : "s"} ({hiddenConversationCount} hidden)
+        {uiText("Show")}
+        {Math.min(hiddenConversationCount, COMMENT_PAGE)}
+        {" older conversation"}
+        {hiddenConversationCount === 1 ? "" : "s"}
+        {" ("}
+        {hiddenConversationCount}
+        {uiText("hidden)")}
       </Button>
     ) : null;
   // Read from the whole conversation, not the window shown below it: a verdict older than the
@@ -482,7 +507,7 @@ export function PullRequestSummaryTab({
   const openCheck = (url: string) => {
     void openLink(url).catch((error: unknown) => {
       console.error(error);
-      toastManager.add({ type: "error", title: "Unable to open check details" });
+      toastManager.add({ type: "error", title: uiText("Unable to open check details") });
     });
   };
 
@@ -509,7 +534,7 @@ export function PullRequestSummaryTab({
     const result = await update({ environmentId, input: { ...reference, body } });
     setBodySaving(false);
     if (result._tag === "Failure") {
-      toastManager.add({ type: "error", title: "Could not save the description" });
+      toastManager.add({ type: "error", title: uiText("Could not save the description") });
       return;
     }
     setBodyScope(null);
@@ -534,7 +559,7 @@ export function PullRequestSummaryTab({
       });
       setCommentSaving(false);
       if (result._tag === "Failure") {
-        toastManager.add({ type: "error", title: "Could not save the comment" });
+        toastManager.add({ type: "error", title: uiText("Could not save the comment") });
         return;
       }
       setCommentScope(null);
@@ -544,7 +569,7 @@ export function PullRequestSummaryTab({
 
   const reactionBarFor = (comment: PullRequestComment) => (
     <PullRequestReactionBar
-      className="ml-auto justify-end"
+      className={"ml-auto justify-end"}
       reactions={comment.reactions ?? []}
       canReact={detail.capabilities.reactions === true}
       subjectId={comment.id}
@@ -557,7 +582,11 @@ export function PullRequestSummaryTab({
   const renderCommentCard = (
     comment: PullRequestComment,
     thread: PullRequestReviewThread | undefined,
-    { reply = false }: { reply?: boolean } = {},
+    {
+      reply = false,
+    }: {
+      reply?: boolean;
+    } = {},
   ) => {
     const body = visibleBody(comment.body);
     const outcome = pullRequestReviewOutcome(comment.reviewState);
@@ -576,10 +605,16 @@ export function PullRequestSummaryTab({
         key={`${detail.url}:${comment.id}`}
         // Offscreen comments skip style, layout and paint. Bot comments carry pages of
         // highlighted code, and the conversation is below the description either way.
-        className="group rounded-lg border border-border/60 bg-background [contain-intrinsic-block-size:160px] [content-visibility:auto]"
+        className={
+          "group rounded-lg border border-border/60 bg-background [contain-intrinsic-block-size:160px] [content-visibility:auto]"
+        }
       >
-        <div className="flex flex-wrap items-baseline gap-2 rounded-t-lg bg-muted/25 px-3 py-2.5">
-          <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-2 text-xs text-muted-foreground">
+        <div className={"flex flex-wrap items-baseline gap-2 rounded-t-lg bg-muted/25 px-3 py-2.5"}>
+          <div
+            className={
+              "flex min-w-0 flex-1 flex-wrap items-baseline gap-2 text-xs text-muted-foreground"
+            }
+          >
             <CommentIdentity comment={comment} detail={detail} />
             {outcome ? (
               <PullRequestReviewOutcomeBadge outcome={outcome} />
@@ -589,18 +624,18 @@ export function PullRequestSummaryTab({
           </div>
           {onFixFinding && finding ? (
             <Button
-              size="xs"
-              variant="ghost"
-              className="shrink-0"
+              size={"xs"}
+              variant={"ghost"}
+              className={"shrink-0"}
               disabled={pendingFinding !== null && pendingFinding !== undefined}
               onClick={() => onFixFinding(finding)}
             >
               {/* Export the text baseline rather than the hammer icon's bottom edge. */}
-              <span className="inline-flex items-baseline gap-1">
-                <HammerIcon className="size-3 self-center" />
+              <span className={"inline-flex items-baseline gap-1"}>
+                <HammerIcon className={"size-3 self-center"} />
                 <span>
                   {pendingFinding === pullRequestFindingKey(finding)
-                    ? "Preparing..."
+                    ? uiText("Preparing...")
                     : fixFindingLabel}
                 </span>
               </span>
@@ -609,12 +644,12 @@ export function PullRequestSummaryTab({
           {reactionBarFor(comment)}
         </div>
         {reply ? null : (
-          <div className="px-3">
+          <div className={"px-3"}>
             <CommentLocation comment={comment} thread={thread} />
           </div>
         )}
         {body === null && !commentEditing.canEdit(comment) ? null : (
-          <CommentBody className="px-3 py-3" comment={comment} editing={commentEditing} />
+          <CommentBody className={"px-3 py-3"} comment={comment} editing={commentEditing} />
         )}
       </article>
     );
@@ -625,7 +660,7 @@ export function PullRequestSummaryTab({
     const thread = item.kind === "thread" ? item.thread : undefined;
     const replies =
       item.kind === "thread" && item.replies.length > 0 ? (
-        <div className="ml-4 space-y-2 border-l-2 border-border/60 pl-3">
+        <div className={"ml-4 space-y-2 border-l-2 border-border/60 pl-3"}>
           {item.replies.map((reply) => renderCommentCard(reply, undefined, { reply: true }))}
         </div>
       ) : null;
@@ -639,7 +674,7 @@ export function PullRequestSummaryTab({
           editing={commentEditing}
           detail={detail}
           thread={thread}
-          label={thread?.isResolved ? "Resolved" : "Review dismissed"}
+          label={thread?.isResolved ? uiText("Resolved") : uiText("Review dismissed")}
           body={visibleBody(comment.body)}
           replyCount={item.kind === "thread" ? item.replies.length + item.moreReplies : 0}
           replies={replies}
@@ -650,7 +685,7 @@ export function PullRequestSummaryTab({
     }
     if (item.kind === "comment") return renderCommentCard(comment, undefined);
     return (
-      <div key={`${detail.url}:thread:${item.id}`} className="space-y-2">
+      <div key={`${detail.url}:thread:${item.id}`} className={"space-y-2"}>
         {renderCommentCard(comment, thread)}
         {replies}
         {moreReplies}
@@ -659,15 +694,15 @@ export function PullRequestSummaryTab({
   };
 
   return (
-    <div ref={scrollerRef} className="h-full overflow-y-auto" data-pull-request-summary-scroll>
-      <section className="px-4 pt-2.5 pb-1">
-        <div className="space-y-2">
-          <MetaRow icon={<UsersIcon className="size-3.5" />} label="Reviewers">
-            <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+    <div ref={scrollerRef} className={"h-full overflow-y-auto"} data-pull-request-summary-scroll>
+      <section className={"px-4 pt-2.5 pb-1"}>
+        <div className={"space-y-2"}>
+          <MetaRow icon={<UsersIcon className={"size-3.5"} />} label={uiText("Reviewers")}>
+            <span className={"flex min-w-0 flex-wrap items-center gap-1.5"}>
               {reviewerEntries.length === 0 ? (
-                <span className="text-muted-foreground">None</span>
+                <span className={"text-muted-foreground"}>{uiText("None")}</span>
               ) : (
-                <span className="flex items-center -space-x-1">
+                <span className={"flex items-center -space-x-1"}>
                   {reviewerEntries.map((entry) => {
                     const login = entry.actor?.login ?? "ghost";
                     const named =
@@ -694,17 +729,17 @@ export function PullRequestSummaryTab({
                           <PullRequestActorLabel
                             actor={entry.actor}
                             tooltip={false}
-                            variant="avatar"
+                            variant={"avatar"}
                           />
                           {entry.outcome ? (
-                            <span className="sr-only">
+                            <span className={"sr-only"}>
                               {entry.stale
                                 ? pullRequestReviewOutcomeStaleLabel(entry.outcome)
                                 : pullRequestReviewOutcomeLabel(entry.outcome)}
                             </span>
                           ) : null}
                         </TooltipTrigger>
-                        <TooltipPopup side="bottom">
+                        <TooltipPopup side={"bottom"}>
                           {entry.outcome
                             ? `${named} — ${
                                 entry.stale
@@ -719,9 +754,9 @@ export function PullRequestSummaryTab({
                 </span>
               )}
               {/*
-               * Azure DevOps is the exception — it takes a reviewer but will not
-                  say who could be one, so there is nothing to open.
-               */}
+         * Azure DevOps is the exception — it takes a reviewer but will not
+            say who could be one, so there is nothing to open.
+         */}
               {detail.capabilities.reviewers.request &&
               detail.capabilities.reviewers.listCandidates ? (
                 <PullRequestReviewerPicker
@@ -733,17 +768,17 @@ export function PullRequestSummaryTab({
             </span>
           </MetaRow>
           {detail.labels.length > 0 || detail.capabilities.labels === true ? (
-            <MetaRow icon={<TagIcon className="size-3.5" />} label="Labels">
-              <span className="flex min-w-0 flex-wrap items-center gap-1">
+            <MetaRow icon={<TagIcon className={"size-3.5"} />} label={uiText("Labels")}>
+              <span className={"flex min-w-0 flex-wrap items-center gap-1"}>
                 {detail.labels.length === 0 ? (
-                  <span className="text-muted-foreground">None</span>
+                  <span className={"text-muted-foreground"}>{uiText("None")}</span>
                 ) : (
                   detail.labels.map((label) => (
                     <PullRequestLabelChip
                       key={label.name}
                       label={label}
-                      size="default"
-                      className="max-w-48"
+                      size={"default"}
+                      className={"max-w-48"}
                     />
                   ))
                 )}
@@ -759,9 +794,8 @@ export function PullRequestSummaryTab({
           ) : null}
         </div>
       </section>
-
-      <Section key={`description:${detail.url}`} title="Description" keepMounted>
-        <div className="group">
+      <Section key={`description:${detail.url}`} title={uiText("Description")} keepMounted>
+        <div className={"group"}>
           {bodyScope === detail.url ? (
             <PullRequestMarkdownEditor
               allowEmpty
@@ -769,16 +803,16 @@ export function PullRequestSummaryTab({
               cwd={detail.workspaceRoot}
               environmentId={environmentId}
               threadRef={threadRef}
-              label="Pull request description"
-              placeholder="Describe this pull request"
+              label={uiText("Pull request description")}
+              placeholder={uiText("Describe this pull request")}
               saving={bodySaving}
               onSave={(body) => void saveBody(body)}
               onCancel={() => setBodyScope(null)}
             />
           ) : (
-            <div className="flex items-start gap-1">
+            <div className={"flex items-start gap-1"}>
               <PullRequestMarkdown
-                className="min-w-0 flex-1"
+                className={"min-w-0 flex-1"}
                 text={detail.body.trim().length > 0 ? detail.body : "_No description provided._"}
                 cwd={detail.workspaceRoot}
                 environmentId={environmentId}
@@ -786,7 +820,7 @@ export function PullRequestSummaryTab({
               />
               {canEditPullRequestChangeRequest(detail) ? (
                 <PullRequestEditButton
-                  aria-label="Edit description"
+                  aria-label={uiText("Edit description")}
                   onClick={() => setBodyScope(detail.url)}
                 />
               ) : null}
@@ -794,17 +828,16 @@ export function PullRequestSummaryTab({
           )}
         </div>
       </Section>
-
-      <Section key={`checks:${detail.url}`} title="Checks" defaultOpen={false}>
+      <Section key={`checks:${detail.url}`} title={uiText("Checks")} defaultOpen={false}>
         {checksStale ? (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>Check details are out of date.</span>
-            <Button size="xs" variant="ghost" onClick={onRefreshChecks}>
-              Refresh
+          <div className={"flex items-center gap-2 text-xs text-muted-foreground"}>
+            <span>{uiText("Check details are out of date.")}</span>
+            <Button size={"xs"} variant={"ghost"} onClick={onRefreshChecks}>
+              {uiText("Refresh")}
             </Button>
           </div>
         ) : detail.checks.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No checks reported.</p>
+          <p className={"text-xs text-muted-foreground"}>{uiText("No checks reported.")}</p>
         ) : (
           detail.checks.map((check, index) => {
             const finding = { kind: "check", check } as const;
@@ -812,10 +845,10 @@ export function PullRequestSummaryTab({
             return (
               <div
                 key={`${index}:${check.name}:${check.url ?? ""}`}
-                className="group flex items-center gap-2 rounded-md pr-1 hover:bg-accent/60"
+                className={"group flex items-center gap-2 rounded-md pr-1 hover:bg-accent/60"}
               >
                 <button
-                  type="button"
+                  type={"button"}
                   disabled={!check.url}
                   onClick={() => check.url && openCheck(check.url)}
                   className={cn(
@@ -824,22 +857,22 @@ export function PullRequestSummaryTab({
                   )}
                 >
                   <PullRequestCheckStatusIcon status={check.status} />
-                  <span className="min-w-0 flex-1 wrap-anywhere">{check.name}</span>
-                  <span className="shrink-0 text-muted-foreground">
+                  <span className={"min-w-0 flex-1 wrap-anywhere"}>{check.name}</span>
+                  <span className={"shrink-0 text-muted-foreground"}>
                     {pullRequestCheckStatusLabel(check)}
                   </span>
                 </button>
                 {onFixFinding && failing ? (
                   <Button
-                    size="xs"
-                    variant="ghost"
-                    className="shrink-0"
+                    size={"xs"}
+                    variant={"ghost"}
+                    className={"shrink-0"}
                     disabled={pendingFinding !== null && pendingFinding !== undefined}
                     onClick={() => onFixFinding(finding)}
                   >
-                    <HammerIcon className="size-3" />
+                    <HammerIcon className={"size-3"} />
                     {pendingFinding === pullRequestFindingKey(finding)
-                      ? "Preparing..."
+                      ? uiText("Preparing...")
                       : fixCheckLabel}
                   </Button>
                 ) : null}
@@ -850,26 +883,26 @@ export function PullRequestSummaryTab({
       </Section>
 
       <Section
-        title={`Comments (${detail.commentCount})`}
+        title={uiText("Comments ({0})", {"0": detail.commentCount})}
         actions={
-          <div className="flex shrink-0 items-center gap-1">
+          <div className={"flex shrink-0 items-center gap-1"}>
             <Menu>
               <MenuTrigger
-                render={<Button size="xs" variant="ghost-muted" />}
-                aria-label="Filter comments"
+                render={<Button size={"xs"} variant={"ghost-muted"} />}
+                aria-label={uiText("Filter comments")}
               >
-                <ListFilterIcon aria-hidden className="size-3" />
-                {filteredOutCount > 0 ? `${filteredOutCount} hidden` : "Filter"}
+                <ListFilterIcon aria-hidden className={"size-3"} />
+                {filteredOutCount > 0 ? uiText("{0} hidden", {"0": filteredOutCount}) : uiText("Filter")}
               </MenuTrigger>
-              <MenuPopup align="end">
+              <MenuPopup align={"end"}>
                 <MenuGroup>
-                  <MenuGroupLabel>Show</MenuGroupLabel>
+                  <MenuGroupLabel>{uiText("Show")}</MenuGroupLabel>
                   <MenuCheckboxItem
                     checked={commentFilter.bots}
                     closeOnClick={false}
                     onCheckedChange={(bots) => setCommentFilter((value) => ({ ...value, bots }))}
                   >
-                    Bot comments
+                    {uiText("Bot comments")}
                   </MenuCheckboxItem>
                   <MenuCheckboxItem
                     checked={commentFilter.resolved}
@@ -878,23 +911,23 @@ export function PullRequestSummaryTab({
                       setCommentFilter((value) => ({ ...value, resolved }))
                     }
                   >
-                    Resolved or dismissed
+                    {uiText("Resolved or dismissed")}
                   </MenuCheckboxItem>
                 </MenuGroup>
               </MenuPopup>
             </Menu>
             <Button
-              size="xs"
-              variant="ghost-muted"
+              size={"xs"}
+              variant={"ghost-muted"}
               aria-label={
                 commentOrder === "newest"
-                  ? "Show oldest comments first"
-                  : "Show newest comments first"
+                  ? uiText("Show oldest comments first")
+                  : uiText("Show newest comments first")
               }
               onClick={() => setCommentOrder((value) => (value === "newest" ? "oldest" : "newest"))}
             >
-              <ArrowDownUpIcon aria-hidden className="size-3" />
-              {commentOrder === "newest" ? "Newest first" : "Oldest first"}
+              <ArrowDownUpIcon aria-hidden className={"size-3"} />
+              {commentOrder === "newest" ? uiText("Newest first") : uiText("Oldest first")}
             </Button>
           </div>
         }
@@ -906,32 +939,41 @@ export function PullRequestSummaryTab({
         ) : (
           <>
             {detail.commentsTruncated ? (
-              <p className="mb-2 rounded-md border border-warning/30 bg-warning-surface px-2 py-1.5 text-xs">
-                This conversation is only partially loaded. {commentCount} comment
-                {commentCount === 1 ? " is" : "s are"} loaded; open it on the host to read the rest.
+              <p
+                className={
+                  "mb-2 rounded-md border border-warning/30 bg-warning-surface px-2 py-1.5 text-xs"
+                }
+              >
+                {"This conversation is only partially loaded. "}
+                {commentCount}
+                {uiText("comment")}
+                {commentCount === 1 ? " is" : "s are"}
+                {" loaded; open it on the host to read the rest."}
               </p>
             ) : null}
             {items.length === 0 ? (
-              <p className="py-2 text-xs text-muted-foreground">No comments yet.</p>
+              <p className={"py-2 text-xs text-muted-foreground"}>{uiText("No comments yet.")}</p>
             ) : filteredItems.length === 0 ? (
-              <p className="py-2 text-xs text-muted-foreground">
+              <p className={"py-2 text-xs text-muted-foreground"}>
                 {filteredOutCount === 1
-                  ? "The only comment is hidden by the filter."
-                  : `All ${filteredOutCount} comments are hidden by the filter.`}
+                  ? uiText("The only comment is hidden by the filter.")
+                  : uiText("All {0} comments are hidden by the filter.", {"0": filteredOutCount})}
               </p>
             ) : (
-              <div className="space-y-3">
+              <div className={"space-y-3"}>
                 {commentOrder === "oldest" ? showOldestCommentsButton : null}
                 {visibleItems.map(renderItem)}
                 {commentOrder === "newest" ? showOldestCommentsButton : null}
                 {shownConversations > COMMENT_PAGE ? (
                   <Button
-                    size="sm"
-                    variant="ghost"
-                    className="w-full"
+                    size={"sm"}
+                    variant={"ghost"}
+                    className={"w-full"}
                     onClick={() => setShown({ url: detail.url, count: COMMENT_PAGE })}
                   >
-                    Show only {COMMENT_PAGE} recent conversations
+                    {uiText("Show only")}
+                    {COMMENT_PAGE}
+                    {" recent conversations"}
                   </Button>
                 ) : null}
               </div>

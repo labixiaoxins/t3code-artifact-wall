@@ -174,6 +174,7 @@ import * as ServerRuntimeStartup from "./serverRuntimeStartup.ts";
 import * as ServerSettings from "./serverSettings.ts";
 import * as DatabaseStorage from "./persistence/DatabaseStorage.ts";
 import * as StorageCleanup from "./storageCleanup.ts";
+import * as DiskSpace from "./diskSpace.ts";
 import * as TerminalManager from "./terminal/Manager.ts";
 import { terminalOutputStream, withTerminalOutputWindow } from "./terminal/OutputProtocol.ts";
 import * as PreviewAutomationBroker from "./mcp/PreviewAutomationBroker.ts";
@@ -547,7 +548,7 @@ const PROVIDER_STATUS_DEBOUNCE_MS = 200;
 const ServerWsRpcGroup = WsRpcGroup.middleware(RpcInstrumentation);
 // Replaying each intervening event costs a shell refetch; past this gap a
 // single O(active-threads) snapshot is cheaper and bounded.
-const SHELL_RESUME_MAX_GAP = 1_000;
+const SHELL_RESUME_MAX_GAP = 1000;
 // Row count alone does not bound replay memory: a few events with large tool
 // payloads can decode to gigabytes. Before replaying, sum the serialized
 // payload bytes of the range in SQL and reset with a snapshot past this budget.
@@ -997,7 +998,12 @@ export const subscribeOrchestrationV2Shell = Effect.fn("ws.orchestrationV2.subsc
       };
     });
     const projectItem = Effect.fn("ws.orchestrationV2.projectShellItem")(function* (
-      stored: Extract<ShellApplicationEvent, { readonly aggregateKind: "project" }>,
+      stored: Extract<
+        ShellApplicationEvent,
+        {
+          readonly aggregateKind: "project";
+        }
+      >,
     ) {
       if (stored.type === "project.deleted") {
         return {
@@ -1284,6 +1290,7 @@ export const layerWsRpc = (
       const lifecycleEvents = yield* ServerLifecycleEvents.ServerLifecycleEvents;
       const storageCleanup = yield* StorageCleanup.StorageCleanup;
       const databaseStorage = yield* DatabaseStorage.DatabaseStorage;
+      const diskSpace = yield* DiskSpace.DiskSpace;
       const serverSettings = yield* ServerSettings.ServerSettingsService;
       const startup = yield* ServerRuntimeStartup.ServerRuntimeStartup;
       const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
@@ -2381,6 +2388,7 @@ export const layerWsRpc = (
         [WS_METHODS.serverRunStorageCleanup]: () => storageCleanup.runNow,
         [WS_METHODS.serverGetStorageCleanupReport]: () => storageCleanup.reports,
         [WS_METHODS.serverGetDatabaseStorage]: () => databaseStorage.status,
+        [WS_METHODS.serverGetDiskSpace]: (input) => diskSpace.report(input),
         [WS_METHODS.serverGetSettings]: (_input) =>
           serverSettings.getSettings.pipe(Effect.map(ServerSettings.redactServerSettingsForClient)),
         [WS_METHODS.serverUpdateSettings]:
@@ -2937,8 +2945,8 @@ export const layerWsRpc = (
           Stream.callback<DiscoveredLocalServerList>((queue) =>
             Effect.gen(function* () {
               const configuredUrls = input.configuredUrls ?? [];
+              const initial = yield* portDiscovery.scan(configuredUrls, { retryFailed: true });
               yield* portDiscovery.retain;
-              const initial = yield* portDiscovery.scan(configuredUrls);
               const initialScannedAt = DateTime.formatIso(yield* DateTime.now);
               yield* Queue.offer(queue, {
                 servers: initial,

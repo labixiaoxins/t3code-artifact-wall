@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   ANTIGRAVITY_DEFAULT_MODEL,
   type ProviderInstanceId,
@@ -214,13 +215,13 @@ function ModelPickerProviderNotices({
                   onOpenProviderSetup?.(entry.instanceId);
                 }}
               >
-                {setupEntries.length > 1 ? `Set up ${entry.displayName}` : "Open provider setup"}
+                {setupEntries.length > 1 ? uiText("Set up {0}", {"0": entry.displayName}) : uiText("Open provider setup")}
               </InlineButton>
             </div>
           ))}
         </div>
       ) : (
-        <ComboboxEmpty className="empty:h-0">No models found</ComboboxEmpty>
+        <ComboboxEmpty className="empty:h-0">{uiText("No models found")}</ComboboxEmpty>
       )}
       {updateRequiredNotices.map(({ instanceId, notice }) => (
         <p
@@ -234,8 +235,7 @@ function ModelPickerProviderNotices({
               void navigate({ to: "/settings/providers" });
             }}
           >
-            Provider settings
-          </InlineButton>
+            {uiText("Provider settings")}</InlineButton>
         </p>
       ))}
     </>
@@ -870,7 +870,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
           >
             <ComboboxSearchInput
               ref={searchInputRef}
-              placeholder="Search models..."
+              placeholder={uiText("Search models...")}
               value={searchQuery}
               onChange={(e) => {
                 if (!isSearching) setSearchHeight(pickerContentRef.current?.offsetHeight ?? 0);
@@ -943,10 +943,9 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
                       className="group w-full cursor-pointer"
                     >
                       <div className="min-w-0 flex-1 text-left">
-                        <div className="text-xs font-medium leading-snug">Legacy models</div>
+                        <div className="text-xs font-medium leading-snug">{uiText("Legacy models")}</div>
                         <div className="mt-1 text-xs font-normal leading-snug text-muted-foreground/70">
-                          {legacySection.legacyModels.length} models
-                        </div>
+                          {legacySection.legacyModels.length} {uiText("models") + " "}</div>
                       </div>
                       <ChevronRightIcon
                         className={cn(

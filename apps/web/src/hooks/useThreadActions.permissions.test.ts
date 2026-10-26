@@ -21,6 +21,7 @@ function deferred<T>() {
 const state = vi.hoisted(() => ({
   scopes: new Map<string, Set<string>>(),
   threads: [] as {
+    lineage?: { parentThreadId: null; relationshipToParent: null; rootThreadId: ThreadId };
     environmentId: EnvironmentId;
     id: ThreadId;
     projectId: ProjectId;
@@ -216,6 +217,7 @@ beforeEach(() => {
     {
       environmentId: secondary,
       id: target.threadId,
+      lineage: { parentThreadId: null, relationshipToParent: null, rootThreadId: target.threadId },
       projectId: ProjectId.make("project"),
       title: "Thread",
       worktreePath: null,

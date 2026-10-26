@@ -50,13 +50,18 @@ export function toolItemForDisplay(item: OrchestrationV2TurnItem): Orchestration
 }
 
 type CompactionLabelItem = Pick<
-  Extract<OrchestrationV2TurnItem, { type: "compaction" }>,
-  "status" | "beforeTokenCount" | "afterTokenCount"
+  Extract<
+    OrchestrationV2TurnItem,
+    {
+      type: "compaction";
+    }
+  >,
+  "status" | "beforeTokenCount" | "afterTokenCount" | "completionConfirmed"
 >;
-
-export function contextCompactionTokenCounts(
-  item: CompactionLabelItem,
-): { readonly before: string; readonly after: string } | null {
+export function contextCompactionTokenCounts(item: CompactionLabelItem): {
+  readonly before: string;
+  readonly after: string;
+} | null {
   if (
     item.status === "running" ||
     item.beforeTokenCount === undefined ||
@@ -68,6 +73,7 @@ export function contextCompactionTokenCounts(
 }
 
 export function contextCompactionLabel(item: CompactionLabelItem): string {
+  if (item.completionConfirmed === false) return "Context compaction result unconfirmed";
   if (item.status === "failed") return "Context compaction failed";
   if (item.status === "cancelled" || item.status === "interrupted")
     return "Context compaction stopped";
@@ -397,7 +403,7 @@ function workEntryIndicatesToolFailureFromOutput(
     if (item.outputIndicatesFailure || (item.exitCode !== undefined && item.exitCode !== 0)) {
       return true;
     }
-    if (item.output && toolOutputIndicatesFailure(item.output.slice(0, 32_768))) {
+    if (item.output && toolOutputIndicatesFailure(item.output.slice(0, 32768))) {
       return true;
     }
   }
@@ -501,7 +507,12 @@ export function workEntryViewedImagePath(entry: WorkLogPresentationEntry): strin
 }
 
 export interface ViewedImageAsset {
-  readonly resource: Extract<AssetResource, { readonly _tag: "media-file" }>;
+  readonly resource: Extract<
+    AssetResource,
+    {
+      readonly _tag: "media-file";
+    }
+  >;
   readonly alt: string;
   readonly srcFragment: string;
 }

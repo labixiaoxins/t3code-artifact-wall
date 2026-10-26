@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { Spinner } from "~/components/ui/spinner";
 import {
   AuthPreviewOperateScope,
@@ -186,8 +187,12 @@ function WorkspaceImagePreview(props: {
   if (assetUrl._tag === "Failure" || (imageUrl !== null && failedUrl === imageUrl)) {
     return (
       <MediaActions source={actionsSource}>
-        <div className="flex min-h-0 flex-1 items-center justify-center px-6 text-center text-xs leading-relaxed text-destructive">
-          Unable to load workspace image.
+        <div
+          className={
+            "flex min-h-0 flex-1 items-center justify-center px-6 text-center text-xs leading-relaxed text-destructive"
+          }
+        >
+          {uiText("Unable to load workspace image.")}
         </div>
       </MediaActions>
     );
@@ -195,10 +200,10 @@ function WorkspaceImagePreview(props: {
 
   return assetUrl._tag === "Success" && imageUrl !== null ? (
     // oxlint-disable-next-line t3code/require-centered-scroll-gutter -- The image is capped at max-h-full max-w-full, so this never scrolls.
-    <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-4">
+    <div className={"flex min-h-0 flex-1 items-center justify-center overflow-auto p-4"}>
       <MediaActions source={actionsSource}>
         <img
-          className="max-h-full max-w-full object-contain"
+          className={"max-h-full max-w-full object-contain"}
           src={imageUrl}
           alt={props.alt}
           onError={() => setFailedUrl(imageUrl)}
@@ -206,8 +211,8 @@ function WorkspaceImagePreview(props: {
       </MediaActions>
     </div>
   ) : (
-    <div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground">
-      <Spinner size="lg" />
+    <div className={"flex min-h-0 flex-1 items-center justify-center text-muted-foreground"}>
+      <Spinner size={"lg"} />
     </div>
   );
 }
@@ -242,15 +247,19 @@ function WorkspaceBrowserPreview(props: {
 
   if (assetUrl._tag === "Failure") {
     return (
-      <div className="flex min-h-0 flex-1 items-center justify-center px-6 text-center text-xs leading-relaxed text-destructive">
-        Unable to load file preview.
+      <div
+        className={
+          "flex min-h-0 flex-1 items-center justify-center px-6 text-center text-xs leading-relaxed text-destructive"
+        }
+      >
+        {uiText("Unable to load file preview.")}
       </div>
     );
   }
   if (assetUrl._tag !== "Success") {
     return (
-      <div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground">
-        <Spinner size="lg" />
+      <div className={"flex min-h-0 flex-1 items-center justify-center text-muted-foreground"}>
+        <Spinner size={"lg"} />
       </div>
     );
   }
@@ -301,7 +310,7 @@ function WorkspaceVideoPreview(props: {
   const latestUrl = assetUrl._tag === "Success" ? `${assetUrl.url}${revisionSuffix}` : null;
 
   return (
-    <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4">
+    <div className={"flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4"}>
       <MediaVideoPlayer
         src={latestUrl}
         sourceFailed={assetUrl._tag === "Failure"}
@@ -358,7 +367,7 @@ function WorkspaceAudioPreview(props: {
   if (assetUrl._tag === "Failure" || (url !== null && failedUrl === url)) {
     return (
       <FileSurfaceFailure
-        message="Unable to load audio."
+        message={"Unable to load audio."}
         onRetry={() => {
           setFailedUrl(null);
           void refreshAssetUrl().catch(() => undefined);
@@ -474,9 +483,7 @@ function useFileLineReveal(
 
     const scrollContainer = fileContainer.closest<HTMLElement>(".file-preview-virtualizer");
     if (!scrollContainer) return;
-    fileContainer.style.minHeight = `${Math.ceil(
-      Math.max(instance.height, scrollContainer.clientHeight),
-    )}px`;
+    fileContainer.style.minHeight = `${Math.ceil(Math.max(instance.height, scrollContainer.clientHeight))}px`;
 
     if (state.handledRequestId === revealRequestId || state.frameId !== null) {
       return;
@@ -863,9 +870,9 @@ function EditableFileSurface({
 
   return (
     <EditProvider createEditor={createFileEditor}>
-      <div ref={surfaceRef} className="flex min-h-0 flex-1">
+      <div ref={surfaceRef} className={"flex min-h-0 flex-1"}>
         <Virtualizer
-          className="file-preview-virtualizer min-h-0 flex-1 overflow-auto"
+          className={"file-preview-virtualizer min-h-0 flex-1 overflow-auto"}
           config={{
             overscrollSize: 600,
             intersectionObserverMargin: 1200,
@@ -893,7 +900,7 @@ function EditableFileSurface({
             selectedLines={selectedRange}
             lineAnnotations={lineAnnotations}
             renderAnnotation={(annotation) => (
-              <div className="py-1">
+              <div className={"py-1"}>
                 {annotation.metadata.entries.map((entry) => (
                   <DiffCommentAnnotation
                     key={entry.id}
@@ -907,7 +914,7 @@ function EditableFileSurface({
                 ))}
               </div>
             )}
-            className="min-h-full"
+            className={"min-h-full"}
           />
         </Virtualizer>
       </div>
@@ -945,7 +952,7 @@ function RenderedMarkdownSurface({
   });
 
   return (
-    <ScrollArea className="min-h-0 flex-1">
+    <ScrollArea className={"min-h-0 flex-1"}>
       <FileMarkdownPreview
         text={contents}
         cwd={cwd}
@@ -1091,9 +1098,10 @@ export default function FilePreviewPanel({
   // Paired with the path on purpose: each file surface counts its reveals from
   // one, so a bare id would let a dismissed reveal on one file swallow the first
   // reveal on the next.
-  const [handledReveal, setHandledReveal] = useState<{ path: string; requestId: number } | null>(
-    null,
-  );
+  const [handledReveal, setHandledReveal] = useState<{
+    path: string;
+    requestId: number;
+  } | null>(null);
   const breadcrumbRef = useRef<HTMLDivElement>(null);
   const isMarkdown = previewPath ? isMarkdownPreviewFile(previewPath) : false;
   const tableDelimiter =
@@ -1202,7 +1210,7 @@ export default function FilePreviewPanel({
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: "Unable to open file in browser",
+          title: uiText("Unable to open file in browser"),
           description: error instanceof Error ? error.message : "An error occurred.",
         }),
       );
@@ -1212,32 +1220,36 @@ export default function FilePreviewPanel({
   if (attachment === undefined && !canReadFiles) {
     if (fileAccess.isPending) {
       return (
-        <div className="flex min-h-0 flex-1 items-center justify-center gap-2 text-sm text-muted-foreground">
-          <Spinner className="size-4" />
-          Checking file access...
+        <div
+          className={
+            "flex min-h-0 flex-1 items-center justify-center gap-2 text-sm text-muted-foreground"
+          }
+        >
+          <Spinner className={"size-4"} />
+          {uiText("Checking file access...")}
         </div>
       );
     }
     return (
-      <div className="p-4 text-sm text-muted-foreground">
-        {fileAccess.error ?? "This connection cannot read host files."}
+      <div className={"p-4 text-sm text-muted-foreground"}>
+        {fileAccess.error ?? uiText("This connection cannot read host files.")}
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
+    <div className={"flex min-h-0 flex-1 flex-col overflow-hidden bg-background"}>
       {breadcrumbPath !== null && breadcrumbTrail !== null ? (
         <div className={FILE_SURFACE_SUBHEADER_CLASS} data-surface-subheader>
           <ScrollArea
-            radius="none"
+            radius={"none"}
             ref={breadcrumbRef}
             hideScrollbars
             scrollFade
-            className="min-w-0 flex-1"
+            className={"min-w-0 flex-1"}
             data-file-breadcrumbs
           >
-            <div className="flex h-full w-max min-w-full items-center text-xs">
+            <div className={"flex h-full w-max min-w-full items-center text-xs"}>
               <FileBreadcrumbs
                 cwd={cwd}
                 environmentId={environmentId}
@@ -1278,39 +1290,39 @@ export default function FilePreviewPanel({
               }}
             >
               <MorphIcon
-                className="size-3.5"
+                className={"size-3.5"}
                 icon={rendered ? Code2 : renderedMode === "table" ? Table2 : Eye}
               />
             </FileSurfaceAction>
           ) : null}
           {showsRawText ? (
             <FileSurfaceAction
-              label={wordWrap ? "Disable word wrap" : "Enable word wrap"}
+              label={wordWrap ? uiText("Disable word wrap") : uiText("Enable word wrap")}
               pressed={wordWrap}
               onPress={() => updateClientSettings({ wordWrap: !wordWrap })}
             >
-              <WrapTextIcon className="size-3.5" />
+              <WrapTextIcon className={"size-3.5"} />
             </FileSurfaceAction>
           ) : null}
           {canOpenInBrowser ? (
-            <FileSurfaceAction label="Open file in preview browser" onPress={handleOpenInBrowser}>
-              <Globe2 className="size-3.5" />
+            <FileSurfaceAction label={uiText("Open file in preview browser")} onPress={handleOpenInBrowser}>
+              <Globe2 className={"size-3.5"} />
             </FileSurfaceAction>
           ) : null}
           {!isHostFile && previewPath !== null ? (
             <FileSurfaceAction
-              label={explorerOpen ? "Hide file explorer" : "Show file explorer"}
+              label={explorerOpen ? uiText("Hide file explorer") : uiText("Show file explorer")}
               pressed={explorerOpen}
               onPress={toggleExplorer}
             >
-              <FolderTree className="size-3.5" />
+              <FolderTree className={"size-3.5"} />
             </FileSurfaceAction>
           ) : null}
         </div>
       ) : null}
       {relativePath && !attachment && !isHostFile && !canWriteFiles && !fileAccess.isPending ? (
-        <div className="shrink-0 border-b px-3 py-1.5 text-2xs text-muted-foreground">
-          Read-only connection. Unsaved edits are kept until write access returns.
+        <div className={"shrink-0 border-b px-3 py-1.5 text-2xs text-muted-foreground"}>
+          {uiText("Read-only connection. Unsaved edits are kept until write access returns.")}
         </div>
       ) : null}
       {previewPath &&
@@ -1318,11 +1330,17 @@ export default function FilePreviewPanel({
       !isMedia &&
       !renderBrowserFile &&
       file.data?.truncated ? (
-        <div className="shrink-0 border-b border-warning/20 bg-warning-surface px-3 py-1.5 text-2xs text-warning-foreground">
-          Preview limited to the first 1 MB of a {file.data.byteLength.toLocaleString()} byte file.
+        <div
+          className={
+            "shrink-0 border-b border-warning/20 bg-warning-surface px-3 py-1.5 text-2xs text-warning-foreground"
+          }
+        >
+          {uiText("Preview limited to the first 1 MB of a")}
+          {file.data.byteLength.toLocaleString()}
+          {uiText("byte file.")}
         </div>
       ) : null}
-      <div className="flex min-h-0 flex-1 overflow-hidden">
+      <div className={"flex min-h-0 flex-1 overflow-hidden"}>
         <div
           className={cn("min-w-0 flex-1 flex-col overflow-hidden", previewPath ? "flex" : "hidden")}
         >
@@ -1382,35 +1400,41 @@ export default function FilePreviewPanel({
             />
           ) : relativePath && file.error && file.data === null ? (
             <div
-              role="alert"
-              className="scrollbar-gutter-both flex min-h-0 flex-1 flex-col overflow-auto"
+              role={"alert"}
+              className={"scrollbar-gutter-both flex min-h-0 flex-1 flex-col overflow-auto"}
             >
-              <div className="my-auto flex shrink-0 flex-col gap-3 px-6 py-6 text-center text-xs leading-relaxed">
-                <p className="text-destructive">
+              <div
+                className={
+                  "my-auto flex shrink-0 flex-col gap-3 px-6 py-6 text-center text-xs leading-relaxed"
+                }
+              >
+                <p className={"text-destructive"}>
                   {file.readError ? filePreviewReadErrorMessage(file.readError) : file.error}
                 </p>
                 {attemptedPath ? (
-                  <p className="text-muted-foreground">
-                    Attempted path
-                    <code className="block break-all font-mono text-foreground select-all">
+                  <p className={"text-muted-foreground"}>
+                    {uiText("Attempted path")}
+                    <code className={"block break-all font-mono text-foreground select-all"}>
                       {attemptedPath}
                     </code>
                   </p>
                 ) : null}
                 {!isHostFile ? (
-                  <p className="text-muted-foreground">
-                    Workspace folder:{" "}
-                    <code className="break-all font-mono select-all">
+                  <p className={"text-muted-foreground"}>
+                    {uiText("Workspace folder:")}
+                    <code className={"break-all font-mono select-all"}>
                       {file.readError?.cwd ?? cwd}
                     </code>
-                    . Check the link's path or locate the file in Files.
+                    {". Check the link's path or locate the file in Files."}
                   </p>
                 ) : null}
               </div>
             </div>
           ) : relativePath && file.data === null ? (
-            <div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground">
-              <Spinner size="lg" />
+            <div
+              className={"flex min-h-0 flex-1 items-center justify-center text-muted-foreground"}
+            >
+              <Spinner size={"lg"} />
             </div>
           ) : relativePath && file.data ? (
             isMarkdown && renderMarkdown ? (

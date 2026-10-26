@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useEffect, useRef, useSyncExternalStore, use } from "react";
 import { useSyncExternalStoreWithSelector } from "use-sync-external-store/with-selector";
 import { RegistryContext, useAtomValue } from "@effect/atom-react";
@@ -444,8 +445,8 @@ export function useUpdateEnvironmentModelPreferences(environmentId: EnvironmentI
     } catch {
       toastManager.add({
         type: "error",
-        title: "Model preferences not saved",
-        description: "Could not load saved model preferences. Try again.",
+        title: uiText("Model preferences not saved"),
+        description: uiText("Could not load saved model preferences. Try again."),
       });
       return;
     }
@@ -471,8 +472,8 @@ export function useToggleEnvironmentModelFavorite(environmentId: EnvironmentId |
       } catch {
         toastManager.add({
           type: "error",
-          title: "Favorites not saved",
-          description: "Could not load saved model preferences. Try again.",
+          title: uiText("Favorites not saved"),
+          description: uiText("Could not load saved model preferences. Try again."),
         });
         return;
       }
@@ -596,7 +597,7 @@ function useSharedSettingsSyncTargetIds(includePending = false): ReadonlyArray<E
 function useUpdateSettingsTarget(environmentId: EnvironmentId | null) {
   useEnvironmentScope(environmentId, AuthSettingsWriteScope);
   const persist = useAtomCommand(serverEnvironment.updateSettings, {
-    label: "server settings update",
+    label: uiText("server settings update"),
     reportFailure: false,
   });
   const { environments } = useEnvironments();
@@ -609,8 +610,8 @@ function useUpdateSettingsTarget(environmentId: EnvironmentId | null) {
       const error = squashAtomCommandFailure(result);
       toastManager.add({
         type: "error",
-        title: "Setting not saved",
-        description: `Could not save on ${label}: ${error instanceof Error ? error.message : "The save failed. Try reconnecting and saving again."}`,
+        title: uiText("Setting not saved"),
+        description: uiText("Could not save on {0}: {1}", {"0": label, "1": error instanceof Error ? error.message : "The save failed. Try reconnecting and saving again."}),
       });
     }
     return result;
@@ -627,8 +628,8 @@ function useUpdateSettingsTarget(environmentId: EnvironmentId | null) {
     if (Object.keys(serverPatch).length > 0 && !canWriteServerPatch) {
       toastManager.add({
         type: "warning",
-        title: "Setting not saved",
-        description: `This connection lacks permission to change settings on ${environments.find((target) => target.environmentId === environmentId)?.label ?? "the selected environment"}.`,
+        title: uiText("Setting not saved"),
+        description: uiText("This connection lacks permission to change settings on {0}.", {"0": environments.find((target) => target.environmentId === environmentId)?.label ?? "the selected environment"}),
       });
     }
     if (Object.keys(serverPatch).length > 0 && canWriteServerPatch) {
@@ -637,7 +638,7 @@ function useUpdateSettingsTarget(environmentId: EnvironmentId | null) {
       const warnUnsaved = (description = PRIMARY_SETTINGS_UNAVAILABLE_MESSAGE) =>
         toastManager.add({
           type: "warning",
-          title: "Setting not saved",
+          title: uiText("Setting not saved"),
           description,
         });
       if (Object.keys(localPatch).length > 0) {

@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   CheckIcon,
   CopyIcon,
@@ -85,7 +86,7 @@ function downloadThemeFile(filename: string, contents: string): void {
   anchor.click();
   // Revoking synchronously can abort the download in some browsers; give the
   // browser time to open the stream first.
-  setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 
 function ThemeVariantTooltip({ label, children }: { label: string; children: ReactElement }) {
@@ -156,12 +157,12 @@ function ThemeLibraryCard({
             onClick={onUse}
             style={isActive ? { boxShadow: "inset 0 0 0 1px var(--ring)" } : undefined}
           >
-            <div className="relative">
+            <div className={"relative"}>
               {variantNavigation ? (
                 <div
-                  aria-label="Light and dark theme variants"
-                  className="relative h-20"
-                  role="group"
+                  aria-label={uiText("Light and dark theme variants")}
+                  className={"relative h-20"}
+                  role={"group"}
                   onBlurCapture={(event) => {
                     const nextTarget = event.relatedTarget;
                     if (
@@ -183,20 +184,22 @@ function ThemeLibraryCard({
                     const isActive = selected.option.activeModes.includes(mode);
                     const modeLabel = mode === "light" ? "Light" : "Dark";
                     return (
-                      <div className="contents" key={mode}>
+                      <div className={"contents"} key={mode}>
                         <ThemeVariantTooltip label={`${modeLabel}: ${selected.option.label}`}>
                           <button
                             aria-label={
                               options.length > 1
-                                ? `Choose ${mode} variant, ${options.length} options, currently ${selected.option.label}`
-                                : `Use ${mode} variant, currently ${selected.option.label}`
+                                ? uiText("Choose {0} variant, {1} options, currently {2}", {"0": mode, "1": options.length, "2": selected.option.label})
+                                : uiText("Use {0} variant, currently {1}", {"0": mode, "1": selected.option.label})
                             }
                             aria-pressed={isActive}
-                            className="absolute left-1/2 top-2 z-20 flex size-14 items-center justify-center rounded-full outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-ring"
+                            className={
+                              "absolute left-1/2 top-2 z-20 flex size-14 items-center justify-center rounded-full outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-ring"
+                            }
                             style={{
                               transform: `translateX(calc(-50% + ${rootOffsetX}px))`,
                             }}
-                            type="button"
+                            type={"button"}
                             onClick={(event) => {
                               event.stopPropagation();
                               variantNavigation.onSelectAndUse(selected.option.themeIndex, mode);
@@ -211,28 +214,41 @@ function ThemeLibraryCard({
                             {isActive ? (
                               <span
                                 aria-hidden
-                                className="pointer-events-none absolute inset-0 rounded-full ring-2 ring-inset ring-ring"
+                                className={
+                                  "pointer-events-none absolute inset-0 rounded-full ring-2 ring-inset ring-ring"
+                                }
                               />
                             ) : null}
                             {isActive ? (
-                              <span className="pointer-events-none absolute -bottom-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full border border-border/70 bg-background text-foreground shadow-sm">
+                              <span
+                                className={
+                                  "pointer-events-none absolute -bottom-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full border border-border/70 bg-background text-foreground shadow-sm"
+                                }
+                              >
                                 {mode === "light" ? (
-                                  <SunIcon className="size-2.5" />
+                                  <SunIcon className={"size-2.5"} />
                                 ) : (
-                                  <MoonIcon className="size-2.5" />
+                                  <MoonIcon className={"size-2.5"} />
                                 )}
                               </span>
                             ) : null}
                           </button>
                         </ThemeVariantTooltip>
                         <span
-                          className="pointer-events-none absolute bottom-0 left-1/2 inline-flex max-w-24 -translate-x-1/2 items-center gap-1 text-2xs font-medium text-foreground"
+                          className={
+                            "pointer-events-none absolute bottom-0 left-1/2 inline-flex max-w-24 -translate-x-1/2 items-center gap-1 text-2xs font-medium text-foreground"
+                          }
                           style={{ marginLeft: rootOffsetX }}
                         >
-                          <span className="truncate">{selected.option.label}</span>
+                          <span className={"truncate"}>{selected.option.label}</span>
                           {options.length > 1 ? (
-                            <span className="shrink-0 rounded-full bg-muted px-1 text-3xs text-muted-foreground">
-                              +{options.length - 1}
+                            <span
+                              className={
+                                "shrink-0 rounded-full bg-muted px-1 text-3xs text-muted-foreground"
+                              }
+                            >
+                              {"+"}
+                              {options.length - 1}
                             </span>
                           ) : null}
                         </span>
@@ -245,10 +261,10 @@ function ThemeLibraryCard({
                               return (
                                 <ThemeVariantTooltip
                                   key={option.label}
-                                  label={`Use ${option.label} for ${mode} mode`}
+                                  label={uiText("Use {0} for {1} mode", {"0": option.label, "1": mode})}
                                 >
                                   <button
-                                    aria-label={`Use ${option.label} for ${mode} mode${optionIsActive ? ", currently active" : ""}`}
+                                    aria-label={uiText("Use {0} for {1} mode{2}", {"0": option.label, "1": mode, "2": optionIsActive ? ", currently active" : ""})}
                                     aria-pressed={optionIsActive}
                                     className={cn(
                                       "absolute left-1/2 top-1 z-30 flex size-7 items-center justify-center rounded-full bg-background shadow-sm outline-none transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
@@ -262,7 +278,7 @@ function ThemeLibraryCard({
                                       transform: `translate(calc(-50% + ${isOpen ? childOffsetX : rootOffsetX}px), ${isOpen ? childOffsetY : 28}px) scale(${isOpen ? 1 : 0.55})`,
                                       transitionDelay: isOpen ? `${optionIndex * 35}ms` : "0ms",
                                     }}
-                                    type="button"
+                                    type={"button"}
                                     onClick={(event) => {
                                       event.stopPropagation();
                                       variantNavigation.onSelectAndUse(option.themeIndex, mode);
@@ -270,7 +286,7 @@ function ThemeLibraryCard({
                                     onFocus={() => setRadialModeOpen(mode)}
                                     onMouseEnter={() => setRadialModeOpen(mode)}
                                   >
-                                    <span className="pointer-events-none scale-[0.43]">
+                                    <span className={"pointer-events-none scale-[0.43]"}>
                                       <ThemePreviewCircle
                                         colors={preview.colors}
                                         mode={preview.mode}
@@ -294,14 +310,16 @@ function ThemeLibraryCard({
                 />
               )}
             </div>
-            <div className="flex items-center gap-2 px-3 pb-3 pt-2">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
+            <div className={"flex items-center gap-2 px-3 pb-3 pt-2"}>
+              <div className={"min-w-0 flex-1"}>
+                <div className={"flex items-center gap-1.5"}>
                   <button
-                    aria-label={`Use ${variantNavigation ? `${variantNavigation.collectionLabel}, ${theme.label} variant` : `${theme.label} theme`}${isActive ? ", currently active" : ""}`}
+                    aria-label={uiText("Use {0}{1}", {"0": variantNavigation ? `${variantNavigation.collectionLabel}, ${theme.label} variant` : `${theme.label} theme`, "1": isActive ? ", currently active" : ""})}
                     aria-pressed={isActive}
-                    className="min-w-0 cursor-pointer truncate rounded-sm text-left text-sm font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
-                    type="button"
+                    className={
+                      "min-w-0 cursor-pointer truncate rounded-sm text-left text-sm font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+                    }
+                    type={"button"}
                     onClick={(event) => {
                       event.stopPropagation();
                       onUse();
@@ -312,15 +330,15 @@ function ThemeLibraryCard({
                 </div>
               </div>
               {onEdit || onDuplicate || onDownload || onRemove ? (
-                <div className="flex shrink-0 items-center gap-1">
+                <div className={"flex shrink-0 items-center gap-1"}>
                   {onDuplicate ? (
                     <Tooltip>
                       <TooltipTrigger
                         render={
                           <Button
-                            aria-label={`Duplicate ${theme.label}`}
-                            size="icon-xs"
-                            variant="ghost"
+                            aria-label={uiText("Duplicate {0}", {"0": theme.label})}
+                            size={"icon-xs"}
+                            variant={"ghost"}
                             onClick={(event) => {
                               event.stopPropagation();
                               onDuplicate();
@@ -330,7 +348,7 @@ function ThemeLibraryCard({
                           </Button>
                         }
                       />
-                      <TooltipPopup>Duplicate theme</TooltipPopup>
+                      <TooltipPopup>{uiText("Duplicate theme")}</TooltipPopup>
                     </Tooltip>
                   ) : null}
                   {onEdit ? (
@@ -338,9 +356,9 @@ function ThemeLibraryCard({
                       <TooltipTrigger
                         render={
                           <Button
-                            aria-label={`Edit ${theme.label}`}
-                            size="icon-xs"
-                            variant="ghost"
+                            aria-label={uiText("Edit {0}", {"0": theme.label})}
+                            size={"icon-xs"}
+                            variant={"ghost"}
                             onClick={(event) => {
                               event.stopPropagation();
                               onEdit();
@@ -350,7 +368,7 @@ function ThemeLibraryCard({
                           </Button>
                         }
                       />
-                      <TooltipPopup>Edit theme</TooltipPopup>
+                      <TooltipPopup>{uiText("Edit theme")}</TooltipPopup>
                     </Tooltip>
                   ) : null}
                   {onDownload ? (
@@ -358,9 +376,9 @@ function ThemeLibraryCard({
                       <TooltipTrigger
                         render={
                           <Button
-                            aria-label={`Export ${theme.label}`}
-                            size="icon-xs"
-                            variant="ghost"
+                            aria-label={uiText("Export {0}", {"0": theme.label})}
+                            size={"icon-xs"}
+                            variant={"ghost"}
                             onClick={(event) => {
                               event.stopPropagation();
                               onDownload();
@@ -370,7 +388,7 @@ function ThemeLibraryCard({
                           </Button>
                         }
                       />
-                      <TooltipPopup>Export theme file</TooltipPopup>
+                      <TooltipPopup>{uiText("Export theme file")}</TooltipPopup>
                     </Tooltip>
                   ) : null}
                   {onRemove ? (
@@ -380,11 +398,11 @@ function ThemeLibraryCard({
                           <Button
                             aria-label={
                               variantNavigation
-                                ? `Remove themes from ${variantNavigation.collectionLabel}`
-                                : `Remove ${theme.label}`
+                                ? uiText("Remove themes from {0}", {"0": variantNavigation.collectionLabel})
+                                : uiText("Remove {0}", {"0": theme.label})
                             }
-                            size="icon-xs"
-                            variant="ghost-destructive"
+                            size={"icon-xs"}
+                            variant={"ghost-destructive"}
                             onClick={(event) => {
                               event.stopPropagation();
                               onRemove();
@@ -395,7 +413,7 @@ function ThemeLibraryCard({
                         }
                       />
                       <TooltipPopup>
-                        {variantNavigation ? "Remove themes" : "Remove theme"}
+                        {variantNavigation ? uiText("Remove themes") : uiText("Remove theme")}
                       </TooltipPopup>
                     </Tooltip>
                   ) : null}
@@ -407,10 +425,10 @@ function ThemeLibraryCard({
       />
       <TooltipPopup>
         {variantNavigation
-          ? "Use the first variants for light and dark"
+          ? uiText("Use the first variants for light and dark")
           : cardModes.length > 1
-            ? "Use for both light and dark"
-            : `Use for ${cardModes[0]} mode only`}
+            ? uiText("Use for both light and dark")
+            : uiText("Use for {0} mode only", {"0": cardModes[0]})}
       </TooltipPopup>
     </Tooltip>
   );
@@ -539,8 +557,8 @@ export function ThemeLibrary({
     toastManager.add(
       stackedThreadToast({
         type: "error",
-        title: "Couldn’t save theme selection",
-        description: "Try again.",
+        title: uiText("Couldn’t save theme selection"),
+        description: uiText("Try again."),
       }),
     );
   };
@@ -549,8 +567,8 @@ export function ThemeLibrary({
     toastManager.add(
       stackedThreadToast({
         type: "error",
-        title: "Couldn’t remove theme",
-        description: "Try again.",
+        title: uiText("Couldn’t remove theme"),
+        description: uiText("Try again."),
       }),
     );
   };
@@ -661,7 +679,7 @@ export function ThemeLibrary({
 
   const renderWireframe = (mode: ThemeMode) => (
     <ThemeWireframe
-      className="h-[8.75rem]"
+      className={"h-[8.75rem]"}
       panes={
         mode === "system"
           ? [
@@ -674,12 +692,12 @@ export function ThemeLibrary({
   );
 
   const renderModeTiles = () => (
-    <div aria-label="Appearance mode" className="grid w-full grid-cols-3 gap-3" role="group">
+    <div aria-label={uiText("Appearance mode")} className={"grid w-full grid-cols-3 gap-3"} role={"group"}>
       {(["system", "light", "dark"] as const).map((mode) => {
         const isActive = appearanceMode === mode;
         return (
           <button
-            aria-label={mode === "system" ? "Follow the system appearance" : `Use ${mode} mode`}
+            aria-label={mode === "system" ? uiText("Follow the system appearance") : uiText("Use {0} mode", {"0": mode})}
             aria-pressed={isActive}
             className={cn(
               "flex cursor-pointer flex-col items-stretch gap-1.5 rounded-xl border p-2 outline-none transition-colors focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-ring",
@@ -690,7 +708,7 @@ export function ThemeLibrary({
             key={mode}
             style={isActive ? { boxShadow: "inset 0 0 0 1px var(--ring)" } : undefined}
             onClick={() => setMode(mode)}
-            type="button"
+            type={"button"}
           >
             {renderWireframe(mode)}
             <span
@@ -699,7 +717,7 @@ export function ThemeLibrary({
                 isActive ? "text-foreground" : "text-muted-foreground",
               )}
             >
-              {mode === "system" ? "System" : mode === "light" ? "Light" : "Dark"}
+              {mode === "system" ? uiText("System") : mode === "light" ? uiText("Light") : uiText("Dark")}
             </span>
           </button>
         );
@@ -724,7 +742,7 @@ export function ThemeLibrary({
   const renderPairGrid = () => (
     <TooltipProvider>
       <div
-        className="grid w-full gap-2"
+        className={"grid w-full gap-2"}
         style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 16rem), 1fr))" }}
       >
         {STANDARD_THEME_CARDS.map((standardTheme) => (
@@ -832,19 +850,21 @@ export function ThemeLibrary({
   );
 
   return (
-    <div className="space-y-3">
-      <h3 className="px-3 text-sm font-normal text-foreground/70 sm:px-4">
+    <div className={"space-y-3"}>
+      <h3 className={"px-3 text-sm font-normal text-foreground/70 sm:px-4"}>
         {searchableSetting("color-scheme").title}
       </h3>
       {renderModeTiles()}
-      <div className="flex min-h-8 flex-wrap items-center justify-between gap-3 px-3 pt-2 sm:px-4">
-        <h3 className="text-sm font-normal text-foreground/70">
+      <div
+        className={"flex min-h-8 flex-wrap items-center justify-between gap-3 px-3 pt-2 sm:px-4"}
+      >
+        <h3 className={"text-sm font-normal text-foreground/70"}>
           {searchableSetting("theme").title}
         </h3>
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className={"flex flex-wrap items-center justify-end gap-2"}>
           <Button
-            size="xs"
-            variant="outline"
+            size={"xs"}
+            variant={"outline"}
             onClick={() =>
               openThemeEditor({
                 editingThemeId: null,
@@ -855,11 +875,11 @@ export function ThemeLibrary({
             }
           >
             <PaintbrushIcon />
-            Create theme
+            {uiText("Create theme")}
           </Button>
-          <Button size="xs" variant="outline" onClick={() => onImportOpenChange(true)}>
+          <Button size={"xs"} variant={"outline"} onClick={() => onImportOpenChange(true)}>
             <PlusIcon />
-            Add theme
+            {uiText("Add theme")}
           </Button>
         </div>
       </div>
@@ -886,8 +906,8 @@ export function ThemeLibrary({
             toastManager.add(
               stackedThreadToast({
                 type: "success",
-                title: `${importedTheme.label} added`,
-                description: `It’s now your ${modes[0]!} theme.`,
+                title: uiText("{0} added", {"0": importedTheme.label}),
+                description: uiText("It’s now your {0} theme.", {"0": modes[0]!}),
               }),
             );
             return true;
@@ -896,8 +916,8 @@ export function ThemeLibrary({
           toastManager.add(
             stackedThreadToast({
               type: "success",
-              title: `${importedTheme.label} added`,
-              description: "It’s now active.",
+              title: uiText("{0} added", {"0": importedTheme.label}),
+              description: uiText("It’s now active."),
             }),
           );
           return true;
@@ -910,34 +930,42 @@ export function ThemeLibrary({
           <AlertDialogHeader>
             <AlertDialogTitle>
               {canRemoveCollection
-                ? `Remove themes from “${removeDialogCollectionLabel}”?`
-                : `Remove “${removeDialogTheme?.label}”?`}
+                ? uiText("Remove themes from “{0}”?", {"0": removeDialogCollectionLabel})
+                : uiText("Remove “{0}”?", {"0": removeDialogTheme?.label})}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {canRemoveCollection
-                ? "Select the variants you want to remove. You can restore them by importing the extension again."
-                : "You can bring it back anytime by importing its JSON file."}
+                ? uiText("Select the variants you want to remove. You can restore them by importing the extension again.")
+                : uiText("You can bring it back anytime by importing its JSON file.")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {canRemoveCollection ? (
-            <div className="grid max-h-72 grid-cols-1 gap-2 overflow-y-auto px-6 pb-6 sm:grid-cols-2">
+            <div
+              className={"grid max-h-72 grid-cols-1 gap-2 overflow-y-auto px-6 pb-6 sm:grid-cols-2"}
+            >
               {removeDialogCollectionThemes.map((customTheme) => {
                 const checked = themeIdsToRemoveSet.has(customTheme.id);
                 const card = getThemeCardDefinition(customTheme);
                 const checkboxId = `remove-theme-${customTheme.id}`;
                 return (
                   <label
-                    className="group relative flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-border/70 bg-muted/25 p-3 has-checked:border-ring has-checked:bg-accent/20 hover:bg-muted/40"
+                    className={
+                      "group relative flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-border/70 bg-muted/25 p-3 has-checked:border-ring has-checked:bg-accent/20 hover:bg-muted/40"
+                    }
                     htmlFor={checkboxId}
                     key={customTheme.id}
                   >
-                    <span className="absolute right-2 top-2 inline-grid size-5 grid-cols-1 sm:size-4">
+                    <span
+                      className={"absolute right-2 top-2 inline-grid size-5 grid-cols-1 sm:size-4"}
+                    >
                       <input
                         checked={checked}
-                        className="col-start-1 row-start-1 size-full appearance-none rounded-sm border border-input bg-background outline-none checked:border-primary checked:bg-primary focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring checked:focus-visible:inset-ring-3 checked:focus-visible:inset-ring-background dark:not-checked:bg-input/32 forced-colors:appearance-auto"
+                        className={
+                          "col-start-1 row-start-1 size-full appearance-none rounded-sm border border-input bg-background outline-none checked:border-primary checked:bg-primary focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring checked:focus-visible:inset-ring-3 checked:focus-visible:inset-ring-background dark:not-checked:bg-input/32 forced-colors:appearance-auto"
+                        }
                         id={checkboxId}
-                        name="themes-to-remove"
-                        type="checkbox"
+                        name={"themes-to-remove"}
+                        type={"checkbox"}
                         onChange={(event) => {
                           const shouldRemove = event.currentTarget.checked;
                           setThemeIdsToRemove((current) =>
@@ -947,21 +975,29 @@ export function ThemeLibrary({
                           );
                         }}
                       />
-                      <CheckIcon className="pointer-events-none col-start-1 row-start-1 size-3.5 shrink-0 self-center justify-self-center stroke-primary-foreground opacity-0 group-has-checked:opacity-100 sm:size-3" />
+                      <CheckIcon
+                        className={
+                          "pointer-events-none col-start-1 row-start-1 size-3.5 shrink-0 self-center justify-self-center stroke-primary-foreground opacity-0 group-has-checked:opacity-100 sm:size-3"
+                        }
+                      />
                     </span>
-                    <span className="flex min-h-12 items-center justify-center gap-1">
+                    <span className={"flex min-h-12 items-center justify-center gap-1"}>
                       {card.previews.map((preview) => (
                         <span
-                          className="flex size-11 shrink-0 items-center justify-center"
+                          className={"flex size-11 shrink-0 items-center justify-center"}
                           key={preview.mode}
                         >
-                          <span className="flex scale-75">
+                          <span className={"flex scale-75"}>
                             <ThemePreviewCircle colors={preview.colors} mode={preview.mode} />
                           </span>
                         </span>
                       ))}
                     </span>
-                    <p className="max-w-full truncate text-center text-base font-medium text-foreground sm:text-sm">
+                    <p
+                      className={
+                        "max-w-full truncate text-center text-base font-medium text-foreground sm:text-sm"
+                      }
+                    >
                       {customTheme.label}
                     </p>
                   </label>
@@ -970,15 +1006,15 @@ export function ThemeLibrary({
             </div>
           ) : null}
           <AlertDialogFooter>
-            <AlertDialogClose render={<Button variant="outline" />}>Cancel</AlertDialogClose>
+            <AlertDialogClose render={<Button variant={"outline"} />}>{uiText("Cancel")}</AlertDialogClose>
             <Button
               disabled={themeIdsToRemove.length === 0}
-              variant="destructive"
+              variant={"destructive"}
               onClick={handleConfirmRemoveTheme}
             >
               {canRemoveCollection
-                ? `Remove selected${themeIdsToRemove.length > 0 ? ` (${themeIdsToRemove.length})` : ""}`
-                : "Remove theme"}
+                ? uiText("Remove selected{0}", {"0": themeIdsToRemove.length > 0 ? ` (${themeIdsToRemove.length})` : ""})
+                : uiText("Remove theme")}
             </Button>
           </AlertDialogFooter>
         </AlertDialogPopup>

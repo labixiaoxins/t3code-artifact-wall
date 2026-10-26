@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   type OrchestrationV2LimitRecovery,
   type OrchestrationV2LimitRecoveryUpdate,
@@ -26,7 +27,7 @@ export function usageLimitRecoveryBannerItem(props: RecoveryProps): ComposerBann
     variant: "warning",
     priority: "urgent",
     icon: <GaugeIcon />,
-    title: "Usage limit reached",
+    title: uiText("Usage limit reached"),
     description: resetAt
       ? `Resets ${new Date(resetAt).toLocaleString()}`
       : "Reset time unavailable; retry manually",
@@ -85,7 +86,7 @@ function RecoveryActions({ runId, resetAt, recovery, snoozedUntil, onChange }: R
   return (
     <>
       <Button size="xs" variant="ghost" disabled={pending} onClick={() => void toggle("resume")}>
-        {pending ? "Saving..." : scheduled ? "Cancel auto-resume" : "Resume at reset"}
+        {pending ? uiText("Saving...") : scheduled ? uiText("Cancel auto-resume") : uiText("Resume at reset")}
       </Button>
       {!snoozed ? (
         <Button
@@ -94,7 +95,7 @@ function RecoveryActions({ runId, resetAt, recovery, snoozedUntil, onChange }: R
           disabled={pending || Date.parse(resetAt!) <= nowMs}
           onClick={() => void toggle("snooze")}
         >
-          {pending ? "Saving..." : "Snooze until reset"}
+          {pending ? uiText("Saving...") : uiText("Snooze until reset")}
         </Button>
       ) : null}
     </>

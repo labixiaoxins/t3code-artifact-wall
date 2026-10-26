@@ -84,15 +84,19 @@ export const ExecutionEnvironmentCapabilities = Schema.Struct({
   pullRequests: Schema.optionalKey(Schema.Boolean),
   pullRequestChecks: Schema.optionalKey(Schema.Boolean),
   /** Absent on servers from before inline context shipped, which drop the records and forward
-      the links as literal text -- so a client must serialize context the legacy way for them. */
+        the links as literal text -- so a client must serialize context the legacy way for them. */
   inlineMessageContext: Schema.optionalKey(Schema.Boolean),
   requiredWorktreeBootstrap: Schema.optionalKey(Schema.Boolean),
   threadSettlement: Schema.optionalKey(Schema.Boolean),
+  /** Safe single-thread archive rejects active work and enabled bound schedules. */
+  threadArchiveSafety: Schema.optionalKey(Schema.Boolean),
   threadAutoSettlement: Schema.optionalKey(Schema.Boolean),
   storageCleanup: Schema.optionalKey(Schema.Boolean),
   storageCleanupRun: Schema.optionalKey(Schema.Boolean),
   /** Server streams database size and reclaimable space for the Storage settings notice. */
   databaseStorage: Schema.optionalKey(Schema.Boolean),
+  /** Server reports on-disk usage by area (backups, workspaces, agent history) for Usage → Disk. */
+  diskSpace: Schema.optionalKey(Schema.Boolean),
   /** Server checks OTLP endpoints for the telemetry export settings. */
   otlpEndpointCheck: Schema.optionalKey(Schema.Boolean),
   projectWorktreeCleanup: Schema.optionalKey(Schema.Boolean),
@@ -102,17 +106,17 @@ export const ExecutionEnvironmentCapabilities = Schema.Struct({
   threadRestartContinuation: Schema.optionalKey(Schema.Boolean),
   projectSettingsOverrides: Schema.optionalKey(Schema.Boolean),
   /**
-   * Older
-      servers decode the key away (unknown fields are stripped, not
-      rejected), so the per-project provider switch would silently do
-      nothing; clients hide it instead of sending a patch that goes nowhere.
-   */
+     * Older
+        servers decode the key away (unknown fields are stripped, not
+        rejected), so the per-project provider switch would silently do
+        nothing; clients hide it instead of sending a patch that goes nowhere.
+     */
   projectProviderInstanceOverrides: Schema.optionalKey(Schema.Boolean),
   threadSnooze: Schema.optionalKey(Schema.Boolean),
   /** Absent on servers from
-      before environment themes shipped, which never emit the events -- so a
-      client reconnecting to one must drop published themes rather than keep
-      showing a set nothing will ever update. */
+        before environment themes shipped, which never emit the events -- so a
+        client reconnecting to one must drop published themes rather than keep
+        showing a set nothing will ever update. */
   environmentThemes: Schema.optionalKey(Schema.Boolean),
   usageLimitSources: Schema.optionalKey(Schema.Boolean),
   usagePriceOverrides: Schema.optionalKey(Schema.Boolean),
@@ -135,10 +139,10 @@ export const ExecutionEnvironmentCapabilities = Schema.Struct({
   serverSelfUpdateProgress: Schema.optionalKey(Schema.Boolean),
   serverUpdateThreadContinuation: Schema.optionalKey(Schema.Boolean),
   /**
-   * Clients skip seeding a Live Activity when
-      this is false — no update would ever repaint it. Absent on older
-      servers, which may still publish, so only an explicit false skips.
-   */
+     * Clients skip seeding a Live Activity when
+        this is false — no update would ever repaint it. Absent on older
+        servers, which may still publish, so only an explicit false skips.
+     */
   agentActivityPublishing: Schema.optionalKey(Schema.Boolean),
   projectCloneTracking: Schema.optionalKey(Schema.Boolean),
   /** Server answers projects.listIgnoredFiles. */
@@ -146,11 +150,11 @@ export const ExecutionEnvironmentCapabilities = Schema.Struct({
   environmentIcon: Schema.optionalKey(Schema.Boolean),
   desktopAppUpdate: Schema.optionalKey(Schema.Boolean),
   /** Server answers orchestration.subscribeCommandOutput. Absent on older servers,
-      which never send command output, so clients must not subscribe. */
+        which never send command output, so clients must not subscribe. */
   commandOutputStreaming: Schema.optionalKey(Schema.Boolean),
   /** Server hosts preview tabs in its own headless Chromium (`runtime:
-      "server"`) and streams them over `/api/preview-stream`. Clients
-      without a local browser runtime open server tabs here. */
+        "server"`) and streams them over `/api/preview-stream`. Clients
+        without a local browser runtime open server tabs here. */
   serverBrowser: Schema.optionalKey(Schema.Boolean),
 });
 export type ExecutionEnvironmentCapabilities = typeof ExecutionEnvironmentCapabilities.Type;

@@ -1,3 +1,7 @@
+"use client";
+import { uiText } from "~/i18n";
+
+
 import { PlusIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -27,14 +31,14 @@ function ProviderCustomColorPanel(props: {
   return (
     <div className="w-56 bg-popover">
       <ColorSaturationValuePlane
-        label="Accent color"
+        label={uiText("Accent color")}
         value={hsv}
         onChange={commitHsv}
         variant="edge"
       />
       <div className="grid gap-3 p-3">
         <ColorHueSlider
-          label="Accent color hue"
+          label={uiText("Accent color hue")}
           value={hsv.h}
           onChange={(h) => commitHsv({ ...hsv, h })}
         />
@@ -51,7 +55,7 @@ function ProviderCustomColorPanel(props: {
           }}
           onBlur={() => setHexDraft(null)}
           font="mono"
-          aria-label="Custom hex accent color"
+          aria-label={uiText("Custom hex accent color")}
           spellCheck={false}
         />
       </div>
@@ -76,10 +80,10 @@ function ProviderCustomColorPicker(props: {
             size="icon-sm"
             variant="ghost-muted"
             style={normalized ? { backgroundColor: normalized } : undefined}
-            aria-label={`${normalized ? "Change" : "Add"} accent color for ${props.displayName}`}
+            aria-label={uiText("{0} accent color for {1}", {"0": normalized ? "Change" : "Add", "1": props.displayName})}
           >
             {normalized ? (
-              <span className="sr-only">Change accent color</span>
+              <span className="sr-only">{uiText("Change accent color")}</span>
             ) : (
               <PlusIcon aria-hidden />
             )}
@@ -103,8 +107,7 @@ function ProviderCustomColorPicker(props: {
                   onClick={props.onClear}
                 >
                   <XIcon className="size-3.5" aria-hidden />
-                  Clear color
-                </Button>
+                  {uiText("Clear color") + " "}</Button>
               }
             />
           </div>
@@ -200,7 +203,7 @@ export function ProviderAccentColorPicker(props: {
 
   return (
     <div className="grid gap-2">
-      <span className="text-xs font-medium text-foreground">Accent color</span>
+      <span className="text-xs font-medium text-foreground">{uiText("Accent color")}</span>
       {picker}
       {description ? <span className="text-xs text-muted-foreground">{description}</span> : null}
     </div>

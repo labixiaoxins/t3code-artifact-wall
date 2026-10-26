@@ -1,6 +1,7 @@
 import { createClerkBridge } from "@clerk/electron";
 import * as NodeURL from "node:url";
 import { storage } from "@clerk/electron/storage";
+import { privateTokenStorage } from "./privateTokenStorage.ts";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -85,7 +86,7 @@ export const desktopClerkFrontendApiHostname = resolveDesktopClerkFrontendApiHos
 
 function createDesktopClerkBridge(stateDir: string, isDevelopment: boolean) {
   return createClerkBridge({
-    storage: storage({ path: stateDir }),
+    storage: privateTokenStorage(storage({ path: stateDir }), stateDir),
     manageSingleInstanceLock: false,
     passkeys: true,
     renderer: {
@@ -207,20 +208,36 @@ export const make = Effect.gen(function* () {
         void runPromise(webLinks.receive(url));
         return true;
       };
-      yield* electronApp.on("open-url", (event: { preventDefault: () => void }, url: string) => {
-        if (
-          startProviderAuthHandoff(url) ||
-          resumeProviderAuth(url) ||
-          openWebLink(url) ||
-          openAppLink(url)
-        )
+      yield* electronApp.on(
+        "open-url",
+        (
+          event: {
+            preventDefault: () => void;
+          },
+          url: string,
+        ) => {
+          if (
+            startProviderAuthHandoff(url) ||
+            resumeProviderAuth(url) ||
+            openWebLink(url) ||
+            openAppLink(url)
+          )
+            event.preventDefault();
+        },
+      );
+      yield* electronApp.on(
+        "open-file",
+        (
+          event: {
+            preventDefault: () => void;
+          },
+          path: string,
+        ) => {
+          if (!DesktopWebLinks.isWebPageFile(path)) return;
           event.preventDefault();
-      });
-      yield* electronApp.on("open-file", (event: { preventDefault: () => void }, path: string) => {
-        if (!DesktopWebLinks.isWebPageFile(path)) return;
-        event.preventDefault();
-        void runPromise(webLinks.receive(NodeURL.pathToFileURL(path).href));
-      });
+          void runPromise(webLinks.receive(NodeURL.pathToFileURL(path).href));
+        },
+      );
       handleSecondInstance = (argv) => {
         if (
           argv?.some(

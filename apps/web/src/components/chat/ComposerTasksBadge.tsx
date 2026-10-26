@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { CheckIcon, CircleDotIcon, CircleIcon, ListTodoIcon } from "lucide-react";
 import { memo, type ComponentProps } from "react";
 
@@ -78,7 +79,7 @@ function TaskSummary({
         <ListTodoIcon />
       </ComposerBanner.Icon>
       <ComposerBanner.Content>
-        <span className="shrink-0 text-muted-foreground">Tasks</span>
+        <span className="shrink-0 text-muted-foreground">{uiText("Tasks")}</span>
         <span
           className="min-w-0 flex-1 truncate text-left font-medium text-foreground/80"
           data-composer-task-current="true"
@@ -119,7 +120,7 @@ export const ComposerTasksBadge = memo(function ComposerTasksBadge({
     <ComposerBanner.Row
       render={<button type="button" />}
       aria-expanded={expanded}
-      aria-label={`${expanded ? "Collapse tasks" : "Tasks"}: ${progress.completedSteps} of ${progress.totalSteps} complete. Current task: ${progress.step}`}
+      aria-label={uiText("{0}: {1} of {2} complete. Current task: {3}", {"0": expanded ? "Collapse tasks" : "Tasks", "1": progress.completedSteps, "2": progress.totalSteps, "3": progress.step})}
       data-composer-tasks-badge="true"
       onClick={onToggle}
       onPointerDown={(event) => event.preventDefault()}
@@ -163,7 +164,7 @@ export const ComposerTasksContent = memo(function ComposerTasksContent({
         <ComposerBanner.Scroll data-composer-tasks-scroll="true">
           <ComposerBanner.Children
             render={<ul role="list" />}
-            aria-label={`Task list. ${progress.completedSteps} of ${progress.totalSteps} complete.`}
+            aria-label={uiText("Task list. {0} of {1} complete.", {"0": progress.completedSteps, "1": progress.totalSteps})}
             data-composer-tasks-list="true"
           >
             {keyedTaskSteps(steps).map(({ key, step }) => (
@@ -207,7 +208,7 @@ export const ComposerTasksContent = memo(function ComposerTasksContent({
                     {step.durationMs !== undefined
                       ? formatDuration(step.durationMs)
                       : step.status === "inProgress" && progress.live
-                        ? "now"
+                        ? uiText("now")
                         : null}
                   </span>
                 </ComposerBanner.Actions>

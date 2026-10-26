@@ -210,10 +210,17 @@ describe("BrowserSession", () => {
         sessions.get(partition)?.setPermissionRequestHandler.mock.calls[0]?.[0];
       assert.isFunction(requestHandler);
 
+      const guest = {
+        isDestroyed: () => false,
+        isFocused: () => true,
+        getURL: () => "https://example.com/launch",
+        executeJavaScript: vi.fn(() => Promise.resolve(true)),
+      };
+
       const request = (externalURL: string) =>
         Effect.callback<boolean>((resume) => {
           requestHandler(
-            null,
+            guest,
             "openExternal",
             (granted: boolean) => resume(Effect.succeed(granted)),
             { externalURL },

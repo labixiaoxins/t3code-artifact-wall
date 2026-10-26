@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   AuthOrchestrationOperateScope,
   type EnvironmentId,
@@ -210,12 +211,10 @@ export function PullRequestThreadDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <SourceControlIcon className="me-2 size-4" />
-            Checkout {terminology.singular}
+            {uiText("Checkout") + " "}{terminology.singular}
           </DialogTitle>
           <DialogDescription>
-            Resolve a {sourceControlPresentation.providerName} {terminology.singular}, then create
-            the draft thread in the main repo or in a dedicated worktree.
-          </DialogDescription>
+            {uiText("Resolve a") + " "}{sourceControlPresentation.providerName} {terminology.singular}{uiText(", then create the draft thread in the main repo or in a dedicated worktree.") + " "}</DialogDescription>
         </DialogHeader>
         <DialogPanel>
           <label className="grid gap-1.5">
@@ -224,7 +223,7 @@ export function PullRequestThreadDialog({
             </span>
             <Input
               ref={referenceInputRef}
-              placeholder={`${terminology.shortLabel} URL, checkout command, or #42`}
+              placeholder={uiText("{0} URL, checkout command, or #42", {"0": terminology.shortLabel})}
               value={reference}
               onChange={(event) => {
                 setReferenceDirty(true);
@@ -251,7 +250,7 @@ export function PullRequestThreadDialog({
                 <div className="min-w-0">
                   <p className="truncate font-medium text-sm">{resolvedPullRequest.title}</p>
                   <p className="truncate text-muted-foreground text-xs">
-                    #{resolvedPullRequest.number} · {resolvedPullRequest.headBranch} to{" "}
+                    #{resolvedPullRequest.number} · {resolvedPullRequest.headBranch} {uiText("to")}{" "}
                     {resolvedPullRequest.baseBranch}
                   </p>
                 </div>
@@ -265,7 +264,7 @@ export function PullRequestThreadDialog({
           {isResolving ? (
             <div className="flex items-center gap-2 text-muted-foreground text-xs">
               <Spinner size="sm" />
-              Resolving {terminology.singular}...
+              {uiText("Resolving") + " "}{terminology.singular}...
             </div>
           ) : null}
 
@@ -279,8 +278,7 @@ export function PullRequestThreadDialog({
             onClick={() => onOpenChange(false)}
             disabled={preparePullRequestThreadAction.isPending}
           >
-            Cancel
-          </Button>
+            {uiText("Cancel")}</Button>
           <Button
             type="button"
             size="sm"
@@ -294,7 +292,7 @@ export function PullRequestThreadDialog({
               preparePullRequestThreadAction.isPending
             }
           >
-            {preparingMode === "local" ? "Preparing local..." : "Local"}
+            {preparingMode === "local" ? uiText("Preparing local...") : uiText("Local")}
           </Button>
           <Button
             type="button"
@@ -309,7 +307,7 @@ export function PullRequestThreadDialog({
               preparePullRequestThreadAction.isPending
             }
           >
-            {preparingMode === "worktree" ? "Preparing worktree..." : "Worktree"}
+            {preparingMode === "worktree" ? uiText("Preparing worktree...") : uiText("Worktree")}
           </Button>
         </DialogFooter>
       </DialogPopup>

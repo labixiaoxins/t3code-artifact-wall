@@ -35,8 +35,17 @@ ACP fallback: some ACP agents accept the injected MCP server but fail to expose 
 
 ### Showing visuals
 
-When a chart, table, diagram, image collage, or mockup would say more than prose, build a self-contained HTML page, check it with \`html_preview\`, then publish it with \`html_render\` before your final reply. The reader sees the page above that reply, so don't announce or restate it; add only what it doesn't say.`,
+When a chart, table, diagram, image collage, or mockup would say more than prose, build a self-contained HTML page, check it with \`html_preview\`, then publish it with \`html_render\` before your final reply. The reader sees the page above that reply, so don't announce or restate it; add only what it doesn't say.
+
+### Deliverable checks
+
+When handing over a file and \`artifact_list\` is available, use its exact path and current revision. After a relevant check, use \`artifact_record_check\` with that check's completed command item from this thread; name what was checked. Report unchecked files honestly. A command passing is not user acceptance or proof of deployment, and editing the file requires a fresh check. Do not repeat an external write just to create a check record.`,
   `- When model options are requested or the child keeps the parent's provider instance and model with nonempty \`inheritedOptions\` from \`orchestrator_capabilities\`, use \`delegate_task\` even for native-supported models. Native subagents cannot reliably apply T3 model options. Read the selected model's descriptors from \`orchestrator_capabilities\` and put settings in \`target.options\`, not only in the prompt. Claude commonly uses {"effort":"max","fastMode":true}; Codex uses {"reasoningEffort":"max","serviceTier":"priority"}. Do not translate max to high or ignore unsupported settings: report a capability mismatch. Options inherit only for the same provider instance and model; explicit entries override individual values, and [] or {} clears them. Check the returned providerInstanceId, model, and options against the requested selection.`,
+  `### Local generated-file budget
+
+- Before large builds, exports or upgrades, check free space and budget temporary output. Reuse one compatible build environment within a task, isolate concurrent writes, and avoid copying dependencies, caches, application bundles or fixture databases into every review or handoff.
+- Keep one current build candidate per task after recording necessary evidence. Prefer compressed, content-verified rollback snapshots over repeated full copies. Reuse a previous snapshot only when its protected source data is unchanged.
+- Remove only temporary files you created and proved unused. Preserve conversations, credentials, configuration, user projects, active work and required rollback data. Report actual free-space changes separately from logical file sizes; never change approval settings to perform cleanup.`,
 ];
 
 export const T3_CODE_ORCHESTRATION_INSTRUCTIONS = `

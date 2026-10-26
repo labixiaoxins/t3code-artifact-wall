@@ -1,5 +1,8 @@
+import { uiText } from "~/i18n";
 import { useLayoutEffect, useState, type ReactNode, type RefObject } from "react";
 import type { ScopedThreadRef } from "@t3tools/contracts";
+import { useIsMobile } from "../../hooks/useMediaQuery";
+import { Sheet, SheetPopup, SheetTitle } from "../ui/sheet";
 import { ScrollArea } from "../ui/scroll-area";
 import { cn } from "../../lib/utils";
 import { Popover, PopoverPopup, PopoverCreateHandle } from "../ui/popover";
@@ -26,6 +29,7 @@ export function ThreadDetailsCard({
   onPresentationChange: (presentation: ThreadPanelPresentation) => void;
   children: (density: "full" | "compact" | "essential") => ReactNode;
 }) {
+  const mobile = useIsMobile();
   const canvas = useChatCanvas();
   const preferredPlacement = canvas
     ? resolveThreadDetailsCardLayout({
@@ -44,7 +48,7 @@ export function ThreadDetailsCard({
         topInset: canvas.detailsCardTopInset,
       })
     : null;
-  const mode = placement ? "inline" : "popover";
+  const mode = !mobile && placement ? "inline" : "popover";
   const topInset = canvas?.detailsCardTopInset ?? 0;
   const inlineOpen = useRightPanelStore((state) =>
     selectThreadPanelOpen(state.threadPanelVisibilityByThreadKey, threadRef, "inline"),
@@ -74,11 +78,15 @@ export function ThreadDetailsCard({
       : undefined;
   useLayoutEffect(() => {
     reportDetailsCard?.(
-      inlineOpen && cardLeft !== undefined && cardRight !== undefined && cardBottom !== undefined
+      !mobile &&
+        inlineOpen &&
+        cardLeft !== undefined &&
+        cardRight !== undefined &&
+        cardBottom !== undefined
         ? { left: cardLeft, right: cardRight, bottom: cardBottom }
         : null,
     );
-  }, [reportDetailsCard, inlineOpen, cardLeft, cardRight, cardBottom]);
+  }, [reportDetailsCard, mobile, inlineOpen, cardLeft, cardRight, cardBottom]);
   useLayoutEffect(() => () => reportDetailsCard?.(null), [reportDetailsCard]);
   useLayoutEffect(() => {
     onPresentationChange(mode);
@@ -120,6 +128,30 @@ export function ThreadDetailsCard({
     measure();
     return observeResize(element, measure);
   }, [contentElement, density, measurementKey]);
+  if (mobile)
+    return (
+      <Sheet
+        open={popoverOpen}
+        onOpenChange={(open) =>
+          useRightPanelStore.getState().setThreadPanelOpen(threadRef, "popover", open)
+        }
+      >
+        <SheetPopup
+          side={"right"}
+          className={"w-full max-w-none"}
+          aria-label={"\u4F1A\u8BDD\u8BE6\u60C5"}
+        >
+          <div className={"px-4 py-3"}>
+            <SheetTitle>{"\u4F1A\u8BDD\u8BE6\u60C5"}</SheetTitle>
+          </div>
+          <ScrollArea className={"min-h-0 flex-1"}>
+            <div data-thread-details-card data-thread-details-panel={"mobile"}>
+              {children("full")}
+            </div>
+          </ScrollArea>
+        </SheetPopup>
+      </Sheet>
+    );
   const card = (
     <div
       className={cn(
@@ -130,7 +162,7 @@ export function ThreadDetailsCard({
       style={placement ? { maxHeight: height } : undefined}
       data-thread-details-card
     >
-      <ScrollArea scrollFade className="min-h-0">
+      <ScrollArea scrollFade className={"min-h-0"}>
         <div ref={setContentElement}>{children(density)}</div>
       </ScrollArea>
     </div>
@@ -156,7 +188,7 @@ export function ThreadDetailsCard({
       {placement ? (
         inlineOpen ? (
           <aside
-            aria-label="Thread details"
+            aria-label={uiText("Thread details")}
             // Slides down to make room for the find bar, but returns in the same frame
             // the bar closes: a floating preview below moves up at once and would
             // otherwise overlap the card mid-slide.
@@ -172,7 +204,7 @@ export function ThreadDetailsCard({
               maxHeight: height,
             }}
             data-density={density}
-            data-thread-details-panel="inline"
+            data-thread-details-panel={"inline"}
           >
             {card}
           </aside>
@@ -180,16 +212,16 @@ export function ThreadDetailsCard({
       ) : (
         <PopoverPopup
           anchor={anchor}
-          align="end"
+          align={"end"}
           // Lines the card up with the find bar: the panel pads its card by 8px.
           alignOffset={THREAD_DETAILS_CARD_GAP - 8}
           collisionAvoidance={{ side: "shift", align: "shift", fallbackAxisSide: "none" }}
-          side="bottom"
+          side={"bottom"}
           sideOffset={topInset}
-          variant="panel"
-          padding="none"
+          variant={"panel"}
+          padding={"none"}
         >
-          <div data-density={density} data-thread-details-panel="popover">
+          <div data-density={density} data-thread-details-panel={"popover"}>
             {card}
           </div>
         </PopoverPopup>

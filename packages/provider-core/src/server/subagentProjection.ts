@@ -75,6 +75,7 @@ export function makeSubagentChildThread(input: {
       type: "node",
       nodeId: input.parentNodeId,
     },
+    continuedFromThreadId: undefined,
     createdAt: input.now,
     updatedAt: input.now,
     archivedAt: null,
@@ -177,7 +178,12 @@ export function subagentResultForRun(
       .filter(
         (
           candidate,
-        ): candidate is Extract<OrchestrationV2TurnItem, { readonly type: "assistant_message" }> =>
+        ): candidate is Extract<
+          OrchestrationV2TurnItem,
+          {
+            readonly type: "assistant_message";
+          }
+        > =>
           candidate.runId === run.id &&
           candidate.type === "assistant_message" &&
           candidate.text.trim().length > 0,

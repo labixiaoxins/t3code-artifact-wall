@@ -1,3 +1,6 @@
+"use client";
+import { uiText } from "~/i18n";
+
 import { ArrowDownIcon, ArrowUpIcon, PencilIcon, PlusIcon, StarIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -292,25 +295,25 @@ export function ProviderModelsSection({
   );
 
   return (
-    <div className="lg:flex lg:h-full lg:min-h-0 lg:flex-col">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className={"lg:flex lg:h-full lg:min-h-0 lg:flex-col"}>
+      <div className={"flex flex-wrap items-center justify-between gap-2"}>
         {showFilter ? (
           <Input
             value={filter}
             onChange={(event) => setFilter(event.target.value)}
-            placeholder="Filter models"
-            size="sm"
-            className="w-56 max-w-full"
+            placeholder={uiText("Filter models")}
+            size={"sm"}
+            className={"w-56 max-w-full"}
             spellCheck={false}
-            aria-label="Filter models"
+            aria-label={uiText("Filter models")}
           />
         ) : null}
-        <div className="flex items-center gap-2">
+        <div className={"flex items-center gap-2"}>
           {builtInModels.length > 0 ? (
             <Button
-              type="button"
-              size="xs"
-              variant="ghost-muted"
+              type={"button"}
+              size={"xs"}
+              variant={"ghost-muted"}
               onClick={() =>
                 onHiddenModelsChange(
                   nextHiddenModelsForBulkToggle(models, hiddenModels),
@@ -318,37 +321,39 @@ export function ProviderModelsSection({
                 )
               }
             >
-              {allBuiltInModelsHidden ? "Enable all" : "Disable all"}
+              {allBuiltInModelsHidden ? uiText("Enable all") : uiText("Disable all")}
             </Button>
           ) : null}
-          <span className="text-xs text-muted-foreground">
-            {models.length} model{models.length === 1 ? "" : "s"}
+          <span className={"text-xs text-muted-foreground"}>
+            {models.length}
+            {uiText("model")}
+            {models.length === 1 ? "" : "s"}
             {favoriteCount > 0
-              ? ` · ${favoriteCount} favorite${favoriteCount === 1 ? "" : "s"}`
+              ? uiText(" · {0} favorite{1}", {"0": favoriteCount, "1": favoriteCount === 1 ? "" : "s"})
               : ""}
-            {hiddenCount > 0 ? ` · ${hiddenCount} hidden` : ""}
+            {hiddenCount > 0 ? uiText(" · {0} hidden", {"0": hiddenCount}) : ""}
           </span>
         </div>
         {driverKind !== "antigravity" && !isAdding ? (
           <Button
-            type="button"
-            size="xs"
-            variant="ghost-muted"
-            className="ml-auto"
+            type={"button"}
+            size={"xs"}
+            variant={"ghost-muted"}
+            className={"ml-auto"}
             onClick={() => setIsAdding(true)}
           >
-            <PlusIcon className="size-3" />
-            Add custom model
+            <PlusIcon className={"size-3"} />
+            {uiText("Add custom model")}
           </Button>
         ) : null}
       </div>
       <div
         ref={listRef}
-        className="mt-2 -mx-2 max-h-64 overflow-y-auto lg:max-h-none lg:min-h-0 lg:flex-1"
+        className={"mt-2 -mx-2 max-h-64 overflow-y-auto lg:max-h-none lg:min-h-0 lg:flex-1"}
       >
         {visibleModels.length === 0 ? (
-          <p className="px-2 py-2 text-xs text-muted-foreground">
-            {isFiltering ? "No models match." : "No models reported for this provider yet."}
+          <p className={"px-2 py-2 text-xs text-muted-foreground"}>
+            {isFiltering ? uiText("No models match.") : uiText("No models reported for this provider yet.")}
           </p>
         ) : null}
         {visibleModels.map((model, index) => {
@@ -388,10 +393,10 @@ export function ProviderModelsSection({
       </div>
 
       {driverKind === "antigravity" || !canManageCustomModels ? null : isAdding ? (
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <div className={"mt-3 flex flex-col gap-2 sm:flex-row"}>
           <Input
             id={`provider-instance-${instanceId}-custom-model`}
-            size="sm"
+            size={"sm"}
             autoFocus
             value={input}
             onChange={(event) => {
@@ -411,19 +416,19 @@ export function ProviderModelsSection({
             placeholder={driverKind ? CUSTOM_MODEL_PLACEHOLDER_BY_KIND[driverKind] : "model-slug"}
             spellCheck={false}
           />
-          <div className="flex shrink-0 gap-2">
-            <Button size="sm" variant="outline" onClick={handleAdd}>
-              Add
+          <div className={"flex shrink-0 gap-2"}>
+            <Button size={"sm"} variant={"outline"} onClick={handleAdd}>
+              {uiText("Add")}
             </Button>
-            <Button size="sm" variant="ghost" onClick={cancelAdd}>
-              Cancel
+            <Button size={"sm"} variant={"ghost"} onClick={cancelAdd}>
+              {uiText("Cancel")}
             </Button>
           </div>
         </div>
       ) : null}
 
       {driverKind !== "antigravity" && error ? (
-        <p className="mt-2 text-xs text-destructive">{error}</p>
+        <p className={"mt-2 text-xs text-destructive"}>{error}</p>
       ) : null}
     </div>
   );
@@ -480,86 +485,84 @@ function ProviderModelRow({
         <TooltipTrigger
           render={
             <Button
-              size="icon-micro"
-              variant="ghost-muted"
+              size={"icon-micro"}
+              variant={"ghost-muted"}
               disabled={!canWritePreferences}
               onClick={() => onToggleFavorite(model.slug)}
-              aria-label={`${isFavorite ? "Remove" : "Add"} ${model.name} ${
-                isFavorite ? "from" : "to"
-              } favorites`}
+              aria-label={uiText("{0} {1} {2} favorites", {"0": isFavorite ? "Remove" : "Add", "1": model.name, "2": isFavorite ? "from" : "to"})}
             />
           }
         >
           <StarIcon className={cn("size-3", isFavorite && "fill-current text-warning")} />
         </TooltipTrigger>
-        <TooltipPopup side="top">
-          {isFavorite ? "Remove from favorites" : "Add to favorites"}
+        <TooltipPopup side={"top"}>
+          {isFavorite ? uiText("Remove from favorites") : uiText("Add to favorites")}
         </TooltipPopup>
       </Tooltip>
-      <span className="flex min-w-0 items-baseline gap-2">
+      <span className={"flex min-w-0 items-baseline gap-2"}>
         <Tooltip>
           <TooltipTrigger
             render={
-              <span tabIndex={0} className="flex min-w-0 items-baseline gap-2 overflow-hidden" />
+              <span tabIndex={0} className={"flex min-w-0 items-baseline gap-2 overflow-hidden"} />
             }
           >
             <span className={cn(nameClassName, "max-w-full shrink-0 truncate")}>{model.name}</span>
             {model.name !== model.slug ? (
-              <code className="truncate font-mono text-2xs text-muted-foreground/70">
+              <code className={"truncate font-mono text-2xs text-muted-foreground/70"}>
                 {model.slug}
               </code>
             ) : null}
           </TooltipTrigger>
-          <TooltipPopup side="top" align="start">
+          <TooltipPopup side={"top"} align={"start"}>
             <div>{model.name}</div>
             {model.name !== model.slug ? (
-              <code className="font-mono text-2xs text-muted-foreground">{model.slug}</code>
+              <code className={"font-mono text-2xs text-muted-foreground"}>{model.slug}</code>
             ) : null}
           </TooltipPopup>
         </Tooltip>
         {model.isCustom ? (
-          <span className="shrink-0 text-2xs text-muted-foreground/70">custom</span>
+          <span className={"shrink-0 text-2xs text-muted-foreground/70"}>{uiText("custom")}</span>
         ) : null}
       </span>
-      <span className="text-2xs text-muted-foreground/70">
+      <span className={"text-2xs text-muted-foreground/70"}>
         {capLabels.length > 0 ? (
-          <span className="hidden sm:inline">{capLabels.join(" · ")}</span>
+          <span className={"hidden sm:inline"}>{capLabels.join(" · ")}</span>
         ) : null}
       </span>
-      <span className="flex shrink-0 items-center justify-end gap-0.5">
+      <span className={"flex shrink-0 items-center justify-end gap-0.5"}>
         {!isHidden && !isFiltering ? (
           <>
             <Tooltip>
               <TooltipTrigger
                 render={
                   <Button
-                    size="icon-micro"
-                    variant="ghost-muted"
+                    size={"icon-micro"}
+                    variant={"ghost-muted"}
                     disabled={!canWritePreferences || !canMoveUp}
                     onClick={() => onMove(model.slug, -1)}
-                    aria-label={`Move ${model.name} up`}
+                    aria-label={uiText("Move {0} up", {"0": model.name})}
                   />
                 }
               >
-                <ArrowUpIcon className="size-3" />
+                <ArrowUpIcon className={"size-3"} />
               </TooltipTrigger>
-              <TooltipPopup side="top">Move up</TooltipPopup>
+              <TooltipPopup side={"top"}>{uiText("Move up")}</TooltipPopup>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger
                 render={
                   <Button
-                    size="icon-micro"
-                    variant="ghost-muted"
+                    size={"icon-micro"}
+                    variant={"ghost-muted"}
                     disabled={!canWritePreferences || !canMoveDown}
                     onClick={() => onMove(model.slug, 1)}
-                    aria-label={`Move ${model.name} down`}
+                    aria-label={uiText("Move {0} down", {"0": model.name})}
                   />
                 }
               >
-                <ArrowDownIcon className="size-3" />
+                <ArrowDownIcon className={"size-3"} />
               </TooltipTrigger>
-              <TooltipPopup side="top">Move down</TooltipPopup>
+              <TooltipPopup side={"top"}>{uiText("Move down")}</TooltipPopup>
             </Tooltip>
           </>
         ) : null}
@@ -569,50 +572,50 @@ function ProviderModelRow({
               <TooltipTrigger
                 render={
                   <Button
-                    size="icon-micro"
-                    variant="ghost-muted"
+                    size={"icon-micro"}
+                    variant={"ghost-muted"}
                     disabled={!canManageCustomModels}
-                    aria-label={`Edit ${model.slug}`}
+                    aria-label={uiText("Edit {0}", {"0": model.slug})}
                     onClick={() => onToggleEdit(model.slug)}
                   />
                 }
               >
-                <PencilIcon className="size-3" />
+                <PencilIcon className={"size-3"} />
               </TooltipTrigger>
-              <TooltipPopup side="top">Edit name and options</TooltipPopup>
+              <TooltipPopup side={"top"}>{uiText("Edit name and options")}</TooltipPopup>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger
                 render={
                   <Button
-                    size="icon-micro"
-                    variant="ghost-muted"
+                    size={"icon-micro"}
+                    variant={"ghost-muted"}
                     disabled={!canManageCustomModels}
-                    aria-label={`Remove ${model.slug}`}
+                    aria-label={uiText("Remove {0}", {"0": model.slug})}
                     onClick={() => onRemove(model.slug)}
                   />
                 }
               >
-                <XIcon className="size-3" />
+                <XIcon className={"size-3"} />
               </TooltipTrigger>
-              <TooltipPopup side="top">Remove custom model</TooltipPopup>
+              <TooltipPopup side={"top"}>{uiText("Remove custom model")}</TooltipPopup>
             </Tooltip>
           </>
         ) : null}
       </span>
       {/* The trigger is a wrapper span: a disabled switch gets no pointer events,
-          so it could not open the tooltip itself. */}
+            so it could not open the tooltip itself. */}
       <Tooltip>
-        <TooltipTrigger render={<span className="flex shrink-0 items-center" />}>
+        <TooltipTrigger render={<span className={"flex shrink-0 items-center"} />}>
           <Switch
-            size="sm"
+            size={"sm"}
             checked={!isHidden}
             disabled={!canWritePreferences || model.isCustom}
             onCheckedChange={(checked) => onSetHidden(model.slug, !checked)}
-            aria-label={`Show ${model.name} in the model picker`}
+            aria-label={uiText("Show {0} in the model picker", {"0": model.name})}
           />
         </TooltipTrigger>
-        <TooltipPopup side="top">{pickerTooltip}</TooltipPopup>
+        <TooltipPopup side={"top"}>{pickerTooltip}</TooltipPopup>
       </Tooltip>
     </div>
   );

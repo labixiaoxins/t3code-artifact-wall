@@ -200,6 +200,7 @@ export const make = Effect.gen(function* BrowserSessionMake() {
   const runFork = Effect.runForkWith(yield* Effect.context<never>());
   // One prompt at a time, so a page cannot stack dialogs by looping a deep link.
   let externalPromptOpen = false;
+  const declinedExternalProtocols = new WeakMap<WebContents, Set<string>>();
   /**
    * Electron grants an external-protocol navigation through the `openExternal`
    * permission and then launches the OS handler itself. Ask first: previews run
@@ -211,37 +212,75 @@ export const make = Effect.gen(function* BrowserSessionMake() {
     callback: (granted: boolean) => void,
   ): void => {
     const url = externalProtocolPromptUrl(rawUrl);
-    if (url === null || externalPromptOpen) {
+    if (
+      url === null ||
+      externalPromptOpen ||
+      requester === null ||
+      requester.isDestroyed() ||
+      !requester.isFocused()
+    ) {
+      callback(false);
+      return;
+    }
+    let origin: string;
+    try {
+      origin = new URL(requester.getURL()).origin;
+    } catch {
+      callback(false);
+      return;
+    }
+    const target = `${origin}|${new URL(url).protocol}`;
+    if (declinedExternalProtocols.get(requester)?.has(target)) {
       callback(false);
       return;
     }
     externalPromptOpen = true;
+    let settled = false;
     const settle = (granted: boolean) =>
       Effect.sync(() => {
+        if (settled) return;
+        settled = true;
         externalPromptOpen = false;
         callback(granted);
       });
     const shownUrl =
       url.length > MAX_PROMPT_URL_LENGTH ? `${url.slice(0, MAX_PROMPT_URL_LENGTH)}…` : url;
     runFork(
-      electronDialog
-        .showMessageBox(
+      Effect.gen(function* () {
+        // A hidden creator page can retry its app deep link after the task ends.
+        // Never turn those timers into modal application-wide permission prompts.
+        const activated = yield* Effect.tryPromise(() =>
+          requester.executeJavaScript(
+            'document.visibilityState === "visible" && navigator.userActivation.isActive',
+            false,
+          ),
+        ).pipe(
+          Effect.timeout("1 second"),
+          Effect.orElseSucceed(() => false),
+        );
+        if (activated !== true || requester.isDestroyed() || !requester.isFocused()) return false;
+        const result = yield* electronDialog.showMessageBox(
           {
             type: "question",
             buttons: ["Open", "Cancel"],
-            defaultId: 0,
+            defaultId: 1,
             cancelId: 1,
             message: `Open this ${new URL(url).protocol.slice(0, -1)} link?`,
-            detail: `A page in the browser wants to open another application:\n\n${shownUrl}`,
+            detail: `A page in the browser wants to open another application:\n\n${shownUrl}\n\nCancel blocks this site's app links in this tab. Open a new tab to try again.`,
           },
           previewHostWindow(requester),
-        )
-        .pipe(
-          Effect.map(({ response }) => response === 0),
-          Effect.orElseSucceed(() => false),
-          Effect.flatMap(settle),
-          Effect.onInterrupt(() => settle(false)),
-        ),
+        );
+        if (result.response !== 0) {
+          const declined = declinedExternalProtocols.get(requester) ?? new Set<string>();
+          declined.add(target);
+          declinedExternalProtocols.set(requester, declined);
+        }
+        return result.response === 0;
+      }).pipe(
+        Effect.orElseSucceed(() => false),
+        Effect.flatMap(settle),
+        Effect.onInterrupt(() => settle(false)),
+      ),
     );
   };
   const sessionsRef = yield* SynchronizedRef.make<ReadonlyMap<string, Session>>(new Map());

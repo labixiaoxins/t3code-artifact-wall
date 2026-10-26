@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useAtomValue } from "@effect/atom-react";
 import { ThreadDetailsControl } from "./ThreadDetailsControl";
 import { ThreadHoverCardPopup } from "../ThreadHoverCard";
@@ -50,8 +51,10 @@ import {
   PlusIcon,
   SquareIcon,
   UnplugIcon,
+  XIcon,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { lazy, Suspense, useMemo, useState, type ReactNode } from "react";
+const ChatMarkdown = lazy(() => import("../ChatMarkdown"));
 
 import { useArchivedThreadSnapshots } from "../../lib/archivedThreadsState";
 import { buildThreadRouteParams } from "../../threadRoutes";
@@ -83,7 +86,10 @@ const THREAD_LINEAGE_PAGE_COUNT = 12;
 function resolveThreadLineageWindow<Row>(
   rows: ReadonlyArray<Row>,
   visibleCount: number,
-): { readonly visibleRows: ReadonlyArray<Row>; readonly hiddenCount: number } {
+): {
+  readonly visibleRows: ReadonlyArray<Row>;
+  readonly hiddenCount: number;
+} {
   const visibleRows = rows.slice(0, visibleCount);
   return { visibleRows, hiddenCount: rows.length - visibleRows.length };
 }
@@ -96,24 +102,28 @@ function ThreadLineageRowList(props: {
   return (
     <>
       {/*
-        Plain overflow, not a ScrollArea
-        component: this sits inside an already scrolling panel, where a
-        max-height-only virtual viewport measures badly.
-      */}
+          Plain overflow, not a ScrollArea
+          component: this sits inside an already scrolling panel, where a
+          max-height-only virtual viewport measures badly.
+        */}
       <ul
-        aria-label="Related threads"
-        className="m-0 max-h-[13.5rem] list-none overflow-y-auto overscroll-contain p-0 has-data-workflow-expanded:max-h-[min(28rem,55dvh)]"
+        aria-label={uiText("Related threads")}
+        className={
+          "m-0 max-h-[13.5rem] list-none overflow-y-auto overscroll-contain p-0 has-data-workflow-expanded:max-h-[min(28rem,55dvh)]"
+        }
       >
         {props.children}
       </ul>
       {props.hiddenCount > 0 ? (
         <button
-          type="button"
+          type={"button"}
           onClick={props.onShowMore}
           className={`flex h-8 w-full cursor-pointer items-center rounded-lg ${THREAD_DETAILS_PANEL_ROW_CONTENT_CLASS} text-sm font-medium text-muted-foreground/70 hover:bg-black/[0.055] hover:text-foreground/80 dark:hover:bg-white/[0.075]`}
         >
-          <PlusIcon aria-hidden className="size-4 shrink-0" />
-          Show {Math.min(props.hiddenCount, THREAD_LINEAGE_PAGE_COUNT)} more
+          <PlusIcon aria-hidden className={"size-4 shrink-0"} />
+          {uiText("Show")}
+          {Math.min(props.hiddenCount, THREAD_LINEAGE_PAGE_COUNT)}
+          {uiText("more")}
         </button>
       ) : null}
     </>
@@ -137,11 +147,16 @@ function ThreadLineageGroup(props: {
     <div>
       {props.label ? (
         <CollapsibleSectionHeader
-          variant="panel"
+          variant={"panel"}
           expanded={expanded}
           onClick={() => setExpanded(!expanded)}
           accessory={
-            failedCount > 0 ? <SectionHeaderStatus>{failedCount} failed</SectionHeaderStatus> : null
+            failedCount > 0 ? (
+              <SectionHeaderStatus>
+                {failedCount}
+                {uiText("failed")}
+              </SectionHeaderStatus>
+            ) : null
           }
         >
           {props.label}
@@ -161,7 +176,7 @@ function ThreadLineageGroup(props: {
 }
 
 function relationshipLabel(edge: ThreadRelationshipEdge, currentThreadId: ThreadId) {
-  if (edge.kind === "transfer") return "Context transfer";
+  if (edge.kind === "transfer") return uiText("Context transfer");
   if (edge.kind === "subagent") {
     return edge.sourceThreadId === currentThreadId ? "Subagent" : "Parent agent";
   }
@@ -246,6 +261,10 @@ export function ThreadRelationshipsPanel(props: {
     orchestrationEnvironment.stopWorkflow.permissionAtom(props.environmentId),
   );
   const [busyAction, setBusyAction] = useState<"merge" | "detach" | null>(null);
+  const [selected, setSelected] = useState<{
+    scope: string;
+    threadId: ThreadId;
+  } | null>(null);
   const [stoppingId, setStoppingId] = useState<string | null>(null);
   // These lookups and the graph walk every subagent and thread, so they sit below
   // the panel's hooks where the compiler can cache them.
@@ -308,25 +327,44 @@ export function ThreadRelationshipsPanel(props: {
   const {
     related = [],
     active = [],
+    attention = [],
     previous = [],
   } = groupBy(relationshipRows, ({ edge }) => {
     if (edge.kind !== "subagent" || isParentThreadRelationship(edge, props.threadId))
       return "related";
-    return ["completed", "failed", "error", "cancelled", "interrupted", "idle"].includes(
-      edge.status ?? "",
-    )
-      ? "previous"
-      : "active";
+    if (["failed", "error", "waiting", "interrupted"].includes(edge.status ?? ""))
+      return "attention";
+    return ["completed", "cancelled", "idle"].includes(edge.status ?? "") ? "previous" : "active";
   });
   const groups = [
     { id: "related", label: null, rows: related, expanded: true },
+    { id: "attention", label: uiText("Needs attention"), rows: attention, expanded: true },
     { id: "active", label: null, rows: active, expanded: true },
-    { id: "previous", label: "Previous agents", rows: previous, expanded: false },
+    { id: "previous", label: uiText("Previous agents"), rows: previous, expanded: false },
   ];
   const runningCount =
     (projection?.subagents.filter(
       (agent) => agent.childThreadId === null && agent.status === "running",
     ).length ?? 0) + active.filter(({ edge }) => edge.status === "running").length;
+  const selectedRow =
+    selected?.scope === scopedThreadKey(ref)
+      ? relationshipRows.find((row) => row.threadId === selected.threadId)
+      : undefined;
+  const selectedNode = selectedRow ? graph.nodes.get(selectedRow.threadId) : undefined;
+  const selectedAgent = selectedRow
+    ? currentSubagent(subagentsByThreadId.get(selectedRow.threadId), selectedNode?.thread)
+    : undefined;
+  const selectedProject = projects.find(
+    (project) => project.id === selectedNode?.thread?.projectId,
+  );
+  const selectedStatus = selectedRow ? threadRelationshipRowStatus(graph, selectedRow) : null;
+  const selectedWorking = ["pending", "running", "waiting"].includes(selectedAgent?.status ?? "");
+  const selectedReport = selectedAgent
+    ? selectedWorking
+      ? selectedAgent.progress
+      : (selectedAgent.result ?? selectedAgent.error)
+    : null;
+  const completedCount = previous.filter(({ edge }) => edge.status === "completed").length;
 
   if (relationshipRows.length === 0 && runningCount === 0) {
     return null;
@@ -376,7 +414,7 @@ export function ThreadRelationshipsPanel(props: {
     });
     setStoppingId(null);
     if (result._tag === "Failure") {
-      toastManager.add({ type: "error", title: "Could not stop subagent" });
+      toastManager.add({ type: "error", title: uiText("Could not stop subagent") });
     }
   };
 
@@ -389,7 +427,7 @@ export function ThreadRelationshipsPanel(props: {
     });
     setStoppingId(null);
     if (result._tag === "Failure") {
-      toastManager.add({ type: "error", title: "Could not stop workflow" });
+      toastManager.add({ type: "error", title: uiText("Could not stop workflow") });
     }
   };
 
@@ -400,8 +438,8 @@ export function ThreadRelationshipsPanel(props: {
 
   return (
     <ThreadDetailsSection
-      headingId="thread-details-lineage-heading"
-      title={runningCount > 0 ? `Lineage · ${runningCount} running` : "Lineage"}
+      headingId={"thread-details-lineage-heading"}
+      title={runningCount > 0 ? uiText("Lineage · {0} running", {"0": runningCount}) : uiText("Lineage")}
       data-thread-relationships-panel
       actions={
         canDetach ? (
@@ -409,26 +447,91 @@ export function ThreadRelationshipsPanel(props: {
             <MenuTrigger
               render={
                 <ThreadDetailsControl
-                  size="icon-xs"
-                  variant="ghost"
-                  part="icon"
-                  aria-label="More thread actions"
+                  size={"icon-xs"}
+                  variant={"ghost"}
+                  part={"icon"}
+                  aria-label={uiText("More thread actions")}
                   disabled={busyAction !== null}
                 />
               }
             >
-              <MoreHorizontalIcon className="size-3.5" />
+              <MoreHorizontalIcon className={"size-3.5"} />
             </MenuTrigger>
-            <MenuPopup align="end" className="min-w-60 max-w-(--available-width)">
+            <MenuPopup align={"end"} className={"min-w-60 max-w-(--available-width)"}>
               <MenuItem onClick={() => void detach()}>
-                <UnplugIcon className="size-3.5" />
-                Disconnect agent session
+                <UnplugIcon className={"size-3.5"} />
+                {uiText("Disconnect agent session")}
               </MenuItem>
             </MenuPopup>
           </Menu>
         ) : null
       }
     >
+      {active.length + attention.length + previous.length > 0 ? (
+        <p className={"px-1.5 pb-2 text-xs text-muted-foreground"} aria-label={uiText("Subtask summary")}>
+          {active.length}
+          {uiText("active ·")}
+          {completedCount}
+          {uiText("completed ·")}
+          {attention.length}
+          {uiText("need attention")}
+        </p>
+      ) : null}
+      {selectedRow ? (
+        <div
+          role={"region"}
+          aria-label={uiText("Subtask result")}
+          className={"mb-2 min-w-0 rounded-lg border border-border p-3"}
+        >
+          <div className={"mb-2 flex items-start justify-between gap-2"}>
+            <h4 className={"min-w-0 flex-1 break-words text-sm font-medium"}>
+              {formatSubagentDisplayTitle(
+                selectedNode?.thread?.title ?? selectedAgent?.title ?? selectedRow.threadId,
+              )}
+            </h4>
+            <ThreadDetailsControl
+              size={"icon-xs"}
+              variant={"ghost"}
+              part={"icon"}
+              aria-label={uiText("Close result")}
+              onClick={() => setSelected(null)}
+            >
+              <XIcon aria-hidden className={"size-3.5"} />
+            </ThreadDetailsControl>
+          </div>
+          <p className={"mb-2 text-xs text-muted-foreground"}>
+            {threadRelationshipStatusLabel(selectedStatus)}
+          </p>
+          <div className={"max-h-[45dvh] overflow-y-auto overscroll-contain break-words text-sm"}>
+            {selectedReport ? (
+              <Suspense fallback={<p>{uiText("Loading result…")}</p>}>
+                <ChatMarkdown
+                  text={selectedReport}
+                  cwd={selectedNode?.thread?.worktreePath ?? selectedProject?.workspaceRoot}
+                  threadRef={scopeThreadRef(props.environmentId, selectedRow.threadId)}
+                />
+              </Suspense>
+            ) : (
+              <p className={"text-muted-foreground"}>
+                {selectedWorking
+                  ? uiText("Waiting for a progress report.")
+                  : uiText("No result was reported. Open the conversation for its history.")}
+              </p>
+            )}
+          </div>
+          <div className={"mt-2"}>
+            <ThreadDetailsControl
+              size={"sm"}
+              variant={"ghost"}
+              part={"row"}
+              disabled={selectedNode?.missing !== false}
+              onClick={() => openThread(selectedRow.threadId)}
+            >
+              {uiText("Open full conversation")}
+            </ThreadDetailsControl>
+          </div>
+        </div>
+      ) : null}
       {groups.map((group) => (
         <ThreadLineageGroup key={`${scopedThreadKey(ref)}:${group.id}`} {...group}>
           {(visibleRows) =>
@@ -525,13 +628,21 @@ export function ThreadRelationshipsPanel(props: {
                     fallbackIcon={RelationshipIcon}
                     status={rowStatus}
                   />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-left text-sm font-medium leading-4 text-foreground/85">
+                  <span className={"min-w-0 flex-1"}>
+                    <span
+                      className={
+                        "block truncate text-left text-sm font-medium leading-4 text-foreground/85"
+                      }
+                    >
                       {threadTitle}
                     </span>
                   </span>
                   {agent ? null : (
-                    <ArrowRightIcon className="size-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                    <ArrowRightIcon
+                      className={
+                        "size-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                      }
+                    />
                   )}
                   {agent &&
                   !failed &&
@@ -560,17 +671,27 @@ export function ThreadRelationshipsPanel(props: {
                     delay={200}
                     render={
                       <ThreadDetailsControl
-                        size="sm"
-                        variant="ghost"
+                        size={"sm"}
+                        variant={"ghost"}
                         part={workflowGroup ? "primary" : "row"}
-                        disabled={node?.missing === true}
-                        onClick={() => openThread(threadId)}
+                        aria-label={
+                          isSubagent && !isParent ? uiText("View result: {0}", {"0": threadTitle}) : undefined
+                        }
+                        aria-pressed={
+                          isSubagent && !isParent ? selectedRow?.threadId === threadId : undefined
+                        }
+                        disabled={node?.missing === true && !(isSubagent && !isParent)}
+                        onClick={() =>
+                          isSubagent && !isParent
+                            ? setSelected({ scope: scopedThreadKey(ref), threadId })
+                            : openThread(threadId)
+                        }
                       />
                     }
                   >
                     {relationshipContent}
                   </TooltipTrigger>
-                  <RelationshipPopup side="left">{relationshipTooltip}</RelationshipPopup>
+                  <RelationshipPopup side={"left"}>{relationshipTooltip}</RelationshipPopup>
                 </Tooltip>
               );
               if (workflowGroup && agent) {
@@ -594,7 +715,7 @@ export function ThreadRelationshipsPanel(props: {
                 );
               }
               return (
-                <li key={threadId} className="group relative flex h-8 items-center rounded-lg">
+                <li key={threadId} className={"group relative flex h-8 items-center rounded-lg"}>
                   {isMergeTarget ? (
                     <div className={THREAD_DETAILS_PANEL_SPLIT_GROUP_CLASS}>
                       <Tooltip>
@@ -602,9 +723,9 @@ export function ThreadRelationshipsPanel(props: {
                           delay={200}
                           render={
                             <ThreadDetailsControl
-                              size="sm"
-                              variant="ghost"
-                              part="primary"
+                              size={"sm"}
+                              variant={"ghost"}
+                              part={"primary"}
                               aria-label={`${threadTitle} ${threadRelationshipStatusLabel(rowStatus)}`}
                               disabled={node?.missing === true}
                               onClick={() => openThread(threadId)}
@@ -613,44 +734,48 @@ export function ThreadRelationshipsPanel(props: {
                         >
                           {relationshipContent}
                         </TooltipTrigger>
-                        <RelationshipPopup side="left">{relationshipTooltip}</RelationshipPopup>
+                        <RelationshipPopup side={"left"}>{relationshipTooltip}</RelationshipPopup>
                       </Tooltip>
                       <span
-                        aria-hidden="true"
+                        aria-hidden={"true"}
                         className={THREAD_DETAILS_PANEL_SPLIT_SEPARATOR_CLASS}
                       />
                       <Tooltip>
                         <TooltipTrigger
                           render={
                             <ThreadDetailsControl
-                              size="sm"
-                              variant="ghost"
-                              part="secondary"
+                              size={"sm"}
+                              variant={"ghost"}
+                              part={"secondary"}
                               aria-label={
                                 parentTitle
-                                  ? `Merge back to ${parentTitle}`
-                                  : "Merge back to source conversation"
+                                  ? uiText("Merge back to {0}", {"0": parentTitle})
+                                  : uiText("Merge back to source conversation")
                               }
                               disabled={!canMerge || busyAction !== null}
                               onClick={() => void merge()}
                             >
                               {busyAction === "merge" ? (
-                                <LoaderCircleIcon className="size-3 animate-spin" />
+                                <LoaderCircleIcon className={"size-3 animate-spin"} />
                               ) : (
-                                <PullRequestGlyph.merged className="size-3" />
+                                <PullRequestGlyph.merged className={"size-3"} />
                               )}
                             </ThreadDetailsControl>
                           }
                         />
-                        <TooltipPopup side="left">
+                        <TooltipPopup side={"left"}>
                           {latestMergeBackRun === null
-                            ? "Complete a run in this fork before merging it back"
+                            ? uiText("Complete a run in this fork before merging it back")
                             : parentTitle
-                              ? `Merge this conversation back into ${parentTitle}`
-                              : "Merge this conversation back into its source"}
+                              ? uiText("Merge this conversation back into {0}", {"0": parentTitle})
+                              : uiText("Merge this conversation back into its source")}
                         </TooltipPopup>
                       </Tooltip>
-                      <span className="shrink-0 border border-transparent ps-1 pe-2.5 text-2xs font-medium text-muted-foreground">
+                      <span
+                        className={
+                          "shrink-0 border border-transparent ps-1 pe-2.5 text-2xs font-medium text-muted-foreground"
+                        }
+                      >
                         {threadRelationshipStatusLabel(rowStatus)}
                       </span>
                     </div>
@@ -658,28 +783,32 @@ export function ThreadRelationshipsPanel(props: {
                     relationshipLink
                   )}
                   {canStop && agent ? (
-                    <div className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 pointer-coarse:pointer-events-auto pointer-coarse:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100">
+                    <div
+                      className={
+                        "pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 pointer-coarse:pointer-events-auto pointer-coarse:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100"
+                      }
+                    >
                       <Tooltip>
                         <TooltipTrigger
                           render={
                             <ThreadDetailsControl
-                              size="icon-xs"
-                              variant="ghost"
-                              part="icon"
-                              tone="destructive"
-                              aria-label={`Stop subagent ${threadTitle}`}
+                              size={"icon-xs"}
+                              variant={"ghost"}
+                              part={"icon"}
+                              tone={"destructive"}
+                              aria-label={uiText("Stop subagent {0}", {"0": threadTitle})}
                               disabled={stoppingId !== null}
                               onClick={() => void stopSubagent(threadId, agent)}
                             />
                           }
                         >
                           {stoppingId === threadId ? (
-                            <LoaderCircleIcon aria-hidden className="size-3 animate-spin" />
+                            <LoaderCircleIcon aria-hidden className={"size-3 animate-spin"} />
                           ) : (
-                            <SquareIcon aria-hidden className="size-3 fill-current" />
+                            <SquareIcon aria-hidden className={"size-3 fill-current"} />
                           )}
                         </TooltipTrigger>
-                        <TooltipPopup side="left">Stop subagent</TooltipPopup>
+                        <TooltipPopup side={"left"}>{uiText("Stop subagent")}</TooltipPopup>
                       </Tooltip>
                     </div>
                   ) : null}

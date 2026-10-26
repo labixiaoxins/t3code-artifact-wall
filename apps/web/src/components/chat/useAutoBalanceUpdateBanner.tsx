@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useAtomValue } from "@effect/atom-react";
 import type { ServerUpdateState } from "@t3tools/client-runtime/state/server";
 import { useState } from "react";
@@ -96,7 +97,7 @@ export function useAutoBalanceUpdateBanner(
         <PopoverTrigger
           render={<InlineButton />}
           className="max-w-full"
-          aria-label={`${title}. View machines`}
+          aria-label={uiText("{0}. View machines", {"0": title})}
         >
           <span className="min-w-0 truncate">{title}</span>
         </PopoverTrigger>
@@ -109,14 +110,14 @@ export function useAutoBalanceUpdateBanner(
                   <ServerUpdateProgress state={machine.state} />
                 ) : !machine.remoteUpdate ? (
                   <>
-                    <div className="text-muted-foreground">Manual update required</div>
+                    <div className="text-muted-foreground">{uiText("Manual update required")}</div>
                     <ServerUpdateAction {...machine} />
                   </>
                 ) : (
                   <div className="text-muted-foreground">
                     {machine.connected
-                      ? `Ready to update to ${machine.targetVersion}`
-                      : "Reconnect this machine to update"}
+                      ? uiText("Ready to update to {0}", {"0": machine.targetVersion})
+                      : uiText("Reconnect this machine to update")}
                   </div>
                 )}
               </div>
@@ -134,10 +135,10 @@ export function useAutoBalanceUpdateBanner(
           variant="ghost"
           label={
             failed > 0
-              ? "Retry"
+              ? uiText("Retry")
               : targets.length === machines.length
-                ? "Update all"
-                : `Update ${targets.length} ${targets.length === 1 ? "machine" : "machines"}`
+                ? uiText("Update all")
+                : uiText("Update {0} {1}", {"0": targets.length, "1": targets.length === 1 ? "machine" : "machines"})
           }
         />
       ) : undefined,

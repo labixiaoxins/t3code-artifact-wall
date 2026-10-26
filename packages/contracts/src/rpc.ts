@@ -331,6 +331,7 @@ import {
   ProviderConsumeResetCreditResult,
 } from "./providerUsageLimits.ts";
 import { UsagePricing, UsageReadError, UsageSummary, UsageSummaryInput } from "./usage.ts";
+import { DiskSpaceInput, DiskSpaceReport } from "./diskSpace.ts";
 import {
   StorageCleanupReport,
   DatabaseStorageStatus,
@@ -482,6 +483,7 @@ export const WS_METHODS = {
   serverRunStorageCleanup: "server.runStorageCleanup",
   serverGetStorageCleanupReport: "server.getStorageCleanupReport",
   serverGetDatabaseStorage: "server.getDatabaseStorage",
+  serverGetDiskSpace: "server.getDiskSpace",
   serverGetSettings: "server.getSettings",
   serverUpdateSettings: "server.updateSettings",
   serverDiscoverSourceControl: "server.discoverSourceControl",
@@ -752,6 +754,12 @@ const WsServerGetDatabaseStorageRpc = Rpc.make(WS_METHODS.serverGetDatabaseStora
   payload: Schema.Struct({}),
   success: Schema.NullOr(DatabaseStorageStatus),
   stream: true,
+  error: EnvironmentAuthorizationError,
+});
+
+const WsServerGetDiskSpaceRpc = Rpc.make(WS_METHODS.serverGetDiskSpace, {
+  payload: DiskSpaceInput,
+  success: DiskSpaceReport,
   error: EnvironmentAuthorizationError,
 });
 
@@ -1907,6 +1915,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsServerRunStorageCleanupRpc,
   WsServerGetStorageCleanupReportRpc,
   WsServerGetDatabaseStorageRpc,
+  WsServerGetDiskSpaceRpc,
   WsServerGetSettingsRpc,
   WsServerUpdateSettingsRpc,
   WsServerDiscoverSourceControlRpc,

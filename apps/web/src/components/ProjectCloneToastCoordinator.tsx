@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useParams } from "@tanstack/react-router";
 import { scopeProjectRef } from "@t3tools/client-runtime/environment";
 import {
@@ -119,7 +120,7 @@ function EnvironmentCloneToasts({ environmentId }: { environmentId: EnvironmentI
       if (clone.phase === "running") {
         const options = stackedThreadToast({
           type: "loading",
-          title: `Cloning ${name}`,
+          title: uiText("Cloning {0}", {"0": name}),
           description: projectCloneProgressSummary(clone),
           timeout: 0,
           actionProps: {
@@ -145,7 +146,7 @@ function EnvironmentCloneToasts({ environmentId }: { environmentId: EnvironmentI
       if (clone.phase === "done") {
         const options = stackedThreadToast({
           type: "success",
-          title: `Cloned ${name}`,
+          title: uiText("Cloned {0}", {"0": name}),
           description: clone.destinationPath,
           timeout: 8_000,
           actionProps: {

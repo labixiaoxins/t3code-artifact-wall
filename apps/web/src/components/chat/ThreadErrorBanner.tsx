@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type { OrchestrationV2ProviderFailureClass } from "@t3tools/contracts";
 import {
   CHATGPT_USAGE_LIMIT_CODE,
@@ -116,7 +117,7 @@ export const ThreadErrorBanner = memo(function ThreadErrorBanner({
               <ChatGptUsageButton variant="default" size="sm" />
             ) : null}
             {onDismiss ? (
-              <Button variant="ghost" size="icon-xs" aria-label="Dismiss error" onClick={onDismiss}>
+              <Button variant="ghost" size="icon-xs" aria-label={uiText("Dismiss error")} onClick={onDismiss}>
                 <XIcon />
               </Button>
             ) : null}

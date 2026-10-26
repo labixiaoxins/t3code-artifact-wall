@@ -4,6 +4,7 @@ import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 
 import * as NodeServices from "@effect/platform-node/NodeServices";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import { assert, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -28,12 +29,16 @@ it.effect("drops planner statistics a database already has", () => {
 
     yield* Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
-      const stats = yield* sql<{ readonly count: number }>`
+      const stats = yield* sql<{
+        readonly count: number;
+      }>`
         SELECT COUNT(*) AS count FROM sqlite_stat1
       `;
       assert.equal(stats[0]?.count, 0);
       // A connection still using the old stats scans the table at each step.
-      const plan = yield* sql<{ readonly detail: string }>`
+      const plan = yield* sql<{
+        readonly detail: string;
+      }>`
         EXPLAIN QUERY PLAN
         WITH RECURSIVE retained(node_id) AS (
           SELECT 'node-2'

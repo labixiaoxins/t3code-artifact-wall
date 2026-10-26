@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   STATIC_KEYBINDING_COMMANDS,
   type KeybindingCommand,
@@ -104,21 +105,26 @@ export function whenAstToExpression(node: KeybindingWhenNode | undefined): strin
 }
 
 export function whenNodeRemoveLabel(node: KeybindingWhenNode, depth: number): string {
-  if (depth === 0) return "Clear all conditions";
+  if (depth === 0) return uiText("Clear all conditions");
   if (node.type === "identifier" || (node.type === "not" && node.node.type === "identifier")) {
-    return "Remove condition";
+    return uiText("Remove condition");
   }
-  return "Remove group and its conditions";
+  return uiText("Remove group and its conditions");
 }
 
 function wrapWhenExpression(node: KeybindingWhenNode): string {
   if (node.type === "identifier" || node.type === "not") return whenAstToExpression(node);
   return `(${whenAstToExpression(node)})`;
 }
-
-export function parseWhenExpressionDraft(
-  expression: string,
-): { ok: true; value: KeybindingWhenNode | undefined } | { ok: false; message: string } {
+export function parseWhenExpressionDraft(expression: string):
+  | {
+      ok: true;
+      value: KeybindingWhenNode | undefined;
+    }
+  | {
+      ok: false;
+      message: string;
+    } {
   const trimmed = expression.trim();
   if (trimmed.length === 0) return { ok: true, value: undefined };
 
@@ -181,7 +187,11 @@ function conflictsWithWhen(leftWhen: string, rightWhen: string): boolean {
 
 export function keybindingConflictLabels(
   rows: ReadonlyArray<KeybindingRow>,
-  input: { readonly rowId: string; readonly key: string; readonly when: string },
+  input: {
+    readonly rowId: string;
+    readonly key: string;
+    readonly when: string;
+  },
 ): ReadonlyArray<string> {
   if (input.key.trim().length === 0) return [];
   const conflicts: Array<string> = [];
@@ -206,19 +216,21 @@ export interface KeybindingGroup {
 const KEYBINDING_GROUPS = [
   {
     id: "navigation",
-    title: "Navigation",
+    title: uiText("Navigation"),
     prefixes: ["sidebar", "rightPanel", "commandPalette", "filePicker", "projectSearch", "editor"],
   },
-  { id: "threads", title: "Threads", prefixes: ["thread", "chat", "pullRequest"] },
-  { id: "composer", title: "Composer", prefixes: ["composer", "modelPicker"] },
-  { id: "terminal", title: "Terminal", prefixes: ["terminal"] },
-  { id: "preview", title: "Preview & diff", prefixes: ["preview", "diff"] },
-  { id: "appearance", title: "Appearance", prefixes: ["theme", "appearance", "themeEditor"] },
-  { id: "scripts", title: "Project scripts", prefixes: ["script"] },
+  { id: "threads", title: uiText("Threads"), prefixes: ["thread", "chat", "pullRequest"] },
+  { id: "composer", title: uiText("Composer"), prefixes: ["composer", "modelPicker"] },
+  { id: "terminal", title: uiText("Terminal"), prefixes: ["terminal"] },
+  { id: "preview", title: uiText("Preview & diff"), prefixes: ["preview", "diff"] },
+  { id: "appearance", title: uiText("Appearance"), prefixes: ["theme", "appearance", "themeEditor"] },
+  { id: "scripts", title: uiText("Project scripts"), prefixes: ["script"] },
 ] as const;
-const OTHER_KEYBINDING_GROUP = { id: "other", title: "Other" } as const;
-
-function keybindingGroupFor(command: KeybindingCommand): { id: string; title: string } {
+const OTHER_KEYBINDING_GROUP = { id: "other", title: uiText("Other") } as const;
+function keybindingGroupFor(command: KeybindingCommand): {
+  id: string;
+  title: string;
+} {
   const prefix = String(command).split(".")[0] ?? "";
   return (
     KEYBINDING_GROUPS.find((group) => (group.prefixes as ReadonlyArray<string>).includes(prefix)) ??
@@ -368,16 +380,19 @@ export function commandLabel(command: KeybindingCommand): string {
   if (command === "thread.editQueuedMessage") return "Queue: Edit Last Queued Message";
   if (command === "thread.copyReference") return "Pull Request: Copy Link or Thread ID";
   const usageMetric = METRIC_OPTIONS.find((option) => option.command === command);
-  if (usageMetric) return `Usage: ${usageMetric.label}`;
+  if (usageMetric) return `${"Usage"}: ${usageMetric.label}`;
   const usagePeriod = WINDOW_OPTIONS.find((option) => option.command === command);
-  if (usagePeriod) return `Usage: Period: ${usagePeriod.label}`;
-  if (command === "view.reopenClosed") return "Reopen Closed Tab";
-  if (command === "preview.focusUrl") return "Preview: Focus URL";
+  if (usagePeriod) return `${"Usage"}: ${"Period"}: ${usagePeriod.label}`;
+  if (command === "view.reopenClosed") return uiText("Reopen Closed Tab");
+  if (command === "preview.focusUrl") return uiText("Preview: Focus URL");
   const raw = String(command);
   if (raw.startsWith("script.") && raw.endsWith(".run")) {
-    return `Run Script: ${titleCaseCommandSegment(raw.slice("script.".length, -".run".length))}`;
+    return `${"Run Script"}: ${titleCaseCommandSegment(raw.slice("script.".length, -".run".length))}`;
   }
-  return raw.split(".").map(titleCaseCommandSegment).join(": ");
+  return raw
+    .split(".")
+    .map((part) => titleCaseCommandSegment(part))
+    .join(": ");
 }
 
 function titleCaseCommandSegment(segment: string): string {

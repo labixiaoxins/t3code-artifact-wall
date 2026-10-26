@@ -146,6 +146,11 @@ export interface EnvironmentThreadShell {
   readonly branch: string | null;
   readonly worktreePath: string | null;
   readonly lineage: OrchestrationV2ThreadShell["lineage"];
+  /**
+   * Thread this one continues after a context handoff (local customization). Only
+   * top-level, non-forked threads count; subagents and forks never continue anything.
+   */
+  readonly continuedFromThreadId: ThreadId | null;
   readonly forkedFrom: OrchestrationV2ThreadShell["forkedFrom"];
   readonly activeProviderThreadId: OrchestrationV2ThreadShell["activeProviderThreadId"];
   readonly latestRun: ThreadRunSummary | null;
@@ -153,6 +158,8 @@ export interface EnvironmentThreadShell {
   readonly blockedOnThreadWait?: boolean;
   readonly latestUserMessageAt: string | null;
   readonly latestUserAuthoredMessageAt?: string | null;
+  /** Structured request creation time, for attention ordering independent of run age. */
+  readonly pendingRequestCreatedAt?: string | null;
   readonly hasPendingApprovals: boolean;
   readonly hasPendingUserInput: boolean;
   readonly pendingSubagentRequest?: PendingSubagentRequest | null;
@@ -186,7 +193,10 @@ export interface EnvironmentThreadShell {
    * local visited state they keep.
    */
   readonly lastVisitedAt?: string | null;
-  readonly titleRegeneration?: { readonly requestId: string; readonly startedAt: string } | null;
+  readonly titleRegeneration?: {
+    readonly requestId: string;
+    readonly startedAt: string;
+  } | null;
   readonly deletedAt: string | null;
   readonly source: OrchestrationV2ThreadShell;
 }
@@ -293,6 +303,10 @@ export function presentThreadShell(
     linkedPullRequest: thread.linkedPullRequest ?? null,
     branchPullRequest: thread.branchPullRequest ?? null,
     lineage: thread.lineage,
+    continuedFromThreadId:
+      thread.lineage.relationshipToParent === null && thread.forkedFrom === null
+        ? (thread.continuedFromThreadId ?? null)
+        : null,
     forkedFrom: thread.forkedFrom,
     activeProviderThreadId: thread.activeProviderThreadId,
     latestRun,
@@ -302,6 +316,7 @@ export function presentThreadShell(
     ...(thread.latestUserAuthoredMessageAt === undefined
       ? {}
       : { latestUserAuthoredMessageAt: nullableIso(thread.latestUserAuthoredMessageAt) }),
+    pendingRequestCreatedAt: nullableIso(thread.pendingRuntimeRequest?.createdAt ?? null),
     hasPendingApprovals:
       thread.pendingRuntimeRequest !== null &&
       thread.pendingRuntimeRequest.kind !== "user_input" &&

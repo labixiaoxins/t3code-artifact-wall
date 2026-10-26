@@ -2,8 +2,7 @@ import type { DesktopEnvironmentBootstrap } from "@t3tools/contracts";
 import { useEffect, useState } from "react";
 
 import { readDesktopSecondaryBootstraps } from "./desktopLocal";
-
-const DESKTOP_LOCAL_BOOTSTRAP_POLL_MS = 2_000;
+const DESKTOP_LOCAL_BOOTSTRAP_POLL_MS = 2000;
 
 /**
  * The bridge exposes no change event, so we re-read on an interval; failed
@@ -18,6 +17,8 @@ export function useDesktopLocalBootstraps(): ReadonlyArray<DesktopEnvironmentBoo
   useEffect(() => {
     const read = () => setBootstraps(readDesktopSecondaryBootstraps());
     read();
+    const subscribe = window.desktopBridge?.onLocalEnvironmentBootstrapsChanged;
+    if (subscribe) return subscribe(read);
     const interval = setInterval(read, DESKTOP_LOCAL_BOOTSTRAP_POLL_MS);
     return () => clearInterval(interval);
   }, []);

@@ -134,7 +134,7 @@ const git = (
       cwd,
       args,
       ...(env ? { env } : {}),
-      timeoutMs: 10_000,
+      timeoutMs: 10000,
     });
     return result.stdout.trim();
   });
@@ -142,7 +142,9 @@ const git = (
 const initRepoWithCommit = (
   cwd: string,
 ): Effect.Effect<
-  { readonly initialBranch: string },
+  {
+    readonly initialBranch: string;
+  },
   GitCommandError | PlatformError.PlatformError,
   GitVcsDriver.GitVcsDriver | FileSystem.FileSystem | Path.Path
 > =>
@@ -228,7 +230,7 @@ describe("pullCurrentBranch", () => {
   ) =>
     Effect.gen(function* () {
       const delegate = yield* ChildProcessSpawner.ChildProcessSpawner;
-      const padding = new Uint8Array(1_000_001).fill(0x20);
+      const padding = new Uint8Array(1000001).fill(0x20);
       const paddingSpawner = ChildProcessSpawner.make((command) =>
         Effect.gen(function* () {
           const handle = yield* delegate.spawn(command);
@@ -1569,12 +1571,12 @@ it.layer(layerTest)("GitVcsDriver core integration", (it) => {
             'require("node:fs").appendFileSync(".git/filter-runs", "read\\n"); process.stdin.pipe(process.stdout);',
           );
           yield* git(cwd, ["config", "filter.probe.clean", "node .git/filter.cjs"]);
-          yield* fs.utimes(path.join(cwd, "stable.txt"), 1_699_999_999.5, 1_699_999_999.5);
+          yield* fs.utimes(path.join(cwd, "stable.txt"), 1699999999.5, 1699999999.5);
           yield* git(cwd, ["add", "."]);
           yield* git(cwd, ["commit", "-m", "cache stable file"]);
           if (splitIndex) yield* git(cwd, ["update-index", "--split-index"]);
           const indexPath = path.join(cwd, ".git", "index");
-          yield* fs.utimes(indexPath, 1_700_000_000, 1_700_000_000);
+          yield* fs.utimes(indexPath, 1700000000, 1700000000);
           const originalIndex = yield* fs.readFile(indexPath);
           const originalMtime = (yield* fs.stat(indexPath)).mtime;
           yield* writeTextFile(cwd, ".git/filter-runs", "");
@@ -1591,10 +1593,10 @@ it.layer(layerTest)("GitVcsDriver core integration", (it) => {
     );
 
     it.effect.each([
-      [1_700_000_000, false],
-      [1_700_000_000.9999, false],
-      [1_700_000_000, true],
-      [1_700_000_000.9999, true],
+      [1700000000, false],
+      [1700000000.9999, false],
+      [1700000000, true],
+      [1700000000.9999, true],
     ] as const)(
       "preserves same-size edits with a racy review index (%s, split: %s)",
       ([timestamp, splitIndex]) =>
@@ -1701,6 +1703,12 @@ it.layer(layerTest)("GitVcsDriver core integration", (it) => {
           yield* writeTextFile(cwd, "tab\tand\nnewline.txt", "unusual path\n");
         }
         yield* git(cwd, ["add", "."]);
+        // The preview compares against the working tree, so keep the fixture's actual mode in sync.
+        if ((yield* HostProcess.Platform) !== "win32") {
+          const fs = yield* FileSystem.FileSystem;
+          const path = yield* Path.Path;
+          yield* fs.chmod(path.join(cwd, "mode-only.sh"), 0o755);
+        }
         yield* git(cwd, ["update-index", "--chmod=+x", "mode-only.sh"]);
         yield* git(cwd, ["commit", "-m", "rename and add files"]);
         const preview = yield* driver.getReviewDiffPreview({
@@ -1710,6 +1718,10 @@ it.layer(layerTest)("GitVcsDriver core integration", (it) => {
         const branch = preview.sources.find((source) => source.kind === "branch-range")!;
         for (const path of ["renamed.md", "[literal].txt", " leading.txt", "mode-only.sh"]) {
           const stat = branch.files!.find((file) => file.path === path)!;
+          assert.isDefined(
+            stat,
+            `Missing ${JSON.stringify(path)} in ${JSON.stringify(branch.files)}`,
+          );
           const request = yield* Schema.decodeEffect(ReviewDiffPreviewInput)({
             cwd,
             baseRef: initialBranch,
@@ -2355,7 +2367,7 @@ it.layer(layerTest)("GitVcsDriver core integration", (it) => {
           yield* git(cwd, ["branch", "-M", "main"]);
           yield* git(cwd, ["checkout", "-b", "feature/many-untracked"]);
           yield* Effect.forEach(
-            Array.from({ length: 1_001 }, (_, index) => `bulk/${index}.txt`),
+            Array.from({ length: 1001 }, (_, index) => `bulk/${index}.txt`),
             (file) => writeTextFile(cwd, file, "one\ntwo\n"),
             { concurrency: 32, discard: true },
           );
@@ -4239,7 +4251,7 @@ it.layer(layerTest)("GitVcsDriver core integration", (it) => {
             cwd: remote,
             args: ["--git-dir=.", "show-ref", "--verify", "--quiet", "refs/heads/origin/main"],
             allowNonZeroExit: true,
-            timeoutMs: 10_000,
+            timeoutMs: 10000,
           });
           assert.notEqual(badBranch.exitCode, 0);
         }),
@@ -4396,7 +4408,7 @@ it.layer(layerTest)("GitVcsDriver core integration", (it) => {
           cwd: originRemote,
           args: ["--git-dir=.", "show-ref", "--verify", "--quiet", "refs/heads/main"],
           allowNonZeroExit: true,
-          timeoutMs: 10_000,
+          timeoutMs: 10000,
         });
         assert.notEqual(originMain.exitCode, 0);
       }),

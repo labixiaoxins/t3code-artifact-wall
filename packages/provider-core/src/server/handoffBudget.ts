@@ -10,12 +10,11 @@ import type {
 } from "@t3tools/contracts";
 
 import * as Config from "effect/Config";
-
-export const DEFAULT_HANDOFF_TOKEN_CAP = 16_000;
-const HANDOFF_BYTE_CAP = 64_000;
+export const DEFAULT_HANDOFF_TOKEN_CAP = 16000;
+const HANDOFF_BYTE_CAP = 64000;
 export const handoffTokenCapConfig = Config.Int("T3CODE_CONTEXT_HANDOFF_TOKEN_CAP").pipe(
   Config.withDefault(DEFAULT_HANDOFF_TOKEN_CAP),
-  Config.map((value) => Math.max(1_024, Math.min(HANDOFF_BYTE_CAP, value))),
+  Config.map((value) => Math.max(1024, Math.min(HANDOFF_BYTE_CAP, value))),
 );
 
 // Live reports belong to provider turns. Use only accepted root attempts whose
@@ -98,7 +97,7 @@ export function attachmentTokenAllowance(attachments: ReadonlyArray<ChatAttachme
   // https://developers.openai.com/api/docs/guides/image-cost-calculator
   // https://platform.claude.com/docs/en/build-with-claude/vision
   return attachments.reduce(
-    (sum, attachment) => sum + (attachment.type === "image" ? 8_192 : 4_096),
+    (sum, attachment) => sum + (attachment.type === "image" ? 8192 : 4096),
     0,
   );
 }
@@ -116,7 +115,7 @@ export function handoffBudget(input: {
 }): number {
   const usage = input.providerThread.contextUsage;
   const window = Math.min(
-    input.modelContextWindow ?? usage?.maxTokens ?? 128_000,
+    input.modelContextWindow ?? usage?.maxTokens ?? 128000,
     usage?.maxTokens ?? Infinity,
     usage?.autoCompactThreshold ?? Infinity,
   );
@@ -130,7 +129,7 @@ export function handoffBudget(input: {
       // Cap only imported history. Attachment transport limits belong to adapters;
       // they may send binary/base64 data separately from the history request.
       HANDOFF_BYTE_CAP,
-      window - native - current - Math.max(16_000, Math.ceil(window / 4)),
+      window - native - current - Math.max(16000, Math.ceil(window / 4)),
     ),
   );
 }
@@ -149,6 +148,16 @@ export function historicalMessage(
         `Command: ${item.input}`,
         `Exit code: ${item.exitCode ?? "unknown"}`,
         item.output ?? "",
+      ].join("\n");
+      break;
+    case "dynamic_tool":
+      // Carry the durable receipt, not arbitrary payloads (which can contain
+      // images or secrets). A cancelled call may already have changed its target.
+      text = [
+        `Tool: ${item.toolName ?? "unknown"}`,
+        `Recorded status: ${item.status}`,
+        `Read the original result with t3_thread_read({threadId:${JSON.stringify(item.threadId)},itemId:${JSON.stringify(item.id)}}).`,
+        "A tool status is not business acceptance. Check the target before retrying an external write whose outcome is uncertain.",
       ].join("\n");
       break;
     case "error":
@@ -250,8 +259,26 @@ export function selectHistory(input: {
     remaining -= cost;
   };
   tryAdd(messages.findLastIndex((message) => message.role === "user"));
-  tryAdd(messages.findLastIndex((message) => message.role === "assistant"));
   tryAdd(messages.findIndex((message) => message.role === "user"));
+  for (let index = messages.length - 1; index >= 0; index--)
+    if (messages[index]?.role === "user") tryAdd(index);
+  tryAdd(messages.findLastIndex((message) => message.kind === "assistant_message"));
+  tryAdd(messages.findLastIndex((message) => message.kind === "proposed_plan"));
+  // File locations and unresolved work are cheaper and more useful for resuming
+  // than repeated successful command output. The transcript itself is retained.
+  const seenFiles = new Set<string>();
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index]!;
+    if (message.kind === "file_change" && !seenFiles.has(message.text)) {
+      seenFiles.add(message.text);
+      tryAdd(index);
+    } else if (
+      message.kind === "error" ||
+      ((message.kind === "command_execution" || message.kind === "dynamic_tool") &&
+        message.status !== "completed")
+    )
+      tryAdd(index);
+  }
   for (let index = messages.length - 1; index >= 0; index--) tryAdd(index);
   return {
     messages: messages.filter((_, index) => selected.has(index)),
@@ -268,9 +295,27 @@ export function handoffCoverage(input: {
   readonly coveredRunOrdinals: OrchestrationV2ContextHandoff["coveredRunOrdinals"];
   readonly items: ReadonlyArray<OrchestrationV2TurnItem>;
 }): string {
+  // This is an index into durable facts, not an AI-generated summary. Keep
+  // bounded anchors even when the full user request is too large to inject.
+  const anchors = [
+    ["First user request", input.items.find((item) => item.type === "user_message")],
+    ["Latest user request", input.items.findLast((item) => item.type === "user_message")],
+    ["Latest answer", input.items.findLast((item) => item.type === "assistant_message")],
+    [
+      "Latest plan (not authorization)",
+      input.items.findLast((item) => item.type === "proposed_plan"),
+    ],
+    [
+      "Latest file change (not acceptance)",
+      input.items.findLast((item) => item.type === "file_change"),
+    ],
+  ] as const;
   return [
     `Provider context handoff. Thread: ${input.threadId}. Covered app runs: ${input.coveredRunOrdinals.from}-${input.coveredRunOrdinals.to}.`,
     `Source item range: ${input.items.at(0)?.id ?? "none"} through ${input.items.at(-1)?.id ?? "none"}.`,
     `Recover omitted history using t3_thread_read({threadId:"${input.threadId}",view:"activity",limit:20,maxCharsPerItem:4000}); paginate with afterPosition=nextPosition. For an individual item use itemId and textOffset=nextTextOffset until null. Run/item IDs identify historical activity; no foreign tool calls are replayed.`,
+    "Task continuity: preserve the user's existing requirements and authorization within their original scope; later user corrections take precedence. Assistant plans do not grant new permission. Read omitted user requirements before continuing dependent work; do not ask the user to repeat accessible history.",
+    ...anchors.flatMap(([label, item]) => (item ? [`${label}: item=${item.id}`] : [])),
+    "Before resuming, check the current workspace and latest file contents. Completion claims require evidence; interrupted or cancelled tools can have external side effects, so inspect the target/receipt before a retry.",
   ].join("\n");
 }

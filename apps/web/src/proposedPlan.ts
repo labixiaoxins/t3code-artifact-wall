@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { stripDisplayedPlanMarkdown, proposedPlanTitle } from "@t3tools/shared/proposedPlanText";
 
 export function buildCollapsedProposedPlanPreviewMarkdown(
@@ -78,9 +79,9 @@ export function resolvePlanFollowUpSubmission(input: { draftText: string; planMa
 export function buildPlanImplementationThreadTitle(planMarkdown: string): string {
   const title = proposedPlanTitle(planMarkdown);
   if (!title) {
-    return "Implement plan";
+    return uiText("Implement plan");
   }
-  return `Implement ${title}`;
+  return uiText("Implement {0}", {"0": title});
 }
 
 export function buildProposedPlanMarkdownFilename(planMarkdown: string): string {

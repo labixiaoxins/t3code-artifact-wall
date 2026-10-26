@@ -9,6 +9,11 @@ import {
   getSidebarProjectSettingsKey,
 } from "./sidebarProjectGrouping";
 import type { Project } from "./types";
+// This suite covers repository grouping. The customized collection view has its own suite.
+const buildSidebarProjectSnapshots = (input: Parameters<typeof buildSnapshots>[0]) =>
+  buildSnapshots({ ...input, workspaceCollections: false });
+const buildPhysicalToLogicalProjectKeyMap = (input: Parameters<typeof buildPhysicalMapping>[0]) =>
+  buildPhysicalMapping({ ...input, workspaceCollections: false });
 
 const primaryEnvironmentId = EnvironmentId.make("env-primary");
 const remoteEnvironmentId = EnvironmentId.make("env-remote");
@@ -142,6 +147,7 @@ describe("environment grouping", () => {
     });
 
     const snapshots = buildSidebarProjectSnapshots({
+      workspaceCollections: false,
       projects: [primary, duplicate, remote],
       settings: defaultGroupingSettings,
       primaryEnvironmentId,
@@ -175,6 +181,7 @@ describe("environment grouping", () => {
     });
 
     const snapshots = buildSidebarProjectSnapshots({
+      workspaceCollections: false,
       projects: [staleWithoutRepositoryIdentity, canonical, remote],
       settings: defaultGroupingSettings,
       primaryEnvironmentId,
@@ -242,6 +249,7 @@ describe("environment grouping", () => {
       workspaceRoot: "/tmp/fallback",
     });
     const groups = buildSidebarProjectSnapshots({
+      workspaceCollections: false,
       projects: [
         currentPrimary,
         currentRemote,

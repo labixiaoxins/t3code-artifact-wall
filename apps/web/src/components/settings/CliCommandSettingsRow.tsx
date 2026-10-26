@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type { DesktopCliCommandState } from "@t3tools/contracts";
 import { useEffect, useState } from "react";
 
@@ -63,7 +64,7 @@ export function CliCommandSettingsRow() {
           disabled={pending}
           onClick={() => change(installed ? "uninstall" : "install")}
         >
-          {installed ? "Remove" : "Install"}
+          {installed ? uiText("Remove") : uiText("Install")}
         </Button>
       }
     />

@@ -59,7 +59,10 @@ describe("deleteSelectedThreadEntries", () => {
     const pendingDelete = new Promise<typeof success>((resolve) => {
       resolveDelete = resolve;
     });
-    const worktreeChecks: { threadKey: string; deletedThreadKeys: string[] }[] = [];
+    const worktreeChecks: {
+      threadKey: string;
+      deletedThreadKeys: string[];
+    }[] = [];
     const deletion = deleteSelectedThreadEntries({
       entries,
       delete: async ({ threadKey }, deletedThreadKeys) => {
@@ -502,7 +505,7 @@ describe("resolveThreadStatusPill", () => {
           },
         },
       }),
-    ).toMatchObject({ label: "Completed", pulse: false });
+    ).toMatchObject({ label: "有新结果", pulse: false });
   });
 
   it("shows failed, not completed, when the unseen run failed", () => {
@@ -953,7 +956,7 @@ describe("navigation after parking a thread", () => {
 
 describe("unseen completion with background work", () => {
   it.each([
-    { kind: "command", status: "ready", topStatus: "done", receded: false, pill: "Completed" },
+    { kind: "command", status: "ready", topStatus: "done", receded: false, pill: "有新结果" },
     { kind: "monitor", status: "waiting", topStatus: "waiting", receded: true, pill: "Waiting" },
   ] as const)("presents a completed thread with a $kind roster", (expected) => {
     const thread = presentThreadShell(localEnvironmentId, {
@@ -1035,7 +1038,11 @@ describe("Working shelf (beta)", () => {
   describe("sortInboxThreadsByReturn", () => {
     const thread = (
       id: string,
-      input: { createdAt: string; completedAt?: string | null; unsettledAt?: string },
+      input: {
+        createdAt: string;
+        completedAt?: string | null;
+        unsettledAt?: string;
+      },
     ) => ({
       id: ThreadId.make(id),
       environmentId: localEnvironmentId,

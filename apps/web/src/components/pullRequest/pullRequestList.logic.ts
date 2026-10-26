@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import * as Schema from "effect/Schema";
 
 import {
@@ -66,9 +67,9 @@ const pullRequestViewerKey = (entry: ScopedEntry): string =>
   `${entry.environmentId ?? ""} ${entry.host}`;
 
 const GROUP_LABELS: Record<PullRequestGroupKey, string> = {
-  reviewRequested: "Review requested",
-  authored: "Authored",
-  others: "Others",
+  reviewRequested: uiText("Review requested"),
+  authored: uiText("Authored"),
+  others: uiText("Others"),
 };
 
 function normalize(value: string | null | undefined): string | null {

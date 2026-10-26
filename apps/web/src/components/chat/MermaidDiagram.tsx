@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import DOMPurify from "dompurify";
 import type { DiagramType, MathResolver } from "pele/lazy";
 import { use, useLayoutEffect, useRef, useState } from "react";

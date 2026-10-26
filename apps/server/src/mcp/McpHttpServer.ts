@@ -48,6 +48,9 @@ import { AttachmentToolkit } from "./toolkits/attachment/tools.ts";
 import * as AttachmentHandlers from "./toolkits/attachment/handlers.ts";
 import { ThreadToolkit } from "./toolkits/thread/tools.ts";
 import * as ThreadHandlers from "./toolkits/thread/handlers.ts";
+import { ArtifactToolkit } from "./toolkits/artifact/tools.ts";
+import * as ArtifactHandlers from "./toolkits/artifact/handlers.ts";
+import * as ArtifactWall from "../artifacts/ArtifactWall.ts";
 import * as ThreadMetadataMcpService from "./ThreadMetadataMcpService.ts";
 import * as McpSessionRegistry from "./McpSessionRegistry.ts";
 import * as PreviewAutomationBroker from "./PreviewAutomationBroker.ts";
@@ -196,12 +199,12 @@ const layerMcpAuthMiddleware = HttpRouter.middleware<{
  * `structuredContent` in place of the text blocks when a result has both, so
  * both carry the same bounded snapshot.
  */
-export const MAX_SNAPSHOT_TEXT_BYTES = 20_000;
-const MAX_SNAPSHOT_VISIBLE_TEXT_CHARS = 8_000;
+export const MAX_SNAPSHOT_TEXT_BYTES = 20000;
+const MAX_SNAPSHOT_VISIBLE_TEXT_CHARS = 8000;
 const MAX_SNAPSHOT_ELEMENT_NAME_CHARS = 200;
 const MAX_SNAPSHOT_LOG_ENTRIES = 40;
 const MAX_SNAPSHOT_LOG_TEXT_CHARS = 500;
-const MAX_SNAPSHOT_IDENTIFIER_CHARS = 2_048;
+const MAX_SNAPSHOT_IDENTIFIER_CHARS = 2048;
 
 const encodeJsonText = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
 const utf8Length = (text: string) => Buffer.byteLength(text, "utf8");
@@ -301,7 +304,7 @@ const boundSnapshotMetadata = (metadata: SnapshotMetadata) => {
     actionTimeline: 0,
   };
   let visibleTextChars = Math.min(metadata.visibleText.length, MAX_SNAPSHOT_VISIBLE_TEXT_CHARS);
-  let ariaTreeChars = Math.min(ariaTree?.length ?? 0, 20_000);
+  let ariaTreeChars = Math.min(ariaTree?.length ?? 0, 20000);
   const value = () => ({
     ...bounded,
     ...(ariaTree === undefined ? {} : { accessibilityTree: cutText(ariaTree, ariaTreeChars) }),
@@ -640,11 +643,25 @@ const registerImageTool = Effect.fn("McpHttpServer.registerImageTool")(function*
   R,
 >(
   tool: T,
-  handle: (payload: Tool.Parameters<T>) => Effect.Effect<{ readonly encodedResult: unknown }, E, R>,
+  handle: (payload: Tool.Parameters<T>) => Effect.Effect<
+    {
+      readonly encodedResult: unknown;
+    },
+    E,
+    R
+  >,
   provide: (
-    effect: Effect.Effect<{ readonly encodedResult: unknown }, E, R>,
+    effect: Effect.Effect<
+      {
+        readonly encodedResult: unknown;
+      },
+      E,
+      R
+    >,
   ) => Effect.Effect<
-    { readonly encodedResult: unknown },
+    {
+      readonly encodedResult: unknown;
+    },
     E,
     McpInvocationContext.McpInvocationContext
   >,
@@ -682,8 +699,13 @@ const registerImageTool = Effect.fn("McpHttpServer.registerImageTool")(function*
             onSuccess: ({ encodedResult }) => {
               const { screenshot, ...rest } = encodedResult as ImageToolResult;
               const includeImage =
-                (payload as { readonly includeImage?: boolean } | undefined)?.includeImage !==
-                false;
+                (
+                  payload as
+                    | {
+                        readonly includeImage?: boolean;
+                      }
+                    | undefined
+                )?.includeImage !== false;
               const metadata = {
                 ...rest,
                 screenshot: {
@@ -811,7 +833,14 @@ const handoffTargetIds = (
 ): ReadonlyArray<string> => {
   if (!INPUT_TARGET_TOOLS.has(tool)) return resultThreadIds(result?.structuredContent);
   if (result === undefined || toolOutcome(result).outcome !== "ok") return [];
-  const threadId = (args as { readonly threadId?: unknown } | null | undefined)?.threadId;
+  const threadId = (
+    args as
+      | {
+          readonly threadId?: unknown;
+        }
+      | null
+      | undefined
+  )?.threadId;
   return typeof threadId === "string" ? [threadId] : [];
 };
 
@@ -1014,6 +1043,7 @@ export const layerOrchestratorToolkit = toolkitRegistration(
 ).pipe(Layer.provide(OrchestratorMcpService.layer), Layer.provide(ThreadMetadataMcpService.layer));
 
 export const layerThreadToolkit = toolkitRegistration(ThreadToolkit, ThreadHandlers.layer);
+export const layerArtifactToolkit = toolkitRegistration(ArtifactToolkit, ArtifactHandlers.layer);
 
 const layerWorktreeToolkitRegistration = toolkitRegistration(
   WorktreeToolkit,
@@ -1069,6 +1099,7 @@ export const layer = Layer.mergeAll(
   layerPreviewToolkit,
   layerOrchestratorToolkit,
   layerThreadToolkit,
+  layerArtifactToolkit.pipe(Layer.provide(ArtifactWall.layer)),
   layerAttachmentToolkit,
   layerProjectRegistration,
   layerEnvironmentToolkit,

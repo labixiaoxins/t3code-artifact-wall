@@ -271,7 +271,7 @@ export function useQueuedRunEdit(input: {
       toastManager.add(
         stackedThreadToast({
           type: recovery === "kept" ? "info" : "warning",
-          title: "Queued message is no longer queued",
+          title: uiText("Queued message is no longer queued"),
           description:
             recovery === "kept"
               ? "Your unsaved edit was kept in the composer."

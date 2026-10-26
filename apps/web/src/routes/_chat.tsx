@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { AuthPreviewOperateScope } from "@t3tools/contracts";
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 import { useAtomValue } from "@effect/atom-react";
@@ -135,8 +136,8 @@ function ChatRouteGlobalShortcuts() {
           toastManager.add(
             stackedThreadToast({
               type: "info",
-              title: "Preview is desktop-only",
-              description: "Open T3 Code in the desktop app to use the in-app preview.",
+              title: uiText("Preview is desktop-only"),
+              description: uiText("Open T3 Code in the desktop app to use the in-app preview."),
             }),
           );
           return;

@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { MessageCircle, Trash2 } from "lucide-react";
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
@@ -70,7 +71,7 @@ export function DiffCommentAnnotation({
             <Button
               variant="ghost-muted"
               size="icon-xs"
-              aria-label="Delete comment"
+              aria-label={uiText("Delete comment")}
               onClick={onDelete}
             >
               <Trash2 className="size-3" />
@@ -96,7 +97,7 @@ export function DiffCommentAnnotation({
         size="sm"
         value={displayedText}
         placeholder={placeholder}
-        aria-label={`Comment on lines ${rangeLabel}`}
+        aria-label={uiText("Comment on lines {0}", {"0": rangeLabel})}
         onChange={(event) => (onTextChange ?? setLocalDraftText)(event.target.value)}
         onFocus={(event) => {
           const end = event.currentTarget.value.length;
@@ -114,10 +115,9 @@ export function DiffCommentAnnotation({
         }}
       />
       <div className="mt-1.5 flex items-center gap-1">
-        <span className="mr-auto text-3xs text-muted-foreground/70">⌘/Ctrl Enter to send</span>
+        <span className="mr-auto text-3xs text-muted-foreground/70">{uiText("⌘/Ctrl Enter to send")}</span>
         <Button variant="ghost-muted" size="xs" onClick={onCancel}>
-          Cancel
-        </Button>
+          {uiText("Cancel")}</Button>
         {secondaryAction ? (
           <Button
             size="xs"

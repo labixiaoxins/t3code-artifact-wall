@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
 import * as Cause from "effect/Cause";
 import * as Option from "effect/Option";
@@ -123,16 +124,14 @@ export function EasDeviceHostsSettings(props: { environmentId: EnvironmentId | n
                     disabled={disabled}
                     onClick={() => setEditing({ host, isNew: false })}
                   >
-                    Edit
-                  </Button>
+                    {uiText("Edit")}</Button>
                   <Button
                     size="sm"
                     variant="ghost-destructive"
                     disabled={disabled}
                     onClick={() => void save(host, true)}
                   >
-                    Remove
-                  </Button>
+                    {uiText("Remove")}</Button>
                 </div>
               </li>
             ))}
@@ -277,7 +276,7 @@ function EasDeviceHostEditor(props: {
           </DialogHeader>
           <DialogPanel>
             <label className="block space-y-1.5 text-sm">
-              <span>Name</span>
+              <span>{uiText("Name")}</span>
               <Input
                 autoFocus
                 required
@@ -300,7 +299,7 @@ function EasDeviceHostEditor(props: {
                   configured={token.kind === "saved"}
                   value={token.kind === "new" ? token.value : ""}
                   disabled={props.busy}
-                  placeholder="Optional"
+                  placeholder={uiText("Optional")}
                   onChange={(event) => {
                     const value = event.target.value;
                     // Emptying the field is not clearing the saved token; the
@@ -409,11 +408,9 @@ function EasDeviceHostEditor(props: {
           </DialogPanel>
           <DialogFooter>
             <Button type="button" variant="ghost" disabled={props.busy} onClick={props.onClose}>
-              Cancel
-            </Button>
+              {uiText("Cancel")}</Button>
             <Button type="submit" disabled={props.busy || !valid}>
-              {props.busy ? <Spinner size="xs" /> : null} Save host
-            </Button>
+              {props.busy ? <Spinner size="xs" /> : null} {uiText("Save host") + " "}</Button>
           </DialogFooter>
         </form>
       </DialogPopup>

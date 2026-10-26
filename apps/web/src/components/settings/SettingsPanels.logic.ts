@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type {
   BackgroundActivityProfile,
   BackgroundActivitySettings,

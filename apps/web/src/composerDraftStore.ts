@@ -48,6 +48,7 @@ import type {
   EnvironmentShellState,
   EnvironmentThreadShell,
 } from "@t3tools/client-runtime/state/shell";
+import { useSyncExternalStore } from "react";
 import { getLocalStorageItem } from "./hooks/useLocalStorage";
 import { readThreadPreviewState } from "./previewStateStore";
 import { resolveAppModelSelection, resolveAppModelSelectionForInstance } from "./modelSelection";
@@ -82,7 +83,7 @@ import {
 import { create } from "zustand";
 import { persist, type PersistStorage, type StorageValue } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
-import { createDeferredStorage, createMemoryStorage } from "./lib/storage";
+import { createComposerDraftPersistence } from "./lib/composerDraftPersistence";
 import { getDefaultServerModel } from "./providerModels";
 import {
   replaceComposerContextReferences,
@@ -111,21 +112,52 @@ export type DraftId = typeof DraftId.Type;
 const COMPOSER_PERSIST_DEBOUNCE_MS = 300;
 
 type ComposerPersistState =
-  | { capturedState: ComposerDraftStoreState }
+  | {
+      capturedState: ComposerDraftStoreState;
+    }
   | PersistedComposerDraftStoreState;
-
-const composerDebouncedStorage = createDeferredStorage<StorageValue<ComposerPersistState>>(
-  typeof localStorage !== "undefined" ? localStorage : createMemoryStorage(),
-  (value) =>
-    JSON.stringify({
-      state:
-        "capturedState" in value.state
-          ? partializeComposerDraftStoreState(value.state.capturedState)
-          : value.state,
-      version: value.version,
-    }),
-  COMPOSER_PERSIST_DEBOUNCE_MS,
+const serverDraftMemory = new Map<string, string>();
+const serverDraftStorage = {
+  getItem: (name: string) => serverDraftMemory.get(name) ?? null,
+  setItem: (name: string, value: string) => {
+    serverDraftMemory.set(name, value);
+  },
+  removeItem: (name: string) => {
+    serverDraftMemory.delete(name);
+  },
+};
+const composerDebouncedStorage = createComposerDraftPersistence<StorageValue<ComposerPersistState>>(
+  {
+    storage: () => (typeof window === "undefined" ? serverDraftStorage : window.localStorage),
+    serialize: (value) =>
+      JSON.stringify({
+        state:
+          "capturedState" in value.state
+            ? partializeComposerDraftStoreState(value.state.capturedState)
+            : value.state,
+        version: value.version,
+      }),
+    debounceMs: COMPOSER_PERSIST_DEBOUNCE_MS,
+  },
 );
+export function useComposerDraftPersistenceStatus() {
+  return useSyncExternalStore(
+    composerDebouncedStorage.subscribe,
+    composerDebouncedStorage.getStatus,
+    composerDebouncedStorage.getStatus,
+  );
+}
+export const retryComposerDraftPersistence = composerDebouncedStorage.retry;
+export function exportComposerDraftRecovery() {
+  return JSON.stringify({
+    format: "t3-composer-draft-recovery-v1",
+    ...composerDebouncedStorage.recovery(),
+    currentRecord: {
+      state: partializeComposerDraftStoreState(composerDraftStore.getState()),
+      version: COMPOSER_DRAFT_STORAGE_VERSION,
+    },
+  });
+}
 
 const composerPersistStorage: PersistStorage<ComposerPersistState> = {
   getItem: (name) => {
@@ -142,6 +174,17 @@ const composerPersistStorage: PersistStorage<ComposerPersistState> = {
 if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
   window.addEventListener("beforeunload", () => {
     composerDebouncedStorage.flush();
+  });
+  window.addEventListener("pagehide", () => composerDebouncedStorage.flush());
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") composerDebouncedStorage.flush();
+    });
+  }
+  window.addEventListener("t3:prepare-shutdown", (event) => {
+    composerDebouncedStorage.flush();
+    if (["unavailable", "corrupt"].includes(composerDebouncedStorage.getStatus()))
+      event.preventDefault();
   });
 }
 
@@ -542,14 +585,19 @@ interface ComposerDraftStoreState {
   addImages: (
     threadRef: ComposerThreadTarget,
     images: ComposerImageAttachment[],
-    options?: { allowDuplicates?: boolean },
+    options?: {
+      allowDuplicates?: boolean;
+    },
   ) => string[];
   removeImage: (threadRef: ComposerThreadTarget, imageId: string) => void;
   /** Returns the ids of files appended; a re-pick that replaces a marker is not listed. */
   addFiles: (
     threadRef: ComposerThreadTarget,
     files: ComposerFileAttachment[],
-    options?: { allowDuplicates?: boolean; appendReference?: boolean },
+    options?: {
+      allowDuplicates?: boolean;
+      appendReference?: boolean;
+    },
   ) => string[];
   removeFile: (threadRef: ComposerThreadTarget, fileId: string) => void;
   setFileUpload: (

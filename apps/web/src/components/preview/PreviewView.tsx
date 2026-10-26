@@ -1,3 +1,8 @@
+"use client";
+import { uiText } from "~/i18n";
+
+import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
+
 import { scopeThreadRef, scopedThreadKey } from "@t3tools/client-runtime/environment";
 import { settlePromise } from "@t3tools/client-runtime/state/runtime";
 import { previewStreamDownloadUrl } from "@t3tools/client-runtime/preview/server-browser-stream";
@@ -111,7 +116,10 @@ interface Props {
 }
 
 function previewProfileName(
-  profiles: ReadonlyArray<{ readonly id: string; readonly name: string }>,
+  profiles: ReadonlyArray<{
+    readonly id: string;
+    readonly name: string;
+  }>,
   profileId: string,
 ): string {
   return profiles.find((profile) => profile.id === profileId)?.name ?? "Removed profile";
@@ -123,7 +131,10 @@ function ServerTabFileNotShown(props: {
   readonly threadRef: ScopedThreadRef;
   readonly tabId: string;
   readonly url: string;
-  readonly download: { readonly id: string; readonly fileName: string };
+  readonly download: {
+    readonly id: string;
+    readonly fileName: string;
+  };
 }) {
   const access = usePreviewStreamAccess(props.threadRef.environmentId);
   return (
@@ -156,7 +167,9 @@ export function PreviewView({
     useEnvironmentScope(threadRef.environmentId, AuthOrchestrationOperateScope) &&
     Boolean(onSendAnnotation);
   const activeRecordingTabIds = useActiveBrowserRecordingTabIds();
-  const pickActiveRef = useRef<{ cancelled: boolean } | null>(null);
+  const pickActiveRef = useRef<{
+    cancelled: boolean;
+  } | null>(null);
   const isMountedRef = useRef(true);
   const previewState = useThreadPreviewState(threadRef);
   const recentHistoryEntries = useThreadRecentHistory(
@@ -275,7 +288,7 @@ export function PreviewView({
       if (error instanceof BrowserSettingsReadError) {
         toastManager.add({
           type: "error",
-          title: "Unable to open browser",
+          title: uiText("Unable to open browser"),
           description: error.message,
         });
       }
@@ -319,7 +332,7 @@ export function PreviewView({
       const error = squashAtomCommandFailure(result);
       toastManager.add({
         type: "error",
-        title: "Unable to change the browser tab",
+        title: uiText("Unable to change the browser tab"),
         description: error instanceof Error ? error.message : "An error occurred.",
       });
       return;
@@ -371,7 +384,7 @@ export function PreviewView({
       const error = squashAtomCommandFailure(result);
       toastManager.add({
         type: "error",
-        title: "Unable to resize browser viewport",
+        title: uiText("Unable to resize browser viewport"),
         description: error instanceof Error ? error.message : "An error occurred.",
       });
       throw error;
@@ -449,7 +462,7 @@ export function PreviewView({
       const error = squashAtomCommandFailure(result);
       toastManager.add({
         type: "error",
-        title: "Unable to move the browser tab",
+        title: uiText("Unable to move the browser tab"),
         description: error instanceof Error ? error.message : "An error occurred.",
       });
       return;
@@ -518,7 +531,7 @@ export function PreviewView({
     void operation(runtimeTabId).catch((error) => {
       toastManager.add({
         type: "error",
-        title: "Unable to update popped-out preview",
+        title: uiText("Unable to update popped-out preview"),
         description: error instanceof Error ? error.message : "An error occurred.",
       });
     });
@@ -535,34 +548,21 @@ export function PreviewView({
           let toastId: ReturnType<typeof toastManager.add>;
 
           const copyPath = () => {
-            if (!navigator.clipboard?.writeText) {
-              toastManager.update(
-                toastId,
-                stackedThreadToast({
-                  type: "error",
-                  title: "Unable to copy recording path",
-                  description: "Clipboard API unavailable.",
-                  actionProps: revealAction,
-                }),
-              );
-              return;
-            }
-
-            void navigator.clipboard.writeText(artifact.path).then(
+            void writeTextToClipboard(artifact.path, "artifact path").then(
               () => {
                 pathCopied = true;
                 updateRecordingToast();
                 window.setTimeout(() => {
                   pathCopied = false;
                   updateRecordingToast();
-                }, 2_000);
+                }, 2000);
               },
               (error) => {
                 toastManager.update(
                   toastId,
                   stackedThreadToast({
                     type: "error",
-                    title: "Unable to copy recording path",
+                    title: uiText("Unable to copy recording path"),
                     description: error instanceof Error ? error.message : "An error occurred.",
                     actionProps: revealAction,
                   }),
@@ -580,7 +580,7 @@ export function PreviewView({
               toastId,
               stackedThreadToast({
                 type: "success",
-                title: "Recording saved",
+                title: uiText("Recording saved"),
                 actionProps: revealAction,
                 data: {
                   secondaryActionProps: {
@@ -597,7 +597,7 @@ export function PreviewView({
           toastId = toastManager.add(
             stackedThreadToast({
               type: "success",
-              title: "Recording saved",
+              title: uiText("Recording saved"),
               actionProps: revealAction,
               data: {
                 secondaryActionProps: {
@@ -612,7 +612,7 @@ export function PreviewView({
         (error) => {
           toastManager.add({
             type: "error",
-            title: "Unable to stop recording",
+            title: uiText("Unable to stop recording"),
             description: error instanceof Error ? error.message : "An error occurred.",
           });
         },
@@ -625,7 +625,7 @@ export function PreviewView({
         if (isBrowserRecordingStartCancelledError(error)) return;
         toastManager.add({
           type: "error",
-          title: "Unable to start recording",
+          title: uiText("Unable to start recording"),
           description,
         });
       });
@@ -678,23 +678,14 @@ export function PreviewView({
         };
 
         const copyPath = () => {
-          if (!navigator.clipboard?.writeText) {
-            updateScreenshotToast(
-              "error",
-              "Unable to copy screenshot path",
-              "Clipboard API unavailable.",
-            );
-            return;
-          }
-
-          void navigator.clipboard.writeText(artifact.path).then(
+          void writeTextToClipboard(artifact.path, "artifact path").then(
             () => {
               pathCopied = true;
               updateScreenshotToast();
               window.setTimeout(() => {
                 pathCopied = false;
                 updateScreenshotToast();
-              }, 2_000);
+              }, 2000);
             },
             (error) => {
               updateScreenshotToast(
@@ -714,7 +705,7 @@ export function PreviewView({
               window.setTimeout(() => {
                 imageCopied = false;
                 updateScreenshotToast();
-              }, 2_000);
+              }, 2000);
             },
             (error) => {
               updateScreenshotToast(
@@ -729,7 +720,7 @@ export function PreviewView({
         toastId = toastManager.add(
           stackedThreadToast({
             type: "success",
-            title: "Screenshot saved",
+            title: uiText("Screenshot saved"),
             actionProps: {
               children: "Copy image",
               onClick: copyImage,
@@ -755,7 +746,7 @@ export function PreviewView({
       (error) => {
         toastManager.add({
           type: "error",
-          title: "Unable to capture screenshot",
+          title: uiText("Unable to capture screenshot"),
           description: error instanceof Error ? error.message : "An error occurred.",
         });
       },
@@ -828,8 +819,8 @@ export function PreviewView({
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Could not capture the picked element",
-            description: "The annotation was kept without the screenshot.",
+            title: uiText("Could not capture the picked element"),
+            description: uiText("The annotation was kept without the screenshot."),
           }),
         );
       }
@@ -909,7 +900,7 @@ export function PreviewView({
 
   return (
     <div
-      className="flex min-h-0 flex-1 flex-col bg-background"
+      className={"flex min-h-0 flex-1 flex-col bg-background"}
       data-thread-key={scopedThreadKey(threadRef)}
     >
       <PreviewChromeRow
@@ -944,10 +935,12 @@ export function PreviewView({
         leadingActions={
           activeProfileId !== browserDefaults.profileId ? (
             <Tooltip>
-              <TooltipTrigger render={<Badge variant="outline" className="max-w-28 shrink-0" />}>
-                <span className="truncate">{activeProfileName}</span>
+              <TooltipTrigger
+                render={<Badge variant={"outline"} className={"max-w-28 shrink-0"} />}
+              >
+                <span className={"truncate"}>{activeProfileName}</span>
               </TooltipTrigger>
-              <TooltipPopup side="top">{activeProfileName}</TooltipPopup>
+              <TooltipPopup side={"top"}>{activeProfileName}</TooltipPopup>
             </Tooltip>
           ) : null
         }
@@ -978,12 +971,11 @@ export function PreviewView({
           ) : null
         }
       />
-
-      <div ref={serverBodyRef} className="relative min-h-0 flex-1 overflow-hidden">
+      <div ref={serverBodyRef} className={"relative min-h-0 flex-1 overflow-hidden"}>
         {runtimeTabId && snapshot && isServerTab ? (
           <>
             {viewport._tag !== "fill" && !showEmptyState && !isUnreachable ? (
-              <div className="absolute inset-x-0 top-0 z-10">
+              <div className={"absolute inset-x-0 top-0 z-10"}>
                 <BrowserDeviceToolbar
                   setting={viewport}
                   width={serverToolbarWidth}
@@ -994,7 +986,7 @@ export function PreviewView({
               </div>
             ) : null}
             <div
-              className="absolute inset-x-0 bottom-0"
+              className={"absolute inset-x-0 bottom-0"}
               style={{ top: viewport._tag !== "fill" ? BROWSER_DEVICE_TOOLBAR_HEIGHT : 0 }}
             >
               <ServerBrowserSurface
@@ -1028,12 +1020,12 @@ export function PreviewView({
               key={runtimeTabId}
               tabId={runtimeTabId}
               visible={visible && !isUnreachable}
-              className="absolute inset-0 h-full w-full"
+              className={"absolute inset-0 h-full w-full"}
             />
           ) : (
-            <div className="flex h-full items-center justify-center p-8 text-center">
-              <p className="max-w-sm text-sm text-muted-foreground">
-                This tab is open in the T3 Code desktop app.
+            <div className={"flex h-full items-center justify-center p-8 text-center"}>
+              <p className={"max-w-sm text-sm text-muted-foreground"}>
+                {uiText("This tab is open in the T3 Code desktop app.")}
               </p>
             </div>
           )
@@ -1063,7 +1055,7 @@ export function PreviewView({
           />
         ) : null}
         {navStatus._tag === "LoadFailed" && navStatus.download ? (
-          <div className="absolute inset-0 z-10 bg-background">
+          <div className={"absolute inset-0 z-10 bg-background"}>
             <ServerTabFileNotShown
               threadRef={threadRef}
               tabId={snapshot?.tabId ?? ""}
@@ -1072,7 +1064,7 @@ export function PreviewView({
             />
           </div>
         ) : navStatus._tag === "LoadFailed" ? (
-          <div className="absolute inset-0 z-10 bg-background">
+          <div className={"absolute inset-0 z-10 bg-background"}>
             <PreviewUnreachable
               url={navStatus.url}
               code={navStatus.code}

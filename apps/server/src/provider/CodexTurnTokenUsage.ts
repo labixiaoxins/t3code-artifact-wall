@@ -145,6 +145,19 @@ export function completeCodexTurnTokenUsage(
   const usage = state.byTurnId.get(turnId);
   state.byTurnId.delete(turnId);
   if (state.activeTurnId === turnId) state.activeTurnId = undefined;
+  return codexTurnUsageSnapshot(usage, completed);
+}
+/** Read-only partial report; does not finalize the turn or reset its accumulator. */
+export function snapshotCodexTurnTokenUsage(
+  state: CodexTurnTokenUsageState,
+  turnId: string,
+): TurnTokenUsage {
+  return codexTurnUsageSnapshot(state.byTurnId.get(turnId), false);
+}
+function codexTurnUsageSnapshot(
+  usage: CodexTurnTokenUsageAccumulator | undefined,
+  completed: boolean,
+): TurnTokenUsage {
   if (!usage) {
     return {
       usageStatus: "unavailable",

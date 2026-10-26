@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { threadPullRequestSearchTerms } from "@t3tools/shared/threadPullRequests";
 import type { CommandPaletteLinkedThreads } from "../commandPaletteBus";
 import {
@@ -489,6 +490,8 @@ export function filterCommandPaletteGroups(input: {
   query: string;
   isInSubmenu: boolean;
   projectSearchItems: ReadonlyArray<CommandPaletteActionItem>;
+  /** Already filtered and ranked; shown as the first group, ahead of actions. */
+  topProjectItems?: ReadonlyArray<CommandPaletteActionItem>;
   settingsSearchItems?: ReadonlyArray<CommandPaletteActionItem>;
   threadSearchItems: ReadonlyArray<CommandPaletteActionItem>;
 }): CommandPaletteGroup[] {
@@ -511,32 +514,44 @@ export function filterCommandPaletteGroups(input: {
     baseGroups = baseGroups.filter((group) => group.value !== "recent-threads");
   }
 
-  const searchableGroups = [...baseGroups];
+  const searchableGroups: CommandPaletteGroup[] = [];
+  const showTopProjects =
+    !input.isInSubmenu && !isActionsFilter && input.topProjectItems !== undefined;
+  if (showTopProjects && input.topProjectItems!.length > 0) {
+    searchableGroups.push({
+      value: "projects-top",
+      label: uiText("Projects"),
+      items: input.topProjectItems!,
+    });
+  }
+  searchableGroups.push(...baseGroups);
   if (!input.isInSubmenu && !isActionsFilter) {
-    if (input.projectSearchItems.length > 0) {
+    if (!showTopProjects && input.projectSearchItems.length > 0) {
       searchableGroups.push({
         value: "projects-search",
-        label: "Projects",
+        label: uiText("Projects"),
         items: input.projectSearchItems,
       });
     }
     if (input.settingsSearchItems && input.settingsSearchItems.length > 0) {
       searchableGroups.push({
         value: "settings-search",
-        label: "Settings",
+        label: uiText("Settings"),
         items: input.settingsSearchItems,
       });
     }
     if (input.threadSearchItems.length > 0) {
       searchableGroups.push({
         value: "threads-search",
-        label: "Threads",
+        label: uiText("Threads"),
         items: input.threadSearchItems,
       });
     }
   }
 
-  return searchableGroups.flatMap((group) => {
+  const isTopGroup = (group: CommandPaletteGroup) => group.value === "projects-top";
+  const matchedGroups = searchableGroups.flatMap((group) => {
+    if (isTopGroup(group)) return [group];
     const items = Arr.filterMap(group.items, (item, index) => {
       const haystack = normalizeSearchText(item.searchTerms.join(" "));
       if (!queryTokens.every((token) => haystack.includes(token))) {
@@ -564,6 +579,37 @@ export function filterCommandPaletteGroups(input: {
 
     return [{ value: group.value, label: group.label, items }];
   });
+
+  // A thread that only matches inside its messages is shown last, below every title match.
+  const messageGroups: CommandPaletteGroup[] = [];
+  const result: CommandPaletteGroup[] = [];
+  for (const group of matchedGroups) {
+    if (group.value !== "threads-search") {
+      result.push(group);
+      continue;
+    }
+    const titleItems: Array<CommandPaletteActionItem | CommandPaletteSubmenuItem> = [];
+    const messageItems: Array<CommandPaletteActionItem | CommandPaletteSubmenuItem> = [];
+    for (const item of group.items) {
+      const snippet = item.threadContentMatch?.snippet;
+      const metadataHaystack = normalizeSearchText(
+        item.searchTerms.filter((term) => term !== snippet).join(" "),
+      );
+      (snippet !== undefined && !queryTokens.every((token) => metadataHaystack.includes(token))
+        ? messageItems
+        : titleItems
+      ).push(item);
+    }
+    if (titleItems.length > 0) result.push({ ...group, items: titleItems });
+    if (messageItems.length > 0) {
+      messageGroups.push({
+        value: "thread-messages-search",
+        label: uiText("Message matches"),
+        items: messageItems,
+      });
+    }
+  }
+  return [...result, ...messageGroups];
 }
 
 export function buildBrowseGroups(input: {
@@ -605,7 +651,7 @@ export function buildBrowseGroups(input: {
     });
   }
 
-  return [{ value: "directories", label: "Directories", items }];
+  return [{ value: "directories", label: uiText("Directories"), items }];
 }
 
 export function filterPinnedBrowseEntries(input: {
@@ -643,12 +689,12 @@ export function buildRootGroups(input: {
 }): CommandPaletteGroup[] {
   const groups: CommandPaletteGroup[] = [];
   if (input.actionItems.length > 0) {
-    groups.push({ value: "actions", label: "Actions", items: input.actionItems });
+    groups.push({ value: "actions", label: uiText("Actions"), items: input.actionItems });
   }
   if (input.recentThreadItems.length > 0) {
     groups.push({
       value: "recent-threads",
-      label: "Recent Threads",
+      label: uiText("Recent Threads"),
       items: input.recentThreadItems,
     });
   }
@@ -658,13 +704,13 @@ export function buildRootGroups(input: {
 export function getCommandPaletteInputPlaceholder(mode: CommandPaletteMode): string {
   switch (mode) {
     case "root":
-      return "Search commands, projects, and threads...";
+      return uiText("Search commands, projects, and threads...");
     case "root-browse":
-      return "Enter project path (e.g. ~/projects/my-app)";
+      return uiText("Enter project path (e.g. ~/projects/my-app)");
     case "submenu":
-      return "Search...";
+      return uiText("Search...");
     case "submenu-browse":
-      return "Enter path (e.g. ~/projects/my-app)";
+      return uiText("Enter path (e.g. ~/projects/my-app)");
   }
 }
 

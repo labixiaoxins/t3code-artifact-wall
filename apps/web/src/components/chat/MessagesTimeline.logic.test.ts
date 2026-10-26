@@ -468,7 +468,7 @@ describe("deriveMessagesTimelineRows", () => {
         type: "compaction" as const,
         status: "running" as const,
         driver: null,
-        beforeTokenCount: 899_000,
+        beforeTokenCount: 899000,
       },
     };
     const input = {
@@ -488,6 +488,7 @@ describe("deriveMessagesTimelineRows", () => {
       label: "Compacting context",
     });
     expect(runningRows.some((row) => row.kind === "thinking")).toBe(false);
+    expect(runningRows.some((row) => row.kind === "working")).toBe(false);
 
     const completedRows = deriveMessagesTimelineRows({
       ...input,
@@ -496,7 +497,7 @@ describe("deriveMessagesTimelineRows", () => {
           ...fixture.visibleTurnItems.slice(0, -1),
           {
             ...compact,
-            item: { ...compact.item, status: "completed", afterTokenCount: 19_000 },
+            item: { ...compact.item, status: "completed", afterTokenCount: 19000 },
           },
         ],
         optimisticMessages: [],
@@ -575,8 +576,14 @@ describe("deriveMessagesTimelineRows", () => {
     });
 
     const assistantRows = rows.filter(
-      (row): row is Extract<(typeof rows)[number], { kind: "message" }> =>
-        row.kind === "message" && row.message.role === "assistant",
+      (
+        row,
+      ): row is Extract<
+        (typeof rows)[number],
+        {
+          kind: "message";
+        }
+      > => row.kind === "message" && row.message.role === "assistant",
     );
 
     expect(assistantRows).toHaveLength(2);
@@ -635,12 +642,24 @@ describe("deriveMessagesTimelineRows", () => {
     });
 
     const userRow = rows.find(
-      (row): row is Extract<(typeof rows)[number], { kind: "message" }> =>
-        row.kind === "message" && row.message.role === "user",
+      (
+        row,
+      ): row is Extract<
+        (typeof rows)[number],
+        {
+          kind: "message";
+        }
+      > => row.kind === "message" && row.message.role === "user",
     );
     const assistantRow = rows.find(
-      (row): row is Extract<(typeof rows)[number], { kind: "message" }> =>
-        row.kind === "message" && row.message.role === "assistant",
+      (
+        row,
+      ): row is Extract<
+        (typeof rows)[number],
+        {
+          kind: "message";
+        }
+      > => row.kind === "message" && row.message.role === "assistant",
     );
 
     expect(userRow?.revertTurnCount).toBe(0);
@@ -714,8 +733,14 @@ describe("deriveMessagesTimelineRows", () => {
     });
 
     const foldRow = collapsedRows.find(
-      (row): row is Extract<(typeof collapsedRows)[number], { kind: "turn-fold" }> =>
-        row.kind === "turn-fold",
+      (
+        row,
+      ): row is Extract<
+        (typeof collapsedRows)[number],
+        {
+          kind: "turn-fold";
+        }
+      > => row.kind === "turn-fold",
     );
     expect(foldRow?.runId).toBe("turn-1");
     expect(foldRow?.expanded).toBe(false);
@@ -944,8 +969,14 @@ describe("deriveMessagesTimelineRows", () => {
     });
 
     const foldRow = rows.find(
-      (row): row is Extract<(typeof rows)[number], { kind: "turn-fold" }> =>
-        row.kind === "turn-fold",
+      (
+        row,
+      ): row is Extract<
+        (typeof rows)[number],
+        {
+          kind: "turn-fold";
+        }
+      > => row.kind === "turn-fold",
     );
     expect(foldRow?.runId).toBe("turn-1");
     expect(foldRow?.label).toBe("Worked for 12s");
@@ -1347,7 +1378,9 @@ describe("deriveMessagesTimelineRows", () => {
   it("carries the latest thought on the live row while a later tool runs", () => {
     type WorkEntry = Extract<
       Parameters<typeof deriveMessagesTimelineRows>[0]["timelineEntries"][number],
-      { kind: "work" }
+      {
+        kind: "work";
+      }
     >;
     const work = (
       id: string,
@@ -2317,8 +2350,14 @@ describe("v2 run and attempt history", () => {
     });
 
     const foldRow = collapsedRows.find(
-      (row): row is Extract<(typeof collapsedRows)[number], { kind: "turn-fold" }> =>
-        row.kind === "turn-fold",
+      (
+        row,
+      ): row is Extract<
+        (typeof collapsedRows)[number],
+        {
+          kind: "turn-fold";
+        }
+      > => row.kind === "turn-fold",
     );
     expect(foldRow?.runId).toBe("turn-1");
     expect(foldRow?.expanded).toBe(false);
@@ -3844,10 +3883,10 @@ describe("subagent continued by a later turn", () => {
     streaming: false,
   });
   const items: OrchestrationV2TurnItem[] = [
-    user("prompt-1", run1, 1_000_001, 0),
-    reasoning("reasoning-1", run1, 1_000_002, 1),
+    user("prompt-1", run1, 1000001, 0),
+    reasoning("reasoning-1", run1, 1000002, 1),
     {
-      ...base("subagent", run2, 1_000_003, 2),
+      ...base("subagent", run2, 1000003, 2),
       completedAt: at(40),
       updatedAt: at(40),
       type: "subagent",
@@ -3859,18 +3898,18 @@ describe("subagent continued by a later turn", () => {
       prompt: "Research the bug",
       result: "Found it",
     },
-    assistant("answer-1", run1, 1_000_004, 3),
-    user("prompt-2", run2, 2_000_001, 30),
-    reasoning("reasoning-2", run2, 2_000_002, 31),
-    assistant("answer-2", run2, 2_000_003, 32),
+    assistant("answer-1", run1, 1000004, 3),
+    user("prompt-2", run2, 2000001, 30),
+    reasoning("reasoning-2", run2, 2000002, 31),
+    assistant("answer-2", run2, 2000003, 32),
     {
-      ...base("send-message", run2, 2_000_004, 33),
+      ...base("send-message", run2, 2000004, 33),
       type: "dynamic_tool",
       toolName: "SendMessage",
       input: { to: "subagent" },
       output: "Sent",
     },
-    assistant("closing-2", run2, 2_000_005, 41),
+    assistant("closing-2", run2, 2000005, 41),
   ];
 
   it("keeps each turn's fold between its own prompt and answer", () => {

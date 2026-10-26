@@ -12,6 +12,8 @@ import * as ElectronMenu from "../electron/ElectronMenu.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopUpdates from "../updates/DesktopUpdates.ts";
 import * as DesktopWindow from "./DesktopWindow.ts";
+import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
+import { localizeApplicationMenu } from "./menuLocale.ts";
 
 export class DesktopApplicationMenuActionError extends Schema.TaggedError<DesktopApplicationMenuActionError>()(
   "DesktopApplicationMenuActionError",
@@ -63,55 +65,60 @@ const runMainContentsCommand = Effect.fn("desktop.menu.runMainContentsCommand")(
   const desktopWindow = yield* DesktopWindow.DesktopWindow;
   yield* desktopWindow.runMainContentsCommand(command);
 });
-
-const checkForUpdatesFromMenu = Effect.gen(function* () {
-  const updates = yield* DesktopUpdates.DesktopUpdates;
-  const electronDialog = yield* ElectronDialog.ElectronDialog;
-  const result = yield* updates.check("menu");
-  const updateState = result.state;
-
-  if (updateState.status === "up-to-date") {
-    yield* electronDialog.showMessageBox({
-      type: "info",
-      title: "You're up to date!",
-      message: `T3 Code ${updateState.currentVersion} is currently the newest version available.`,
-      buttons: ["OK"],
-    });
-  } else if (updateState.status === "error") {
-    yield* electronDialog.showMessageBox({
-      type: "warning",
-      title: "Update check failed",
-      message: "Could not check for updates.",
-      detail: updateState.message ?? "An unknown error occurred. Please try again later.",
-      buttons: ["OK"],
-    });
-  }
-}).pipe(Effect.withSpan("desktop.menu.checkForUpdates"));
-
-const handleCheckForUpdatesMenuClick = Effect.gen(function* () {
-  const updates = yield* DesktopUpdates.DesktopUpdates;
-  const electronDialog = yield* ElectronDialog.ElectronDialog;
-  const disabledReason = yield* updates.disabledReason;
-  if (Option.isSome(disabledReason)) {
-    yield* logUpdaterInfo("manual update check requested, but updates are disabled", {
-      disabledReason: disabledReason.value,
-    });
-    yield* electronDialog.showMessageBox({
-      type: "info",
-      title: "Updates unavailable",
-      message: "Automatic updates are not available right now.",
-      detail: disabledReason.value,
-      buttons: ["OK"],
-    });
-    return;
-  }
-
-  // The result dialogs need no main window. Opening one before the backend
-  // answers strands the renderer on a failed auth bootstrap.
-  const desktopWindow = yield* DesktopWindow.DesktopWindow;
-  yield* desktopWindow.activate;
-  yield* checkForUpdatesFromMenu;
-}).pipe(Effect.withSpan("desktop.menu.handleCheckForUpdatesClick"));
+const checkForUpdatesFromMenu = (locale: "zh-CN" | "en") =>
+  Effect.gen(function* () {
+    const text = (en: string, zh: string) => (locale === "zh-CN" ? zh : en);
+    const updates = yield* DesktopUpdates.DesktopUpdates;
+    const electronDialog = yield* ElectronDialog.ElectronDialog;
+    const result = yield* updates.check("menu");
+    const updateState = result.state;
+    if (updateState.status === "up-to-date") {
+      yield* electronDialog.showMessageBox({
+        type: "info",
+        title: text("You're up to date!", "已是最新版本"),
+        message: text(
+          `T3 Code ${updateState.currentVersion} is currently the newest version available.`,
+          `T3 Code ${updateState.currentVersion} 已是当前最新版本。`,
+        ),
+        buttons: [text("OK", "确定")],
+      });
+    } else if (updateState.status === "error") {
+      yield* electronDialog.showMessageBox({
+        type: "warning",
+        title: text("Update check failed", "检查更新失败"),
+        message: text("Could not check for updates.", "暂时无法检查更新。"),
+        detail:
+          updateState.message ??
+          text("An unknown error occurred. Please try again later.", "发生未知错误，请稍后重试。"),
+        buttons: [text("OK", "确定")],
+      });
+    }
+  }).pipe(Effect.withSpan("desktop.menu.checkForUpdates"));
+const handleCheckForUpdatesMenuClick = (locale: "zh-CN" | "en") =>
+  Effect.gen(function* () {
+    const text = (en: string, zh: string) => (locale === "zh-CN" ? zh : en);
+    const updates = yield* DesktopUpdates.DesktopUpdates;
+    const electronDialog = yield* ElectronDialog.ElectronDialog;
+    const disabledReason = yield* updates.disabledReason;
+    if (Option.isSome(disabledReason)) {
+      yield* logUpdaterInfo("manual update check requested, but updates are disabled", {
+        disabledReason: disabledReason.value,
+      });
+      yield* electronDialog.showMessageBox({
+        type: "info",
+        title: text("Updates unavailable", "更新暂不可用"),
+        message: text("Automatic updates are not available right now.", "当前无法自动更新。"),
+        detail: disabledReason.value,
+        buttons: [text("OK", "确定")],
+      });
+      return;
+    }
+    // The result dialogs need no main window. Opening one before the backend
+    // answers strands the renderer on a failed auth bootstrap.
+    const desktopWindow = yield* DesktopWindow.DesktopWindow;
+    yield* desktopWindow.activate;
+    yield* checkForUpdatesFromMenu(locale);
+  }).pipe(Effect.withSpan("desktop.menu.handleCheckForUpdatesClick"));
 
 /** @public Service construction is part of the canonical Effect module API. */
 export const make = Effect.gen(function* () {
@@ -138,7 +145,7 @@ export const make = Effect.gen(function* () {
 
   const configure = Effect.gen(function* () {
     const checkForUpdatesClick = () => {
-      runMenuEffect("check-for-updates", handleCheckForUpdatesMenuClick);
+      runMenuEffect("check-for-updates", handleCheckForUpdatesMenuClick(locale));
     };
     const settingsClick = () => {
       runMenuEffect("open-settings", dispatchMenuAction("open-settings"));
@@ -239,10 +246,10 @@ export const make = Effect.gen(function* () {
         label: "View",
         submenu: [
           /*
-            Not the reload, DevTools or zoom roles: those act on the focused
-            webContents, so with a browser page focused they reload or zoom
-            the guest page and the app UI appears stuck.
-          */
+                  Not the reload, DevTools or zoom roles: those act on the focused
+                  webContents, so with a browser page focused they reload or zoom
+                  the guest page and the app UI appears stuck.
+                */
           { label: "Reload", accelerator: "CmdOrCtrl+R", click: mainContentsClick("reload") },
           {
             label: "Force Reload",
@@ -309,8 +316,18 @@ export const make = Effect.gen(function* () {
         ],
       },
     );
-
-    yield* electronMenu.setApplicationMenu(template);
+    const settingsService = yield* Effect.serviceOption(
+      DesktopClientSettings.DesktopClientSettings,
+    );
+    const settings = Option.isSome(settingsService)
+      ? yield* settingsService.value.get.pipe(Effect.orElseSucceed(() => Option.none()))
+      : Option.none();
+    const locale = Option.isSome(settings)
+      ? (settings.value.appLocale ?? "zh-CN")
+      : environment.isPackaged
+        ? "zh-CN"
+        : "en";
+    yield* electronMenu.setApplicationMenu(localizeApplicationMenu(template, locale));
   }).pipe(Effect.withSpan("desktop.menu.configure"));
 
   return DesktopApplicationMenu.of({

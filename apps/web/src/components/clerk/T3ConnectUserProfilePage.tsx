@@ -1,3 +1,5 @@
+import { uiText } from "~/i18n";
+import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
 import { findErrorTraceId } from "@t3tools/client-runtime/errors";
 import {
   isAtomCommandInterrupted,
@@ -47,59 +49,64 @@ function T3ConnectEnvironmentRow(props: {
 }) {
   const { environment } = props;
   return (
-    <ClerkUserProfileRow icon={<ServerIcon className="size-4" />}>
+    <ClerkUserProfileRow icon={<ServerIcon className={"size-4"} />}>
       <Collapsible open={props.confirmationOpen} onOpenChange={props.onConfirmationChange}>
-        <div className="flex items-start gap-4">
-          <div className="min-w-0 flex-1">
-            <h3 className="truncate text-sm leading-4.5 font-medium text-foreground">
+        <div className={"flex items-start gap-4"}>
+          <div className={"min-w-0 flex-1"}>
+            <h3 className={"truncate text-sm leading-4.5 font-medium text-foreground"}>
               {environment.label}
             </h3>
-            <p className="mt-1 text-xs leading-4.5 text-muted-foreground">
-              {linkedAtLabel(environment.linkedAt)} · {endpointLabel(environment)}
+            <p className={"mt-1 text-xs leading-4.5 text-muted-foreground"}>
+              {linkedAtLabel(environment.linkedAt)}
+              {" \u00B7 "}
+              {endpointLabel(environment)}
             </p>
           </div>
           <CollapsibleTrigger
             render={
-              <Button size="sm" variant="destructive-outline" disabled={props.mutationPending}>
-                Deregister
+              <Button size={"sm"} variant={"destructive-outline"} disabled={props.mutationPending}>
+                {uiText("Deregister")}
               </Button>
             }
           />
         </div>
 
         <CollapsiblePanel>
-          <div className="pt-3">
+          <div className={"pt-3"}>
             <div
-              className="rounded-lg border border-input bg-muted/32 px-5 py-4 shadow-xs/5"
-              role="group"
-              aria-label={`Confirm deregistration of ${environment.label}`}
+              className={"rounded-lg border border-input bg-muted/32 px-5 py-4 shadow-xs/5"}
+              role={"group"}
+              aria-label={uiText("Confirm deregistration of {0}", {"0": environment.label})}
             >
-              <h4 className="text-sm leading-4.5 font-semibold text-foreground">
-                Deregister server
+              <h4 className={"text-sm leading-4.5 font-semibold text-foreground"}>
+                {uiText("Deregister server")}
               </h4>
-              <p className="mt-1 text-xs leading-4.5 text-muted-foreground">
-                “{environment.label}” will be removed from this account.
+              <p className={"mt-1 text-xs leading-4.5 text-muted-foreground"}>
+                {"\u201C"}
+                {environment.label}
+                {uiText("” will be removed from this account.")}
               </p>
-              <p className="mt-4 max-w-xl text-xs leading-4.5 text-muted-foreground">
-                T3 Connect access will be revoked, any managed tunnel will be removed, and a host
-                space will become available. Local connections on your devices are not changed.
+              <p className={"mt-4 max-w-xl text-xs leading-4.5 text-muted-foreground"}>
+                {
+                  uiText("T3 Connect access will be revoked, any managed tunnel will be removed, and a host space will become available. Local connections on your devices are not changed.")
+                }
               </p>
-              <div className="mt-4 flex justify-end gap-2">
+              <div className={"mt-4 flex justify-end gap-2"}>
                 <Button
-                  size="sm"
-                  variant="ghost"
+                  size={"sm"}
+                  variant={"ghost"}
                   disabled={props.mutationPending}
                   onClick={() => props.onConfirmationChange(false)}
                 >
-                  Cancel
+                  {uiText("Cancel")}
                 </Button>
                 <Button
-                  size="sm"
-                  variant="destructive"
+                  size={"sm"}
+                  variant={"destructive"}
                   disabled={props.mutationPending}
                   onClick={() => props.onDeregister(environment)}
                 >
-                  {props.mutationPending ? "Deregistering…" : "Deregister"}
+                  {props.mutationPending ? uiText("Deregistering…") : uiText("Deregister")}
                 </Button>
               </div>
             </div>
@@ -149,8 +156,8 @@ export function T3ConnectUserProfilePage() {
       environmentsState.refresh();
       toastManager.add({
         type: "success",
-        title: "Server deregistered",
-        description: "T3 Connect access was revoked and a host space is now available.",
+        title: uiText("Server deregistered"),
+        description: uiText("T3 Connect access was revoked and a host space is now available."),
       });
       return;
     }
@@ -167,13 +174,13 @@ export function T3ConnectUserProfilePage() {
     });
     toastManager.add({
       type: "error",
-      title: "Could not deregister server",
+      title: uiText("Could not deregister server"),
       description: message,
       data: traceId
         ? {
             secondaryActionProps: {
               children: "Copy trace ID",
-              onClick: () => void navigator.clipboard?.writeText(traceId),
+              onClick: () => void writeTextToClipboard(traceId, "trace ID").catch(() => undefined),
             },
           }
         : undefined,
@@ -193,8 +200,10 @@ export function T3ConnectUserProfilePage() {
 
   return (
     <ClerkUserProfilePage
-      title="T3 Connect"
-      description="Environments registered to your account. Connections on this device are managed in Settings."
+      title={"T3 Connect"}
+      description={
+        uiText("Environments registered to your account. Connections on this device are managed in Settings.")
+      }
       action={
         <ClerkUserProfileRefreshButton
           disabled={deregisteringEnvironmentId !== null}
@@ -205,20 +214,20 @@ export function T3ConnectUserProfilePage() {
     >
       <div>
         {environmentsState.error ? (
-          <div className="mb-4 border-t border-destructive/35 py-3 text-xs" role="alert">
-            <p className="font-medium text-destructive-foreground">
-              Could not load T3 Connect environments
+          <div className={"mb-4 border-t border-destructive/35 py-3 text-xs"} role={"alert"}>
+            <p className={"font-medium text-destructive-foreground"}>
+              {uiText("Could not load T3 Connect environments")}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">{environmentsState.error}</p>
+            <p className={"mt-1 text-xs text-muted-foreground"}>{environmentsState.error}</p>
           </div>
         ) : null}
 
         {isInitialLoad ? (
-          <p className="border-t py-4 text-xs text-muted-foreground" role="status">
-            Loading environments…
+          <p className={"border-t py-4 text-xs text-muted-foreground"} role={"status"}>
+            {uiText("Loading environments…")}
           </p>
         ) : environments.length > 0 ? (
-          <ul className="border-t">
+          <ul className={"border-t"}>
             {environments.map((environment) => (
               <T3ConnectEnvironmentRow
                 key={environment.environmentId}
@@ -233,16 +242,17 @@ export function T3ConnectUserProfilePage() {
             ))}
           </ul>
         ) : environmentsState.error ? null : (
-          <div className="border-t">
-            <Empty size="compact">
-              <EmptyMedia variant="icon">
+          <div className={"border-t"}>
+            <Empty size={"compact"}>
+              <EmptyMedia variant={"icon"}>
                 <ServerIcon />
               </EmptyMedia>
               <EmptyHeader>
-                <EmptyTitle>No T3 Connect environments</EmptyTitle>
+                <EmptyTitle>{uiText("No T3 Connect environments")}</EmptyTitle>
                 <EmptyDescription>
-                  Link an environment from its local Settings to make it available through T3
-                  Connect.
+                  {
+                    uiText("Link an environment from its local Settings to make it available through T3 Connect.")
+                  }
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>

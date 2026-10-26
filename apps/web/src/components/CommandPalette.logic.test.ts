@@ -193,8 +193,9 @@ describe("buildThreadActionItems", () => {
     expect(groups[0]?.items.map((item) => item.value)).toEqual([
       "thread:recent-title",
       "thread:old-prefix",
-      "thread:recent-content",
     ]);
+    expect(groups[1]?.value).toBe("thread-messages-search");
+    expect(groups[1]?.items.map((item) => item.value)).toEqual(["thread:recent-content"]);
   });
 
   it("ranks an order-independent setting title match above a split context match", () => {

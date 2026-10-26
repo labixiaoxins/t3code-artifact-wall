@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { isProviderSkillUserInvocable } from "@t3tools/client-runtime/providerSkills";
 import { formatProviderSkillDisplayName } from "@t3tools/shared/inlineSkills";
 import {
@@ -268,7 +269,7 @@ function ComposerMentionNodeView({ node }: NodeViewProps) {
       dir="ltr"
       render={<button type="button" />}
       onClick={() => actions.openMention(path)}
-      aria-label={`Preview ${path}`}
+      aria-label={uiText("Preview {0}", {"0": path})}
       contentEditable={false}
       spellCheck={false}
       data-composer-mention-chip="true"
@@ -363,11 +364,10 @@ function ComposerSkillNodeView({ node }: NodeViewProps) {
       >
         <div className="space-y-3 p-2 text-sm">
           <p className="font-medium">{skillLabel}</p>
-          <p>{description || "No description is available for this skill."}</p>
+          <p>{description || uiText("No description is available for this skill.")}</p>
           {skill?.path && actions.environmentId ? (
             <Button variant="outline" size="sm" onClick={() => actions.openMention(skill.path)}>
-              View instructions
-            </Button>
+              {uiText("View instructions")}</Button>
           ) : null}
         </div>
       </ContextChipPopover>

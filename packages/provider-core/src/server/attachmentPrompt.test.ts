@@ -70,6 +70,7 @@ describe("provider attachment prompts", () => {
     });
 
     assert.isAtMost(text.length, PROVIDER_SEND_TURN_MAX_INPUT_CHARS);
+    assert.include(text, "truncated");
     assert.isAbove((text.match(/Z/g) ?? []).length, 0);
     for (let index = 0; index < attachments.length; index += 1) {
       assert.include(text, `/attachments/window-${index}.png`);

@@ -179,8 +179,12 @@ export type SnapShotShortcut = typeof SnapShotShortcut.Type;
 export const SnapShotSound = Schema.Literals(["soft-pop", "camera-shutter"]);
 export type SnapShotSound = typeof SnapShotSound.Type;
 const DEFAULT_SNAP_SHOT_SOUND: SnapShotSound = "soft-pop";
-
-export type SnapShotModifierPairShortcut = Extract<SnapShotShortcut, { readonly kind: string }>;
+export type SnapShotModifierPairShortcut = Extract<
+  SnapShotShortcut,
+  {
+    readonly kind: string;
+  }
+>;
 
 export function isModifierPairShortcut(
   shortcut: SnapShotShortcut,
@@ -312,6 +316,7 @@ export type ModelPreferences = {
 };
 
 export const ClientSettingsSchema = Schema.Struct({
+  appLocale: Schema.optionalKey(Schema.Literals(["zh-CN", "en"])),
   notificationMode: NotificationMode.pipe(
     Schema.withDecodingDefault(Effect.succeed("off" as const)),
   ),
@@ -432,6 +437,11 @@ export const ClientSettingsSchema = Schema.Struct({
   pullRequestLinksOpenInApp: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
 
   planModeEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
+  // Local customization: long-conversation handoff reminder and the live speed bar.
+  longConversationReminderEnabled: Schema.Boolean.pipe(
+    Schema.withDecodingDefault(Effect.succeed(true)),
+  ),
+  turnThroughputEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
   contextWindowMeterEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   composerCollapseOnScroll: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
   composerRichTextEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
@@ -443,7 +453,7 @@ export const ClientSettingsSchema = Schema.Struct({
   ),
   proactivePanelsEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   showSkillsInSlashMenu: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
-  legacySidebarEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
+  legacySidebarEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
   sidebarWorkingShelfEnabled: Schema.Boolean.pipe(
     Schema.withDecodingDefault(Effect.succeed(false)),
   ),
@@ -930,6 +940,9 @@ export type BackgroundActivitySettings = typeof BackgroundActivitySettings.Type;
 
 export const ResponseStreamingMode = Schema.Literals(["turn", "paragraph"]);
 export type ResponseStreamingMode = typeof ResponseStreamingMode.Type;
+/** What the server holds awake while a thread is working. See `ServerSettings.keepAwake`. */
+export const KeepAwakeMode = Schema.Literals(["off", "system", "display"]);
+export type KeepAwakeMode = typeof KeepAwakeMode.Type;
 
 const StorageRetentionDays = Schema.NullOr(
   Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 3650 })),
@@ -1151,6 +1164,14 @@ export const ServerSettings = Schema.Struct({
     Schema.withDecodingDefault(Effect.succeed("paragraph" as const)),
   ),
   enableProviderUpdateChecks: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
+  /**
+   * Keep this machine awake while any thread is working (macOS only).
+   * - `off`: never hold a wake assertion.
+   * - `system`: prevent idle system sleep; the display may still turn off.
+   * - `display`: also keep the display on.
+   * The assertion is released as soon as no run is active.
+   */
+  keepAwake: KeepAwakeMode.pipe(Schema.withDecodingDefault(Effect.succeed("display" as const))),
   continueThreadsAfterServerUpdate: Schema.Boolean.pipe(
     Schema.withDecodingDefault(Effect.succeed(true)),
   ),
@@ -1323,7 +1344,11 @@ export const providerInstanceConfigEnabledFlag = (config: unknown): boolean | un
   if (config === null || typeof config !== "object" || Array.isArray(config)) {
     return undefined;
   }
-  const enabled = (config as { readonly enabled?: unknown }).enabled;
+  const enabled = (
+    config as {
+      readonly enabled?: unknown;
+    }
+  ).enabled;
   return typeof enabled === "boolean" ? enabled : undefined;
 };
 
@@ -1524,6 +1549,7 @@ export const ServerSettingsPatch = Schema.Struct({
   worktreesDirectory: Schema.optionalKey(TrimmedString),
   responseStreamingMode: Schema.optionalKey(ResponseStreamingMode),
   enableProviderUpdateChecks: Schema.optionalKey(Schema.Boolean),
+  keepAwake: Schema.optionalKey(KeepAwakeMode),
   continueThreadsAfterServerUpdate: Schema.optionalKey(Schema.Boolean),
   enableAgentBrowserAccess: Schema.optionalKey(Schema.Boolean),
   projectAgentBrowserAccessOverrides: Schema.optionalKey(
@@ -1722,6 +1748,8 @@ export const ClientSettingsPatch = Schema.Struct({
   ),
   pullRequestLinksOpenInApp: Schema.optionalKey(Schema.Boolean),
   planModeEnabled: Schema.optionalKey(Schema.Boolean),
+  longConversationReminderEnabled: Schema.optionalKey(Schema.Boolean),
+  turnThroughputEnabled: Schema.optionalKey(Schema.Boolean),
   contextWindowMeterEnabled: Schema.optionalKey(Schema.Boolean),
   composerCollapseOnScroll: Schema.optionalKey(Schema.Boolean),
   composerRichTextEnabled: Schema.optionalKey(Schema.Boolean),
@@ -1735,6 +1763,7 @@ export const ClientSettingsPatch = Schema.Struct({
   sidebarProjectGroupingOverrides: Schema.optionalKey(
     Schema.Record(TrimmedNonEmptyString, SidebarProjectGroupingMode),
   ),
+  appLocale: Schema.optionalKey(Schema.Literals(["zh-CN", "en"])),
   sidebarProjectSortOrder: Schema.optionalKey(SidebarProjectSortOrder),
   sidebarThreadSortOrder: Schema.optionalKey(SidebarThreadSortOrder),
   sidebarThreadPreviewCount: Schema.optionalKey(SidebarThreadPreviewCount),

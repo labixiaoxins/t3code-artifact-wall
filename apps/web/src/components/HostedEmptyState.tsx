@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useAuth } from "@clerk/react";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { Link } from "@tanstack/react-router";
@@ -49,8 +50,7 @@ export function HostedEmptyState() {
           <EmptyContent>
             {localEnvironmentOff ? (
               <Button render={<Link to="/settings/connections" />} size="sm">
-                Open Connections
-              </Button>
+                {uiText("Open Connections")}</Button>
             ) : (
               <ol className="w-full space-y-4 text-left">
                 {cloudEnabled ? <T3ConnectSteps /> : <PairingSteps />}
@@ -79,12 +79,10 @@ function T3ConnectSteps() {
         {isSignedIn ? (
           <p className="flex items-center gap-1.5 text-muted-foreground">
             <CheckIcon className="size-4" />
-            Signed in
-          </p>
+            {uiText("Signed in") + " "}</p>
         ) : (
           <Button size="sm" disabled={!isLoaded} onClick={openAuthPrompt}>
-            Sign in
-          </Button>
+            {uiText("Sign in")}</Button>
         )}
       </SetupStep>
       <SetupStep number={2}>

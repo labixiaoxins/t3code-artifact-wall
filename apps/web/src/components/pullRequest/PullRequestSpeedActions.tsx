@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useAtomValue } from "@effect/atom-react";
 import type { PullRequestAction } from "@t3tools/contracts";
 import { createContext, use, type ReactNode } from "react";
@@ -107,10 +108,10 @@ export function PullRequestSpeedActions<Entry extends PullRequestSpeedActionEntr
             </TooltipTrigger>
             <TooltipPopup>
               {action === "merge" && entry.stack
-                ? "Open this pull request to merge its stack"
+                ? uiText("Open this pull request to merge its stack")
                 : action === "close" && onCloseSweepStart
-                  ? "Close immediately, or drag across rows to close several"
-                  : `${label} immediately`}
+                  ? uiText("Close immediately, or drag across rows to close several")
+                  : uiText("{0} immediately", {"0": label})}
             </TooltipPopup>
           </Tooltip>
         );
@@ -159,8 +160,8 @@ function SpeedModeGroup({
 }
 
 const ACTIONS = {
-  close: { label: "Close", Icon: PullRequestGlyph.closed },
-  merge: { label: "Merge", Icon: PullRequestGlyph.merged },
-  ready: { label: "Ready for review", Icon: PullRequestGlyph.pullRequest },
-  reopen: { label: "Reopen", Icon: PullRequestGlyph.reopen },
+  close: { label: uiText("Close"), Icon: PullRequestGlyph.closed },
+  merge: { label: uiText("Merge"), Icon: PullRequestGlyph.merged },
+  ready: { label: uiText("Ready for review"), Icon: PullRequestGlyph.pullRequest },
+  reopen: { label: uiText("Reopen"), Icon: PullRequestGlyph.reopen },
 } as const;

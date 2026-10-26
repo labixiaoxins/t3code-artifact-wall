@@ -171,7 +171,11 @@ interface ProactivePanelObservation {
 
 export function observeProactivePanelUserChoice(
   previous: ProactivePanelObservation | null,
-  input: { threadKey: string; runningTurnId: RunId | null; userActionRevision: number },
+  input: {
+    threadKey: string;
+    runningTurnId: RunId | null;
+    userActionRevision: number;
+  },
 ): ProactivePanelObservation {
   const sameThread = previous?.threadKey === input.threadKey;
   const newTurn =
@@ -443,7 +447,10 @@ export function resolveThreadSwitchTimeline<T extends readonly unknown[]>(input:
   nextEntries: T;
   rememberedForActive?: T | null;
   lastReady?: HeldThreadTimeline<T> | null;
-}): { entries: T; displayThreadKey: string | null } {
+}): {
+  entries: T;
+  displayThreadKey: string | null;
+} {
   if (input.nextEntries.length > 0) {
     return { entries: input.nextEntries, displayThreadKey: input.activeThreadKey };
   }
@@ -533,7 +540,7 @@ export function buildLocalDraftThread(
   return presentThreadShell(draftThread.environmentId, {
     id: threadId,
     projectId: draftThread.projectId,
-    title: "New thread",
+    title: uiText("New thread"),
     providerInstanceId: fallbackModelSelection.instanceId,
     modelSelection: fallbackModelSelection,
     runtimeMode: draftThread.runtimeMode,
@@ -622,7 +629,10 @@ export function resolveComposerInteractionMode(input: {
   planModeEnabled: boolean;
   provider: Pick<ServerProvider, "showInteractionModeToggle"> | null | undefined;
   interactionMode: ProviderInteractionMode;
-}): { enabled: boolean; interactionMode: ProviderInteractionMode } {
+}): {
+  enabled: boolean;
+  interactionMode: ProviderInteractionMode;
+} {
   const enabled =
     input.planModeEnabled &&
     input.provider != null &&
@@ -696,8 +706,12 @@ export function reconcileMountedTerminalThreadIds(input: {
 
 // Null identifies the project checkout when a launch or session is known.
 export function resolveTerminalWorktreePath(input: {
-  launchContext: { readonly worktreePath: string | null } | null;
-  summary: { readonly worktreePath: string | null } | null;
+  launchContext: {
+    readonly worktreePath: string | null;
+  } | null;
+  summary: {
+    readonly worktreePath: string | null;
+  } | null;
   threadWorktreePath: string | null;
 }): string | null {
   if (input.launchContext !== null) return input.launchContext.worktreePath;
@@ -764,7 +778,7 @@ export async function prepareRevertedMessageAttachments(input: {
       if (result._tag === "Failure") throw squashAtomCommandFailure(result);
       const url = resolveAssetUrl(input.httpBaseUrl, result.value.relativeUrl);
       if (url === null) throw new Error("The environment returned an invalid attachment URL.");
-      const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+      const response = await fetch(url, { signal: AbortSignal.timeout(30000) });
       if (!response.ok) throw new Error(`Could not restore attachment: ${attachment.name}`);
       return new File([await response.blob()], attachment.name, { type: attachment.mimeType });
     }),
@@ -784,7 +798,11 @@ export function revokeUserMessagePreviewUrls(message: ChatMessage): void {
 }
 
 export function timelineHasEphemeralPreviewUrls(
-  entries: ReadonlyArray<Pick<TimelineEntry, "kind"> & { message?: ChatMessage }>,
+  entries: ReadonlyArray<
+    Pick<TimelineEntry, "kind"> & {
+      message?: ChatMessage;
+    }
+  >,
 ): boolean {
   return entries.some(
     (entry) =>
@@ -876,24 +894,30 @@ export function deriveComposerSendState(options: {
 export function buildExpiredTerminalContextToastCopy(
   expiredTerminalContextCount: number,
   variant: "omitted" | "empty",
-): { title: string; description: string } {
+): {
+  title: string;
+  description: string;
+} {
   const count = Math.max(1, Math.floor(expiredTerminalContextCount));
   const noun = count === 1 ? "Expired terminal context" : "Expired terminal contexts";
   if (variant === "empty") {
     return {
-      title: `${noun} won't be sent`,
-      description: "Remove it or re-add it to include terminal output.",
+      title: uiText("{0} won't be sent", {"0": noun}),
+      description: uiText("Remove it or re-add it to include terminal output."),
     };
   }
   return {
-    title: `${noun} omitted from message`,
-    description: "Re-add it if you want that terminal output included.",
+    title: uiText("{0} omitted from message", {"0": noun}),
+    description: uiText("Re-add it if you want that terminal output included."),
   };
 }
 
 export function branchMismatchKey(
   threadId: string | null,
-  mismatch: { threadBranch: string; currentBranch: string } | null,
+  mismatch: {
+    threadBranch: string;
+    currentBranch: string;
+  } | null,
 ): string | null {
   if (!threadId || !mismatch) {
     return null;
@@ -1020,7 +1044,10 @@ export function getStartedThreadModelChangeBlockReason(input: {
   currentModelSelection: ModelSelection;
   currentProviderInstanceId?: ModelSelection["instanceId"] | null | undefined;
   nextModelSelection: ModelSelection;
-}): { title: string; description: string } | null {
+}): {
+  title: string;
+  description: string;
+} | null {
   if (!input.hasStartedSession) {
     return null;
   }
@@ -1039,8 +1066,8 @@ export function getStartedThreadModelChangeBlockReason(input: {
       return null;
     }
     return {
-      title: "Start a new chat to switch providers",
-      description: "This thread does not support switching providers after it has started.",
+      title: uiText("Start a new chat to switch providers"),
+      description: uiText("This thread does not support switching providers after it has started."),
     };
   }
   const currentProvider = input.providers.find(
@@ -1056,14 +1083,14 @@ export function getStartedThreadModelChangeBlockReason(input: {
     return null;
   }
   return {
-    title: "Start a new chat to change models",
-    description: "This provider does not allow switching models after a conversation has started.",
+    title: uiText("Start a new chat to change models"),
+    description: uiText("This provider does not allow switching models after a conversation has started."),
   };
 }
 
 export async function waitForStartedServerThread(
   threadRef: ScopedThreadRef,
-  timeoutMs = 1_000,
+  timeoutMs = 1000,
 ): Promise<boolean> {
   const threadAtom = environmentThreadShells.threadShellAtom(threadRef);
   return waitForAtomValue({
@@ -1079,7 +1106,7 @@ export async function waitForRevertedMessage(
   turnCount: number,
   requestId: CommandId,
   revert: () => Promise<void>,
-  timeoutMs = 120_000,
+  timeoutMs = 120000,
 ): Promise<void> {
   const threadAtom = environmentThreadDetails.stateAtom(threadRef);
   const readProjection = () => Option.getOrNull(appAtomRegistry.get(threadAtom).data);
@@ -1267,7 +1294,9 @@ export function hasServerAcknowledgedLocalDispatch(input: {
 
 export function shouldRefocusComposerOnWindowFocus(
   activeElement:
-    | (Pick<Element, "tagName" | "closest" | "getAttribute"> & { isContentEditable?: boolean })
+    | (Pick<Element, "tagName" | "closest" | "getAttribute"> & {
+        isContentEditable?: boolean;
+      })
     | null,
 ): boolean {
   if (activeElement === null || activeElement.tagName === "BODY") return true;
@@ -1280,6 +1309,11 @@ export function shouldRefocusComposerOnWindowFocus(
     activeElement.isContentEditable === true ||
     activeElement.getAttribute("role") === "textbox"
   ) {
+    return false;
+  }
+  // A menu opens on pointer-down before aria-expanded updates or its popup receives
+  // focus. Returning to the window in that interval must not dismiss the menu.
+  if (activeElement.getAttribute("aria-haspopup") === "menu") {
     return false;
   }
   return (

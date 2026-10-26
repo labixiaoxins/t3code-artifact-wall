@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useState } from "react";
 import {
   AuthSourceControlWriteScope,
@@ -79,7 +80,7 @@ export function PullRequestMarkdownEditor({
       }}
     >
       <ToggleGroup
-        aria-label="Markdown editor mode"
+        aria-label={uiText("Markdown editor mode")}
         variant="segmented"
         value={[preview ? "preview" : "write"]}
         disabled={saving}
@@ -88,13 +89,13 @@ export function PullRequestMarkdownEditor({
           if (mode === "write" || mode === "preview") setPreview(mode === "preview");
         }}
       >
-        <Toggle value="write">Write</Toggle>
-        <Toggle value="preview">Preview</Toggle>
+        <Toggle value="write">{uiText("Write")}</Toggle>
+        <Toggle value="preview">{uiText("Preview")}</Toggle>
       </ToggleGroup>
       {preview ? (
         <div className="rounded-lg border border-border/60 px-3 py-2">
           {empty ? (
-            <p className="text-xs text-muted-foreground">Nothing to preview.</p>
+            <p className="text-xs text-muted-foreground">{uiText("Nothing to preview.")}</p>
           ) : (
             <PullRequestMarkdown
               text={draft}
@@ -117,8 +118,7 @@ export function PullRequestMarkdownEditor({
       )}
       <div className="flex justify-end gap-2">
         <Button size="xs" variant="ghost" disabled={saving} onClick={onCancel}>
-          Cancel
-        </Button>
+          {uiText("Cancel")}</Button>
         <Button
           size="xs"
           variant="outline"
@@ -133,7 +133,7 @@ export function PullRequestMarkdownEditor({
             onSave(draft);
           }}
         >
-          {saving ? "Saving..." : "Save"}
+          {saving ? uiText("Saving...") : uiText("Save")}
         </Button>
       </div>
     </div>

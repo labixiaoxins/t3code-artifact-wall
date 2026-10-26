@@ -57,7 +57,18 @@ export const layerFromPath = Effect.fn("makeSqlitePersistenceLive")(function* (d
   yield* fs.makeDirectory(path.dirname(dbPath), { recursive: true });
 
   return Layer.provideMerge(
-    layerSetup,
+    Layer.mergeAll(
+      layerSetup,
+      Layer.effectDiscard(
+        Effect.gen(function* () {
+          yield* fs.chmod(dbPath, 0o600);
+          for (const suffix of ["-wal", "-shm"]) {
+            const sidecar = `${dbPath}${suffix}`;
+            if (yield* fs.exists(sidecar)) yield* fs.chmod(sidecar, 0o600);
+          }
+        }),
+      ),
+    ),
     NodeSqliteClient.layer({
       filename: dbPath,
       readerWorker: true,

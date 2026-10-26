@@ -73,31 +73,31 @@ describe("CodexAdapterV2 context usage", () => {
     const usage = CodexAdapterV2.codexProviderTurnTokenUsage(
       {
         total: {
-          totalTokens: 180_000,
-          inputTokens: 160_000,
-          cachedInputTokens: 20_000,
-          outputTokens: 20_000,
-          reasoningOutputTokens: 5_000,
+          totalTokens: 180000,
+          inputTokens: 160000,
+          cachedInputTokens: 20000,
+          outputTokens: 20000,
+          reasoningOutputTokens: 5000,
         },
         last: {
-          totalTokens: 50_000,
-          inputTokens: 45_000,
-          cachedInputTokens: 10_000,
-          outputTokens: 5_000,
-          reasoningOutputTokens: 1_000,
+          totalTokens: 50000,
+          inputTokens: 45000,
+          cachedInputTokens: 10000,
+          outputTokens: 5000,
+          reasoningOutputTokens: 1000,
         },
-        modelContextWindow: 200_000,
+        modelContextWindow: 200000,
       },
       "2026-08-29T00:00:00.000Z",
     );
 
     assert.deepEqual(usage, {
-      usedTokens: 50_000,
-      maxTokens: 200_000,
-      inputTokens: 45_000,
-      cachedInputTokens: 10_000,
-      outputTokens: 5_000,
-      reasoningOutputTokens: 1_000,
+      usedTokens: 50000,
+      maxTokens: 200000,
+      inputTokens: 45000,
+      cachedInputTokens: 10000,
+      outputTokens: 5000,
+      reasoningOutputTokens: 1000,
       updatedAt: "2026-08-29T00:00:00.000Z",
     });
   });
@@ -4618,7 +4618,7 @@ describe("CodexAdapterV2 post-settle continuation", () => {
       {
         type: "emit_inbound",
         label: "item/completed/persistent-monitor",
-        afterMs: 30_000,
+        afterMs: 30000,
         frame: {
           method: "item/completed",
           params: {
@@ -4895,13 +4895,13 @@ describe("CodexAdapterV2 post-settle continuation", () => {
           },
         },
       },
-      childTurnStarted(RESUME_CHILD_TURN_2, 30_000),
+      childTurnStarted(RESUME_CHILD_TURN_2, 30000),
       childAgentMessage({
         id: "child-resume-answer",
         text: "CODEX_RESUME_DONE",
         turnId: RESUME_CHILD_TURN_2,
         completedAtMs: 1782622480000,
-        afterMs: 30_000,
+        afterMs: 30000,
       }),
       childTurnCompleted(RESUME_CHILD_TURN_2),
     ],

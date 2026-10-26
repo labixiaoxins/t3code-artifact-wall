@@ -1,3 +1,6 @@
+"use client";
+import { uiText } from "~/i18n";
+
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog";
 import { XIcon } from "lucide-react";
 import type { CSSProperties } from "react";
@@ -22,7 +25,7 @@ function SheetBackdrop({ className, ...props }: SheetPrimitive.Backdrop.Props) {
         "fixed inset-0 z-(--z-sheet) bg-background/60 backdrop-blur-xs transition-all duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0",
         className,
       )}
-      data-slot="sheet-backdrop"
+      data-slot={"sheet-backdrop"}
       {...props}
     />
   );
@@ -48,7 +51,7 @@ function SheetViewport({
         variant === "inset" && "sm:p-4",
         className,
       )}
-      data-slot="sheet-viewport"
+      data-slot={"sheet-viewport"}
       {...props}
     />
   );
@@ -113,9 +116,9 @@ function SheetPopup({
           {children}
           {showCloseButton && (
             <SheetPrimitive.Close
-              aria-label="Close"
-              className="absolute end-2 top-2"
-              render={<Button size="icon" variant="ghost" />}
+              aria-label={uiText("Close")}
+              className={"absolute end-2 top-2"}
+              render={<Button size={"icon"} variant={"ghost"} />}
             >
               <XIcon />
             </SheetPrimitive.Close>
@@ -133,7 +136,7 @@ function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
         "flex flex-col gap-2 p-6 in-[[data-slot=sheet-popup]:has([data-slot=sheet-panel])]:pb-3 max-sm:pb-4",
         className,
       )}
-      data-slot="sheet-header"
+      data-slot={"sheet-header"}
       {...props}
     />
   );
@@ -143,7 +146,7 @@ function SheetTitle({ className, ...props }: SheetPrimitive.Title.Props) {
   return (
     <SheetPrimitive.Title
       className={cn("font-semibold text-xl leading-none", className)}
-      data-slot="sheet-title"
+      data-slot={"sheet-title"}
       {...props}
     />
   );
@@ -153,7 +156,7 @@ function SheetDescription({ className, ...props }: SheetPrimitive.Description.Pr
   return (
     <SheetPrimitive.Description
       className={cn("text-muted-foreground text-sm", className)}
-      data-slot="sheet-description"
+      data-slot={"sheet-description"}
       {...props}
     />
   );
@@ -161,6 +164,7 @@ function SheetDescription({ className, ...props }: SheetPrimitive.Description.Pr
 
 export {
   Sheet,
+  SheetTrigger,
   SheetPortal,
   SheetBackdrop,
   SheetBackdrop as SheetOverlay,

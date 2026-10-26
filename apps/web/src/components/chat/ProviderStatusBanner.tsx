@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { type ProviderInstanceId, type ServerProvider } from "@t3tools/contracts";
 import { memo } from "react";
 import { InfoIcon, XIcon } from "lucide-react";
@@ -69,7 +70,7 @@ export function getProviderStatusMessage(status: ServerProvider): string {
   if (status.message) return status.message;
   const providerName = status.displayName?.trim() || formatProviderDriverKindLabel(status.driver);
   if (!status.installed && hasProviderSetup(status)) {
-    return `Open provider setup to install ${formatProviderDriverKindLabel(status.driver)} on this environment.`;
+    return uiText("Open provider setup to install {0} on this environment.", {"0": formatProviderDriverKindLabel(status.driver)});
   }
   if (status.auth.status === "unauthenticated") {
     if (hasProviderSetup(status)) {
@@ -77,7 +78,7 @@ export function getProviderStatusMessage(status: ServerProvider): string {
         ? "Open provider setup to sign in with Google."
         : "Open provider setup to sign in.";
     }
-    return "Sign in via the CLI to authenticate again.";
+    return uiText("Sign in via the CLI to authenticate again.");
   }
   return status.status === "ready"
     ? "No models are available for this provider."
@@ -130,13 +131,12 @@ export const ProviderStatusBanner = memo(function ProviderStatusBanner({
           </Tooltip>
           {onOpenProviderSetup && hasProviderSetup(status) ? (
             <InlineButton onClick={() => onOpenProviderSetup(status.instanceId)}>
-              Open provider setup
-            </InlineButton>
+              {uiText("Open provider setup")}</InlineButton>
           ) : null}
         </AlertDescription>
         <AlertAction>
           <Button
-            aria-label={`Dismiss ${providerName} provider ${status.status}`}
+            aria-label={uiText("Dismiss {0} provider {1}", {"0": providerName, "1": status.status})}
             onClick={onDismiss}
             size="icon-xs"
             variant="ghost-muted"

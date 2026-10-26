@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { type EnvironmentId, UsageLimitSourceId } from "@t3tools/contracts";
 import { useState } from "react";
 
@@ -88,9 +89,9 @@ export function AddUsageLimitSourceDialog({
     >
       <DialogPopup className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add a CLIProxyAPI hub</DialogTitle>
+          <DialogTitle>{uiText("Add a CLIProxyAPI hub")}</DialogTitle>
           <DialogDescription>
-            Show the quota of every account the hub pools, next to the providers on{" "}
+            {uiText("Show the quota of every account the hub pools, next to the providers on")}{" "}
             {environmentLabel}. The key stays on that server.
           </DialogDescription>
         </DialogHeader>
@@ -103,7 +104,7 @@ export function AddUsageLimitSourceDialog({
             }}
           >
             <div className="grid gap-1.5">
-              <Label htmlFor="usage-source-url">Hub URL</Label>
+              <Label htmlFor="usage-source-url">{uiText("Hub URL")}</Label>
               <Input
                 id="usage-source-url"
                 placeholder="https://hub.example.ts.net:8318"
@@ -113,7 +114,7 @@ export function AddUsageLimitSourceDialog({
               />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="usage-source-key">Management key</Label>
+              <Label htmlFor="usage-source-key">{uiText("Management key")}</Label>
               <SecretInput
                 id="usage-source-key"
                 value={managementKey}
@@ -121,10 +122,10 @@ export function AddUsageLimitSourceDialog({
               />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="usage-source-label">Label (optional)</Label>
+              <Label htmlFor="usage-source-label">{uiText("Label (optional)")}</Label>
               <Input
                 id="usage-source-label"
-                placeholder="Defaults to the hub's host name"
+                placeholder={uiText("Defaults to the hub's host name")}
                 value={label}
                 onChange={(event) => setLabel(event.target.value)}
               />
@@ -139,11 +140,9 @@ export function AddUsageLimitSourceDialog({
               onOpenChange(false);
             }}
           >
-            Cancel
-          </Button>
+            {uiText("Cancel")}</Button>
           <Button onClick={save} disabled={!canSave}>
-            Add hub
-          </Button>
+            {uiText("Add hub")}</Button>
         </DialogFooter>
       </DialogPopup>
     </Dialog>

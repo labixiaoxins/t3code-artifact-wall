@@ -8,7 +8,7 @@ const Popover = PopoverPrimitive.Root;
 
 function PopoverTrigger({ className, children, ...props }: PopoverPrimitive.Trigger.Props) {
   return (
-    <PopoverPrimitive.Trigger className={className} data-slot="popover-trigger" {...props}>
+    <PopoverPrimitive.Trigger className={className} data-slot={"popover-trigger"} {...props}>
       {children}
     </PopoverPrimitive.Trigger>
   );
@@ -38,6 +38,7 @@ function PopoverPopup({
   sideOffset = 4,
   alignOffset = 0,
   collisionAvoidance,
+  collisionPadding,
   tooltipStyle = false,
   keepMounted = false,
   anchor,
@@ -51,6 +52,7 @@ function PopoverPopup({
   sideOffset?: PopoverPrimitive.Positioner.Props["sideOffset"];
   alignOffset?: PopoverPrimitive.Positioner.Props["alignOffset"];
   collisionAvoidance?: PopoverPrimitive.Positioner.Props["collisionAvoidance"];
+  collisionPadding?: PopoverPrimitive.Positioner.Props["collisionPadding"];
   tooltipStyle?: boolean;
   keepMounted?: PopoverPrimitive.Portal.Props["keepMounted"];
   anchor?: PopoverPrimitive.Positioner.Props["anchor"];
@@ -67,8 +69,8 @@ function PopoverPopup({
         // control under the finger. On touch screens the backdrop takes the tap, so
         // tapping away only closes the popover, as it does for modal menus and selects.
         <PopoverPrimitive.Backdrop
-          className="fixed inset-0 z-[130] hidden pointer-coarse:block"
-          data-slot="popover-backdrop"
+          className={"fixed inset-0 z-[130] hidden pointer-coarse:block"}
+          data-slot={"popover-backdrop"}
         />
       ) : null}
       <PopoverPrimitive.Positioner
@@ -76,14 +78,14 @@ function PopoverPopup({
         alignOffset={alignOffset}
         anchor={anchor}
         collisionAvoidance={collisionAvoidance}
-        collisionPadding={variant === "panel" ? 0 : undefined}
+        collisionPadding={collisionPadding ?? (variant === "panel" ? 0 : undefined)}
         className={cn(
           "h-(--positioner-height) w-(--positioner-width) max-w-(--available-width) transition-transform data-instant:transition-none",
           variant === "panel"
             ? "z-(--z-sheet) w-[min(calc(var(--thread-details-panel-width)+--spacing(4)),calc(var(--anchor-width)---spacing(2)))] transition-[top] duration-150 ease-out data-instant:transition-[top] motion-reduce:transition-none motion-reduce:data-instant:transition-none"
             : "z-[130]",
         )}
-        data-slot="popover-positioner"
+        data-slot={"popover-positioner"}
         side={side}
         sideOffset={sideOffset}
       >
@@ -101,7 +103,7 @@ function PopoverPopup({
               "w-full overflow-visible rounded-none border-0 bg-transparent shadow-none before:hidden [backdrop-filter:none] [-webkit-backdrop-filter:none]",
             className,
           )}
-          data-slot="popover-popup"
+          data-slot={"popover-popup"}
           {...props}
         >
           <Viewport
@@ -114,7 +116,7 @@ function PopoverPopup({
               variant === "panel" &&
                 "overflow-visible py-2 [--viewport-inline-padding:--spacing(2)]",
             )}
-            data-slot="popover-viewport"
+            data-slot={"popover-viewport"}
           >
             {children}
           </Viewport>
@@ -125,14 +127,14 @@ function PopoverPopup({
 }
 
 function PopoverClose({ ...props }: PopoverPrimitive.Close.Props) {
-  return <PopoverPrimitive.Close data-slot="popover-close" {...props} />;
+  return <PopoverPrimitive.Close data-slot={"popover-close"} {...props} />;
 }
 
 function PopoverTitle({ className, ...props }: PopoverPrimitive.Title.Props) {
   return (
     <PopoverPrimitive.Title
       className={cn("font-semibold text-sm leading-none", className)}
-      data-slot="popover-title"
+      data-slot={"popover-title"}
       {...props}
     />
   );

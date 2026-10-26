@@ -1,8 +1,11 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as ConfigProvider from "effect/ConfigProvider";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
+import * as Layer from "effect/Layer";
+import * as PlatformError from "effect/PlatformError";
 
 import { resolveUserDataPath } from "./DesktopUserData.ts";
 
@@ -39,4 +42,50 @@ it.effect.each(["t3code", "T3 Code (Alpha)"])(
         "existing V2 state",
       );
     }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+);
+it.effect(
+  "uses an explicit isolated profile without inspecting or migrating the real profile",
+  () =>
+    Effect.gen(function* () {
+      const directory = yield* resolveUserDataPath({
+        appDataDirectory: "/real-profile",
+        isDevelopment: false,
+        platform: "darwin",
+      });
+      assert.equal(directory, "/isolated/desktop-profile");
+    }).pipe(
+      Effect.provideService(
+        FileSystem.FileSystem,
+        FileSystem.makeNoop({ exists: () => Effect.die("must not inspect real profile") }),
+      ),
+      Effect.provide(
+        Layer.mergeAll(
+          NodeServices.layer,
+          ConfigProvider.layer(
+            ConfigProvider.fromEnv({
+              env: { T3CODE_DESKTOP_USER_DATA_DIR: "/isolated/desktop-profile" },
+            }),
+          ),
+        ),
+      ),
+    ),
+);
+it.effect("rejects a relative profile override", () =>
+  Effect.gen(function* () {
+    const error = yield* resolveUserDataPath({
+      appDataDirectory: "/real-profile",
+      isDevelopment: false,
+      platform: "darwin",
+    }).pipe(Effect.flip);
+    assert.equal(error.category, "InvalidPath");
+  }).pipe(
+    Effect.provide(
+      Layer.mergeAll(
+        NodeServices.layer,
+        ConfigProvider.layer(
+          ConfigProvider.fromEnv({ env: { T3CODE_DESKTOP_USER_DATA_DIR: "relative/profile" } }),
+        ),
+      ),
+    ),
+  ),
 );

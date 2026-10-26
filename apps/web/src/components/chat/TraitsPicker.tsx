@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   buildTraitsTriggerDisplay,
   getDescriptorStringValue,
@@ -62,10 +63,10 @@ export function readPromptUltrathink(prompt: string): PromptUltrathink {
 }
 
 const SAVED_OPTION_LABELS: Readonly<Record<string, string>> = {
-  agent: "Agent",
-  effort: "Effort",
-  reasoningEffort: "Reasoning effort",
-  variant: "Reasoning",
+  agent: uiText("Agent"),
+  effort: uiText("Effort"),
+  reasoningEffort: uiText("Reasoning effort"),
+  variant: uiText("Reasoning"),
 };
 
 function savedOptionLabel(id: string): string {
@@ -110,8 +111,7 @@ type TraitsPersistence =
 function DefaultBadge() {
   return (
     <Badge variant="outline" size="sm" className="min-w-0">
-      Default
-    </Badge>
+      {uiText("Default")}</Badge>
   );
 }
 
@@ -440,9 +440,7 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
               </div>
               {ultrathinkInBodyText && descriptor.id === primarySelectDescriptor?.id ? (
                 <div className="px-2 pb-1.5 text-muted-foreground/80 text-xs">
-                  Your prompt contains &quot;ultrathink&quot; in the text. Remove it to change this
-                  option.
-                </div>
+                  {uiText("Your prompt contains &quot;ultrathink&quot; in the text. Remove it to change this option.")}</div>
               ) : null}
               <MenuRadioGroup
                 value={selectedValue}
@@ -497,7 +495,7 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
                 {(["on", "off"] as const).map((value) => (
                   <MenuRadioItem key={value} value={value} hideIndicator closeOnClick>
                     <span className="flex w-full min-w-0 items-center justify-between gap-3">
-                      <span>{value === "on" ? "On" : "Off"}</span>
+                      <span>{value === "on" ? uiText("On") : uiText("Off")}</span>
                     </span>
                   </MenuRadioItem>
                 ))}

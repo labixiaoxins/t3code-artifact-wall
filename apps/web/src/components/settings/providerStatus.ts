@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type {
   ServerProvider,
   ServerProviderVersionAdvisory,
@@ -115,9 +116,9 @@ export function getProviderVersionLabel(version: string | null | undefined) {
 }
 
 const COMPATIBILITY_TITLES = {
-  graceful: "Limited support",
-  unsupported: "Unsupported version",
-  broken: "Known broken version",
+  graceful: uiText("Limited support"),
+  unsupported: uiText("Unsupported version"),
+  broken: uiText("Known broken version"),
 } as const;
 
 export function getProviderVersionAdvisoryPresentation(
@@ -168,7 +169,7 @@ export function getProviderVersionAdvisoryPresentation(
     return null;
   }
 
-  const label = "Update available";
+  const label = uiText("Update available");
   const version = advisory.latestVersion;
   const versionLabel = getProviderVersionLabel(version);
 

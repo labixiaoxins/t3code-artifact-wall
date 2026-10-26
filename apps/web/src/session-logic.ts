@@ -491,7 +491,7 @@ function projectedWorkEntry(row: OrchestrationV2ProjectedTurnItem): WorkLogEntry
     case "thread_created":
       return {
         ...common,
-        label: "Created thread",
+        label: uiText("Created thread"),
       };
     case "compaction":
       return {

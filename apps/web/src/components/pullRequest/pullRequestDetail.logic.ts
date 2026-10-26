@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import * as Schema from "effect/Schema";
 
@@ -40,9 +41,9 @@ import { reviewCommentContextId } from "~/lib/composerContextRecords";
 import { removeInlineContextReference } from "~/lib/composerContextReferences";
 
 export const PULL_REQUEST_MERGE_METHOD_LABELS: Record<PullRequestMergeMethod, string> = {
-  merge: "Merge",
-  squash: "Squash and merge",
-  rebase: "Rebase and merge",
+  merge: uiText("Merge"),
+  squash: uiText("Squash and merge"),
+  rebase: uiText("Rebase and merge"),
 };
 
 export function allowsSinglePullRequestMerge(input: {
@@ -678,7 +679,7 @@ export function buildPullRequestTimeline(
       id: "created",
       at: detail.createdAt,
       kind: "opened" as const,
-      title: "opened this pull request",
+      title: uiText("opened this pull request"),
       body: null,
       markdown: false,
       url: null,
@@ -694,7 +695,7 @@ export function buildPullRequestTimeline(
       id: commit.oid,
       at: commit.committedDate,
       kind: "commit" as const,
-      title: `Commit ${commit.oid.slice(0, 7)}`,
+      title: uiText("Commit {0}", {"0": commit.oid.slice(0, 7)}),
       body: commit.messageHeadline || null,
       markdown: false,
       url: null,
@@ -728,7 +729,7 @@ export function buildPullRequestTimeline(
             id: "merged",
             at: detail.mergedAt,
             kind: "merged" as const,
-            title: "Pull request merged",
+            title: uiText("Pull request merged"),
             body: null,
             markdown: false,
             url: null,
@@ -748,7 +749,7 @@ export function buildPullRequestTimeline(
             id: "closed",
             at: detail.closedAt,
             kind: "closed" as const,
-            title: "Pull request closed",
+            title: uiText("Pull request closed"),
             body: null,
             markdown: false,
             url: null,

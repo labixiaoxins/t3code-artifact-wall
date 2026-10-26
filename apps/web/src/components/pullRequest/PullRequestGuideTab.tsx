@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type { EnvironmentId, PullRequestRef, PullRequestReviewGuideStop } from "@t3tools/contracts";
 import { SparklesIcon, TriangleAlertIcon } from "lucide-react";
 import { useEffect, useEffectEvent } from "react";
@@ -97,7 +98,7 @@ export function PullRequestGuideTab({
     canWrite ? (
       <Button size={size} variant="outline" disabled={running} onClick={() => void write()}>
         {running ? <Spinner /> : <SparklesIcon aria-hidden className="size-3.5" />}
-        {running ? "Reading the change..." : label}
+        {running ? uiText("Reading the change...") : label}
       </Button>
     ) : null;
 
@@ -112,14 +113,14 @@ export function PullRequestGuideTab({
     return (
       <div className="flex min-h-48 flex-col items-center justify-center gap-2 px-4 py-10 text-center">
         <p className="text-sm font-medium text-foreground">
-          {running ? "Writing a review guide" : "No review guide yet"}
+          {running ? uiText("Writing a review guide") : uiText("No review guide yet")}
         </p>
         <p className="max-w-md text-xs text-muted-foreground">
           {failure ??
             query.error ??
             (running
-              ? "An agent is reading the change. A large one takes a few minutes. You can leave; you will be told when it is ready."
-              : "A guide is a tour of the change: stops through the code in reading order, with the calls only a maintainer can make.")}
+              ? uiText("An agent is reading the change. A large one takes a few minutes. You can leave; you will be told when it is ready.")
+              : uiText("A guide is a tour of the change: stops through the code in reading order, with the calls only a maintainer can make."))}
         </p>
         {writeButton(failure === null ? "Write guide" : "Try again", "sm")}
       </div>
@@ -132,8 +133,8 @@ export function PullRequestGuideTab({
         {running ? <Spinner /> : <TriangleAlertIcon />}
         <AlertDescription>
           {running
-            ? "Rewriting this guide. You will be told when the new one is ready."
-            : (failure ?? "Written before the latest push.")}
+            ? uiText("Rewriting this guide. You will be told when the new one is ready.")
+            : (failure ?? uiText("Written before the latest push."))}
         </AlertDescription>
         {!running && canWrite ? <AlertAction>{writeButton("Rewrite", "xs")}</AlertAction> : null}
       </Alert>

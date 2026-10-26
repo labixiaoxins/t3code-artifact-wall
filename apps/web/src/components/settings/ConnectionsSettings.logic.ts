@@ -96,7 +96,7 @@ export function isWslSettingsRowVisible(input: {
  * keeps its label too. `state` is null outside the desktop app.
  */
 export function resolveLocalVersionStatusLabel(state: DesktopUpdateState | null): string {
-  if (!state) return "Up to date";
+  if (!state) return uiText("Up to date");
   if (state.status === "downloading") {
     return state.availableVersion
       ? `Downloading update ${state.availableVersion}`
@@ -116,7 +116,7 @@ export function resolveLocalVersionStatusLabel(state: DesktopUpdateState | null)
       ? `Update ${state.availableVersion} available`
       : "Update available";
   }
-  return "Up to date";
+  return uiText("Up to date");
 }
 
 export type QrEndpointOption = {

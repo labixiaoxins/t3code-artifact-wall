@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { resolveEnvironmentMachineKind } from "@t3tools/contracts";
 
 import {
@@ -13,10 +14,10 @@ import { FoldedSettingsSection } from "./FoldedSettingsSection";
 import { searchableSetting } from "./settingsSearch";
 
 const preferences = [
-  { value: 100, label: "Prefer" },
-  { value: 50, label: "Normal" },
-  { value: 25, label: "Less often" },
-  { value: 0, label: "Manual only" },
+  { value: 100, label: uiText("Prefer") },
+  { value: 50, label: uiText("Normal") },
+  { value: 25, label: uiText("Less often") },
+  { value: 0, label: uiText("Manual only") },
 ] as const;
 
 type LoadPreference = (typeof preferences)[number]["value"];
@@ -69,7 +70,7 @@ export function LoadBalancingSettings({
       }
       control={
         <Switch
-          aria-label="Automatically balance load"
+          aria-label={uiText("Automatically balance load")}
           checked={settings.loadBalancingEnabled}
           disabled={!settingsHydrated}
           onCheckedChange={(loadBalancingEnabled) => updateClientSettings({ loadBalancingEnabled })}
@@ -77,9 +78,7 @@ export function LoadBalancingSettings({
       }
     >
       <p className="px-3 py-2.5 text-xs text-muted-foreground sm:px-4">
-        New threads in shared projects start on the machine with the most free CPU and memory,
-        weighted by each machine's preference.
-      </p>
+        {uiText("New threads in shared projects start on the machine with the most free CPU and memory, weighted by each machine's preference.")}</p>
       {environments.map((environment) => (
         <EnvironmentRow
           key={environment.environmentId}
@@ -106,7 +105,7 @@ export function LoadBalancingSettings({
             <SelectTrigger
               size="xs"
               className="w-32"
-              aria-label={`${environment.label} load preference`}
+              aria-label={uiText("{0} load preference", {"0": environment.label})}
             >
               <SelectValue />
             </SelectTrigger>

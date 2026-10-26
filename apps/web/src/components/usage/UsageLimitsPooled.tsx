@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   CHATGPT_USAGE_URL,
   collectLimitAccounts,
@@ -64,9 +65,11 @@ function AccountChip({ email }: { readonly email: string }) {
   const hue = accountHue(email);
   return (
     <span
-      role="img"
-      aria-label={`Account ${accountInitials(email)}`}
-      className="inline-flex size-4 shrink-0 items-center justify-center rounded-full text-3xs leading-none font-semibold"
+      role={"img"}
+      aria-label={uiText("Account {0}", {"0": accountInitials(email)})}
+      className={
+        "inline-flex size-4 shrink-0 items-center justify-center rounded-full text-3xs leading-none font-semibold"
+      }
       style={{ backgroundColor: `oklch(0.85 0.08 ${hue})`, color: `oklch(0.35 0.1 ${hue})` }}
     >
       {accountInitials(email)}
@@ -92,9 +95,9 @@ function AccountAvatar({
         }
         accentColor={account.accentColor}
         showBadge={Boolean(account.displayName)}
-        indicatorBackground="var(--popover)"
+        indicatorBackground={"var(--popover)"}
         className={cn("size-5", className)}
-        iconClassName="size-4 text-foreground/80"
+        iconClassName={"size-4 text-foreground/80"}
       />
     );
   }
@@ -125,9 +128,9 @@ function AccountName({
 
 function Row({ label, children }: { readonly label: string; readonly children: ReactNode }) {
   return (
-    <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-3">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="min-w-0 text-foreground tabular-nums">{children}</span>
+    <div className={"grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-3"}>
+      <span className={"text-muted-foreground"}>{label}</span>
+      <span className={"min-w-0 text-foreground tabular-nums"}>{children}</span>
     </div>
   );
 }
@@ -158,55 +161,67 @@ function SegmentPopover({
   const credits =
     redeem && account.limits.resetCredits?.availableCount ? account.limits.resetCredits : null;
   return (
-    <div className="flex w-72 max-w-[calc(100vw-3rem)] flex-col gap-2.5 text-xs">
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+    <div className={"flex w-72 max-w-[calc(100vw-3rem)] flex-col gap-2.5 text-xs"}>
+      <div className={"flex min-w-0 flex-col gap-0.5"}>
+        <span className={"flex items-center gap-2 text-sm font-medium text-foreground"}>
           <AccountAvatar account={account} />
-          <span className="truncate">
+          <span className={"truncate"}>
             {account.displayName ?? providerClients.get(account.driver)?.label ?? account.driver}
           </span>
         </span>
         {account.email ? (
           <RedactedSensitiveText
             value={account.email}
-            ariaLabel="Toggle account email visibility"
-            revealTooltip="Click to reveal email"
-            hideTooltip="Click to hide email"
-            className="w-fit"
+            ariaLabel={"Toggle account email visibility"}
+            revealTooltip={"Click to reveal email"}
+            hideTooltip={"Click to hide email"}
+            className={"w-fit"}
           />
         ) : null}
       </div>
-      <div className="flex flex-col gap-1 border-t border-border/60 pt-2.5">
-        {account.plan ? <Row label="Plan">{account.plan}</Row> : null}
+      <div className={"flex flex-col gap-1 border-t border-border/60 pt-2.5"}>
+        {account.plan ? <Row label={uiText("Plan")}>{account.plan}</Row> : null}
         {where ? (
-          <Row label={account.environments.length > 0 ? "Signed in" : "Via"}>{where}</Row>
+          <Row label={account.environments.length > 0 ? uiText("Signed in") : uiText("Via")}>{where}</Row>
         ) : null}
       </div>
-      <div className="flex flex-col gap-1 border-t border-border/60 pt-2.5">
-        <Row label="Left">{remaining}%</Row>
+      <div className={"flex flex-col gap-1 border-t border-border/60 pt-2.5"}>
+        <Row label={uiText("Left")}>
+          {remaining}
+          {"%"}
+        </Row>
         {window.resetsAt ? (
-          <Row label="Resets">
+          <Row label={uiText("Resets")}>
             {formatUpcomingTimestamp(window.resetsAt, timestampFormat, now)}
             {resetsIn ? ` · ${resetsIn.replace("resets in ", "in ")}` : ""}
           </Row>
         ) : null}
-        {timeLeft !== null ? <Row label="Even pace">{timeLeft}% left by now</Row> : null}
+        {timeLeft !== null ? (
+          <Row label={"Even pace"}>
+            {timeLeft}
+            {"% left by now"}
+          </Row>
+        ) : null}
         {reset && reset.restoresPercent > 0 ? (
-          <Row label="Restores">+{reset.restoresPercent}% of pool</Row>
+          <Row label={uiText("Restores")}>
+            {"+"}
+            {reset.restoresPercent}
+            {uiText("% of pool")}
+          </Row>
         ) : null}
       </div>
       {credits && redeem ? (
-        <div className="border-t border-border/60 pt-2.5 text-muted-foreground">
-          <span className="flex items-center gap-3">
-            <span className="tabular-nums">{resetCreditsSummary(credits, now, true)}</span>
+        <div className={"border-t border-border/60 pt-2.5 text-muted-foreground"}>
+          <span className={"flex items-center gap-3"}>
+            <span className={"tabular-nums"}>{resetCreditsSummary(credits, now, true)}</span>
             <Button
-              size="xs"
-              variant="outline"
+              size={"xs"}
+              variant={"outline"}
               disabled={redeem.busy || !redeem.canManageProviders}
-              className="ms-auto"
+              className={"ms-auto"}
               onClick={onRedeem}
             >
-              {redeem.busy ? "Using…" : "Use reset"}
+              {redeem.busy ? uiText("Using…") : uiText("Use reset")}
             </Button>
           </span>
         </div>
@@ -258,7 +273,7 @@ function ActiveSegmentPopover({
     actions.current?.unmount();
   }, [available, handle, actions]);
   return (
-    <PopoverPopup side="top" sideOffset={6}>
+    <PopoverPopup side={"top"} sideOffset={6}>
       <SegmentPopover
         {...payload}
         now={now}
@@ -313,8 +328,8 @@ function RedeemableSegment({
       />
       {/* The popover closed before the confirm, so progress and the outcome need a home outside it. */}
       {redeem.busy || redeem.status ? (
-        <span role="status" className="col-span-full text-xs text-muted-foreground">
-          <AccountName account={props.account} className="font-medium text-foreground" />{" "}
+        <span role={"status"} className={"col-span-full text-xs text-muted-foreground"}>
+          <AccountName account={props.account} className={"font-medium text-foreground"} />{" "}
           {redeem.busy ? "Using reset credit…" : redeem.status}
         </span>
       ) : null}
@@ -355,25 +370,27 @@ function SegmentTriggers({
         render={
           <button
             ref={segmentRef}
-            type="button"
+            type={"button"}
             style={{ gridColumn: index, gridRow: 1, ...paceMark?.gappedTrack }}
             aria-label={`${account.displayName ?? (account.email ? accountInitials(account.email) : account.driver)}: ${remaining}% left${resetsIn ? `, ${resetsIn}` : ""}${timeLeft === null ? "" : `, ${timeLeft}% of the window left`}${credits ? `, ${credits} reset ${credits === 1 ? "credit" : "credits"} banked` : ""}`}
-            className="relative h-5 min-w-0 cursor-pointer rounded-md bg-muted text-start outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background data-[popup-open]:ring-1 data-[popup-open]:ring-inset data-[popup-open]:ring-border @2xl/pool:h-8"
+            className={
+              "relative h-5 min-w-0 cursor-pointer rounded-md bg-muted text-start outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background data-[popup-open]:ring-1 data-[popup-open]:ring-inset data-[popup-open]:ring-border @2xl/pool:h-8"
+            }
           />
         }
       >
-        <div aria-hidden className="absolute inset-0 overflow-hidden rounded-md">
+        <div aria-hidden className={"absolute inset-0 overflow-hidden rounded-md"}>
           {/* Clipped inside the rounded clip so the bar's own corners keep their antialiasing. */}
-          <div className="absolute inset-0" style={paceMark?.gap}>
+          <div className={"absolute inset-0"} style={paceMark?.gap}>
             <div
               aria-hidden
-              className="absolute inset-y-0 left-0 rounded-md opacity-35"
+              className={"absolute inset-y-0 left-0 rounded-md opacity-35"}
               style={{ width: `${remaining}%`, backgroundColor: color }}
             />
             {remaining < 100 && reset && refillPercent > 0 ? (
               <div
                 aria-hidden
-                className="absolute inset-y-0 right-0 opacity-20"
+                className={"absolute inset-y-0 right-0 opacity-20"}
                 style={{
                   width: `${Math.min(100 - remaining, refillPercent)}%`,
                   backgroundImage: `repeating-linear-gradient(135deg, ${color} 0 1px, transparent 1px 5px)`,
@@ -385,36 +402,49 @@ function SegmentTriggers({
         {paceMark ? (
           <span
             aria-hidden
-            className="absolute inset-y-0.5 w-0.5 -translate-x-1/2 rounded-full bg-foreground"
+            className={"absolute inset-y-0.5 w-0.5 -translate-x-1/2 rounded-full bg-foreground"}
             style={paceMark.tick}
           />
         ) : null}
         <span
           aria-hidden
-          className="absolute inset-0 flex items-center justify-center overflow-hidden rounded-md text-3xs leading-none font-semibold text-foreground/80 tabular-nums @2xl/pool:hidden"
+          className={
+            "absolute inset-0 flex items-center justify-center overflow-hidden rounded-md text-3xs leading-none font-semibold text-foreground/80 tabular-nums @2xl/pool:hidden"
+          }
         >
           {index}
         </span>
-        <div className="relative hidden h-full min-w-0 items-center gap-1.5 overflow-hidden rounded-md px-2 text-xs @2xl/pool:flex">
+        <div
+          className={
+            "relative hidden h-full min-w-0 items-center gap-1.5 overflow-hidden rounded-md px-2 text-xs @2xl/pool:flex"
+          }
+        >
           {showAccountName ? (
             <AccountName
               account={account}
-              className="min-w-0 truncate font-medium text-foreground"
+              className={"min-w-0 truncate font-medium text-foreground"}
             />
           ) : null}
-          <span className="shrink-0 font-semibold text-foreground tabular-nums">{remaining}%</span>
+          <span className={"shrink-0 font-semibold text-foreground tabular-nums"}>
+            {remaining}
+            {"%"}
+          </span>
           {resetsIn || credits ? (
-            <span className="ms-auto flex min-w-0 items-center gap-1.5 overflow-hidden rounded-sm bg-background/85 px-1.5 py-0.5 text-2xs whitespace-nowrap text-foreground tabular-nums">
+            <span
+              className={
+                "ms-auto flex min-w-0 items-center gap-1.5 overflow-hidden rounded-sm bg-background/85 px-1.5 py-0.5 text-2xs whitespace-nowrap text-foreground tabular-nums"
+              }
+            >
               {resetsIn?.replace("resets in ", "↻ ") ?? ""}
               {credits ? (
                 <>
                   {resetsIn ? (
-                    <span aria-hidden className="text-muted-foreground">
-                      ·
+                    <span aria-hidden className={"text-muted-foreground"}>
+                      {"\u00B7"}
                     </span>
                   ) : null}
-                  <span aria-hidden className="inline-flex items-center gap-0.5 font-semibold">
-                    <TicketIcon className="size-3" aria-hidden />
+                  <span aria-hidden className={"inline-flex items-center gap-0.5 font-semibold"}>
+                    <TicketIcon className={"size-3"} aria-hidden />
                     {credits}
                   </span>
                 </>
@@ -449,34 +479,48 @@ function LegendRow({
       handle={popover}
       payload={payload}
       style={{ gridColumn: "1 / -1", gridRow: index + 1 }}
-      render={<Button variant="ghost" size="compact" />}
-      className="min-w-0 @2xl/pool:hidden"
+      render={<Button variant={"ghost"} size={"compact"} />}
+      className={"min-w-0 @2xl/pool:hidden"}
     >
-      <span className="relative inline-flex size-4 shrink-0 items-center justify-center rounded-sm text-3xs leading-none font-semibold text-foreground/80 tabular-nums">
+      <span
+        className={
+          "relative inline-flex size-4 shrink-0 items-center justify-center rounded-sm text-3xs leading-none font-semibold text-foreground/80 tabular-nums"
+        }
+      >
         <span
           aria-hidden
-          className="absolute inset-0 rounded-sm opacity-35"
+          className={"absolute inset-0 rounded-sm opacity-35"}
           style={{ backgroundColor: color }}
         />
-        <span className="sr-only">Segment </span>
-        <span className="relative">{index}</span>
+        <span className={"sr-only"}>{uiText("Segment")}</span>
+        <span className={"relative"}>{index}</span>
       </span>
-      <AccountName account={account} className="min-w-0 truncate font-medium text-foreground" />
-      <span className="shrink-0 font-semibold text-foreground tabular-nums">{remaining}%</span>
-      <span className="ms-auto flex shrink-0 items-center gap-1.5 text-2xs text-muted-foreground tabular-nums">
+      <AccountName account={account} className={"min-w-0 truncate font-medium text-foreground"} />
+      <span className={"shrink-0 font-semibold text-foreground tabular-nums"}>
+        {remaining}
+        {"%"}
+      </span>
+      <span
+        className={
+          "ms-auto flex shrink-0 items-center gap-1.5 text-2xs text-muted-foreground tabular-nums"
+        }
+      >
         {resetsIn?.replace("resets in ", "↻ ") ?? ""}
         {credits ? (
           <>
-            {resetsIn ? <span aria-hidden>·</span> : null}
+            {resetsIn ? <span aria-hidden>{"\u00B7"}</span> : null}
             <span
               aria-hidden
-              className="inline-flex items-center gap-0.5 font-semibold text-foreground"
+              className={"inline-flex items-center gap-0.5 font-semibold text-foreground"}
             >
-              <TicketIcon className="size-3" aria-hidden />
+              <TicketIcon className={"size-3"} aria-hidden />
               {credits}
             </span>
-            <span className="sr-only">
-              {credits} reset {credits === 1 ? "credit" : "credits"} banked
+            <span className={"sr-only"}>
+              {credits}
+              {uiText("reset")}
+              {credits === 1 ? uiText("credit") : uiText("credits")}
+              {uiText("banked")}
             </span>
           </>
         ) : null}
@@ -496,9 +540,9 @@ function PoolBar({
 }) {
   const restores = new Map(pool.resets.map((reset) => [reset.member.account.key, reset]));
   return (
-    <div className="@container/pool min-w-0">
+    <div className={"@container/pool min-w-0"}>
       <div
-        className="grid gap-x-1 gap-y-1"
+        className={"grid gap-x-1 gap-y-1"}
         style={{ gridTemplateColumns: `repeat(${pool.columns.length}, minmax(0, 1fr))` }}
       >
         {pool.columns.map((member, position) =>
@@ -536,27 +580,34 @@ function PoolWindowCard({
 }) {
   const nextRefill = pool.resets.find((reset) => reset.restoresPercent > 0);
   return (
-    <div className="grid items-center gap-x-6 gap-y-3 rounded-lg border border-border/60 p-4 md:grid-cols-[11rem_minmax(0,1fr)]">
-      <div className="flex flex-col gap-1">
-        <span className="text-sm font-medium text-foreground">{label ?? pool.label}</span>
-        <span className="flex items-baseline gap-2">
-          <span className="text-3xl font-semibold text-foreground tabular-nums">
-            {pool.remainingPercent}%
+    <div
+      className={
+        "grid items-center gap-x-6 gap-y-3 rounded-lg border border-border/60 p-4 md:grid-cols-[11rem_minmax(0,1fr)]"
+      }
+    >
+      <div className={"flex flex-col gap-1"}>
+        <span className={"text-sm font-medium text-foreground"}>{label ?? pool.label}</span>
+        <span className={"flex items-baseline gap-2"}>
+          <span className={"text-3xl font-semibold text-foreground tabular-nums"}>
+            {pool.remainingPercent}
+            {"%"}
           </span>
-          <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-            <span>left</span>
+          <span className={"inline-flex items-center gap-2 text-sm text-muted-foreground"}>
+            <span>{uiText("left")}</span>
             {pool.pace ? <PaceIcon pace={pool.pace} /> : null}
           </span>
         </span>
         {nextRefill && pool.columns.length > 1 ? (
-          <span className="text-xs font-medium text-foreground tabular-nums">
-            ↻ +{nextRefill.restoresPercent}%
+          <span className={"text-xs font-medium text-foreground tabular-nums"}>
+            {"\u21BB +"}
+            {nextRefill.restoresPercent}
+            {"%"}
           </span>
         ) : null}
       </div>
       <PoolBar pool={pool} color={color} now={now} />
       {description ? (
-        <p className="text-xs text-muted-foreground md:col-span-2">{description}</p>
+        <p className={"text-xs text-muted-foreground md:col-span-2"}>{description}</p>
       ) : null}
     </div>
   );
@@ -567,14 +618,14 @@ function PoolSection({ pool, now }: { readonly pool: LimitPool; readonly now: nu
   const label = providerClients.get(pool.driver)?.label ?? String(pool.driver);
   const windows = displayLimitWindows(pool);
   return (
-    <section className="flex flex-col gap-3">
-      <h2 className="flex items-center gap-2 text-sm font-medium text-foreground">
+    <section className={"flex flex-col gap-3"}>
+      <h2 className={"flex items-center gap-2 text-sm font-medium text-foreground"}>
         <ProviderInstanceIcon
           driverKind={pool.driver}
           displayName={label}
-          indicatorBackground="var(--background)"
-          className="size-5"
-          iconClassName="size-4 text-foreground/80"
+          indicatorBackground={"var(--background)"}
+          className={"size-5"}
+          iconClassName={"size-4 text-foreground/80"}
         />
         {label}
       </h2>
@@ -615,10 +666,10 @@ export function UsageLimitsPooled({
       pools.findIndex((pool) => pool.driver === "claudeAgent"),
     ) + 1;
   return (
-    <div className="flex flex-col gap-8">
+    <div className={"flex flex-col gap-8"}>
       {pools.length === 0 && notices.length === 0 && !cursorPrompt && externalLinks.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No provider on the selected environments reports subscription limits.
+        <p className={"text-sm text-muted-foreground"}>
+          {uiText("No provider on the selected environments reports subscription limits.")}
         </p>
       ) : null}
       <SegmentPopoverContext value={segmentPopover}>
@@ -646,30 +697,30 @@ export function UsageLimitsPooled({
       {externalLinks.map((link) => (
         <section
           key={link.url}
-          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4"
+          className={"flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4"}
         >
-          <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className={"flex min-w-0 flex-1 items-center gap-3"}>
             {link.url === CHATGPT_USAGE_URL ? (
-              <OpenAI className="size-5 shrink-0" aria-hidden="true" />
+              <OpenAI className={"size-5 shrink-0"} aria-hidden={"true"} />
             ) : null}
-            <div className="min-w-0 space-y-1">
-              <h2 className="text-sm font-medium">{link.label}</h2>
+            <div className={"min-w-0 space-y-1"}>
+              <h2 className={"text-sm font-medium"}>{link.label}</h2>
               {link.url === CHATGPT_USAGE_URL ? (
-                <p className="text-xs text-muted-foreground">
-                  View usage in ChatGPT with your connected account.
+                <p className={"text-xs text-muted-foreground"}>
+                  {uiText("View usage in ChatGPT with your connected account.")}
                 </p>
               ) : link.message ? (
-                <p className="max-w-xl text-xs text-muted-foreground">{link.message}</p>
+                <p className={"max-w-xl text-xs text-muted-foreground"}>{link.message}</p>
               ) : null}
             </div>
           </div>
           <Button
-            variant="ghost-muted"
-            size="xs"
+            variant={"ghost-muted"}
+            size={"xs"}
             onClick={() => void ensureLocalApi().shell.openExternal(link.url)}
           >
-            Manage usage
-            <ExternalLinkIcon className="size-3.5" aria-hidden="true" />
+            {uiText("Manage usage")}
+            <ExternalLinkIcon className={"size-3.5"} aria-hidden={"true"} />
           </Button>
         </section>
       ))}
@@ -681,10 +732,10 @@ export function UsageLimitsPooled({
 function LimitNotices({ notices }: { readonly notices: readonly string[] }) {
   if (notices.length === 0) return null;
   return (
-    <Alert variant="warning" controlAlignment="first-line">
+    <Alert variant={"warning"} controlAlignment={"first-line"}>
       <AlertTriangleIcon />
       {notices.map((notice) => (
-        <AlertTitle key={notice} className="break-words">
+        <AlertTitle key={notice} className={"break-words"}>
           {notice}
         </AlertTitle>
       ))}

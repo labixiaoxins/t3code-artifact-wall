@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useAtomValue } from "@effect/atom-react";
 import { type ReactNode, useSyncExternalStore } from "react";
 
@@ -46,13 +47,13 @@ function useUpdateRunMachineViews(run: UpdateEverythingRun): ReadonlyArray<Updat
 
 function localStatusLabel(run: UpdateEverythingRun, local: UpdateRunLocalState, now: number) {
   if (run.phase === "countdown" && run.restartAt !== null) {
-    return `restarts in ${Math.max(0, Math.ceil((run.restartAt - now) / 1000))}s`;
+    return uiText("restarts in {0}s", {"0": Math.max(0, Math.ceil((run.restartAt - now) / 1000))});
   }
-  if (run.phase === "installing") return "restarting";
+  if (run.phase === "installing") return uiText("restarting");
   if (local?.status === "downloading") {
-    return `downloading${local.percent === null ? "" : ` ${Math.floor(local.percent)}%`}`;
+    return uiText("downloading{0}", {"0": local.percent === null ? "" : ` ${Math.floor(local.percent)}%`});
   }
-  return "restarts after the servers";
+  return uiText("restarts after the servers");
 }
 
 export function SidebarUpdateCapsule({
@@ -128,17 +129,16 @@ export function SidebarUpdateCapsule({
         <div className="flex flex-col gap-1 text-xs">
           {run.localVersion !== null ? (
             <div className="flex items-center justify-between gap-3">
-              <span>This app</span>
+              <span>{uiText("This app")}</span>
               <span className="text-muted-foreground tabular-nums">
                 {localStatusLabel(run, local, now)}
               </span>
             </div>
           ) : onRestart ? (
             <div className="flex items-center justify-between gap-3">
-              <span>This app</span>
+              <span>{uiText("This app")}</span>
               <Button size="xs" variant="outline" onClick={() => void onRestart()}>
-                Restart to update
-              </Button>
+                {uiText("Restart to update")}</Button>
             </div>
           ) : null}
           {machines.map(({ machine, status }) => (
@@ -166,12 +166,10 @@ export function SidebarUpdateCapsule({
             <div className="mt-1 flex justify-end gap-1">
               {view.action === "retry" ? (
                 <Button size="xs" variant="outline" onClick={runAction}>
-                  Retry
-                </Button>
+                  {uiText("Retry")}</Button>
               ) : null}
               <Button size="xs" variant="ghost" onClick={dismissSettledUpdateRunMachines}>
-                Dismiss
-              </Button>
+                {uiText("Dismiss")}</Button>
             </div>
           ) : null}
         </div>

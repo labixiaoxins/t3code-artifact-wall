@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { DeviceHostUpdates } from "./DeviceHostUpdates";
 import type {
   DevicePlatform,
@@ -200,9 +201,7 @@ export function DevicePanel(props: {
           <DeviceHostUpdates state={state} environmentId={environmentId} />
           {bootingDevices.length > 0 ? (
             <div role="status" className="border-b px-3 py-2 text-xs text-muted-foreground">
-              Starting {bootingDevices.map((device) => device.name).join(", ")}… This can take a
-              minute.
-            </div>
+              {uiText("Starting") + " "}{bootingDevices.map((device) => device.name).join(", ")}{uiText("… This can take a minute.") + " "}</div>
           ) : null}
           {operationError ? (
             <DeviceNotice tone="error" onDismiss={() => setOperation(null)}>
@@ -262,8 +261,8 @@ export function DevicePanel(props: {
                       tabIndex={state.hostStatus === "failed" ? 0 : undefined}
                     >
                       {state.hostStatus === "failed"
-                        ? (state.hostStatusDetail ?? "The device hub failed to start.")
-                        : "No simulators or emulators were found on this environment."}
+                        ? (state.hostStatusDetail ?? uiText("The device hub failed to start."))
+                        : uiText("No simulators or emulators were found on this environment.")}
                     </p>
                   </>
                 ) : null}
@@ -306,7 +305,7 @@ export function DevicePanel(props: {
                                 ) : (
                                   <Play />
                                 )}
-                                {device.booted ? "Open" : "Start"}
+                                {device.booted ? uiText("Open") : uiText("Start")}
                               </Button>
                             </div>
                           ))}
@@ -320,9 +319,7 @@ export function DevicePanel(props: {
                 !state.devices.some((device) => device.platform === "android") &&
                 !unavailablePlatforms.some((platform) => platform.platform === "android") ? (
                   <p className="max-w-sm text-xs">
-                    No Android virtual devices found. Create one in Android Studio's Device Manager,
-                    then refresh.
-                  </p>
+                    {uiText("No Android virtual devices found. Create one in Android Studio's Device Manager, then refresh.")}</p>
                 ) : null}
                 {loaded && !hostBusy ? (
                   <Button
@@ -331,8 +328,7 @@ export function DevicePanel(props: {
                     size="sm"
                     onClick={() => void list({ environmentId, input: {} })}
                   >
-                    Refresh devices
-                  </Button>
+                    {uiText("Refresh devices")}</Button>
                 ) : null}
               </div>
             </div>
@@ -368,7 +364,7 @@ function DeviceNotice(props: {
       <Button
         size="icon-xs"
         variant="ghost"
-        aria-label={props.tone === "warning" ? "Dismiss device warning" : "Dismiss device error"}
+        aria-label={props.tone === "warning" ? "Dismiss device warning" : uiText("Dismiss device error")}
         onClick={props.onDismiss}
       >
         <X />

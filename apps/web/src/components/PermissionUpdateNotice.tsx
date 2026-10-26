@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useAtomValue } from "@effect/atom-react";
 import { sessionHasLegacyPermissions, type EnvironmentId } from "@t3tools/contracts";
 import { useNavigate } from "@tanstack/react-router";
@@ -44,9 +45,9 @@ function EnvironmentPermissionNotice({
       toastManager.close(id);
     };
     const id = toastManager.add({
-      title: `Permissions have changed for ${label}`,
+      title: uiText("Permissions have changed for {0}", {"0": label}),
       description:
-        "This connection still uses the old permissions, so some actions may no longer be available. Pair again using a new link with the permissions you need.",
+        uiText("This connection still uses the old permissions, so some actions may no longer be available. Pair again using a new link with the permissions you need."),
       timeout: 0,
       onClose: persistDismissal,
       actionProps: {

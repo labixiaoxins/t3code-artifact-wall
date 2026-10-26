@@ -1,3 +1,6 @@
+"use client";
+import { uiText } from "~/i18n";
+
 import { Spinner } from "~/components/ui/spinner";
 
 import {
@@ -82,7 +85,7 @@ function ProviderStatusDiagnostic({
   return (
     <Tooltip>
       <TooltipTrigger render={children} />
-      <TooltipPopup side="top">{detail}</TooltipPopup>
+      <TooltipPopup side={"top"}>{detail}</TooltipPopup>
     </Tooltip>
   );
 }
@@ -187,10 +190,10 @@ function ProviderAuthEmail(props: { readonly email: string | undefined }) {
   return (
     <RedactedSensitiveText
       value={email}
-      ariaLabel="Toggle account email visibility"
-      revealTooltip="Click to reveal email"
-      hideTooltip="Click to hide email"
-      className="max-w-full truncate"
+      ariaLabel={"Toggle account email visibility"}
+      revealTooltip={"Click to reveal email"}
+      hideTooltip={"Click to hide email"}
+      className={"max-w-full truncate"}
     />
   );
 }
@@ -257,15 +260,15 @@ function ProviderEnvironmentFieldRow(props: {
   return (
     <SettingsRow
       title={<label htmlFor={inputId}>{props.field.label}</label>}
-      description={props.field.description}
+      description={props.field.description ? props.field.description : undefined}
       control={
-        <div className="flex w-full min-w-0 items-center gap-2 @min-[32rem]/settings-row:w-56">
+        <div className={"flex w-full min-w-0 items-center gap-2 @min-[32rem]/settings-row:w-56"}>
           {props.field.sensitive === false ? (
             <DraftInput
               id={inputId}
-              size="sm"
-              className="min-w-0 flex-1"
-              autoComplete="off"
+              size={"sm"}
+              className={"min-w-0 flex-1"}
+              autoComplete={"off"}
               value={value}
               onCommit={(next) => props.onCommit(props.field, next)}
               placeholder={props.field.placeholder}
@@ -274,8 +277,8 @@ function ProviderEnvironmentFieldRow(props: {
           ) : (
             <SecretInput
               id={inputId}
-              size="sm"
-              className="min-w-0 flex-1"
+              size={"sm"}
+              className={"min-w-0 flex-1"}
               value={value}
               onCommit={(next) => props.onCommit(props.field, next)}
               placeholder={props.field.placeholder}
@@ -285,13 +288,13 @@ function ProviderEnvironmentFieldRow(props: {
           )}
           {props.variable ? (
             <Button
-              type="button"
-              size="icon-sm"
-              variant="ghost-destructive"
+              type={"button"}
+              size={"icon-sm"}
+              variant={"ghost-destructive"}
               onClick={() => props.onRemove(props.field)}
-              aria-label={`Clear ${props.field.label}`}
+              aria-label={uiText("Clear {0}", {"0": props.field.label})}
             >
-              <XIcon className="size-3.5" />
+              <XIcon className={"size-3.5"} />
             </Button>
           ) : null}
         </div>
@@ -383,64 +386,64 @@ export function ProviderEnvironmentSection(props: {
 
   return (
     <SettingsRow
-      title="Variables"
-      description="API keys, base URLs, and other per-instance CLI settings."
+      title={uiText("Variables")}
+      description={uiText("API keys, base URLs, and other per-instance CLI settings.")}
       control={
-        <Button type="button" size="sm" variant="outline" onClick={addVariable}>
-          <PlusIcon className="size-3" />
-          Add variable
+        <Button type={"button"} size={"sm"} variant={"outline"} onClick={addVariable}>
+          <PlusIcon className={"size-3"} />
+          {uiText("Add variable")}
         </Button>
       }
     >
       {rows.length > 0 ? (
-        <div className="mt-3 min-w-0 space-y-2 pb-2">
+        <div className={"mt-3 min-w-0 space-y-2 pb-2"}>
           {rows.map((variable, index) => (
-            <div key={variable.id} className="flex min-w-0 flex-wrap items-center gap-1.5">
+            <div key={variable.id} className={"flex min-w-0 flex-wrap items-center gap-1.5"}>
               <DraftInput
-                size="sm"
-                font="mono"
-                className="w-full min-w-0 sm:w-44 sm:shrink-0"
+                size={"sm"}
+                font={"mono"}
+                className={"w-full min-w-0 sm:w-44 sm:shrink-0"}
                 value={variable.name}
                 onCommit={(name) => updateVariable(variable.id, { name: name.trim() })}
-                placeholder="VARIABLE_NAME"
+                placeholder={"VARIABLE_NAME"}
                 spellCheck={false}
-                aria-label={`Environment variable name ${index + 1}`}
+                aria-label={uiText("Environment variable name {0}", {"0": index + 1})}
               />
-              <span className="hidden text-xs text-muted-foreground sm:inline" aria-hidden>
-                =
+              <span className={"hidden text-xs text-muted-foreground sm:inline"} aria-hidden>
+                {"="}
               </span>
               {variable.sensitive ? (
                 <SecretInput
-                  size="sm"
-                  font="mono"
-                  className="min-w-0 flex-1"
+                  size={"sm"}
+                  font={"mono"}
+                  className={"min-w-0 flex-1"}
                   value={variable.valueRedacted ? "" : variable.value}
                   onCommit={(value) => updateVariable(variable.id, { value })}
-                  placeholder="value"
+                  placeholder={uiText("value")}
                   configured={variable.valueRedacted === true}
                   spellCheck={false}
-                  aria-label={`Environment variable value ${index + 1}`}
+                  aria-label={uiText("Environment variable value {0}", {"0": index + 1})}
                 />
               ) : (
                 <DraftInput
-                  size="sm"
-                  font="mono"
-                  className="min-w-0 flex-1"
+                  size={"sm"}
+                  font={"mono"}
+                  className={"min-w-0 flex-1"}
                   value={variable.valueRedacted ? "" : variable.value}
                   onCommit={(value) => updateVariable(variable.id, { value })}
-                  autoComplete="off"
-                  placeholder="value"
+                  autoComplete={"off"}
+                  placeholder={uiText("value")}
                   spellCheck={false}
-                  aria-label={`Environment variable value ${index + 1}`}
+                  aria-label={uiText("Environment variable value {0}", {"0": index + 1})}
                 />
               )}
               <Tooltip>
                 <TooltipTrigger
                   render={
                     <Button
-                      type="button"
-                      size="icon-micro"
-                      variant="ghost-muted"
+                      type={"button"}
+                      size={"icon-micro"}
+                      variant={"ghost-muted"}
                       onClick={() => {
                         const sensitive = !variable.sensitive;
                         updateVariable(variable.id, {
@@ -451,32 +454,32 @@ export function ProviderEnvironmentSection(props: {
                         });
                       }}
                       aria-pressed={variable.sensitive}
-                      aria-label={`Mark environment variable ${variable.name || index + 1} as sensitive`}
+                      aria-label={uiText("Mark environment variable {0} as sensitive", {"0": variable.name || index + 1})}
                     >
                       <MorphIcon
-                        className="size-3"
+                        className={"size-3"}
                         icon={variable.sensitive ? LockGlyph : LockOpen}
                       />
                     </Button>
                   }
                 />
-                <TooltipPopup side="top">
-                  {variable.sensitive ? "Sensitive, stored separately" : "Plain text"}
+                <TooltipPopup side={"top"}>
+                  {variable.sensitive ? uiText("Sensitive, stored separately") : uiText("Plain text")}
                 </TooltipPopup>
               </Tooltip>
               <Button
-                type="button"
-                size="icon-micro"
-                variant="ghost-destructive"
+                type={"button"}
+                size={"icon-micro"}
+                variant={"ghost-destructive"}
                 onClick={() => removeVariable(variable.id)}
-                aria-label={`Remove environment variable ${variable.name || index + 1}`}
+                aria-label={uiText("Remove environment variable {0}", {"0": variable.name || index + 1})}
               >
-                <XIcon className="size-3" />
+                <XIcon className={"size-3"} />
               </Button>
             </div>
           ))}
-          <p className="text-xs text-muted-foreground">
-            Sensitive values are stored separately and never returned to the app.
+          <p className={"text-xs text-muted-foreground"}>
+            {uiText("Sensitive values are stored separately and never returned to the app.")}
           </p>
         </div>
       ) : null}
@@ -492,8 +495,8 @@ function ProjectOverrideInheritance({
   readonly deviceEnabled: boolean;
 }) {
   const layers = [
-    { key: "project", label: "Project", enabled: projectEnabled, effective: true },
-    { key: "device", label: "Device", enabled: deviceEnabled, effective: false },
+    { key: "project", label: uiText("Project"), enabled: projectEnabled, effective: true },
+    { key: "device", label: uiText("Device"), enabled: deviceEnabled, effective: false },
   ];
   return (
     <Popover>
@@ -503,20 +506,20 @@ function ProjectOverrideInheritance({
             <PopoverTrigger
               render={
                 <Button
-                  size="icon-micro"
-                  variant="ghost-muted"
-                  aria-label="Overridden for this project. Show where this value comes from"
+                  size={"icon-micro"}
+                  variant={"ghost-muted"}
+                  aria-label={uiText("Overridden for this project. Show where this value comes from")}
                 />
               }
             />
           }
         >
-          <LayersIcon className="size-3 text-primary" />
+          <LayersIcon className={"size-3 text-primary"} />
         </TooltipTrigger>
-        <TooltipPopup side="top">Overridden for this project</TooltipPopup>
+        <TooltipPopup side={"top"}>{uiText("Overridden for this project")}</TooltipPopup>
       </Tooltip>
-      <PopoverPopup align="end" width="md" padding="none">
-        <ol role="list" className="px-3 py-2.5 text-sm">
+      <PopoverPopup align={"end"} width={"md"} padding={"none"}>
+        <ol role={"list"} className={"px-3 py-2.5 text-sm"}>
           {layers.map((layer) => (
             <li
               key={layer.key}
@@ -539,11 +542,11 @@ function ProjectOverrideInheritance({
                   layer.effective ? "text-foreground" : "text-muted-foreground",
                 )}
               >
-                {layer.enabled ? "On" : "Off"}
+                {layer.enabled ? uiText("On") : uiText("Off")}
                 {layer.effective ? (
-                  <CheckIcon aria-hidden className="size-3.5 shrink-0 text-primary" />
+                  <CheckIcon aria-hidden className={"size-3.5 shrink-0 text-primary"} />
                 ) : (
-                  <span aria-hidden className="size-3.5 shrink-0" />
+                  <span aria-hidden className={"size-3.5 shrink-0"} />
                 )}
               </span>
             </li>
@@ -687,19 +690,21 @@ export function ProviderInstanceCard({
   const displayName =
     instance.displayName?.trim() || driverOption?.label || String(instance.driver);
   const accentColor = normalizeProviderAccentColor(instance.accentColor);
-  const { copyToClipboard } = useCopyToClipboard<{ providerName: string }>({
+  const { copyToClipboard } = useCopyToClipboard<{
+    providerName: string;
+  }>({
     onCopy: ({ providerName }) => {
       toastManager.add({
         type: "success",
-        title: `${providerName} update command copied`,
-        description: "Run it in a terminal when you are ready to update.",
+        title: uiText("{0} update command copied", {"0": providerName}),
+        description: uiText("Run it in a terminal when you are ready to update."),
       });
     },
     onError: (error, { providerName }) => {
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: `Could not copy ${providerName} update command`,
+          title: uiText("Could not copy {0} update command", {"0": providerName}),
           description: error.message,
         }),
       );
@@ -816,18 +821,20 @@ export function ProviderInstanceCard({
           : (readConfigString(instance.config, "registryIconUrl") ?? undefined)
       }
       showBadge={Boolean(accentColor)}
-      className="size-5"
-      iconClassName="size-4 text-foreground/80"
-      badgeClassName="right-[-0.125rem] bottom-[-0.125rem] h-3 min-w-3 px-0.5 text-5xs"
+      className={"size-5"}
+      iconClassName={"size-4 text-foreground/80"}
+      badgeClassName={"right-[-0.125rem] bottom-[-0.125rem] h-3 min-w-3 px-0.5 text-5xs"}
     />
   );
 
   const titleTailNode = headerAction ? (
-    <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center">{headerAction}</span>
+    <span className={"inline-flex h-5 w-5 shrink-0 items-center justify-center"}>
+      {headerAction}
+    </span>
   ) : null;
 
   const versionCodeNode = versionLabel ? (
-    <code className="text-xs text-muted-foreground">{versionLabel}</code>
+    <code className={"text-xs text-muted-foreground"}>{versionLabel}</code>
   ) : null;
 
   const statusDotNode =
@@ -847,11 +854,19 @@ export function ProviderInstanceCard({
     isAuthenticated && authEmail ? (
       <>
         {needsAttention ? statusDotNode : null}
-        <span>Authenticated as</span>
+        <span>{uiText("Authenticated as")}</span>
         <ProviderAuthEmail email={authEmail} />
-        {authLabel ? <span>· {authLabel}</span> : null}
+        {authLabel ? (
+          <span>
+            {"\u00B7 "}
+            {authLabel}
+          </span>
+        ) : null}
         {inlineStatusDetail ? (
-          <span className="min-w-0 [overflow-wrap:anywhere]">· {inlineStatusDetail}</span>
+          <span className={"min-w-0 [overflow-wrap:anywhere]"}>
+            {"\u00B7 "}
+            {inlineStatusDetail}
+          </span>
         ) : null}
       </>
     ) : (
@@ -859,7 +874,10 @@ export function ProviderInstanceCard({
         {statusDotNode}
         <span>{summary.headline}</span>
         {inlineStatusDetail ? (
-          <span className="min-w-0 [overflow-wrap:anywhere]">· {inlineStatusDetail}</span>
+          <span className={"min-w-0 [overflow-wrap:anywhere]"}>
+            {"\u00B7 "}
+            {inlineStatusDetail}
+          </span>
         ) : null}
       </>
     );
@@ -871,14 +889,14 @@ export function ProviderInstanceCard({
             <PopoverTrigger
               render={
                 <Button
-                  type="button"
+                  type={"button"}
                   size={mode === "list" ? "icon-micro" : "icon-xs"}
-                  variant="ghost-muted"
+                  variant={"ghost-muted"}
                   className={mode === "list" ? "pointer-events-auto relative shrink-0" : undefined}
-                  aria-label={`${updateProgress ? "Updating" : versionAdvisory.title} — view details`}
+                  aria-label={uiText("{0} — view details", {"0": updateProgress ? "Updating" : versionAdvisory.title})}
                 >
                   {updateProgress ? (
-                    <Spinner tone="muted" {...(mode === "list" ? { size: "sm" as const } : {})} />
+                    <Spinner tone={"muted"} {...(mode === "list" ? { size: "sm" as const } : {})} />
                   ) : (
                     <VersionAdvisoryIcon
                       className={cn(
@@ -892,14 +910,14 @@ export function ProviderInstanceCard({
             />
           }
         />
-        <TooltipPopup side="top">
-          {updateProgress ? "Updating" : versionAdvisory.title}
+        <TooltipPopup side={"top"}>
+          {updateProgress ? uiText("Updating") : versionAdvisory.title}
         </TooltipPopup>
       </Tooltip>
-      <PopoverPopup side="bottom" align="end" width="md" aria-label={versionAdvisory.title}>
-        <div className="grid min-w-0 gap-3">
-          <div className="grid gap-0.5">
-            <p className="text-sm font-semibold leading-tight text-foreground">
+      <PopoverPopup side={"bottom"} align={"end"} width={"md"} aria-label={versionAdvisory.title}>
+        <div className={"grid min-w-0 gap-3"}>
+          <div className={"grid gap-0.5"}>
+            <p className={"text-sm font-semibold leading-tight text-foreground"}>
               {versionAdvisory.title}
             </p>
             <p
@@ -913,24 +931,24 @@ export function ProviderInstanceCard({
           </div>
           {onRunVersionAction ? (
             <Button
-              type="button"
-              size="xs"
-              variant="outline"
-              className="w-full"
+              type={"button"}
+              size={"xs"}
+              variant={"outline"}
+              className={"w-full"}
               disabled={isUpdating}
               onClick={onRunVersionAction}
             >
               {isUpdating ? <Spinner /> : <DownloadIcon />}
               {isUpdating
-                ? "Updating"
+                ? uiText("Updating")
                 : versionAdvisory.targetVersion
-                  ? `Install ${getProviderVersionLabel(versionAdvisory.targetVersion)}`
-                  : "Update now"}
+                  ? uiText("Install {0}", {"0": getProviderVersionLabel(versionAdvisory.targetVersion)})
+                  : uiText("Update now")}
             </Button>
           ) : null}
           {updateProgress || updateProblem ? (
             <p
-              aria-live="polite"
+              aria-live={"polite"}
               className={cn(
                 "text-xs leading-snug [overflow-wrap:anywhere]",
                 updateProblem ? "text-warning" : "text-muted-foreground",
@@ -940,33 +958,41 @@ export function ProviderInstanceCard({
             </p>
           ) : null}
           {onRunVersionAction && updateCommand ? (
-            <div className="flex items-center gap-2 text-3xs font-medium uppercase tracking-wider text-muted-foreground">
-              <span aria-hidden className="h-px flex-1 bg-border" />
-              or, update manually using
-              <span aria-hidden className="h-px flex-1 bg-border" />
+            <div
+              className={
+                "flex items-center gap-2 text-3xs font-medium uppercase tracking-wider text-muted-foreground"
+              }
+            >
+              <span aria-hidden className={"h-px flex-1 bg-border"} />
+              {uiText("or, update manually using")}
+              <span aria-hidden className={"h-px flex-1 bg-border"} />
             </div>
           ) : null}
           {updateCommand ? (
-            <div className="flex min-w-0 items-center gap-1 rounded-md border border-border/70 bg-muted/40 py-0.5 pr-0.5 pl-2">
-              <code className="min-w-0 flex-1 truncate font-mono text-2xs text-foreground">
+            <div
+              className={
+                "flex min-w-0 items-center gap-1 rounded-md border border-border/70 bg-muted/40 py-0.5 pr-0.5 pl-2"
+              }
+            >
+              <code className={"min-w-0 flex-1 truncate font-mono text-2xs text-foreground"}>
                 {updateCommand}
               </code>
               <Tooltip>
                 <TooltipTrigger
                   render={
                     <Button
-                      type="button"
-                      size="icon-xs"
-                      variant="ghost-muted"
-                      className="shrink-0"
+                      type={"button"}
+                      size={"icon-xs"}
+                      variant={"ghost-muted"}
+                      className={"shrink-0"}
                       onClick={() => copyToClipboard(updateCommand, { providerName: displayName })}
-                      aria-label="Copy update command"
+                      aria-label={uiText("Copy update command")}
                     >
-                      <CopyIcon className="size-3" />
+                      <CopyIcon className={"size-3"} />
                     </Button>
                   }
                 />
-                <TooltipPopup side="top">Copy command</TooltipPopup>
+                <TooltipPopup side={"top"}>{uiText("Copy command")}</TooltipPopup>
               </Tooltip>
             </div>
           ) : null}
@@ -978,7 +1004,7 @@ export function ProviderInstanceCard({
   if (mode === "list") {
     return (
       <div
-        data-slot="settings-row"
+        data-slot={"settings-row"}
         className={cn(
           "group flex min-h-18 items-center gap-3 px-3 py-3 transition-colors sm:px-4",
           selected ? "bg-muted/45" : "hover:bg-muted/25",
@@ -991,35 +1017,41 @@ export function ProviderInstanceCard({
           )}
         >
           <button
-            type="button"
-            className="pointer-events-auto absolute inset-0 cursor-pointer rounded-md outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+            type={"button"}
+            className={
+              "pointer-events-auto absolute inset-0 cursor-pointer rounded-md outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+            }
             onClick={onSelect}
-            aria-label={`Select ${displayName}`}
+            aria-label={uiText("Select {0}", {"0": displayName})}
             aria-pressed={selected}
           />
           {titleIconNode}
-          <span className="min-w-0 flex-1">
-            <span className="flex min-w-0 items-center gap-2">
-              <span className="truncate text-sm font-medium text-foreground">{displayName}</span>
+          <span className={"min-w-0 flex-1"}>
+            <span className={"flex min-w-0 items-center gap-2"}>
+              <span className={"truncate text-sm font-medium text-foreground"}>{displayName}</span>
               {versionLabel ? (
-                <code className="max-w-24 shrink-0 truncate text-xs text-muted-foreground">
+                <code className={"max-w-24 shrink-0 truncate text-xs text-muted-foreground"}>
                   {versionLabel}
                 </code>
               ) : null}
               {versionAdvisoryNode}
             </span>
-            <span className="mt-0.5 flex items-start gap-1.5 text-xs leading-normal text-muted-foreground/80">
+            <span
+              className={
+                "mt-0.5 flex items-start gap-1.5 text-xs leading-normal text-muted-foreground/80"
+              }
+            >
               {statusDotNode && !updateProgress ? (
-                <span className="flex h-[1.45em] shrink-0 items-center">{statusDotNode}</span>
+                <span className={"flex h-[1.45em] shrink-0 items-center"}>{statusDotNode}</span>
               ) : null}
               <ProviderStatusDiagnostic detail={statusDiagnostic}>
                 <span
                   tabIndex={statusDiagnostic ? 0 : undefined}
-                  aria-live="polite"
-                  className="pointer-events-auto line-clamp-2 [overflow-wrap:anywhere]"
+                  aria-live={"polite"}
+                  className={"pointer-events-auto line-clamp-2 [overflow-wrap:anywhere]"}
                 >
                   {updateProgress ? (
-                    `Updating · ${updateProgress}`
+                    uiText("Updating · {0}", {"0": updateProgress})
                   ) : (
                     <>
                       {summary.headline}
@@ -1031,16 +1063,16 @@ export function ProviderInstanceCard({
             </span>
           </span>
         </div>
-        <span className="flex h-5 shrink-0 items-center gap-1">
+        <span className={"flex h-5 shrink-0 items-center gap-1"}>
           {projectOverride?.value !== undefined ? (
-            <span className="flex items-center">
+            <span className={"flex items-center"}>
               <ProjectOverrideInheritance
                 projectEnabled={projectOverride.value}
                 deviceEnabled={resolveProviderInstanceEnabled(instance)}
               />
               <SettingResetButton
-                label={`${displayName} enablement`}
-                tooltip="Reset to the device setting"
+                label={uiText("{0} enablement", {"0": displayName})}
+                tooltip={uiText("Reset to the device setting")}
                 disabled={readOnly || !canWriteSettings}
                 onClick={projectOverride.onReset}
               />
@@ -1050,7 +1082,7 @@ export function ProviderInstanceCard({
             checked={enabled}
             disabled={readOnly || (projectOverride !== undefined && !canWriteSettings)}
             onCheckedChange={(checked) => updateEnabled(Boolean(checked))}
-            aria-label={`Enable ${displayName}`}
+            aria-label={uiText("Enable {0}", {"0": displayName})}
           />
         </span>
       </div>
@@ -1058,9 +1090,9 @@ export function ProviderInstanceCard({
   }
 
   const editorHeaderAction = (
-    <div className="flex shrink-0 items-center gap-1.5">
+    <div className={"flex shrink-0 items-center gap-1.5"}>
       {driverOption?.badgeLabel ? (
-        <Badge variant="warning" size="sm" className="shrink-0">
+        <Badge variant={"warning"} size={"sm"} className={"shrink-0"}>
           {driverOption.badgeLabel}
         </Badge>
       ) : null}
@@ -1074,12 +1106,12 @@ export function ProviderInstanceCard({
         {titleTailNode}
         {onDelete ? (
           <Button
-            type="button"
-            size="icon-xs"
-            variant="ghost-destructive"
+            type={"button"}
+            size={"icon-xs"}
+            variant={"ghost-destructive"}
             disabled={readOnly}
             onClick={onDelete}
-            aria-label={`Delete instance ${instanceId}`}
+            aria-label={uiText("Delete instance {0}", {"0": instanceId})}
           >
             <Trash2Icon />
           </Button>
@@ -1093,16 +1125,17 @@ export function ProviderInstanceCard({
       definition={driverOption}
       value={instance.config}
       idPrefix={`provider-instance-${instanceId}`}
-      variant="settings"
+      variant={"settings"}
       onChange={updateConfig}
     />
   ) : (
     <SettingsRow
-      title="Driver"
+      title={uiText("Driver")}
       description={
         <span>
-          This instance uses <code className="text-foreground">{String(instance.driver)}</code>,
-          which is not available in this build. Its configuration is preserved.
+          {uiText("This instance uses")}
+          <code className={"text-foreground"}>{String(instance.driver)}</code>
+          {uiText(", which is not available in this build. Its configuration is preserved.")}
         </span>
       }
     />
@@ -1112,37 +1145,37 @@ export function ProviderInstanceCard({
     <>
       <SettingsSection title={displayName} icon={titleIconNode} headerAction={editorHeaderAction}>
         <SettingsRow
-          title="Display name"
+          title={uiText("Display name")}
           status={
             <>
               <ProviderStatusDiagnostic detail={statusDiagnostic}>
                 <div
                   tabIndex={statusDiagnostic ? 0 : undefined}
-                  className="flex min-w-0 flex-wrap items-baseline gap-x-1.5"
+                  className={"flex min-w-0 flex-wrap items-baseline gap-x-1.5"}
                 >
                   {editorStatusNode}
                 </div>
               </ProviderStatusDiagnostic>
               {urlAuthAction && onAcceptUrlAuth ? (
-                <div className="grid max-w-xl gap-1.5 pt-1 text-xs">
+                <div className={"grid max-w-xl gap-1.5 pt-1 text-xs"}>
                   <p>{urlAuthAction.message}</p>
-                  <code className="break-all text-2xs">{urlAuthAction.url}</code>
+                  <code className={"break-all text-2xs"}>{urlAuthAction.url}</code>
                   <Button
                     render={
                       <a
                         href={urlAuthAction.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        target={"_blank"}
+                        rel={"noopener noreferrer"}
                         onClick={() => onAcceptUrlAuth(urlAuthAction)}
                       />
                     }
-                    size="xs"
-                    variant="outline"
-                    className="w-fit"
+                    size={"xs"}
+                    variant={"outline"}
+                    className={"w-fit"}
                     disabled={readOnly}
                   >
                     <ExternalLinkIcon />
-                    Continue authentication
+                    {uiText("Continue authentication")}
                   </Button>
                 </div>
               ) : null}
@@ -1158,7 +1191,7 @@ export function ProviderInstanceCard({
               )}
             >
               <ProviderAccentColorPicker
-                layout="inline"
+                layout={"inline"}
                 displayName={displayName}
                 value={accentColor}
                 onCommit={updateAccentColor}
@@ -1166,11 +1199,11 @@ export function ProviderInstanceCard({
               />
               <DraftInput
                 id={`provider-instance-${instanceId}-display-name`}
-                size="sm"
-                className="min-w-0 flex-1 @min-[32rem]/settings-row:w-56"
+                size={"sm"}
+                className={"min-w-0 flex-1 @min-[32rem]/settings-row:w-56"}
                 value={instance.displayName ?? ""}
                 onCommit={updateDisplayName}
-                placeholder={driverOption?.label ?? "Instance label"}
+                placeholder={driverOption?.label ?? uiText("Instance label")}
                 spellCheck={false}
               />
             </div>
@@ -1179,7 +1212,7 @@ export function ProviderInstanceCard({
       </SettingsSection>
 
       {setup || environmentFields.length > 0 ? (
-        <SettingsSection title="Setup">
+        <SettingsSection title={uiText("Setup")}>
           {setup}
           {environmentFields.length > 0 ? (
             <div
@@ -1211,15 +1244,15 @@ export function ProviderInstanceCard({
           <FoldedSettingsSection
             key={instanceId}
             id={`provider-instance-${instanceId}-runtime`}
-            title="Runtime"
-            headerPlacement="outside"
+            title={uiText("Runtime")}
+            headerPlacement={"outside"}
           >
             {runtime ?? runtimeFields}
           </FoldedSettingsSection>
         </div>
       ) : !driverOption || deriveProviderSettingsFields(driverOption).length > 0 ? (
         <SettingsSection
-          title="Runtime"
+          title={uiText("Runtime")}
           inert={readOnly}
           aria-disabled={readOnly || undefined}
           className={readOnly ? "opacity-50 select-none" : undefined}
@@ -1229,7 +1262,7 @@ export function ProviderInstanceCard({
       ) : null}
 
       <SettingsSection
-        title="Environment"
+        title={uiText("Environment")}
         inert={readOnly}
         aria-disabled={readOnly || undefined}
         className={readOnly ? "opacity-50 select-none" : undefined}
@@ -1250,11 +1283,12 @@ export function ProviderInstanceCard({
       ) : null}
 
       {driverOption !== undefined ? (
-        <SettingsSection title="Models">
-          <div className="px-3 py-3 sm:px-4">
-            <p className="mb-3 text-xs text-muted-foreground">
-              Model preferences and custom models are saved on the selected environment and shared
-              across connected devices.
+        <SettingsSection title={uiText("Models")}>
+          <div className={"px-3 py-3 sm:px-4"}>
+            <p className={"mb-3 text-xs text-muted-foreground"}>
+              {
+                uiText("Model preferences and custom models are saved on the selected environment and shared across connected devices.")
+              }
             </p>
             <ProviderModelsSection
               canManageCustomModels={!readOnly}

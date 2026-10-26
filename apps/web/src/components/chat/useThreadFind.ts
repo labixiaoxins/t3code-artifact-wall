@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type { InlineSkill } from "@t3tools/shared/inlineSkills";
 import type { OrchestrationV2SearchThreadResult, ScopedThreadRef } from "@t3tools/contracts";
 import { scopedThreadKey } from "@t3tools/client-runtime/environment";
@@ -65,8 +66,8 @@ export function useThreadFind({
     if (!enabled) {
       toastManager.add({
         id: "thread-find-unavailable",
-        title: "Thread search is unavailable on this server.",
-        description: "Update the server to enable it.",
+        title: uiText("Thread search is unavailable on this server."),
+        description: uiText("Update the server to enable it."),
       });
       return;
     }

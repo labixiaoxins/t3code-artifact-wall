@@ -10,6 +10,7 @@ import {
   getCodexTurnAccumulator,
   accumulateCodexTurnTokenUsage,
   completeCodexTurnTokenUsage,
+  snapshotCodexTurnTokenUsage,
   type CodexTurnTokenUsageState,
 } from "../../provider/CodexTurnTokenUsage.ts";
 import type { ManagedServerProvider } from "@t3tools/provider-core/server/snapshot";
@@ -373,10 +374,12 @@ function mapCodexTurnStatus(
       return "running";
   }
 }
-
-function providerTurnStatusToTerminal(
-  status: OrchestrationV2ProviderTurn["status"],
-): Extract<ProviderAdapter.ProviderAdapterV2Event, { type: "turn.terminal" }>["status"] {
+function providerTurnStatusToTerminal(status: OrchestrationV2ProviderTurn["status"]): Extract<
+  ProviderAdapter.ProviderAdapterV2Event,
+  {
+    type: "turn.terminal";
+  }
+>["status"] {
   switch (status) {
     case "completed":
       return "completed";
@@ -426,7 +429,7 @@ function codexSkillMentionText(text: string): string {
 }
 
 const BACKGROUND_COMMAND_DETAIL_COMMAND_MAX_LENGTH = 200;
-const BACKGROUND_COMMAND_DETAIL_OUTPUT_TAIL_MAX_LENGTH = 1_000;
+const BACKGROUND_COMMAND_DETAIL_OUTPUT_TAIL_MAX_LENGTH = 1000;
 
 function codexBackgroundCommandDetail(item: {
   readonly command: string;
@@ -447,6 +450,17 @@ function codexBackgroundCommandDetail(item: {
   const header = `Background command completed${exit}: ${command}`;
   return outputTail.length === 0 ? header : `${header}\n\nOutput tail:\n${outputTail}`;
 }
+// Codex spawns can omit the prompt, which registers as an empty string.
+function codexNativeSubagentLabel(task: OrchestrationV2Subagent): string | undefined {
+  return task.title?.trim() || task.prompt.trim() || undefined;
+}
+
+function codexNativeSubagentDetail(task: OrchestrationV2Subagent): string {
+  const header = `Subagent ${task.status}: ${codexNativeSubagentLabel(task) ?? task.id}`;
+  return task.result == null || task.result.length === 0
+    ? header
+    : `${header}\n\nResult:\n${task.result}`;
+}
 
 export interface CodexDynamicToolProjection extends McpToolPresentation {
   readonly toolName: string;
@@ -457,7 +471,12 @@ export interface CodexDynamicToolProjection extends McpToolPresentation {
 }
 
 function codexMcpToolOutput(
-  item: Extract<CodexDynamicToolItem, { readonly type: "mcpToolCall" }>,
+  item: Extract<
+    CodexDynamicToolItem,
+    {
+      readonly type: "mcpToolCall";
+    }
+  >,
 ): unknown | undefined {
   const resultOutput =
     item.result === null || item.result === undefined
@@ -485,7 +504,12 @@ function codexMcpAppResourceUri(item: CodexDynamicToolItem): string | undefined 
 }
 
 function codexDynamicToolOutput(
-  item: Extract<CodexDynamicToolItem, { readonly type: "dynamicToolCall" }>,
+  item: Extract<
+    CodexDynamicToolItem,
+    {
+      readonly type: "dynamicToolCall";
+    }
+  >,
 ): unknown | undefined {
   if (item.contentItems !== null && item.contentItems !== undefined) {
     return item.contentItems;
@@ -893,11 +917,22 @@ const isTerminalProviderTurn = (turn: OrchestrationV2ProviderTurn): boolean =>
     turn.status === "cancelled");
 
 export type CodexGoalCommand =
-  | { readonly type: "show" }
-  | { readonly type: "clear" }
-  | { readonly type: "pause" }
-  | { readonly type: "resume" }
-  | { readonly type: "set"; readonly objective: string };
+  | {
+      readonly type: "show";
+    }
+  | {
+      readonly type: "clear";
+    }
+  | {
+      readonly type: "pause";
+    }
+  | {
+      readonly type: "resume";
+    }
+  | {
+      readonly type: "set";
+      readonly objective: string;
+    };
 
 function parseCodexGoalCommand(text: string): CodexGoalCommand | null {
   const match = /^\/goal(?:\s+([\s\S]*))?$/u.exec(text.trim());
@@ -1177,7 +1212,10 @@ interface ActiveCodexTurnContext {
   readonly fileChangeKindsByItem: Map<string, CodexFileChangeKinds>;
   readonly itemPositions: Map<
     string,
-    { readonly ordinal: number; readonly startedAt: DateTime.Utc }
+    {
+      readonly ordinal: number;
+      readonly startedAt: DateTime.Utc;
+    }
   >;
 }
 
@@ -1207,12 +1245,19 @@ function isPersistentCodexDynamicTool(item: CodexDynamicToolItem): boolean {
 
 type CodexRootTerminalEvent = Extract<
   ProviderAdapter.ProviderAdapterV2Event,
-  { readonly type: "turn.terminal" }
+  {
+    readonly type: "turn.terminal";
+  }
 >;
 
 interface CodexGoalHold {
   readonly context: ActiveCodexTurnContext;
-  readonly event: Extract<CodexRootTerminalEvent, { readonly failure: null }>;
+  readonly event: Extract<
+    CodexRootTerminalEvent,
+    {
+      readonly failure: null;
+    }
+  >;
   readonly completedTurn: OrchestrationV2ProviderTurn;
   readonly next: Deferred.Deferred<ActiveCodexTurnContext | undefined>;
 }
@@ -1298,18 +1343,24 @@ type CodexWebSearchItem = {
 export type CodexDynamicToolItem = Extract<
   | CodexSchema.V2ItemStartedNotification__ThreadItem
   | CodexSchema.V2ItemCompletedNotification__ThreadItem,
-  { readonly type: "mcpToolCall" | "dynamicToolCall" }
+  {
+    readonly type: "mcpToolCall" | "dynamicToolCall";
+  }
 >;
 
 type CodexCollabAgentToolCallItem = Extract<
   CodexSchema.V2ItemCompletedNotification__ThreadItem,
-  { readonly type: "collabAgentToolCall" }
+  {
+    readonly type: "collabAgentToolCall";
+  }
 >;
 
 type CodexSubAgentActivityItem = Extract<
   | CodexSchema.V2ItemStartedNotification__ThreadItem
   | CodexSchema.V2ItemCompletedNotification__ThreadItem,
-  { readonly type: "subAgentActivity" }
+  {
+    readonly type: "subAgentActivity";
+  }
 >;
 
 export interface CodexAppServerClientFactoryShape {
@@ -1339,7 +1390,7 @@ export class CodexAppServerClientFactory extends Context.Service<
  */
 export const CODEX_THREAD_CONFIG = {
   "tools.update_plan.enabled": true,
-  mcp_optional_startup_grace_ms: 10_000,
+  mcp_optional_startup_grace_ms: 10000,
 } as const;
 
 // T3 wait tools can block for up to an hour. Keep Codex's MCP timeout above
@@ -1348,7 +1399,9 @@ const CODEX_T3_MCP_TOOL_TIMEOUT_SEC = 65 * 60;
 
 function codexThreadRuntimeParams(input: {
   readonly mcpSession: McpProviderSession.McpProviderSessionConfig | undefined;
-  readonly modelSelection?: { readonly model: string };
+  readonly modelSelection?: {
+    readonly model: string;
+  };
   readonly runtimePolicy?: ProviderAdapter.ProviderAdapterV2RuntimePolicy;
 }): {
   readonly cwd?: string;
@@ -1841,7 +1894,15 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
         const events = yield* Queue.unbounded<ProviderAdapter.ProviderAdapterV2Event>();
         const rateLimitSnapshot = yield* Ref.make<CodexRateLimitSnapshot | undefined>(undefined);
         const limitedTurnItems = yield* Ref.make(
-          new Map<ProviderThreadId, Extract<OrchestrationV2TurnItem, { type: "error" }>>(),
+          new Map<
+            ProviderThreadId,
+            Extract<
+              OrchestrationV2TurnItem,
+              {
+                type: "error";
+              }
+            >
+          >(),
         );
         const activeTurns = yield* Ref.make(new Map<string, ActiveCodexTurnContext>());
         const turnTokenUsageByThread = new Map<string, CodexTurnTokenUsageState>();
@@ -1894,7 +1955,10 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
          */
         const sessionApprovals = new Map<
           string,
-          { readonly runtimeMode: RuntimeMode; readonly kinds: Set<ProviderRequestKind> }
+          {
+            readonly runtimeMode: RuntimeMode;
+            readonly kinds: Set<ProviderRequestKind>;
+          }
         >();
         /**
          * The allowed kinds for an approval request's turn. Read it when the
@@ -1950,7 +2014,12 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
         const rootProviderThreads = new Map<string, OrchestrationV2ProviderThread>();
         const goalHolds = new Map<string, CodexGoalHold>();
         const goalRuns = new Map<ProviderTurnId, Array<ActiveCodexTurnContext>>();
-        const goalActivations = new Map<string, { stopped: boolean }>();
+        const goalActivations = new Map<
+          string,
+          {
+            stopped: boolean;
+          }
+        >();
         // Stops in progress by native thread. Until a Stop resolves its target,
         // a held run must not settle as completed.
         const goalStops = new Map<string, number>();
@@ -2104,7 +2173,7 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
         // Streaming updates repeatedly await this context, including retries before registration.
         const awaitActiveTurn = Effect.fnUntraced(function* (
           nativeTurnId: string,
-          attemptsRemaining = 1_000,
+          attemptsRemaining = 1000,
         ): Effect.fn.Return<ActiveCodexTurnContext | undefined> {
           const context = (yield* Ref.get(activeTurns)).get(nativeTurnId);
           if (context !== undefined || attemptsRemaining <= 0) {
@@ -2152,7 +2221,12 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           });
 
         interface PendingMcpAppCapture {
-          readonly item: Extract<CodexDynamicToolItem, { readonly type: "mcpToolCall" }>;
+          readonly item: Extract<
+            CodexDynamicToolItem,
+            {
+              readonly type: "mcpToolCall";
+            }
+          >;
           readonly fiber: Fiber.Fiber<void>;
         }
         const pendingMcpAppCaptures = yield* Ref.make(
@@ -3242,7 +3316,10 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
         // Reasoning and assistant-text coalescers build these artifacts on every streamed update.
         const buildAgentMessageArtifacts = Effect.fnUntraced(function* (
           context: ActiveCodexTurnContext,
-          item: { readonly id: string; readonly text: string },
+          item: {
+            readonly id: string;
+            readonly text: string;
+          },
           completed: boolean,
         ) {
           const updatedAt = yield* DateTime.now;
@@ -3317,7 +3394,12 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
         // Reuse the text coalescer so token bursts do not create one database write per token.
         const reasoningParts = new Map<
           string,
-          { turnId: string; nativeItemId: string; stream: "summary" | "content"; index: number }
+          {
+            turnId: string;
+            nativeItemId: string;
+            stream: "summary" | "content";
+            index: number;
+          }
         >();
         const reasoningDeltas = yield* makeProviderTextDeltaCoalescer({
           flushIntervalMs: CODEX_ASSISTANT_DELTA_FLUSH_INTERVAL_MS,
@@ -3371,7 +3453,11 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           return key;
         };
         const appendReasoning = Effect.fn("CodexAdapterV2.appendReasoning")(function* (
-          payload: { turnId: string; itemId: string; delta: string },
+          payload: {
+            turnId: string;
+            itemId: string;
+            delta: string;
+          },
           stream: "summary" | "content",
           index: number,
         ) {
@@ -3385,7 +3471,11 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
         });
         const completeReasoning = Effect.fn("CodexAdapterV2.completeReasoning")(function* (
           turnId: string,
-          item: { id: string; summary?: ReadonlyArray<string>; content?: ReadonlyArray<string> },
+          item: {
+            id: string;
+            summary?: ReadonlyArray<string>;
+            content?: ReadonlyArray<string>;
+          },
         ) {
           for (const stream of ["summary", "content"] as const) {
             for (const [index] of (item[stream] ?? []).entries()) {
@@ -3477,7 +3567,9 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             item: Extract<
               | CodexSchema.V2ItemStartedNotification__ThreadItem
               | CodexSchema.V2ItemCompletedNotification__ThreadItem,
-              { type: "userMessage" }
+              {
+                type: "userMessage";
+              }
             >,
             nativeStartedAt?: DateTime.Utc,
           ) {
@@ -3533,7 +3625,9 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           item: Extract<
             | CodexSchema.V2ItemStartedNotification__ThreadItem
             | CodexSchema.V2ItemCompletedNotification__ThreadItem,
-            { type: "commandExecution" }
+            {
+              type: "commandExecution";
+            }
           >,
         ) {
           const updatedAt = yield* DateTime.now;
@@ -3597,7 +3691,9 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             context: ActiveCodexTurnContext,
             item: Extract<
               CodexSchema.V2ItemCompletedNotification__ThreadItem,
-              { type: "fileChange" }
+              {
+                type: "fileChange";
+              }
             >,
           ) {
             const firstChange = item.changes[0];
@@ -3784,7 +3880,12 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
         const captureMcpApp = Effect.fn("CodexAdapterV2.captureMcpApp")(function* (
           context: ActiveCodexTurnContext,
           nativeTurnId: string,
-          item: Extract<CodexDynamicToolItem, { readonly type: "mcpToolCall" }>,
+          item: Extract<
+            CodexDynamicToolItem,
+            {
+              readonly type: "mcpToolCall";
+            }
+          >,
           resourceUri: string,
         ) {
           // Registered before it can run, so a turn ending right away sees it.
@@ -3807,7 +3908,12 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
         const captureMcpAppItem = (
           context: ActiveCodexTurnContext,
           nativeTurnId: string,
-          item: Extract<CodexDynamicToolItem, { readonly type: "mcpToolCall" }>,
+          item: Extract<
+            CodexDynamicToolItem,
+            {
+              readonly type: "mcpToolCall";
+            }
+          >,
           resourceUri: string,
         ) =>
           // Only reading and storing the document can be cancelled; a write
@@ -4448,6 +4554,10 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                 status: "running",
                 startedAt: context.startedAt,
                 completedAt: null,
+                turnTokenUsage: snapshotCodexTurnTokenUsage(
+                  usageStateForThread(payload.threadId),
+                  payload.turnId,
+                ),
                 tokenUsage: codexProviderTurnTokenUsage(
                   payload.tokenUsage,
                   DateTime.formatIso(now),
@@ -6053,6 +6163,41 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                   status: input.status,
                   completedAt: input.completedAt,
                 });
+                // Codex does not wake a parent whose turn already completed, so
+                // the child's result would sit unread until the next message.
+                // Only direct children of a root turn wake it: a grandchild
+                // reports to its own parent, and a root turn already running on
+                // the thread receives the result natively.
+                const parent = input.context.subagent.parentContext;
+                if (
+                  continuationRequests !== undefined &&
+                  parent.subagent === null &&
+                  (input.status === "completed" || input.status === "failed") &&
+                  !(yield* Ref.get(terminalizedNonCompletedNativeTurns)).has(parent.nativeTurnId) &&
+                  ![...(yield* Ref.get(activeTurns)).values()].some(
+                    (active) =>
+                      active.subagent === null &&
+                      active.providerThread.id === parent.providerThread.id,
+                  )
+                ) {
+                  const task = input.context.subagent.task;
+                  yield* continuationRequests.offer({
+                    threadId: parent.projectionThreadId,
+                    providerThreadId: parent.providerThread.id,
+                    driver: CODEX_PROVIDER,
+                    detail: codexNativeSubagentDetail(task),
+                    // The detail is the whole wake; Codex buffers no output for it.
+                    delivery: "message_text",
+                    notification: backgroundWorkNotification([
+                      {
+                        kind: "subagent",
+                        label: codexNativeSubagentLabel(task),
+                        outcome: input.status,
+                        childThreadId: input.context.subagent.childThreadId,
+                      },
+                    ]),
+                  });
+                }
               }
               if (input.status === "interrupted" || input.status === "failed") {
                 yield* terminalizeRunningCommandItems(
@@ -6650,15 +6795,16 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                   }),
                 ),
               ),
-              Effect.map((response): OrchestrationV2ProviderThread =>
-                providerThreadFromCodexThread({
-                  appThreadId: threadInput.threadId,
-                  idAllocator,
-                  ownerNodeId: null,
-                  providerSessionId: input.providerSessionId,
-                  providerInstanceId: adapterOptions.instanceId,
-                  thread: response.thread,
-                }),
+              Effect.map(
+                (response): OrchestrationV2ProviderThread =>
+                  providerThreadFromCodexThread({
+                    appThreadId: threadInput.threadId,
+                    idAllocator,
+                    ownerNodeId: null,
+                    providerSessionId: input.providerSessionId,
+                    providerInstanceId: adapterOptions.instanceId,
+                    thread: response.thread,
+                  }),
               ),
               Effect.mapError(
                 (cause) =>
@@ -7141,7 +7287,10 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                   function* (targets: typeof interruptTargets) {
                     const trackedTerminals = new Map<
                       string,
-                      { readonly nativeThreadId: string; readonly processId: string }
+                      {
+                        readonly nativeThreadId: string;
+                        readonly processId: string;
+                      }
                     >();
                     const runningItems = yield* Ref.get(runningCommandItemsByTurn);
                     for (const target of targets) {

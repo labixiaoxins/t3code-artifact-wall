@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { FolderPlusIcon, SearchIcon, SquarePenIcon, XIcon } from "lucide-react";
 import {
   type ComponentProps,
@@ -61,23 +62,25 @@ export function SidebarThreadHeader({
     : "New thread";
 
   return (
-    <div className="flex items-center gap-1">
+    <div className={"flex items-center gap-1"}>
       <div
         ref={searchFieldRef}
-        className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium text-sidebar-muted-foreground hover:bg-sidebar-row-hover hover:text-sidebar-foreground"
+        className={
+          "flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium text-sidebar-muted-foreground hover:bg-sidebar-row-hover hover:text-sidebar-foreground"
+        }
       >
-        <SearchIcon className="size-4 shrink-0 text-(--sidebar-icon-color)" />
+        <SearchIcon className={"size-4 shrink-0 text-(--sidebar-icon-color)"} />
         <SidebarInput
           ref={searchInputRef}
           nativeInput
-          type="search"
+          type={"search"}
           value={searchQuery}
           onChange={(event) => onSearchQueryChange(event.currentTarget.value)}
           onKeyDown={onSearchKeyDown}
-          placeholder="Search"
-          aria-label="Search threads"
-          role="combobox"
-          aria-autocomplete="list"
+          placeholder={"\u641C\u7D22"}
+          aria-label={"\u641C\u7D22\u4F1A\u8BDD"}
+          role={"combobox"}
+          aria-autocomplete={"list"}
           aria-expanded={resultsVisible}
           aria-controls={resultsVisible ? "sidebar-thread-search-results" : undefined}
           aria-activedescendant={
@@ -85,41 +88,41 @@ export function SidebarThreadHeader({
               ? `sidebar-thread-search-result-${activeSearchResultIndex}`
               : undefined
           }
-          className="min-w-0 flex-1"
+          className={"min-w-0 flex-1"}
         />
         {isSearching ? (
           <Button
-            type="button"
-            size="icon-micro"
-            variant="ghost-muted"
-            className="shrink-0"
-            aria-label="Clear thread search"
+            type={"button"}
+            size={"icon-micro"}
+            variant={"ghost-muted"}
+            className={"shrink-0"}
+            aria-label={uiText("Clear thread search")}
             onClick={() => {
               onClearSearch();
               searchInputRef.current?.focus();
             }}
           >
-            <XIcon className="size-3" />
+            <XIcon className={"size-3"} />
           </Button>
         ) : null}
       </div>
-      <div className="flex shrink-0 items-center">
+      <div className={"flex shrink-0 items-center"}>
         {hasProjects ? (
           <>
             {projectScope}
-            <SidebarHeaderIconButton label="Add project" onClick={onNewProject}>
+            <SidebarHeaderIconButton label={uiText("Add project")} onClick={onNewProject}>
               <FolderPlusIcon />
             </SidebarHeaderIconButton>
           </>
         ) : null}
         <SidebarHeaderIconButton
-          label="New thread"
+          label={uiText("New thread")}
           tooltip={
             showNewThreadInProjectHint ? (
-              <span className="flex flex-col gap-0.5">
+              <span className={"flex flex-col gap-0.5"}>
                 <span>{newThreadLabel}</span>
-                <span className="text-muted-foreground">
-                  New thread in current project: Shift+click
+                <span className={"text-muted-foreground"}>
+                  {uiText("New thread in current project: Shift+click")}
                   {newThreadInProjectShortcutLabel ? ` (${newThreadInProjectShortcutLabel})` : ""}
                 </span>
               </span>
@@ -157,8 +160,8 @@ export function SidebarHeaderIconButton({
       <TooltipTrigger
         render={
           <SidebarMenuButton
-            size="icon"
-            type="button"
+            size={"icon"}
+            type={"button"}
             aria-label={label}
             {...rest}
             className={cn("relative size-7 shrink-0", className)}
@@ -168,10 +171,12 @@ export function SidebarHeaderIconButton({
         {children}
         <span
           aria-hidden
-          className="pointer-events-none absolute left-1/2 top-1/2 size-[max(100%,3rem)] -translate-1/2 pointer-fine:hidden"
+          className={
+            "pointer-events-none absolute left-1/2 top-1/2 size-[max(100%,3rem)] -translate-1/2 pointer-fine:hidden"
+          }
         />
       </TooltipTrigger>
-      <TooltipPopup side="top">{tooltip}</TooltipPopup>
+      <TooltipPopup side={"top"}>{tooltip}</TooltipPopup>
     </Tooltip>
   );
 }

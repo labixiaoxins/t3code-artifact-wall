@@ -387,6 +387,10 @@ export const OrchestrationV2AppThread = Schema.Struct({
   activeProviderThreadId: Schema.NullOr(ProviderThreadId),
   historyOrigin: Schema.optional(OrchestrationV2ThreadHistoryOrigin),
   lineage: OrchestrationV2AppThreadLineage,
+  /** Local customization: the thread this one continues after a context handoff.
+        Kept out of lineage so official clients and older servers, which decode
+        lineage strictly, simply ignore it. */
+  continuedFromThreadId: Schema.optional(ThreadId),
   forkedFrom: Schema.NullOr(
     Schema.Union([
       Schema.Struct({ type: Schema.Literal("run"), threadId: ThreadId, runId: RunId }),
@@ -788,7 +792,13 @@ function encodedKind(member: Schema.Top): string {
 }
 
 function kindUnionWithFallback<
-  const Members extends ReadonlyArray<Schema.Top & { readonly Encoded: { readonly kind: string } }>,
+  const Members extends ReadonlyArray<
+    Schema.Top & {
+      readonly Encoded: {
+        readonly kind: string;
+      };
+    }
+  >,
   Unknown extends Schema.Top,
 >(
   members: Members,
@@ -1246,10 +1256,7 @@ export const OrchestrationV2ProviderFailureClass = Schema.Literals([
   "unknown",
 ]);
 export type OrchestrationV2ProviderFailureClass = typeof OrchestrationV2ProviderFailureClass.Type;
-
-const OrchestrationV2ProviderFailureMessage = TrimmedNonEmptyString.check(
-  Schema.isMaxLength(4_096),
-);
+const OrchestrationV2ProviderFailureMessage = TrimmedNonEmptyString.check(Schema.isMaxLength(4096));
 const OrchestrationV2ProviderFailureCode = TrimmedNonEmptyString.check(Schema.isMaxLength(128));
 
 /**
@@ -1467,6 +1474,7 @@ export const OrchestrationV2TurnItem = Schema.Union([
     ...OrchestrationV2TurnItemBaseFields,
     type: Schema.Literal("compaction"),
     driver: Schema.NullOr(ProviderDriverKind),
+    completionConfirmed: Schema.optional(Schema.Boolean),
     summary: Schema.optional(Schema.String),
     beforeTokenCount: Schema.optional(NonNegativeInt),
     afterTokenCount: Schema.optional(NonNegativeInt),
@@ -1543,8 +1551,13 @@ export const OrchestrationV2TurnItem = Schema.Union([
 export type OrchestrationV2TurnItem = typeof OrchestrationV2TurnItem.Type;
 
 const isUnknownTurnItem = hasUnknownUnionTag(OrchestrationV2TurnItem.members, "type");
-
-const turnItemArray = <Members extends ReadonlyArray<Schema.Top & { readonly fields: object }>>(
+const turnItemArray = <
+  Members extends ReadonlyArray<
+    Schema.Top & {
+      readonly fields: object;
+    }
+  >,
+>(
   union: Schema.Union<Members>,
 ) => ForwardCompatibleUnionArray(union.members, "type");
 
@@ -1558,7 +1571,14 @@ const projectedTurnItemArray = <Row extends Schema.Top, Item extends Schema.Top>
       SchemaTransformation.transform<ReadonlyArray<Row["Type"]>, ReadonlyArray<Item["Type"]>>({
         decode: (rows) =>
           rows.filter(
-            (projected) => !isUnknownUnionMember((projected as { readonly item: unknown }).item),
+            (projected) =>
+              !isUnknownUnionMember(
+                (
+                  projected as {
+                    readonly item: unknown;
+                  }
+                ).item,
+              ),
           ) as ReadonlyArray<Row["Type"]>,
         encode: (rows) => rows,
       }),
@@ -1821,6 +1841,7 @@ export const OrchestrationV2ThreadShell = Schema.Struct({
   pullRequests: Schema.optional(Schema.Array(ThreadPullRequestLink)),
   branchPullRequest: Schema.optional(Schema.NullOr(ThreadLinkedPullRequest)),
   lineage: OrchestrationV2AppThreadLineage,
+  continuedFromThreadId: OrchestrationV2AppThread.fields.continuedFromThreadId,
   forkedFrom: Schema.NullOr(OrchestrationV2AppThread.fields.forkedFrom),
   activeProviderThreadId: Schema.NullOr(ProviderThreadId),
   historyOrigin: Schema.optional(OrchestrationV2ThreadHistoryOrigin),
@@ -2230,6 +2251,7 @@ export const OrchestrationV2TurnItemJson = Schema.Union([
     ...OrchestrationV2TurnItemJsonBaseFields,
     type: Schema.Literal("compaction"),
     driver: Schema.NullOr(ProviderDriverKind),
+    completionConfirmed: Schema.optional(Schema.Boolean),
     summary: Schema.optional(Schema.String),
     beforeTokenCount: Schema.optional(NonNegativeInt),
     afterTokenCount: Schema.optional(NonNegativeInt),
@@ -2572,9 +2594,15 @@ export const OrchestrationV2Command = Schema.Union([
     commandId: CommandId,
     threadId: ThreadId,
     reason: Schema.optional(Schema.String),
+    /**
+     * False when the caller stops the thread's delegated tasks itself, as the server's tree walks
+     * do under their caller's dispatch limit. Otherwise Stop also stops every task under the thread.
+     */
+    stopDelegatedTasks: Schema.optional(Schema.Boolean),
   }),
   Schema.Struct({
     type: Schema.Literal("thread.create"),
+    continuationOfThreadId: Schema.optional(ThreadId),
     ...OrchestrationV2CreationFields,
     commandId: CommandId,
     threadId: ThreadId,
@@ -2600,6 +2628,8 @@ export const OrchestrationV2Command = Schema.Union([
     type: Schema.Literal("thread.archive"),
     commandId: CommandId,
     threadId: ThreadId,
+    /** Refuse active work and enabled bound schedules; never cancel them to archive. */
+    requireIdle: Schema.optional(Schema.Literal(true)),
   }),
   Schema.Struct({
     type: Schema.Literal("thread.unarchive"),
@@ -3517,7 +3547,7 @@ export const OrchestrationV2SearchThreadInput = Schema.Struct({
         name: Schema.String.check(Schema.isMaxLength(200)),
         displayName: Schema.optional(Schema.String.check(Schema.isMaxLength(200))),
       }),
-    ).check(Schema.isMaxLength(1_000)),
+    ).check(Schema.isMaxLength(1000)),
   ),
   query: TrimmedNonEmptyString.check(Schema.isMaxLength(200)),
   index: Schema.optionalKey(NonNegativeInt),

@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { EnvironmentId } from "@t3tools/contracts";
 import { LayersIcon } from "lucide-react";
 
@@ -47,8 +48,7 @@ export function ProjectsSettings() {
         unavailable
       ) : (
         <SettingsScopeNotice target="project">
-          Choose a project to manage its name, icon, checkouts and actions.
-        </SettingsScopeNotice>
+          {uiText("Choose a project to manage its name, icon, checkouts and actions.")}</SettingsScopeNotice>
       )}
     </div>
   );

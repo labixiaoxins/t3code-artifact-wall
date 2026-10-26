@@ -238,7 +238,7 @@ interface ChatMarkdownProps {
   extraRemarkPlugins?: NonNullable<ReactMarkdownOptions["remarkPlugins"]>;
   renderContextReference?: ((reference: ChatMarkdownContextReference) => ReactNode) | undefined;
   /** Loads GitHub-hosted media through `cwd`'s GitHub credential, which a private repository's
-      uploads need; without it those images and videos load unauthenticated and 404. */
+        uploads need; without it those images and videos load unauthenticated and 404. */
   githubMedia?: boolean | undefined;
   headingLevelOffset?: number | undefined;
 }
@@ -274,38 +274,48 @@ function CodexArtifactTemplateCard(props: {
 
   return (
     <div
-      role="group"
-      aria-label={`${props.template.displayName} template`}
+      role={"group"}
+      aria-label={uiText("{0} template", {"0": props.template.displayName})}
       data-chat-markdown-artifact-template
-      className="my-[0.65rem] flex w-full min-w-0 items-center gap-3 rounded-xl border border-border/70 bg-card/60 px-3 py-2.5 text-foreground shadow-xs"
+      className={
+        "my-[0.65rem] flex w-full min-w-0 items-center gap-3 rounded-xl border border-border/70 bg-card/60 px-3 py-2.5 text-foreground shadow-xs"
+      }
       data-artifact-kind={props.template.artifactKind}
       data-markdown-copy={`${props.template.displayName} (${presentationLabel})\n\n`}
       data-skill-name={props.template.skillName}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        <span className="relative flex size-9 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-background text-muted-foreground shadow-xs">
-          <Icon aria-hidden className="size-5" />
-          <span className="absolute -right-1 -bottom-1 flex size-4 items-center justify-center rounded-full border border-background bg-primary text-primary-foreground shadow-xs">
-            <SparklesIcon aria-hidden className="size-2.5" />
+      <div className={"flex min-w-0 flex-1 items-center gap-3"}>
+        <span
+          className={
+            "relative flex size-9 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-background text-muted-foreground shadow-xs"
+          }
+        >
+          <Icon aria-hidden className={"size-5"} />
+          <span
+            className={
+              "absolute -right-1 -bottom-1 flex size-4 items-center justify-center rounded-full border border-background bg-primary text-primary-foreground shadow-xs"
+            }
+          >
+            <SparklesIcon aria-hidden className={"size-2.5"} />
           </span>
         </span>
-        <div className="min-w-0">
-          <div className="truncate text-sm font-medium text-foreground">
+        <div className={"min-w-0"}>
+          <div className={"truncate text-sm font-medium text-foreground"}>
             {props.template.displayName}
           </div>
-          <div className="text-xs text-muted-foreground">{presentationLabel}</div>
+          <div className={"text-xs text-muted-foreground"}>{presentationLabel}</div>
         </div>
       </div>
       {props.onUse ? (
         <Button
           data-thread-find-ignore
-          type="button"
-          size="sm"
-          variant="outline"
-          className="shrink-0"
+          type={"button"}
+          size={"sm"}
+          variant={"outline"}
+          className={"shrink-0"}
           onClick={() => props.onUse?.(props.template)}
         >
-          Use template
+          {uiText("Use template")}
         </Button>
       ) : null}
     </div>
@@ -328,7 +338,11 @@ function findTaskListMarkerOffset(markdown: string, listItemStart: number): numb
 function orderedListGutterStyle(
   itemCount: number,
   start: unknown,
-): { "--list-gutter": string } | undefined {
+):
+  | {
+      "--list-gutter": string;
+    }
+  | undefined {
   const parsedStart = Number.parseInt(String(start ?? 1), 10);
   const firstNumber = Number.isNaN(parsedStart) ? 1 : parsedStart;
   const lastNumber = firstNumber + Math.max(itemCount - 1, 0);
@@ -339,34 +353,39 @@ function orderedListGutterStyle(
 
 const GITHUB_ALERT_PRESENTATIONS: Record<
   string,
-  { label: string; Icon: typeof InfoIcon; borderClassName: string; titleClassName: string }
+  {
+    label: string;
+    Icon: typeof InfoIcon;
+    borderClassName: string;
+    titleClassName: string;
+  }
 > = {
   note: {
-    label: "Note",
+    label: uiText("Note"),
     Icon: InfoIcon,
     borderClassName: "border-blue-500/70",
     titleClassName: "text-blue-600 dark:text-blue-400",
   },
   tip: {
-    label: "Tip",
+    label: uiText("Tip"),
     Icon: LightbulbIcon,
     borderClassName: "border-emerald-500/70",
     titleClassName: "text-emerald-600 dark:text-emerald-400",
   },
   important: {
-    label: "Important",
+    label: uiText("Important"),
     Icon: MessageSquareWarningIcon,
     borderClassName: "border-purple-500/70",
     titleClassName: "text-purple-600 dark:text-purple-400",
   },
   warning: {
-    label: "Warning",
+    label: uiText("Warning"),
     Icon: TriangleAlertIcon,
     borderClassName: "border-amber-500/70",
     titleClassName: "text-amber-600 dark:text-amber-500",
   },
   caution: {
-    label: "Caution",
+    label: uiText("Caution"),
     Icon: OctagonAlertIcon,
     borderClassName: "border-red-500/70",
     titleClassName: "text-red-600 dark:text-red-400",
@@ -569,7 +588,7 @@ function useChatMarkdownState({
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Media unavailable",
+            title: uiText("Media unavailable"),
             description,
           }),
         );
@@ -672,7 +691,11 @@ function useChatMarkdownState({
   const mathEnabled = useClientSettings((settings) => settings.mathRenderingEnabled);
   const resolveThreadPullRequest = (
     href: string,
-  ): (ThreadPullRequestKey & { readonly url: string }) | null => {
+  ):
+    | (ThreadPullRequestKey & {
+        readonly url: string;
+      })
+    | null => {
     if (
       threadRef === undefined ||
       readThreadShell(threadRef) === null ||
@@ -713,7 +736,7 @@ function useChatMarkdownState({
           toastManager.add(
             stackedThreadToast({
               type: "error",
-              title: "Unable to open link in browser",
+              title: uiText("Unable to open link in browser"),
               description: error.message,
             }),
           );
@@ -984,10 +1007,10 @@ const CHAT_MARKDOWN_COMPONENTS = {
         className={cn("my-1 border-s-2 ps-3", alert.borderClassName)}
       >
         <p
-          data-thread-find-ignore="true"
+          data-thread-find-ignore={"true"}
           className={cn("flex items-center gap-1.5 font-medium", alert.titleClassName)}
         >
-          <alert.Icon aria-hidden className="size-3.5 shrink-0" />
+          <alert.Icon aria-hidden className={"size-3.5 shrink-0"} />
           {alert.label}
         </p>
         {children}
@@ -1032,9 +1055,9 @@ const CHAT_MARKDOWN_COMPONENTS = {
     return (
       <input
         {...props}
-        type="checkbox"
-        name="markdown-task"
-        aria-label="Toggle task"
+        type={"checkbox"}
+        name={"markdown-task"}
+        aria-label={uiText("Toggle task")}
         checked={checked}
         onChange={(event) => {
           const listItemStart = Number(event.currentTarget.closest("li")?.dataset.listItemOffset);
@@ -1294,7 +1317,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
       return (
         <Tooltip>
           <TooltipTrigger render={link} />
-          <TooltipPopup side="top">{href}</TooltipPopup>
+          <TooltipPopup side={"top"}>{href}</TooltipPopup>
         </Tooltip>
       );
     }
@@ -1515,7 +1538,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
       >
         <Suspense
           fallback={
-            <pre {...props} className="invisible" aria-hidden>
+            <pre {...props} className={"invisible"} aria-hidden>
               {children}
             </pre>
           }

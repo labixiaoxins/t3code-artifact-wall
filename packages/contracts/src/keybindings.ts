@@ -58,6 +58,7 @@ export type ModelPickerKeybindingCommand = (typeof MODEL_PICKER_KEYBINDING_COMMA
 
 export const STATIC_KEYBINDING_COMMANDS = [
   "sidebar.toggle",
+  "inbox.next",
   "navigation.back",
   "navigation.forward",
   "terminal.toggle",
@@ -107,6 +108,7 @@ export const STATIC_KEYBINDING_COMMANDS = [
   "usage.cost",
   "usage.tokens",
   "usage.limits",
+  "usage.disk",
   "usage.period.day",
   "usage.period.week",
   "usage.period.month",
@@ -191,10 +193,24 @@ export const KeybindingWhenNode = Schema.Union([
   }),
 ]);
 export type KeybindingWhenNode =
-  | { type: "identifier"; name: string }
-  | { type: "not"; node: KeybindingWhenNode }
-  | { type: "and"; left: KeybindingWhenNode; right: KeybindingWhenNode }
-  | { type: "or"; left: KeybindingWhenNode; right: KeybindingWhenNode };
+  | {
+      type: "identifier";
+      name: string;
+    }
+  | {
+      type: "not";
+      node: KeybindingWhenNode;
+    }
+  | {
+      type: "and";
+      left: KeybindingWhenNode;
+      right: KeybindingWhenNode;
+    }
+  | {
+      type: "or";
+      left: KeybindingWhenNode;
+      right: KeybindingWhenNode;
+    };
 
 export const ResolvedKeybindingRule = Schema.Struct({
   command: KeybindingCommand,

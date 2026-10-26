@@ -37,6 +37,9 @@ import {
 } from "./shell";
 import { environmentThreadDetails, environmentThreadShells } from "./threads";
 import { waitForAtomValue } from "./waitForAtomValue";
+import { createHandoffSummaryAtom } from "./handoffShellSummary";
+import { parseScopedThreadKey, scopedThreadKey } from "@t3tools/client-runtime/environment";
+import { presentThreadShell } from "@t3tools/client-runtime/state/models";
 
 const EMPTY_THREAD_REFS: ReadonlyArray<ScopedThreadRef> = Object.freeze([]);
 const EMPTY_VISIBLE_TURN_ITEMS: ReadonlyArray<OrchestrationV2ProjectedTurnItem> = Object.freeze([]);
@@ -115,6 +118,22 @@ export function useThreadShells(enabled = true): ReadonlyArray<EnvironmentThread
   return useAtomValue(
     enabled ? environmentThreadShells.threadShellsAtom : EMPTY_THREAD_SHELLS_ATOM,
   );
+}
+const handoffShellSummaryAtom = Atom.family((key: string) => {
+  const ref = parseScopedThreadKey(key)!;
+  const relevantShells = Atom.make((get) =>
+    get(environmentThreadShells.environmentThreadsAtom(ref.environmentId))
+      .filter(
+        (shell) =>
+          shell.lineage.parentThreadId === ref.threadId ||
+          shell.continuedFromThreadId === ref.threadId,
+      )
+      .map((shell) => presentThreadShell(ref.environmentId, shell)),
+  );
+  return createHandoffSummaryAtom(relevantShells, ref.threadId);
+});
+export function useThreadHandoffSummary(ref: ScopedThreadRef) {
+  return useAtomValue(handoffShellSummaryAtom(scopedThreadKey(ref)));
 }
 
 export function useAllEnvironmentShellsBootstrapped(): boolean {
@@ -251,7 +270,7 @@ export function readProjects(): ReadonlyArray<EnvironmentProject> {
 
 export function waitForProject(
   ref: ScopedProjectRef,
-  timeoutMs = 10_000,
+  timeoutMs = 10000,
 ): Promise<EnvironmentProject> {
   const current = readProject(ref);
   if (current !== null) return Promise.resolve(current);
@@ -278,7 +297,7 @@ export function waitForProject(
  * command returns before the shell stream does, so anything that picks a
  * project in between (the index route's draft landing) still sees it.
  */
-export function waitForProjectRemoval(ref: ScopedProjectRef, timeoutMs = 5_000): Promise<boolean> {
+export function waitForProjectRemoval(ref: ScopedProjectRef, timeoutMs = 5000): Promise<boolean> {
   return waitForAtomValue({
     registry: appAtomRegistry,
     atom: environmentProjects.projectAtom(ref),
@@ -290,8 +309,7 @@ export function waitForProjectRemoval(ref: ScopedProjectRef, timeoutMs = 5_000):
 export function readThreadShell(ref: ScopedThreadRef): EnvironmentThreadShell | null {
   return appAtomRegistry.get(environmentThreadShells.threadShellAtom(ref));
 }
-
-export function waitForThreadShell(ref: ScopedThreadRef, timeoutMs = 5_000): Promise<boolean> {
+export function waitForThreadShell(ref: ScopedThreadRef, timeoutMs = 5000): Promise<boolean> {
   return waitForAtomValue({
     registry: appAtomRegistry,
     atom: environmentThreadShells.threadShellAtom(ref),

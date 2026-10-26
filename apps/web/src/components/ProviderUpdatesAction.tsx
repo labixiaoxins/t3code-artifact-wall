@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { PROVIDER_DISPLAY_NAMES } from "@t3tools/contracts";
 import { settlePromise } from "@t3tools/client-runtime/state/runtime";
 import { useRef, useState } from "react";
@@ -91,7 +92,7 @@ export function ProviderUpdatesAction() {
             disabled={isPending}
             onClick={() => void handleUpdate()}
           >
-            {isPending ? "Updating…" : "Update all"}
+            {isPending ? uiText("Updating…") : uiText("Update all")}
           </Button>
         }
       />

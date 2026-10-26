@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useAtomValue } from "@effect/atom-react";
 import { ThreadDetailsControl } from "./ThreadDetailsControl";
 import { useNavigate } from "@tanstack/react-router";
@@ -43,13 +44,13 @@ function taskScheduleLine(task: ScheduledTask) {
       {scheduleLabel(task.schedule)}
       {task.enabled && task.nextRunAt !== null ? (
         <>
-          {" · next "}
+          {"\u00B7 next "}
           <ScheduledRelativeLabel value={task.nextRunAt} />
         </>
       ) : task.enabled ? (
         ""
       ) : (
-        " · paused"
+        uiText("· paused")
       )}
     </>
   );
@@ -66,10 +67,10 @@ export function ThreadAutomationsPanel(props: {
     serverEnvironment.scheduledTasksLive({ environmentId: props.environmentId, input: {} }),
   );
   const setTaskEnabled = useAtomCommand(serverEnvironment.setScheduledTaskEnabled, {
-    label: "thread automation toggle",
+    label: uiText("thread automation toggle"),
   });
   const runTaskNow = useAtomCommand(serverEnvironment.runScheduledTaskNow, {
-    label: "thread automation run now",
+    label: uiText("thread automation run now"),
   });
   const navigate = useNavigate();
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
@@ -128,18 +129,18 @@ export function ThreadAutomationsPanel(props: {
 
   return (
     <ThreadDetailsSection
-      headingId="thread-details-automations-heading"
-      title="Automations"
+      headingId={"thread-details-automations-heading"}
+      title={uiText("Automations")}
       data-thread-automations-panel
       actions={
         <Tooltip>
           <TooltipTrigger
             render={
               <ThreadDetailsControl
-                size="icon-xs"
-                variant="ghost"
-                part="icon"
-                aria-label="Manage scheduled tasks"
+                size={"icon-xs"}
+                variant={"ghost"}
+                part={"icon"}
+                aria-label={uiText("Manage scheduled tasks")}
                 onClick={() =>
                   void navigate({
                     to: "/settings/scheduled-tasks",
@@ -147,21 +148,21 @@ export function ThreadAutomationsPanel(props: {
                   })
                 }
               >
-                <Settings2Icon className="size-3.5" />
+                <Settings2Icon className={"size-3.5"} />
               </ThreadDetailsControl>
             }
           />
-          <TooltipPopup>Manage scheduled tasks</TooltipPopup>
+          <TooltipPopup>{uiText("Manage scheduled tasks")}</TooltipPopup>
         </Tooltip>
       }
     >
       {tasksQuery.error !== null ? (
-        <p className="px-2.5 py-1.5 text-2xs text-destructive">
-          Could not load automations: {tasksQuery.error}
+        <p className={"px-2.5 py-1.5 text-2xs text-destructive"}>
+          {uiText("Could not load automations:")}
+          {tasksQuery.error}
         </p>
       ) : null}
-
-      <ul className="m-0 list-none p-0">
+      <ul className={"m-0 list-none p-0"}>
         {boundTasks.map((task) => (
           <li
             key={task.id}
@@ -170,7 +171,7 @@ export function ThreadAutomationsPanel(props: {
               THREAD_DETAILS_PANEL_ROW_CONTENT_CLASS,
             )}
           >
-            <span className="relative inline-flex size-4 shrink-0 items-center justify-center">
+            <span className={"relative inline-flex size-4 shrink-0 items-center justify-center"}>
               <CalendarClockIcon className={THREAD_DETAILS_PANEL_ICON_CLASS} />
               <span
                 className={cn(
@@ -181,25 +182,27 @@ export function ThreadAutomationsPanel(props: {
               />
             </span>
             <Tooltip>
-              <TooltipTrigger render={<div className="min-w-0 flex-1" />}>
-                <span className="block truncate text-sm font-medium text-foreground/80">
+              <TooltipTrigger render={<div className={"min-w-0 flex-1"} />}>
+                <span className={"block truncate text-sm font-medium text-foreground/80"}>
                   {task.title}
                 </span>
-                <p className="truncate text-2xs text-muted-foreground">{taskScheduleLine(task)}</p>
+                <p className={"truncate text-2xs text-muted-foreground"}>
+                  {taskScheduleLine(task)}
+                </p>
               </TooltipTrigger>
-              <TooltipPopup side="left">
-                <p className="font-medium">{task.title}</p>
-                <p className="text-muted-foreground">{taskScheduleLine(task)}</p>
+              <TooltipPopup side={"left"}>
+                <p className={"font-medium"}>{task.title}</p>
+                <p className={"text-muted-foreground"}>{taskScheduleLine(task)}</p>
               </TooltipPopup>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger
                 render={
                   <ThreadDetailsControl
-                    size="icon-xs"
-                    variant="ghost"
-                    part="icon"
-                    aria-label={`Edit ${task.title}`}
+                    size={"icon-xs"}
+                    variant={"ghost"}
+                    part={"icon"}
+                    aria-label={uiText("Edit {0}", {"0": task.title})}
                     onClick={() =>
                       void navigate({
                         to: "/settings/scheduled-tasks",
@@ -207,11 +210,11 @@ export function ThreadAutomationsPanel(props: {
                       })
                     }
                   >
-                    <PencilIcon className="size-3.5" />
+                    <PencilIcon className={"size-3.5"} />
                   </ThreadDetailsControl>
                 }
               />
-              <TooltipPopup>Edit automation</TooltipPopup>
+              <TooltipPopup>{uiText("Edit automation")}</TooltipPopup>
             </Tooltip>
             {/* A webhook task runs from its URL; there is no request to run it with. */}
             {task.schedule.type === "webhook" ? null : (
@@ -219,26 +222,26 @@ export function ThreadAutomationsPanel(props: {
                 <TooltipTrigger
                   render={
                     <ThreadDetailsControl
-                      size="icon-xs"
-                      variant="ghost"
-                      part="icon"
-                      aria-label={`Run ${task.title} now`}
+                      size={"icon-xs"}
+                      variant={"ghost"}
+                      part={"icon"}
+                      aria-label={uiText("Run {0} now", {"0": task.title})}
                       disabled={
                         !canOperate || busyTaskId !== null || task.lastRunStatus === "running"
                       }
                       onClick={() => void runNow(task)}
                     >
-                      <PlayIcon className="size-3.5" />
+                      <PlayIcon className={"size-3.5"} />
                     </ThreadDetailsControl>
                   }
                 />
-                <TooltipPopup>Run now</TooltipPopup>
+                <TooltipPopup>{uiText("Run now")}</TooltipPopup>
               </Tooltip>
             )}
             <Switch
               checked={task.enabled}
               disabled={!canOperate || busyTaskId !== null}
-              aria-label={task.enabled ? `Pause ${task.title}` : `Resume ${task.title}`}
+              aria-label={task.enabled ? uiText("Pause {0}", {"0": task.title}) : uiText("Resume {0}", {"0": task.title})}
               onCheckedChange={(enabled) => void toggleEnabled(task, enabled)}
             />
           </li>

@@ -130,6 +130,7 @@ export function restartCancelledBackgroundWorkNote(work: ReadonlyArray<Work>): s
   const omitted = work.length - MAX_NOTE_ENTRIES;
   return [
     "Note: the T3 server restarted, and this background work was cancelled before it finished. It will not report back on its own, so resume or restart what you still need and wait for its result:",
+    "Cancellation does not undo side effects. Inspect existing files and target receipts before restarting work; do not repeat a completed external write or assume an interrupted write never happened. Continue remaining work within the existing user authorization.",
     ...work.slice(0, MAX_NOTE_ENTRIES).map((entry) => `- ${entry.kind}: ${entry.label}`),
     ...(omitted > 0 ? [`- and ${omitted} more`] : []),
   ].join("\n");
@@ -214,7 +215,10 @@ export function restartContinuationNote(
   runs: ReadonlyArray<OrchestrationV2Run>,
   providerTurns: ReadonlyArray<Pick<ProviderTurnState, "runAttemptId" | "status">>,
   attempts: ReadonlyArray<Attempt>,
-): { readonly work: ReadonlyArray<Work>; readonly settled: boolean } {
+): {
+  readonly work: ReadonlyArray<Work>;
+  readonly settled: boolean;
+} {
   const completedAttempts = new Set(
     providerTurns.filter((turn) => turn.status === "completed").map((turn) => turn.runAttemptId),
   );
@@ -320,11 +324,9 @@ export function pendingRestartCancelledBackgroundWork(input: {
         (source.restartCancelledBackgroundWork?.length ?? 0) > 0 &&
         !prompted.some((later) => runRanAfter(later, source)),
     )
-    .reduce<ReadonlyArray<Work>>(
-      (work, source) =>
-        mergeRestartCancelledBackgroundWork(work, source.restartCancelledBackgroundWork ?? []),
-      [],
-    );
+    .reduce<
+      ReadonlyArray<Work>
+    >((work, source) => mergeRestartCancelledBackgroundWork(work, source.restartCancelledBackgroundWork ?? []), []);
 }
 
 export function mergeRestartCancelledBackgroundWork(

@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { Spinner } from "~/components/ui/spinner";
 import type {
   PullRequestActor,
@@ -55,7 +56,7 @@ export function PullRequestLabelChip({
       className={cn("min-w-0 max-w-40 shrink justify-start", className)}
       {...(color ? { style: { "--label": color } as CSSProperties } : {})}
     >
-      <span className="truncate">{label.name}</span>
+      <span className={"truncate"}>{label.name}</span>
       {children}
     </Badge>
   );
@@ -66,19 +67,19 @@ function reviewDecisionPresentation(decision: PullRequestReviewDecision) {
     case "approved":
       return {
         Icon: UserCheckIcon,
-        label: "Approved",
+        label: uiText("Approved"),
         toneClassName: CHECK_STATUS_PRESENTATION.success.toneClassName,
       };
     case "changes-requested":
       return {
         Icon: UserRoundXIcon,
-        label: "Changes requested",
+        label: uiText("Changes requested"),
         toneClassName: "text-amber-600/90 dark:text-amber-400/80",
       };
     case "review-required":
       return {
         Icon: UserRoundIcon,
-        label: "Awaiting review",
+        label: uiText("Awaiting review"),
         toneClassName: "text-muted-foreground/60",
       };
   }
@@ -92,9 +93,9 @@ export function PullRequestReviewDecisionGlyph({
   const presentation = reviewDecisionPresentation(decision);
   return (
     <Tooltip>
-      <TooltipTrigger render={<span className="inline-flex shrink-0" />}>
+      <TooltipTrigger render={<span className={"inline-flex shrink-0"} />}>
         <presentation.Icon aria-hidden className={cn("size-3.5", presentation.toneClassName)} />
-        <span className="sr-only">{presentation.label}</span>
+        <span className={"sr-only"}>{presentation.label}</span>
       </TooltipTrigger>
       <TooltipPopup>{presentation.label}</TooltipPopup>
     </Tooltip>
@@ -144,10 +145,10 @@ export function PullRequestStateGlyph({
   return (
     <Tooltip>
       {/* The list row is itself a button, so the trigger stays a span: an interactive one would
-          nest a control inside that button and steal the row's click target. */}
-      <TooltipTrigger render={<span className="inline-flex shrink-0" />}>
+            nest a control inside that button and steal the row's click target. */}
+      <TooltipTrigger render={<span className={"inline-flex shrink-0"} />}>
         <presentation.Icon
-          role="img"
+          role={"img"}
           aria-label={presentation.label}
           className={cn("size-4 shrink-0", presentation.toneClassName, className)}
         />
@@ -179,9 +180,9 @@ export function PullRequestConflictGlyph({
   if (presentation === null) return null;
   return (
     <Tooltip>
-      <TooltipTrigger render={<span className="inline-flex shrink-0" />}>
+      <TooltipTrigger render={<span className={"inline-flex shrink-0"} />}>
         <presentation.Icon
-          role="img"
+          role={"img"}
           aria-label={presentation.label}
           className={cn("size-4 shrink-0", presentation.toneClassName, className)}
         />
@@ -192,24 +193,28 @@ export function PullRequestConflictGlyph({
 }
 
 const CHECK_STATUS_PRESENTATION = {
-  pending: { label: "Running", Icon: Spinner, toneClassName: "text-amber-500" },
+  pending: { label: uiText("Running"), Icon: Spinner, toneClassName: "text-amber-500" },
   "action-required": {
-    label: "Awaiting action",
+    label: uiText("Awaiting action"),
     Icon: CircleDotIcon,
     toneClassName: "text-amber-600 dark:text-amber-400/90",
   },
   success: {
-    label: "Passed",
+    label: uiText("Passed"),
     Icon: CircleCheckIcon,
     toneClassName: "text-emerald-600 dark:text-emerald-300/90",
   },
-  failure: { label: "Failed", Icon: CircleXIcon, toneClassName: "text-destructive" },
-  cancelled: { label: "Cancelled", Icon: CircleXIcon, toneClassName: "text-destructive" },
-  skipped: { label: "Skipped", Icon: CircleSlashIcon, toneClassName: "text-muted-foreground/70" },
-  neutral: { label: "Neutral", Icon: CircleDashedIcon, toneClassName: "text-muted-foreground/70" },
+  failure: { label: uiText("Failed"), Icon: CircleXIcon, toneClassName: "text-destructive" },
+  cancelled: { label: uiText("Cancelled"), Icon: CircleXIcon, toneClassName: "text-destructive" },
+  skipped: { label: uiText("Skipped"), Icon: CircleSlashIcon, toneClassName: "text-muted-foreground/70" },
+  neutral: { label: uiText("Neutral"), Icon: CircleDashedIcon, toneClassName: "text-muted-foreground/70" },
 } as const satisfies Record<
   PullRequestCheckStatus,
-  { label: string; Icon: typeof CircleCheckIcon | typeof Spinner; toneClassName: string }
+  {
+    label: string;
+    Icon: typeof CircleCheckIcon | typeof Spinner;
+    toneClassName: string;
+  }
 >;
 
 function isWorkflowApprovalCheck(check: Pick<PullRequestCheck, "status" | "url">): boolean {
@@ -240,23 +245,27 @@ export function PullRequestCheckStatusIcon({ status }: { status: PullRequestChec
 
 const CHECKS_STATE_PRESENTATION = {
   passing: {
-    label: "All checks have passed",
+    label: uiText("All checks have passed"),
     Icon: CircleCheckIcon,
     toneClassName: CHECK_STATUS_PRESENTATION.success.toneClassName,
   },
   failing: {
-    label: "Some checks were not successful",
+    label: uiText("Some checks were not successful"),
     Icon: CircleXIcon,
     toneClassName: "text-destructive",
   },
   pending: {
-    label: "Some checks haven't completed yet",
+    label: uiText("Some checks haven't completed yet"),
     Icon: CircleDotIcon,
     toneClassName: "text-amber-600 dark:text-amber-400/90",
   },
 } as const satisfies Record<
   PullRequestChecksState,
-  { label: string; Icon: typeof CircleCheckIcon; toneClassName: string }
+  {
+    label: string;
+    Icon: typeof CircleCheckIcon;
+    toneClassName: string;
+  }
 >;
 
 export function pullRequestChecksStatePresentation(state: PullRequestChecksState) {
@@ -275,7 +284,7 @@ export function pullRequestChecksState(
 
 const REVIEW_OUTCOME_PRESENTATION = {
   approved: {
-    label: "Approved",
+    label: uiText("Approved"),
     Icon: CircleCheckIcon,
     toneClassName: "text-emerald-600 dark:text-emerald-300/90",
     ringClassName: "ring-2 ring-emerald-500 dark:ring-emerald-400",
@@ -284,7 +293,7 @@ const REVIEW_OUTCOME_PRESENTATION = {
     badgeVariant: "success",
   },
   "changes-requested": {
-    label: "Changes requested",
+    label: uiText("Changes requested"),
     Icon: CircleXIcon,
     toneClassName: "text-destructive",
     ringClassName: "ring-2 ring-destructive",
@@ -292,7 +301,7 @@ const REVIEW_OUTCOME_PRESENTATION = {
     badgeVariant: "error",
   },
   dismissed: {
-    label: "Review dismissed",
+    label: uiText("Review dismissed"),
     Icon: CircleDashedIcon,
     toneClassName: "text-muted-foreground/70",
     ringClassName: "ring-2 ring-muted-foreground/60",
@@ -331,7 +340,7 @@ export function pullRequestReviewOutcomeRingClassName(
 }
 
 export function pullRequestReviewOutcomeStaleLabel(outcome: PullRequestReviewOutcome): string {
-  return `${REVIEW_OUTCOME_PRESENTATION[outcome].label} earlier changes`;
+  return uiText("{0} earlier changes", {"0": REVIEW_OUTCOME_PRESENTATION[outcome].label});
 }
 
 export function PullRequestReviewOutcomeIcon({
@@ -363,10 +372,10 @@ export function PullRequestReviewOutcomeBadge({
 }) {
   const presentation = REVIEW_OUTCOME_PRESENTATION[outcome];
   return (
-    <Badge size="sm" variant={presentation.badgeVariant} className={className}>
+    <Badge size={"sm"} variant={presentation.badgeVariant} className={className}>
       {/* Align with surrounding text using the label, rather than the icon's bottom edge. */}
-      <span className="inline-flex items-baseline gap-1">
-        <presentation.Icon aria-hidden className="size-3 self-center" />
+      <span className={"inline-flex items-baseline gap-1"}>
+        <presentation.Icon aria-hidden className={"size-3 self-center"} />
         <span>{presentation.label}</span>
       </span>
     </Badge>
@@ -396,9 +405,9 @@ export function PullRequestActorAvatar({
   ) : (
     <img
       aria-hidden
-      alt=""
+      alt={""}
       src={avatarUrl}
-      loading="lazy"
+      loading={"lazy"}
       className={cn("size-4 shrink-0 rounded-full bg-muted object-cover", className)}
       onError={() => setFailedAvatarUrl(avatarUrl)}
     />
@@ -422,7 +431,7 @@ export function PullRequestActorLabel({
   // Let the name supply the group's baseline while the avatar stays vertically centered.
   const label = (
     <span className={cn("flex min-w-0 items-baseline", variant === "label" && "gap-1.5")}>
-      <PullRequestActorAvatar actor={actor} className="self-center" />
+      <PullRequestActorAvatar actor={actor} className={"self-center"} />
       <span className={variant === "label" ? "truncate font-medium text-foreground" : "sr-only"}>
         {login}
       </span>
@@ -440,9 +449,9 @@ export function PullRequestActorLabel({
               render={
                 <a
                   href={profileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={`Open ${login}'s profile`}
+                  target={"_blank"}
+                  rel={"noopener noreferrer"}
+                  aria-label={uiText("Open {0}'s profile", {"0": login})}
                 />
               }
             />
@@ -453,9 +462,9 @@ export function PullRequestActorLabel({
       >
         {label}
       </TooltipTrigger>
-      <TooltipPopup side="top">
+      <TooltipPopup side={"top"}>
         {actor?.name && actor.name !== login ? `${actor.name} (@${login})` : login}
-        {profileUrl ? " · Open profile" : ""}
+        {profileUrl ? uiText("· Open profile") : ""}
       </TooltipPopup>
     </Tooltip>
   );
@@ -475,8 +484,14 @@ export function PullRequestDiffStat({
   }
   return (
     <span className={cn("inline-flex items-baseline gap-1 tabular-nums", className)}>
-      <span className="text-diff-addition-foreground">+{formatDiffCount(additions)}</span>
-      <span className="text-diff-deletion">-{formatDiffCount(deletions)}</span>
+      <span className={"text-diff-addition-foreground"}>
+        {"+"}
+        {formatDiffCount(additions)}
+      </span>
+      <span className={"text-diff-deletion"}>
+        {"-"}
+        {formatDiffCount(deletions)}
+      </span>
     </span>
   );
 }
@@ -501,10 +516,10 @@ export function PullRequestMetaLine({
           : [
               <span
                 aria-hidden
-                className="shrink-0 text-muted-foreground/50"
+                className={"shrink-0 text-muted-foreground/50"}
                 key={separatorKey(segment)}
               >
-                ·
+                {"\u00B7"}
               </span>,
               segment,
             ],

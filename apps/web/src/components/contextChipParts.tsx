@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type { EnvironmentId, PullRequestContextMetadata } from "@t3tools/contracts";
 import { CircleDashedIcon, FilmIcon, ImageIcon } from "lucide-react";
 import {
@@ -73,7 +74,7 @@ export function ContextChipPopover(props: {
           <ContextChip
             kind={props.kind}
             render={<button type="button" />}
-            aria-label={`${props.accessibleLabel}. Show details`}
+            aria-label={uiText("{0}. Show details", {"0": props.accessibleLabel})}
             data-markdown-copy={props.copyMarkdown}
           />
         }
@@ -106,7 +107,7 @@ export function PullRequestChip(props: {
     <ContextChip
       kind={props.kind}
       render={<button type="button" />}
-      aria-label={`Open ${props.kindLabel} ${props.label}: ${props.metadata.title}`}
+      aria-label={uiText("Open {0} {1}: {2}", {"0": props.kindLabel, "1": props.label, "2": props.metadata.title})}
       data-markdown-copy={props.copyMarkdown}
       onClick={(event) => props.onOpen(event, props.metadata.url)}
       onAuxClick={(event) => props.onOpen(event, props.metadata.url)}
@@ -182,7 +183,7 @@ export function ImageChipButton({
     <ContextChip
       kind="image"
       render={<button type="button" />}
-      aria-label={`Image attachment, ${name}, ${size}`}
+      aria-label={uiText("Image attachment, {0}, {1}", {"0": name, "1": size})}
       style={{ ...style, ...(accent ? { "--context-chip-accent": accent } : {}) } as CSSProperties}
       {...props}
     >
@@ -292,7 +293,7 @@ export function UnresolvedChip(props: { label: string; tooltip: string; copyMark
       icon={<CircleDashedIcon />}
       label={props.label}
       state="unresolved"
-      aria-label={`Unavailable context, ${props.label}`}
+      aria-label={uiText("Unavailable context, {0}", {"0": props.label})}
       data-markdown-copy={props.copyMarkdown}
       tooltip={props.tooltip}
     />

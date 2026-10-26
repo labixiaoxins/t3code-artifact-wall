@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   isModifierPairShortcut,
   type DesktopCaptureConfigApplied,
@@ -121,8 +122,8 @@ export function CaptureShortcutConfig({
       if (!applied.warning && preview.operation === "install" && onComplete) {
         toastManager.add({
           type: "success",
-          title: "Shortcut saved",
-          description: `Use ${preview.shortcut} from another app.`,
+          title: uiText("Shortcut saved"),
+          description: uiText("Use {0} from another app.", {"0": preview.shortcut}),
         });
         await onComplete();
       }
@@ -142,38 +143,37 @@ export function CaptureShortcutConfig({
     <div className="space-y-4 text-sm">
       {!result ? (
         <div className="flex items-center justify-between gap-3">
-          <span>Shortcut</span>
+          <span>{uiText("Shortcut")}</span>
           {recorder.input}
         </div>
       ) : null}
       {recorder.recording ? (
         <p role="status" className="text-xs text-muted-foreground">
-          Press your shortcut. Esc cancels.
-        </p>
+          {uiText("Press your shortcut. Esc cancels.")}</p>
       ) : null}
       {result ? (
         <p role="status">
           {result.warning
-            ? "Saved, but the shortcut needs attention. Check Advanced for help."
+            ? uiText("Saved, but the shortcut needs attention. Check Advanced for help.")
             : preview?.operation === "remove"
-              ? "Shortcut removed."
-              : `Use ${preview?.shortcut} from another app to capture a window.`}
+              ? uiText("Shortcut removed.")
+              : uiText("Use {0} from another app to capture a window.", {"0": preview?.shortcut})}
         </p>
       ) : preview ? (
         <>
           <p className="text-muted-foreground">
             {changed
               ? preview.operation === "remove"
-                ? "Review the change below to remove your shortcut."
-                : "Review the change below, then save your shortcut."
+                ? uiText("Review the change below to remove your shortcut.")
+                : uiText("Review the change below, then save your shortcut.")
               : preview.operation === "remove"
-                ? "There's no capture shortcut to remove."
-                : "This shortcut is already set up."}
+                ? uiText("There's no capture shortcut to remove.")
+                : uiText("This shortcut is already set up.")}
           </p>
           {diff ? (
             <div
               className="max-h-80 overflow-auto rounded-lg border text-xs"
-              aria-label="Shortcut changes"
+              aria-label={uiText("Shortcut changes")}
             >
               <FileDiff
                 fileDiff={diff}
@@ -187,8 +187,7 @@ export function CaptureShortcutConfig({
           ) : null}
           {changed ? (
             <p className="text-xs text-muted-foreground">
-              Only these changes will be saved. We'll keep a backup.
-            </p>
+              {uiText("Only these changes will be saved. We'll keep a backup.")}</p>
           ) : null}
           <div className="flex gap-2">
             {changed || preview.operation === "install" ? (
@@ -201,36 +200,32 @@ export function CaptureShortcutConfig({
                 onClick={() => void apply()}
               >
                 {working === "writing"
-                  ? "Saving…"
+                  ? uiText("Saving…")
                   : changed
                     ? preview.operation === "install"
-                      ? "Save shortcut"
-                      : "Remove shortcut"
-                    : "Done"}
+                      ? uiText("Save shortcut")
+                      : uiText("Remove shortcut")
+                    : uiText("Done")}
               </Button>
             ) : null}
             <Button variant="ghost" disabled={actionBusy} onClick={() => setPreview(null)}>
-              Cancel
-            </Button>
+              {uiText("Cancel")}</Button>
           </div>
         </>
       ) : (
         <>
           <p className="text-muted-foreground">
-            Allow T3 Code to read your desktop settings. You'll review any changes here before
-            saving.
-          </p>
+            {uiText("Allow T3 Code to read your desktop settings. You'll review any changes here before saving.")}</p>
           <Button
             disabled={actionBusy || !supported}
             aria-busy={working === "reading"}
             onClick={() => void read()}
           >
-            {working === "reading" ? "Preparing changes…" : "Review changes"}
+            {working === "reading" ? uiText("Preparing changes…") : uiText("Review changes")}
           </Button>
           {!supported ? (
             <p className="text-xs text-muted-foreground">
-              Update T3 Code to finish setting up your shortcut.
-            </p>
+              {uiText("Update T3 Code to finish setting up your shortcut.")}</p>
           ) : null}
         </>
       )}
@@ -242,29 +237,29 @@ export function CaptureShortcutConfig({
       {state.shortcutActionRegistered === false && state.shortcutMessage ? (
         <p role="status" className="text-muted-foreground">
           {state.shortcutPending
-            ? "Connecting to your desktop…"
-            : "Restart T3 Code to finish connecting your shortcut."}
+            ? uiText("Connecting to your desktop…")
+            : uiText("Restart T3 Code to finish connecting your shortcut.")}
         </p>
       ) : null}
       <details className="text-xs text-muted-foreground">
-        <summary className="cursor-pointer">Advanced</summary>
+        <summary className="cursor-pointer">{uiText("Advanced")}</summary>
         <div className="mt-3 space-y-3">
           {error?.detail || result?.warning ? (
             <div className="space-y-1">
-              <p className="font-medium text-foreground">Troubleshooting</p>
+              <p className="font-medium text-foreground">{uiText("Troubleshooting")}</p>
               <p className="break-words">{error?.detail ?? result?.warning}</p>
             </div>
           ) : null}
           <div className="space-y-1">
-            <p className="font-medium text-foreground">Settings file</p>
+            <p className="font-medium text-foreground">{uiText("Settings file")}</p>
             <p className="break-all font-mono">
               {preview?.path ??
                 state.shortcutConfigPath ??
                 (niri ? "~/.config/niri/config.kdl" : "~/.config/hypr/hyprland.conf")}
             </p>
-            {niri ? <p>T3 Code also reads any files included by this file.</p> : null}
+            {niri ? <p>{uiText("T3 Code also reads any files included by this file.")}</p> : null}
             {preview && preview.resolvedPath !== preview.path ? (
-              <p className="break-all">Linked to {preview.resolvedPath}. The link will be kept.</p>
+              <p className="break-all">{uiText("Linked to") + " "}{preview.resolvedPath}. The link will be kept.</p>
             ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
@@ -274,16 +269,14 @@ export function CaptureShortcutConfig({
               disabled={actionBusy || !supported}
               onClick={() => void read(true)}
             >
-              Choose a different file…
-            </Button>
+              {uiText("Choose a different file…")}</Button>
             <Button
               size="sm"
               variant="ghost"
               disabled={actionBusy || !supported}
               onClick={() => void read(customFile, "remove")}
             >
-              Remove shortcut…
-            </Button>
+              {uiText("Remove shortcut…")}</Button>
             {result ? (
               <Button
                 size="sm"
@@ -291,24 +284,22 @@ export function CaptureShortcutConfig({
                 disabled={actionBusy || !supported}
                 onClick={() => void read()}
               >
-                Review changes
-              </Button>
+                {uiText("Review changes")}</Button>
             ) : null}
           </div>
           <p>
-            Use your desktop's shortcut settings file.{" "}
+            {uiText("Use your desktop's shortcut settings file.")}{" "}
             {niri
-              ? "A custom --config or NIRI_CONFIG can change its location."
-              : "On Omarchy, use your own bindings file, not its defaults."}
+              ? uiText("A custom --config or NIRI_CONFIG can change its location.")
+              : uiText("On Omarchy, use your own bindings file, not its defaults.")}
           </p>
-          {result?.backupPath ? <p className="break-all">Backup: {result.backupPath}</p> : null}
-          <p className="font-medium text-foreground">Manual setup</p>
+          {result?.backupPath ? <p className="break-all">{uiText("Backup:") + " "}{result.backupPath}</p> : null}
+          <p className="font-medium text-foreground">{uiText("Manual setup")}</p>
           <p>
             {niri
-              ? "Paste this inside binds { … } in your Niri config, then save."
-              : "Add this binding to your Hyprland config, then save."}{" "}
-            Change the keys if needed.
-          </p>
+              ? uiText("Paste this inside binds { … } in your Niri config, then save.")
+              : uiText("Add this binding to your Hyprland config, then save.")}{" "}
+            {uiText("Change the keys if needed.") + " "}</p>
           <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-xl bg-muted/50 p-3">
             {state.shortcutBinding}
           </pre>
@@ -320,12 +311,10 @@ export function CaptureShortcutConfig({
               if (state.shortcutBinding) copyToClipboard(state.shortcutBinding);
             }}
           >
-            {isCopied ? "Copied" : "Copy shortcut"}
+            {isCopied ? uiText("Copied") : uiText("Copy shortcut")}
           </Button>
           <p>
-            Turn capture off in T3 Code to stop it. Remove the shortcut from {desktop} to free up
-            the keys.
-          </p>
+            {uiText("Turn capture off in T3 Code to stop it. Remove the shortcut from") + " "}{desktop} {uiText("to free up the keys.") + " "}</p>
           {state.shortcutActionRegistered === false ? (
             <p role="status">{state.shortcutMessage}</p>
           ) : null}
@@ -336,8 +325,7 @@ export function CaptureShortcutConfig({
               disabled={actionBusy || state.shortcutActionRegistered === false}
               onClick={() => void onComplete()}
             >
-              I've added the shortcut
-            </Button>
+              {uiText("I've added the shortcut")}</Button>
           ) : null}
         </div>
       </details>

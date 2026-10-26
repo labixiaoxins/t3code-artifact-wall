@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type {
   EnvironmentId,
   EnvironmentMachineKind,
@@ -98,9 +99,9 @@ export function resolveEnvModeLabel(mode: EnvMode): string {
 }
 
 export const WORKTREE_SUBMODULES_LABELS: Record<WorktreeSubmodules, string> = {
-  recursive: "Recursive",
-  "top-level": "Top level only",
-  none: "Skip",
+  recursive: uiText("Recursive"),
+  "top-level": uiText("Top level only"),
+  none: uiText("Skip"),
 };
 
 export function resolveCurrentWorkspaceLabel(activeWorktreePath: string | null): string {
@@ -111,7 +112,7 @@ export function resolveLockedWorkspaceLabel(
   activeWorktreePath: string | null,
   effectiveEnvMode: EnvMode,
 ): string {
-  if (activeWorktreePath) return "Worktree";
+  if (activeWorktreePath) return uiText("Worktree");
   return effectiveEnvMode === "worktree" ? resolveEnvModeLabel("worktree") : "Local checkout";
 }
 
@@ -216,7 +217,7 @@ export function resolveBranchTriggerLabel(input: {
     startFromOrigin,
   } = input;
   if (!resolvedActiveBranch) {
-    return "Select ref";
+    return uiText("Select ref");
   }
   if (effectiveEnvMode === "worktree" && !activeWorktreePath) {
     // Only the server can determine a local branch's configured remote.

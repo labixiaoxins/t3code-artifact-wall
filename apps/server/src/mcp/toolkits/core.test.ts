@@ -51,6 +51,10 @@ import * as McpToolAccessTestkit from "../McpToolAccess.testkit.ts";
 import { dispatchFailure } from "../threadAccess.ts";
 import * as EnvironmentHandlers from "./environment/handlers.ts";
 import * as AttachmentHandlers from "./attachment/handlers.ts";
+import { ThreadToolkit } from "./thread/tools.ts";
+import { ArtifactToolkit } from "./artifact/tools.ts";
+import { WorktreeToolkit } from "./worktree/tools.ts";
+import { DeviceToolkit } from "./device/tools.ts";
 
 const layerOrchestratorToolkit = McpHttpServer.layerOrchestratorToolkit.pipe(
   Layer.provide(Layer.mock(ThreadLaunchService.ThreadLaunchService)({})),
@@ -610,7 +614,7 @@ function scheduledTask(id: string, runtimeMode: "auto" | "full-access"): never {
     enabled: true,
     projectId: "project-a",
     threadId: null,
-    schedule: { type: "interval", everyMs: 3_600_000 },
+    schedule: { type: "interval", everyMs: 3600000 },
     workspaceStrategy: { type: "worktree", baseRef: "main", startFromOrigin: true },
     modelSelection: { instanceId: "codex", model: "gpt-5" },
     runtimeMode,
@@ -721,7 +725,10 @@ it.effect("discovers workflow stop targets and requires orchestration capability
       result: null,
     },
   };
-  const stopped: Array<{ readonly threadId: ThreadId; readonly subagentId: string }> = [];
+  const stopped: Array<{
+    readonly threadId: ThreadId;
+    readonly subagentId: string;
+  }> = [];
   return Effect.gen(function* () {
     const server = yield* McpServer.McpServer;
     const scope = clientScope("full-access");
@@ -797,7 +804,9 @@ it.effect("only the caller that prepared a pending upload can discard it", () =>
       { upload: { name: "shot.png", mimeType: "image/png", sizeBytes: 4 } },
       scope,
     );
-    const { attachmentId } = prepared.structuredContent as { readonly attachmentId: string };
+    const { attachmentId } = prepared.structuredContent as {
+      readonly attachmentId: string;
+    };
     const otherThread = {
       ...scope,
       requestNamespace: "other-session",
@@ -806,8 +815,7 @@ it.effect("only the caller that prepared a pending upload can discard it", () =>
 
     const refused = yield* call("t3_attachment_discard", { attachmentId }, otherThread);
     expect(declaredFailure(refused)).toMatchObject({ code: "invalid_request" });
-
-    yield* TestClock.adjust(24 * 60 * 60 * 1000 + 5 * 60_000);
+    yield* TestClock.adjust(24 * 60 * 60 * 1000 + 5 * 60000);
     yield* call(
       "t3_attachment_prepare_upload",
       { upload: { name: "later.png", mimeType: "image/png", sizeBytes: 4 } },

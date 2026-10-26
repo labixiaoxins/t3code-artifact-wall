@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { memo, type MouseEventHandler, type PointerEventHandler } from "react";
 import { CheckIcon, ChevronDownIcon, ChevronLeftIcon, Minimize2Icon, PlayIcon } from "lucide-react";
 import { CornerUpRight, ListPlus } from "lucide";
@@ -143,7 +144,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
             onClick={() => {
               if (canOperateThread) onInterrupt();
             }}
-            aria-label="Stop generation"
+            aria-label={uiText("Stop generation")}
           />
         }
       >
@@ -151,7 +152,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
           <rect x="2" y="2" width="8" height="8" rx="1.5" />
         </svg>
       </TooltipTrigger>
-      <TooltipPopup>Interrupt</TooltipPopup>
+      <TooltipPopup>{uiText("Interrupt")}</TooltipPopup>
     </Tooltip>
   );
 
@@ -167,7 +168,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
               {...pointerFocusProps}
               onClick={onPreviousPendingQuestion}
               disabled={pendingAction.isResponding}
-              aria-label="Previous question"
+              aria-label={uiText("Previous question")}
             >
               <ChevronLeftIcon className="size-3.5" />
             </Button>
@@ -179,8 +180,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
               onClick={onPreviousPendingQuestion}
               disabled={pendingAction.isResponding}
             >
-              Previous
-            </Button>
+              {uiText("Previous")}</Button>
           )
         ) : null}
         <button
@@ -214,7 +214,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
           {...pointerFocusProps}
           disabled={isSendBusy || isSendDisabled || isConnecting || isEnvironmentUnavailable}
         >
-          {isConnecting || isSendBusy ? "Sending..." : "Refine"}
+          {isConnecting || isSendBusy ? uiText("Sending...") : uiText("Refine")}
         </button>
       );
     }
@@ -227,7 +227,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
           {...pointerFocusProps}
           disabled={isSendBusy || isSendDisabled || isConnecting || isEnvironmentUnavailable}
         >
-          {isConnecting || isSendBusy ? "Sending..." : "Implement"}
+          {isConnecting || isSendBusy ? uiText("Sending...") : uiText("Implement")}
         </button>
         <Menu>
           <MenuTrigger
@@ -238,7 +238,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
                   messageActionPillClassName,
                   "h-9 rounded-l-none border-l border-message-action-foreground/20 px-2 sm:h-8",
                 )}
-                aria-label="Implementation actions"
+                aria-label={uiText("Implementation actions")}
                 onMouseDown={
                   preserveComposerFocusOnPointerDown ? (event) => event.preventDefault() : undefined
                 }
@@ -255,8 +255,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
                 if (canOperateThread) onImplementPlanInNewThread();
               }}
             >
-              Implement in a new thread
-            </MenuItem>
+              {uiText("Implement in a new thread")}</MenuItem>
           </MenuPopup>
         </Menu>
       </div>
@@ -376,14 +375,14 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
               )}
               {...pointerFocusProps}
               aria-pressed={!keepFullHistory}
-              aria-label={`Compact ${compactTokens} tokens of history before sending`}
+              aria-label={uiText("Compact {0} tokens of history before sending", {"0": compactTokens})}
               disabled={!canOperateThread}
               onClick={onToggleKeepFullHistory}
             />
           }
         >
           <Minimize2Icon aria-hidden="true" />
-          {keepFullHistory ? "Full" : "Compact"}
+          {keepFullHistory ? uiText("Full") : uiText("Compact")}
           <span>{compactTokens}</span>
         </TooltipTrigger>
         <TooltipPopup>

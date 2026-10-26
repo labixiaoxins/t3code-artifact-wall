@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   AuthOrchestrationOperateScope,
   type EnvironmentId,
@@ -37,6 +38,7 @@ import { observeResize } from "~/lib/observeResize";
 import { cn } from "~/lib/utils";
 import { textDirection } from "~/textDirection";
 import { useClientSettings } from "../../hooks/useSettings";
+import { QuotaTopbar } from "../usage/QuotaTopbar";
 
 interface ChatHeaderProps {
   activeThreadEnvironmentId: EnvironmentId;
@@ -44,7 +46,10 @@ interface ChatHeaderProps {
   activeThreadTitle: string;
   isServerThread: boolean;
   activeProject: EnvironmentProject | null;
-  parentThreadLink: { threadId: ThreadId; title: string } | null;
+  parentThreadLink: {
+    threadId: ThreadId;
+    title: string;
+  } | null;
   onOpenThread: (threadId: ThreadId) => void;
   rightPanelOpen: boolean;
   onNewThreadInProject: () => void;
@@ -54,7 +59,17 @@ interface ChatHeaderProps {
 function resolveRenameCommit(input: {
   readonly title: string;
   readonly originalTitle: string;
-}): { action: "commit"; title: string } | { action: "reject-empty" } | { action: "noop" } {
+}):
+  | {
+      action: "commit";
+      title: string;
+    }
+  | {
+      action: "reject-empty";
+    }
+  | {
+      action: "noop";
+    } {
   const trimmed = input.title.trim();
   if (trimmed.length === 0) return { action: "reject-empty" };
   if (trimmed === input.originalTitle) return { action: "noop" };
@@ -169,7 +184,7 @@ export const ChatHeader = memo(function ChatHeader({
     if (!readEnvironmentScope(activeThreadEnvironmentId, AuthOrchestrationOperateScope)) return;
     const resolution = resolveRenameCommit({ title, originalTitle: activeThreadTitle });
     if (resolution.action === "reject-empty") {
-      toastManager.add({ type: "warning", title: "Thread title cannot be empty" });
+      toastManager.add({ type: "warning", title: uiText("Thread title cannot be empty") });
       return;
     }
     if (resolution.action === "noop") return;
@@ -181,7 +196,7 @@ export const ChatHeader = memo(function ChatHeader({
         const error = squashAtomCommandFailure(result);
         toastManager.add({
           type: "error",
-          title: "Failed to rename thread",
+          title: uiText("Failed to rename thread"),
           description: error instanceof Error ? error.message : "An error occurred.",
         });
       }
@@ -244,7 +259,7 @@ export const ChatHeader = memo(function ChatHeader({
       const api = readLocalApi();
       if (!api) return;
       void api.contextMenu
-        .show([{ id: "project-settings", label: "Project settings", icon: "settings" }], {
+        .show([{ id: "project-settings", label: uiText("Project settings"), icon: "settings" }], {
           x: event.clientX,
           y: event.clientY,
         })
@@ -268,40 +283,47 @@ export const ChatHeader = memo(function ChatHeader({
   return (
     <div
       ref={breadcrumbContainerRef}
+      data-liquid-chat-header=""
       className={cn(
-        "flex min-w-0 flex-1 items-center gap-2 sm:gap-3",
+        "@container/quota-header flex min-w-0 flex-1 items-center gap-2 sm:gap-3",
         rightPanelOpen ? "pr-10" : "pr-24",
+        "max-md:pr-36",
       )}
       onContextMenu={handleHeaderContextMenu}
     >
       <WorkspaceBreadcrumb
-        ariaLabel="Thread breadcrumb"
-        className="flex-1 overflow-clip [overflow-clip-margin:2px]"
+        ariaLabel={"Thread breadcrumb"}
+        className={"flex-1 overflow-clip [overflow-clip-margin:2px]"}
       >
         {activeProject ? (
           <>
-            <WorkspaceBreadcrumbItem className="shrink">
+            <WorkspaceBreadcrumbItem className={"shrink"}>
               <Tooltip>
                 <TooltipTrigger
                   render={
                     <button
-                      type="button"
-                      aria-label={`New thread in ${activeProjectName}`}
+                      type={"button"}
+                      aria-label={uiText("New thread in {0}", { "0": activeProjectName })}
                       onClick={onNewThreadInProject}
-                      className="inline-flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                      className={
+                        "inline-flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                      }
                     />
                   }
                 >
-                  <ProjectFavicon project={activeProject} className="size-3.5" />
-                  <WorkspaceBreadcrumbText className="max-w-40">
+                  <ProjectFavicon project={activeProject} className={"size-3.5"} />
+                  <WorkspaceBreadcrumbText className={"max-w-40"}>
                     {activeProjectName}
                   </WorkspaceBreadcrumbText>
                 </TooltipTrigger>
-                <TooltipPopup side="top">New thread in {activeProjectName}</TooltipPopup>
+                <TooltipPopup side={"top"}>
+                  {uiText("New thread in")}
+                  {activeProjectName}
+                </TooltipPopup>
               </Tooltip>
             </WorkspaceBreadcrumbItem>
             <WorkspaceBreadcrumbSeparator>
-              <WorkspaceBreadcrumbText>/</WorkspaceBreadcrumbText>
+              <WorkspaceBreadcrumbText>{"/"}</WorkspaceBreadcrumbText>
             </WorkspaceBreadcrumbSeparator>
           </>
         ) : null}
@@ -312,10 +334,14 @@ export const ChatHeader = memo(function ChatHeader({
                 <TooltipTrigger
                   render={
                     <button
-                      type="button"
-                      aria-label={`Open parent thread: ${parentThreadLink.title}`}
+                      type={"button"}
+                      aria-label={uiText("Open parent thread: {0}", {
+                        "0": parentThreadLink.title,
+                      })}
                       onClick={() => onOpenThread(parentThreadLink.threadId)}
-                      className="inline-flex min-w-0 max-w-full cursor-pointer items-center rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                      className={
+                        "inline-flex min-w-0 max-w-full cursor-pointer items-center rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                      }
                     />
                   }
                 >
@@ -327,19 +353,19 @@ export const ChatHeader = memo(function ChatHeader({
                   </WorkspaceBreadcrumbText>
                   {collapseParentTitle ? (
                     <span aria-hidden data-parent-breadcrumb-ellipsis>
-                      ...
+                      {"..."}
                     </span>
                   ) : null}
                 </TooltipTrigger>
-                <TooltipPopup side="top">{parentThreadLink.title}</TooltipPopup>
+                <TooltipPopup side={"top"}>{parentThreadLink.title}</TooltipPopup>
               </Tooltip>
             </WorkspaceBreadcrumbItem>
             <WorkspaceBreadcrumbSeparator>
-              <WorkspaceBreadcrumbText>/</WorkspaceBreadcrumbText>
+              <WorkspaceBreadcrumbText>{"/"}</WorkspaceBreadcrumbText>
             </WorkspaceBreadcrumbSeparator>
           </>
         ) : null}
-        <WorkspaceBreadcrumbItem current className="min-w-10 flex-1">
+        <WorkspaceBreadcrumbItem current className={"min-w-10 flex-1"}>
           {renamingTitle !== null ? (
             <input
               autoFocus
@@ -367,13 +393,15 @@ export const ChatHeader = memo(function ChatHeader({
                 render={
                   <button
                     ref={titleButtonRef}
-                    type="button"
-                    aria-label={`Thread actions for ${activeThreadTitle}`}
-                    aria-haspopup="menu"
+                    type={"button"}
+                    aria-label={uiText("Thread actions for {0}", { "0": activeThreadTitle })}
+                    aria-haspopup={"menu"}
                     onClick={openMenuFromTitle}
                     onDoubleClick={canOperateThread ? handleTitleDoubleClick : undefined}
                     onBlur={cancelPendingTitleMenu}
-                    className="group/thread-title inline-flex min-w-0 max-w-full cursor-pointer items-center gap-1 rounded-sm text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                    className={
+                      "group/thread-title inline-flex min-w-0 max-w-full cursor-pointer items-center gap-1 rounded-sm text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                    }
                   />
                 }
               >
@@ -383,10 +411,12 @@ export const ChatHeader = memo(function ChatHeader({
                 <ChevronDownIcon
                   aria-hidden
                   data-thread-title-chevron
-                  className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/thread-title:opacity-100 group-focus-visible/thread-title:opacity-100"
+                  className={
+                    "size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/thread-title:opacity-100 group-focus-visible/thread-title:opacity-100"
+                  }
                 />
               </TooltipTrigger>
-              <TooltipPopup side="top">{activeThreadTitle}</TooltipPopup>
+              <TooltipPopup side={"top"}>{activeThreadTitle}</TooltipPopup>
             </Tooltip>
           ) : (
             <Tooltip>
@@ -401,11 +431,12 @@ export const ChatHeader = memo(function ChatHeader({
               >
                 <WorkspaceBreadcrumbText>{activeThreadTitle}</WorkspaceBreadcrumbText>
               </TooltipTrigger>
-              <TooltipPopup side="top">{activeThreadTitle}</TooltipPopup>
+              <TooltipPopup side={"top"}>{activeThreadTitle}</TooltipPopup>
             </Tooltip>
           )}
         </WorkspaceBreadcrumbItem>
       </WorkspaceBreadcrumb>
+      <QuotaTopbar />
     </div>
   );
 });

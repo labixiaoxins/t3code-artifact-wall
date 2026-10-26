@@ -882,7 +882,13 @@ describe("ClaudeAdapterV2 append-system-prompt-file launch argument", () => {
   });
 
   const appendSystemPrompt = (options: ClaudeAdapterV2.ClaudeAgentSdkQueryOptions | undefined) =>
-    (options?.systemPrompt as { readonly append?: string } | undefined)?.append;
+    (
+      options?.systemPrompt as
+        | {
+            readonly append?: string;
+          }
+        | undefined
+    )?.append;
 
   it.effect("sends append launch arguments to Claude after the T3 instructions", () =>
     Effect.scoped(
@@ -2030,7 +2036,9 @@ describe("ClaudeAdapterV2 background wake turns", () => {
     readonly uuid: string;
     readonly result: string;
     readonly numTurns?: number;
-    readonly origin?: { readonly kind: "task-notification" };
+    readonly origin?: {
+      readonly kind: "task-notification";
+    };
     readonly subtype?: string;
     readonly isError?: boolean;
     readonly errors?: ReadonlyArray<string>;
@@ -2179,26 +2187,46 @@ describe("ClaudeAdapterV2 background wake turns", () => {
         [];
       const continuationReceipts =
         yield* Queue.unbounded<ProviderContinuationRequests.ProviderContinuationRequest>();
-      const terminalReceipts =
-        yield* Queue.unbounded<
-          Extract<ProviderAdapter.ProviderAdapterV2Event, { type: "turn.terminal" }>
-        >();
-      const subagentReceipts =
-        yield* Queue.unbounded<
-          Extract<ProviderAdapter.ProviderAdapterV2Event, { type: "subagent.updated" }>
-        >();
-      const systemNoticeReceipts =
-        yield* Queue.unbounded<
-          Extract<ProviderAdapter.ProviderAdapterV2Event, { type: "turn_item.updated" }>
-        >();
-      const runtimeRequestReceipts =
-        yield* Queue.unbounded<
-          Extract<ProviderAdapter.ProviderAdapterV2Event, { type: "runtime_request.updated" }>
-        >();
-      const planReceipts =
-        yield* Queue.unbounded<
-          Extract<ProviderAdapter.ProviderAdapterV2Event, { type: "plan.updated" }>
-        >();
+      const terminalReceipts = yield* Queue.unbounded<
+        Extract<
+          ProviderAdapter.ProviderAdapterV2Event,
+          {
+            type: "turn.terminal";
+          }
+        >
+      >();
+      const subagentReceipts = yield* Queue.unbounded<
+        Extract<
+          ProviderAdapter.ProviderAdapterV2Event,
+          {
+            type: "subagent.updated";
+          }
+        >
+      >();
+      const systemNoticeReceipts = yield* Queue.unbounded<
+        Extract<
+          ProviderAdapter.ProviderAdapterV2Event,
+          {
+            type: "turn_item.updated";
+          }
+        >
+      >();
+      const runtimeRequestReceipts = yield* Queue.unbounded<
+        Extract<
+          ProviderAdapter.ProviderAdapterV2Event,
+          {
+            type: "runtime_request.updated";
+          }
+        >
+      >();
+      const planReceipts = yield* Queue.unbounded<
+        Extract<
+          ProviderAdapter.ProviderAdapterV2Event,
+          {
+            type: "plan.updated";
+          }
+        >
+      >();
       let openedOptions: ClaudeAdapterV2.ClaudeAgentSdkQueryOptions | undefined;
       const adapter = yield* ClaudeAdapterV2.makeClaudeAdapterV2({
         instanceId: ClaudeAdapterV2.CLAUDE_DEFAULT_INSTANCE_ID,
@@ -2342,8 +2370,12 @@ describe("ClaudeAdapterV2 background wake turns", () => {
         events.filter(
           (
             event,
-          ): event is Extract<ProviderAdapter.ProviderAdapterV2Event, { type: "turn.terminal" }> =>
-            event.type === "turn.terminal",
+          ): event is Extract<
+            ProviderAdapter.ProviderAdapterV2Event,
+            {
+              type: "turn.terminal";
+            }
+          > => event.type === "turn.terminal",
         );
       return {
         attachmentsDir,
@@ -3570,7 +3602,7 @@ describe("ClaudeAdapterV2 background wake turns", () => {
     Effect.gen(function* () {
       const harness = yield* makeWakeHarness;
       const now = yield* DateTime.now;
-      const resetsAt = Math.floor(DateTime.toEpochMillis(now) / 1000) + 7_200;
+      const resetsAt = Math.floor(DateTime.toEpochMillis(now) / 1000) + 7200;
       const limit = (rateLimitType: "five_hour" | "seven_day" = "five_hour") =>
         claudeSdkFrame({
           type: "rate_limit_event",
@@ -4391,7 +4423,7 @@ describe("ClaudeAdapterV2 background wake turns", () => {
         assert.equal(
           terminal.failure.resetAt,
           DateTime.formatIso(
-            DateTime.makeUnsafe(DateTime.toEpochMillis(now) + input.seconds * 1_000),
+            DateTime.makeUnsafe(DateTime.toEpochMillis(now) + input.seconds * 1000),
           ),
         );
       } else {
@@ -4535,14 +4567,14 @@ describe("ClaudeAdapterV2 background wake turns", () => {
           {
             type: "message_delta",
             delta: { stop_reason: "tool_use", stop_sequence: null },
-            usage: { ...zeroUsage, input_tokens: 999_999, output_tokens: 9 },
+            usage: { ...zeroUsage, input_tokens: 999999, output_tokens: 9 },
           },
           "child-tool",
         ),
         usageStreamFrame({
           type: "message_delta",
           delta: { stop_reason: "tool_use", stop_sequence: null },
-          usage: { ...zeroUsage, input_tokens: 37_939, output_tokens: 184 },
+          usage: { ...zeroUsage, input_tokens: 37939, output_tokens: 184 },
         }),
         usageSnapshotFrame("msg_first", "00000000-0000-4000-8000-000000000671", zeroUsage),
         // The next request starts at zero again and its delta reports only output.
@@ -4561,7 +4593,7 @@ describe("ClaudeAdapterV2 background wake turns", () => {
       for (const frame of frames) yield* Queue.offer(harness.sdkMessages, frame);
       const terminal = yield* Queue.take(harness.terminalReceipts);
       assert.equal(terminal.status, "completed");
-      assert.deepEqual(reportedContextTokens(harness.events), [38_123]);
+      assert.deepEqual(reportedContextTokens(harness.events), [38123]);
     }).pipe(
       Effect.provide(
         Layer.mergeAll(IdAllocator.layer, McpProviderSessions.layer, NodeServices.layer),
@@ -4588,7 +4620,7 @@ describe("ClaudeAdapterV2 background wake turns", () => {
         input_tokens: 10,
         output_tokens: 1,
         cache_creation_input_tokens: 200,
-        cache_read_input_tokens: 1_000,
+        cache_read_input_tokens: 1000,
       };
       const frames = [
         usageStreamFrame({
@@ -4610,14 +4642,14 @@ describe("ClaudeAdapterV2 background wake turns", () => {
             input_tokens: 25,
             output_tokens: 50,
             cache_creation_input_tokens: 0,
-            cache_read_input_tokens: 1_000,
+            cache_read_input_tokens: 1000,
           },
         }),
         usageSnapshotFrame("msg_native", "00000000-0000-4000-8000-000000000681", startUsage),
         claudeSdkFrame({
           type: "system",
           subtype: "compact_boundary",
-          compact_metadata: { trigger: "auto", pre_tokens: 1_075, post_tokens: 400 },
+          compact_metadata: { trigger: "auto", pre_tokens: 1075, post_tokens: 400 },
           uuid: "00000000-0000-4000-8000-000000000682",
           session_id: WAKE_NATIVE_SESSION,
         }),
@@ -4633,14 +4665,14 @@ describe("ClaudeAdapterV2 background wake turns", () => {
       for (const frame of frames) yield* Queue.offer(harness.sdkMessages, frame);
       const terminal = yield* Queue.take(harness.terminalReceipts);
       assert.equal(terminal.status, "completed");
-      assert.deepEqual(reportedContextTokens(harness.events), [1_211, 1_230, 1_075, 400]);
+      assert.deepEqual(reportedContextTokens(harness.events), [1211, 1230, 1075, 400]);
       assert.deepEqual(
         harness.events.flatMap((event) =>
           event.type === "provider_turn.updated" && event.providerTurn.tokenUsage
             ? [event.providerTurn.tokenUsage.autoCompactThreshold]
             : [],
         ),
-        [150_000, 150_000, 150_000, 150_000],
+        [150000, 150000, 150000, 150000],
       );
     }).pipe(
       Effect.provide(
@@ -4651,10 +4683,10 @@ describe("ClaudeAdapterV2 background wake turns", () => {
 
   it.effect.each([
     { autoCompactWindow: "", model: "claude-sonnet-4-6", threshold: undefined },
-    { autoCompactWindow: "150000", model: "claude-sonnet-4-6", threshold: 150_000 },
+    { autoCompactWindow: "150000", model: "claude-sonnet-4-6", threshold: 150000 },
     { autoCompactWindow: "200000", model: "claude-sonnet-4-6", threshold: undefined },
     { autoCompactWindow: "650000", model: "claude-sonnet-4-6", threshold: undefined },
-    { autoCompactWindow: "650000", model: "uncatalogued-model", threshold: 650_000 },
+    { autoCompactWindow: "650000", model: "uncatalogued-model", threshold: 650000 },
   ])(
     "ignores stale snapshots after compaction and reports threshold $autoCompactWindow for $model",
     ({ autoCompactWindow, model, threshold }) =>
@@ -4673,13 +4705,13 @@ describe("ClaudeAdapterV2 background wake turns", () => {
             modelSelection: { ...CLAUDE_TEST_MODEL_SELECTION, model },
           }),
         );
-        const usage = { ...zeroUsage, input_tokens: 1_000, output_tokens: 75 };
+        const usage = { ...zeroUsage, input_tokens: 1000, output_tokens: 75 };
         const frames = [
           usageSnapshotFrame("msg_fallback", "00000000-0000-4000-8000-000000000790", usage),
           claudeSdkFrame({
             type: "system",
             subtype: "compact_boundary",
-            compact_metadata: { trigger: "auto", pre_tokens: 1_075, post_tokens: 400 },
+            compact_metadata: { trigger: "auto", pre_tokens: 1075, post_tokens: 400 },
             uuid: "00000000-0000-4000-8000-000000000791",
             session_id: WAKE_NATIVE_SESSION,
           }),
@@ -4695,7 +4727,7 @@ describe("ClaudeAdapterV2 background wake turns", () => {
         for (const frame of frames) yield* Queue.offer(harness.sdkMessages, frame);
         const terminal = yield* Queue.take(harness.terminalReceipts);
         assert.equal(terminal.status, "completed");
-        assert.deepEqual(reportedContextTokens(harness.events), [1_075, 400, 460]);
+        assert.deepEqual(reportedContextTokens(harness.events), [1075, 400, 460]);
         assert.deepEqual(
           harness.events.flatMap((event) =>
             event.type === "provider_turn.updated" && event.providerTurn.tokenUsage
@@ -4910,8 +4942,7 @@ describe("ClaudeAdapterV2 background wake turns", () => {
       assert.equal(running.status, "running");
       assert.isNull(running.completedAt);
       assert.isNotNull(running.startedAt);
-
-      yield* TestClock.adjust(1_000);
+      yield* TestClock.adjust(1000);
       yield* harness.offerAndWait(
         claudeSdkFrame({
           type: "system",
@@ -4928,7 +4959,7 @@ describe("ClaudeAdapterV2 background wake turns", () => {
       assert.equal(reported[1]?.status, "completed");
       assert.isUndefined(reported[1]?.afterTokenCount);
       assert.isEmpty(harness.terminalEvents());
-      yield* TestClock.adjust(1_000);
+      yield* TestClock.adjust(1000);
       yield* harness.offerAndWait(
         claudeSdkFrame({
           type: "system",
@@ -5088,7 +5119,7 @@ describe("ClaudeAdapterV2 background wake turns", () => {
   );
 
   it.effect.each([
-    { outcome: "result", turnStatus: "completed", itemStatus: "failed" },
+    { outcome: "result", turnStatus: "completed", itemStatus: "interrupted" },
     { outcome: "interrupt", turnStatus: "interrupted", itemStatus: "interrupted" },
     { outcome: "query_exit", turnStatus: "failed", itemStatus: "failed" },
   ] as const)(
@@ -5149,6 +5180,10 @@ describe("ClaudeAdapterV2 background wake turns", () => {
         const [running, settled] = updates;
         assert.equal(running?.status, "running");
         assert.equal(settled?.status, itemStatus);
+        if (outcome === "result") {
+          assert.equal(settled?.completionConfirmed, false);
+          assert.equal(settled?.title, "Context compaction result unconfirmed");
+        }
         assert.equal(settled?.id, running?.id);
         assert.equal(settled?.ordinal, running?.ordinal);
         assert.deepEqual(settled?.startedAt, running?.startedAt);
@@ -5470,9 +5505,21 @@ describe("ClaudeAdapterV2 background wake turns", () => {
   );
 
   type TaskToolCall =
-    | { name: "TaskCreate"; input: TaskCreateInput; output: TaskCreateOutput }
-    | { name: "TaskUpdate"; input: TaskUpdateInput; output: TaskUpdateOutput }
-    | { name: "TaskList"; input: Record<string, never>; output: TaskListOutput };
+    | {
+        name: "TaskCreate";
+        input: TaskCreateInput;
+        output: TaskCreateOutput;
+      }
+    | {
+        name: "TaskUpdate";
+        input: TaskUpdateInput;
+        output: TaskUpdateOutput;
+      }
+    | {
+        name: "TaskList";
+        input: Record<string, never>;
+        output: TaskListOutput;
+      };
 
   function taskToolFrames(
     tool: TaskToolCall,
@@ -6011,7 +6058,7 @@ describe("ClaudeAdapterV2 background wake turns", () => {
             subtype: "api_retry",
             attempt: 2,
             max_retries: 10,
-            retry_delay_ms: 1_500,
+            retry_delay_ms: 1500,
             error_status: 529,
             error: "overloaded",
             uuid: "00000000-0000-4000-8000-000000000201",
@@ -6033,7 +6080,7 @@ describe("ClaudeAdapterV2 background wake turns", () => {
         assert.deepEqual(runningRetry?.retry, {
           attempt: 2,
           maxAttempts: 10,
-          retryDelayMs: 1_500,
+          retryDelayMs: 1500,
         });
 
         yield* Queue.offer(
@@ -6190,7 +6237,9 @@ describe("ClaudeAdapterV2 background wake turns", () => {
         event,
       ): event is Extract<
         ProviderAdapter.ProviderAdapterV2Event,
-        { type: "provider_thread.updated" }
+        {
+          type: "provider_thread.updated";
+        }
       > => event.type === "provider_thread.updated",
     );
 
@@ -7639,7 +7688,7 @@ describe("ClaudeAdapterV2 background wake turns", () => {
                   status: "rejected",
                   rateLimitType: "five_hour",
                   // A conflicting embedded time must not replace the event for this window.
-                  resetsAt: standaloneEvent ? resetsAt + 3_600 : resetsAt,
+                  resetsAt: standaloneEvent ? resetsAt + 3600 : resetsAt,
                 },
               },
             }),
@@ -9992,7 +10041,9 @@ describe("ClaudeAdapterV2 background wake turns", () => {
               event,
             ): event is Extract<
               ProviderAdapter.ProviderAdapterV2Event,
-              { type: "subagent.updated" }
+              {
+                type: "subagent.updated";
+              }
             > => event.type === "subagent.updated",
           );
 
@@ -10101,7 +10152,9 @@ describe("ClaudeAdapterV2 background wake turns", () => {
               event,
             ): event is Extract<
               ProviderAdapter.ProviderAdapterV2Event,
-              { type: "subagent.updated" }
+              {
+                type: "subagent.updated";
+              }
             > => event.type === "subagent.updated",
           );
 
@@ -10224,7 +10277,9 @@ describe("ClaudeAdapterV2 background wake turns", () => {
               event,
             ): event is Extract<
               ProviderAdapter.ProviderAdapterV2Event,
-              { type: "subagent.updated" }
+              {
+                type: "subagent.updated";
+              }
             > => event.type === "subagent.updated",
           );
 
@@ -10390,7 +10445,12 @@ describe("ClaudeAdapterV2 background wake turns", () => {
           .filter(
             (
               event,
-            ): event is Extract<ProviderAdapter.ProviderAdapterV2Event, { type: "node.updated" }> =>
+            ): event is Extract<
+              ProviderAdapter.ProviderAdapterV2Event,
+              {
+                type: "node.updated";
+              }
+            > =>
               event.type === "node.updated" &&
               event.node.kind === "subagent" &&
               event.node.nativeItemRef?.nativeId === SUBAGENT_TASK_ID,
@@ -11341,7 +11401,12 @@ describe("ClaudeAdapterV2 background wake turns", () => {
     events.filter(
       (
         event,
-      ): event is Extract<ProviderAdapter.ProviderAdapterV2Event, { type: "subagent.updated" }> =>
+      ): event is Extract<
+        ProviderAdapter.ProviderAdapterV2Event,
+        {
+          type: "subagent.updated";
+        }
+      > =>
         event.type === "subagent.updated" &&
         event.subagent.nativeTaskRef?.nativeId === WORKFLOW_TASK_ID,
     );
@@ -11352,7 +11417,12 @@ describe("ClaudeAdapterV2 background wake turns", () => {
     events.filter(
       (
         event,
-      ): event is Extract<ProviderAdapter.ProviderAdapterV2Event, { type: "subagent.updated" }> =>
+      ): event is Extract<
+        ProviderAdapter.ProviderAdapterV2Event,
+        {
+          type: "subagent.updated";
+        }
+      > =>
         event.type === "subagent.updated" &&
         event.subagent.nativeTaskRef?.nativeId?.endsWith(`:agent:${index}`) === true,
     );
@@ -11363,8 +11433,12 @@ describe("ClaudeAdapterV2 background wake turns", () => {
     events.filter(
       (
         event,
-      ): event is Extract<ProviderAdapter.ProviderAdapterV2Event, { type: "message.updated" }> =>
-        event.type === "message.updated" && event.message.threadId === threadId,
+      ): event is Extract<
+        ProviderAdapter.ProviderAdapterV2Event,
+        {
+          type: "message.updated";
+        }
+      > => event.type === "message.updated" && event.message.threadId === threadId,
     );
 
   const launchWorkflow = Effect.fnUntraced(function* (input: {
@@ -11727,7 +11801,9 @@ describe("ClaudeAdapterV2 background wake turns", () => {
               event,
             ): event is Extract<
               ProviderAdapter.ProviderAdapterV2Event,
-              { type: "app_thread.created" }
+              {
+                type: "app_thread.created";
+              }
             > => event.type === "app_thread.created" && event.appThread.id === first?.childThreadId,
           )?.appThread.title,
           "alpha:one",
@@ -11735,7 +11811,12 @@ describe("ClaudeAdapterV2 background wake turns", () => {
         const memberNodes = harness.events.filter(
           (
             event,
-          ): event is Extract<ProviderAdapter.ProviderAdapterV2Event, { type: "node.updated" }> =>
+          ): event is Extract<
+            ProviderAdapter.ProviderAdapterV2Event,
+            {
+              type: "node.updated";
+            }
+          > =>
             event.type === "node.updated" &&
             event.node.nativeItemRef?.nativeId === first?.nativeTaskRef?.nativeId,
         );
@@ -11806,7 +11887,9 @@ describe("ClaudeAdapterV2 background wake turns", () => {
               event,
             ): event is Extract<
               ProviderAdapter.ProviderAdapterV2Event,
-              { type: "app_thread.created" }
+              {
+                type: "app_thread.created";
+              }
             > => event.type === "app_thread.created" && event.appThread.id === firstThreadId,
           );
         const turnItemsBeforeMetadata = coordinatorTurnItems().length;
@@ -12583,7 +12666,7 @@ describe("ClaudeAdapterV2 background wake turns", () => {
         );
         const previousStartedAt = workflowMemberEvents(harness.events, 1).at(-1)?.subagent
           .startedAt;
-        yield* TestClock.adjust(1_000);
+        yield* TestClock.adjust(1000);
         NodeFS.writeFileSync(
           NodePath.join(harness.transcriptDir, "agent-a1.jsonl"),
           [

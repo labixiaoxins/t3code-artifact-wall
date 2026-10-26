@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type {
   EnvironmentId,
   ProviderInstanceId,
@@ -76,7 +77,7 @@ export function useUsageLimitsPanel(input: {
       return true;
     }
     setPanel(null);
-    toastManager.add({ type: "info", title: "Usage limits are unavailable for this provider" });
+    toastManager.add({ type: "info", title: uiText("Usage limits are unavailable for this provider") });
     return false;
   });
   // Responses can resolve after navigating away; only the originating thread's panel clears.

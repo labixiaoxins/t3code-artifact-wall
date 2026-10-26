@@ -72,6 +72,7 @@ function layerPool(labelRef: Ref.Ref<string>): Layer.Layer<DesktopBackendPool.De
           activate: Effect.die("unexpected window activate"),
           createMainIfBackendReady: Effect.die("unexpected window create"),
           showConnectingSplash: Effect.void,
+          prepareForShutdown: Effect.succeed(true),
           handleBackendReady: () => Effect.void,
           handleBackendNotReady: Effect.void,
           flushMainWindowBounds: Effect.void,

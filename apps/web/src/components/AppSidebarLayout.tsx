@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useAtomValue } from "@effect/atom-react";
 import * as Schema from "effect/Schema";
 import {
@@ -9,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
+import { ManualClipboardDialog } from "./ManualClipboardDialog";
 
 import { isCommandPaletteOpen } from "../commandPaletteBus";
 import { isElectron } from "../env";
@@ -184,7 +186,7 @@ function SidebarControl() {
         "pointer-events-none fixed left-[var(--workspace-controls-left)] top-[var(--workspace-controls-top)] z-50 ml-px flex h-[var(--workspace-topbar-height)] items-center",
         isMobile && mobileSheetMounted && "hidden",
       )}
-      data-sidebar-control=""
+      data-sidebar-control={""}
     >
       <Tooltip>
         <TooltipTrigger
@@ -195,12 +197,13 @@ function SidebarControl() {
                 "pointer-events-auto",
                 isSidebarVisible && stageBackdropVariant && "relative top-auto translate-y-0",
               )}
-              aria-label="Toggle main sidebar"
+              aria-label={uiText("Toggle main sidebar")}
             />
           }
         />
-        <TooltipPopup side="bottom">
-          Toggle main sidebar{shortcutLabel ? ` (${shortcutLabel})` : ""}
+        <TooltipPopup side={"bottom"}>
+          {uiText("Toggle main sidebar")}
+          {shortcutLabel ? ` (${shortcutLabel})` : ""}
         </TooltipPopup>
       </Tooltip>
     </div>
@@ -397,7 +400,7 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
   return (
     <PanelAnimationSuppressionProvider value={panelAnimationsSuppressed}>
       <SidebarProvider
-        className="h-dvh! min-h-0!"
+        className={"h-dvh! min-h-0!"}
         data-panel-animations={routePanelAnimationsActive ? "true" : "false"}
         defaultOpen
         style={sidebarProviderStyle}
@@ -405,11 +408,11 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
         <SidebarBrandWidthProbe onWidthChange={setBrandWidth} />
         <ProjectProjectionRetention />
         <Sidebar
-          side="left"
-          collapsible="offcanvas"
-          data-app-sidebar=""
-          role="navigation"
-          aria-label={isOnSettings ? "Settings" : "Threads"}
+          side={"left"}
+          collapsible={"offcanvas"}
+          data-app-sidebar={""}
+          role={"navigation"}
+          aria-label={isOnSettings ? uiText("Settings") : uiText("Threads")}
           resizable={{
             maxWidth: sidebarMaximumWidth,
             minWidth: sidebarMinimumWidth,
@@ -438,6 +441,7 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
         <NavigationHistoryShortcuts />
         {isOnSettings ? null : <ThreadUndoShortcut />}
         <MainAppLocationTracker />
+        <ManualClipboardDialog />
       </SidebarProvider>
     </PanelAnimationSuppressionProvider>
   );

@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   AuthSettingsWriteScope,
   ENVIRONMENT_MACHINE_KINDS,
@@ -55,8 +56,7 @@ export function EnvironmentIconMenu({
     <MenuSub>
       <MenuSubTrigger>
         <EnvironmentMachineIcon kind={resolved} />
-        Icon
-      </MenuSubTrigger>
+        {uiText("Icon") + " "}</MenuSubTrigger>
       <MenuSubPopup>
         {lock !== null ? (
           <>
@@ -82,7 +82,7 @@ export function EnvironmentIconMenu({
                 </span>
                 {kind === detected ? (
                   <span className="shrink-0 text-xs text-muted-foreground">
-                    {serverConfig?.environment.platform.machine ? "detected" : "default"}
+                    {serverConfig?.environment.platform.machine ? uiText("detected") : uiText("default")}
                   </span>
                 ) : null}
               </span>

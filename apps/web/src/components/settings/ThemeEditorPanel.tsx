@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { MousePointer2Icon, PaintbrushIcon, PlusIcon, XIcon } from "lucide-react";
 import { ChevronDown, ChevronUp } from "lucide";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
@@ -57,36 +58,36 @@ const THEME_EDITOR_ROLE_GROUPS: ReadonlyArray<{
 }> = [
   {
     id: "foundation",
-    title: "Foundation",
+    title: uiText("Foundation"),
     families: [
       {
         id: "background",
-        label: "Background",
+        label: uiText("Background"),
         role: "canvas",
         roles: ["canvas", "chrome", "toolbar"],
       },
-      { id: "surface", label: "Surface", role: "surface", roles: ["surface"] },
+      { id: "surface", label: uiText("Surface"), role: "surface", roles: ["surface"] },
       {
         id: "raised-surface",
-        label: "Raised surface",
+        label: uiText("Raised surface"),
         role: "surfaceRaised",
         roles: ["surfaceRaised"],
       },
       {
         id: "overlay",
-        label: "Overlay",
+        label: uiText("Overlay"),
         role: "surfaceOverlay",
         roles: ["surfaceOverlay"],
       },
       {
         id: "text",
-        label: "Text",
+        label: uiText("Text"),
         role: "text",
         roles: ["text", "toolbarForeground", "toolbarControlForeground"],
       },
       {
         id: "muted-text",
-        label: "Muted text",
+        label: uiText("Muted text"),
         role: "mutedForeground",
         roles: [
           "textMuted",
@@ -99,32 +100,32 @@ const THEME_EDITOR_ROLE_GROUPS: ReadonlyArray<{
       },
       {
         id: "border",
-        label: "Border",
+        label: uiText("Border"),
         role: "border",
         roles: ["border", "toolbarBorder", "sidebarBorder"],
       },
-      { id: "input", label: "Input", role: "input", roles: ["input"] },
+      { id: "input", label: uiText("Input"), role: "input", roles: ["input"] },
     ],
   },
   {
     id: "brand-content",
-    title: "Brand & content",
+    title: uiText("Brand & content"),
     families: [
       {
         id: "subtle-surface",
-        label: "Subtle surface",
+        label: uiText("Subtle surface"),
         role: "secondary",
         roles: ["secondary", "secondaryForeground", "muted", "toolbarControl"],
       },
       {
         id: "highlight-surface",
-        label: "Highlight surface",
+        label: uiText("Highlight surface"),
         role: "accentSurface",
         roles: ["accentSurface", "accentSurfaceForeground", "toolbarControlHover"],
       },
       {
         id: "accent",
-        label: "Accent",
+        label: uiText("Accent"),
         role: "accent",
         roles: [
           "accent",
@@ -138,19 +139,19 @@ const THEME_EDITOR_ROLE_GROUPS: ReadonlyArray<{
       },
       {
         id: "action",
-        label: "Action",
+        label: uiText("Action"),
         role: "messageAction",
         roles: ["messageAction", "messageActionForeground", "messageActionHover"],
       },
       {
         id: "message-surface",
-        label: "Message surface",
+        label: uiText("Message surface"),
         role: "messageSurface",
         roles: ["messageSurface", "messageForeground"],
       },
       {
         id: "code-surface",
-        label: "Code surface",
+        label: uiText("Code surface"),
         role: "codeBackground",
         roles: ["codeBackground", "codeForeground"],
       },
@@ -158,17 +159,17 @@ const THEME_EDITOR_ROLE_GROUPS: ReadonlyArray<{
   },
   {
     id: "search",
-    title: "Search",
+    title: uiText("Search"),
     families: [
       {
         id: "search-matches",
-        label: "Search matches",
+        label: uiText("Search matches"),
         role: "searchMatchBackground",
         roles: ["searchMatchBackground", "searchMatchForeground"],
       },
       {
         id: "current-match",
-        label: "Current match",
+        label: uiText("Current match"),
         role: "searchMatchActiveBackground",
         roles: ["searchMatchActiveBackground", "searchMatchActiveForeground"],
       },
@@ -176,29 +177,29 @@ const THEME_EDITOR_ROLE_GROUPS: ReadonlyArray<{
   },
   {
     id: "context",
-    title: "Context",
+    title: uiText("Context"),
     families: [
       {
         id: "sidebar-background",
-        label: "Sidebar background",
+        label: uiText("Sidebar background"),
         role: "sidebar",
         roles: ["sidebar", "sidebarForeground"],
       },
       {
         id: "sidebar-controls",
-        label: "Sidebar controls",
+        label: uiText("Sidebar controls"),
         role: "sidebarControlSurface",
         roles: ["sidebarControlSurface"],
       },
       {
         id: "sidebar-selection",
-        label: "Sidebar selection",
+        label: uiText("Sidebar selection"),
         role: "sidebarRowSelected",
         roles: ["sidebarRowHover", "sidebarRowActive", "sidebarRowSelected"],
       },
       {
         id: "terminal-background",
-        label: "Terminal background",
+        label: uiText("Terminal background"),
         role: "terminalBackground",
         roles: [
           "terminalBackground",
@@ -212,17 +213,17 @@ const THEME_EDITOR_ROLE_GROUPS: ReadonlyArray<{
   },
   {
     id: "status",
-    title: "Status",
+    title: uiText("Status"),
     families: [
       {
         id: "error",
-        label: "Error",
+        label: uiText("Error"),
         role: "error",
         roles: ["error", "errorForeground", "errorSurface"],
       },
       {
         id: "warning",
-        label: "Warning",
+        label: uiText("Warning"),
         role: "warning",
         roles: ["warning", "warningForeground", "warningSurface"],
       },
@@ -344,10 +345,19 @@ export function ThemeEditorPanel({
   const [isInspecting, setIsInspecting] = useState(false);
   const [selectedRole, setSelectedRole] = useState<ThemeColorRole | null>(null);
   const [usageCount, setUsageCount] = useState<number | null>(null);
-  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
-  const [size, setSize] = useState<{ width: number; height: number } | null>(null);
+  const [position, setPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const [size, setSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const dragOffsetRef = useRef<{ dx: number; dy: number } | null>(null);
+  const dragOffsetRef = useRef<{
+    dx: number;
+    dy: number;
+  } | null>(null);
   const resizeStartRef = useRef<{
     pointerX: number;
     pointerY: number;
@@ -874,16 +884,16 @@ export function ThemeEditorPanel({
   };
 
   const renderNameField = () => (
-    <label className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] items-center gap-3">
-      <span className="text-sm font-medium">Theme name</span>
+    <label className={"grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] items-center gap-3"}>
+      <span className={"text-sm font-medium"}>{uiText("Theme name")}</span>
       <Input
         autoFocus
-        size="sm"
+        size={"sm"}
         onChange={(event) => {
           setName(event.currentTarget.value);
           setError(null);
         }}
-        placeholder={isEditing ? "Theme name" : "e.g. Aurora"}
+        placeholder={isEditing ? uiText("Theme name") : uiText("e.g. Aurora")}
         value={name}
       />
     </label>
@@ -895,7 +905,7 @@ export function ThemeEditorPanel({
     // a real disabled attribute would swallow the pointer events.
     const button = (
       <Toggle aria-disabled={lockReason !== null} value={appearance}>
-        {appearance === "light" ? "Light" : "Dark"}
+        {appearance === "light" ? uiText("Light") : uiText("Dark")}
       </Toggle>
     );
     if (lockReason === null) return button;
@@ -908,11 +918,11 @@ export function ThemeEditorPanel({
   };
 
   const renderAppearanceButtons = () => (
-    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] items-center gap-3">
-      <span className="text-sm font-medium">Appearance</span>
+    <div className={"grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] items-center gap-3"}>
+      <span className={"text-sm font-medium"}>{uiText("Appearance")}</span>
       <ToggleGroup
-        aria-label="Theme appearance"
-        variant="segmented"
+        aria-label={uiText("Theme appearance")}
+        variant={"segmented"}
         value={[activeAppearance]}
         onValueChange={(next) => {
           const appearance = next[0];
@@ -931,28 +941,32 @@ export function ThemeEditorPanel({
   );
 
   const renderColorsHeader = () => (
-    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] items-start gap-3">
+    <div className={"grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] items-start gap-3"}>
       <div>
-        <h3 className="text-sm font-medium">Colors</h3>
+        <h3 className={"text-sm font-medium"}>{uiText("Colors")}</h3>
         {isAdvanced ? null : (
-          <p className="text-xs text-muted-foreground">Two colors, rest derived</p>
+          <p className={"text-xs text-muted-foreground"}>{uiText("Two colors, rest derived")}</p>
         )}
       </div>
-      <div className="flex min-w-0 items-start gap-3">
+      <div className={"flex min-w-0 items-start gap-3"}>
         {isAdvanced ? (
           <Input
-            aria-label="Filter colors"
-            className="min-w-0 flex-1"
+            aria-label={uiText("Filter colors")}
+            className={"min-w-0 flex-1"}
             onChange={(event) => setRoleQuery(event.currentTarget.value)}
-            placeholder="Filter colors"
-            size="sm"
+            placeholder={uiText("Filter colors")}
+            size={"sm"}
             value={roleQuery}
           />
         ) : null}
-        <label className="ml-auto flex shrink-0 cursor-pointer items-center gap-2 pt-0.5 text-sm font-medium">
-          <span>Advanced</span>
+        <label
+          className={
+            "ml-auto flex shrink-0 cursor-pointer items-center gap-2 pt-0.5 text-sm font-medium"
+          }
+        >
+          <span>{uiText("Advanced")}</span>
           <Switch
-            aria-label="Use advanced theme colors"
+            aria-label={uiText("Use advanced theme colors")}
             checked={isAdvanced}
             onCheckedChange={(checked) => handleAdvancedChange(Boolean(checked))}
           />
@@ -995,17 +1009,19 @@ export function ThemeEditorPanel({
       ),
     })).filter((group) => group.families.length > 0);
     return isAdvanced ? (
-      <div className="space-y-5">
+      <div className={"space-y-5"}>
         {groups.map((group) => (
-          <section className="space-y-2" key={group.id}>
-            <h4 className="text-sm font-medium text-foreground">{group.title}</h4>
+          <section className={"space-y-2"} key={group.id}>
+            <h4 className={"text-sm font-medium text-foreground"}>{group.title}</h4>
             {renderRoleFields(group.families, "grid gap-1")}
           </section>
         ))}
-        {groups.length === 0 ? <p className="text-xs text-muted-foreground">No matches.</p> : null}
+        {groups.length === 0 ? (
+          <p className={"text-xs text-muted-foreground"}>{uiText("No matches.")}</p>
+        ) : null}
       </div>
     ) : (
-      <div className="grid gap-1">
+      <div className={"grid gap-1"}>
         {THEME_EDITOR_SIMPLE_ROLES.map((role) => (
           <ThemeColorField
             key={role}
@@ -1013,7 +1029,7 @@ export function ThemeEditorPanel({
             onSelect={selectThemeRole}
             onToggleSelected={toggleThemeRole}
             role={role}
-            label={role === "canvas" ? "Background" : "Accent"}
+            label={role === "canvas" ? uiText("Background") : uiText("Accent")}
             selected={selectedRole === role}
             value={colorsByAppearance[activeAppearance][role]}
           />
@@ -1084,7 +1100,7 @@ export function ThemeEditorPanel({
 
   return (
     <div
-      aria-label={isEditing ? "Edit theme" : "Create theme"}
+      aria-label={isEditing ? uiText("Edit theme") : uiText("Create theme")}
       className={cn(
         "dialog-glass fixed z-[110] flex max-h-[min(42rem,calc(100dvh-6rem))] w-[min(26rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border text-popover-foreground",
         position === null && "bottom-4 right-4",
@@ -1092,7 +1108,7 @@ export function ThemeEditorPanel({
       )}
       data-theme-editor-panel
       ref={panelRef}
-      role="dialog"
+      role={"dialog"}
       style={{
         ...(position ? { left: position.x, top: position.y } : {}),
         ...(size ? { width: size.width } : {}),
@@ -1100,23 +1116,25 @@ export function ThemeEditorPanel({
       }}
     >
       <div
-        className="flex cursor-grab touch-none select-none items-center gap-1 border-b border-border/70 px-3 py-2 active:cursor-grabbing"
+        className={
+          "flex cursor-grab touch-none select-none items-center gap-1 border-b border-border/70 px-3 py-2 active:cursor-grabbing"
+        }
         onPointerCancel={endDrag}
         onPointerDown={handleDragPointerDown}
         onPointerMove={handleDragPointerMove}
         onPointerUp={endDrag}
       >
-        <div className="flex min-w-0 flex-1 items-baseline gap-2">
-          <h2 className="shrink-0 truncate text-sm font-medium">
-            {isEditing ? "Edit theme" : "Create theme"}
+        <div className={"flex min-w-0 flex-1 items-baseline gap-2"}>
+          <h2 className={"shrink-0 truncate text-sm font-medium"}>
+            {isEditing ? uiText("Edit theme") : uiText("Create theme")}
           </h2>
           {isMinimized ? null : (
-            <p className="truncate text-xs text-muted-foreground">
+            <p className={"truncate text-xs text-muted-foreground"}>
               {isInspecting
-                ? "Select an element · Esc to cancel"
+                ? uiText("Select an element · Esc to cancel")
                 : selectedRole
                   ? `${isAdvanced ? (getThemeEditorColorFamily(selectedRole)?.label ?? getThemeRoleLabel(selectedRole)) : getThemeRoleLabel(selectedRole)} · ${usageCount ?? 0} ${usageCount === 1 ? "use" : "uses"}`
-                  : "Select a color below"}
+                  : uiText("Select a color below")}
             </p>
           )}
         </div>
@@ -1124,9 +1142,9 @@ export function ThemeEditorPanel({
           <TooltipTrigger
             render={
               <Button
-                aria-label={isInspecting ? "Cancel inspecting app colors" : "Inspect app colors"}
+                aria-label={isInspecting ? uiText("Cancel inspecting app colors") : uiText("Inspect app colors")}
                 aria-pressed={isInspecting}
-                size="xs"
+                size={"xs"}
                 variant={isInspecting ? "secondary" : "ghost"}
                 onClick={() => {
                   if (isInspecting) {
@@ -1137,26 +1155,26 @@ export function ThemeEditorPanel({
                 }}
               >
                 <MousePointer2Icon />
-                {isInspecting ? "Cancel" : "Inspect"}
+                {isInspecting ? uiText("Cancel") : uiText("Inspect")}
               </Button>
             }
           />
-          <TooltipPopup data-theme-editor-panel="">
-            {isInspecting ? "Cancel and clear the selection" : "Pick a color from the app"}
+          <TooltipPopup data-theme-editor-panel={""}>
+            {isInspecting ? uiText("Cancel and clear the selection") : uiText("Pick a color from the app")}
           </TooltipPopup>
         </Tooltip>
         <Button
-          aria-label={isMinimized ? "Expand the theme editor" : "Minimize the theme editor"}
-          size="icon-xs"
-          variant="ghost"
+          aria-label={isMinimized ? uiText("Expand the theme editor") : uiText("Minimize the theme editor")}
+          size={"icon-xs"}
+          variant={"ghost"}
           onClick={() => setIsMinimized(!isMinimized)}
         >
           <MorphIcon icon={isMinimized ? ChevronUp : ChevronDown} />
         </Button>
         <Button
-          aria-label="Close the theme editor"
-          size="icon-xs"
-          variant="ghost"
+          aria-label={uiText("Close the theme editor")}
+          size={"icon-xs"}
+          variant={"ghost"}
           onClick={() => onOpenChange(false)}
         >
           <XIcon />
@@ -1165,60 +1183,64 @@ export function ThemeEditorPanel({
 
       {isMinimized ? null : (
         <>
-          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto py-3 pl-3 pr-1.5">
+          <div className={"min-h-0 flex-1 space-y-3 overflow-y-auto py-3 pl-3 pr-1.5"}>
             {renderNameField()}
             {error ? (
-              <p aria-live="polite" className="text-sm text-destructive">
+              <p aria-live={"polite"} className={"text-sm text-destructive"}>
                 {error}
               </p>
             ) : null}
             {renderAppearanceButtons()}
-            <div className="space-y-3">
+            <div className={"space-y-3"}>
               {renderColorsHeader()}
               {renderColorFields()}
             </div>
           </div>
-          <div className="flex items-center justify-end gap-2 border-t border-border/70 px-3 py-2">
-            <Button size="sm" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancel
+          <div
+            className={"flex items-center justify-end gap-2 border-t border-border/70 px-3 py-2"}
+          >
+            <Button size={"sm"} variant={"ghost"} onClick={() => onOpenChange(false)}>
+              {uiText("Cancel")}
             </Button>
-            <Button disabled={!name.trim()} size="sm" onClick={handleSubmit}>
+            <Button disabled={!name.trim()} size={"sm"} onClick={handleSubmit}>
               {isEditing ? (
                 mergeTarget ? (
-                  `Merge into “${mergeTarget.label}”`
+                  uiText("Merge into “{0}”", {"0": mergeTarget.label})
                 ) : (
-                  "Save changes"
+                  uiText("Save changes")
                 )
               ) : mergeTarget ? (
                 <>
                   <PlusIcon />
-                  {`Add ${activeAppearance} palette`}
+                  {uiText("Add {0} palette", {"0": activeAppearance})}
                 </>
               ) : (
                 <>
                   <PaintbrushIcon />
-                  Create theme
+                  {uiText("Create theme")}
                 </>
               )}
             </Button>
           </div>
           <div
             aria-hidden
-            className="absolute bottom-0 right-0 z-10 flex size-5 cursor-se-resize touch-none select-none items-end justify-end p-1 text-muted-foreground/70"
+            className={
+              "absolute bottom-0 right-0 z-10 flex size-5 cursor-se-resize touch-none select-none items-end justify-end p-1 text-muted-foreground/70"
+            }
             onPointerCancel={endResize}
             onPointerDown={handleResizePointerDown}
             onPointerMove={handleResizePointerMove}
             onPointerUp={endResize}
           >
             <svg
-              className="size-2.5"
-              fill="none"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeWidth="1.2"
-              viewBox="0 0 8 8"
+              className={"size-2.5"}
+              fill={"none"}
+              stroke={"currentColor"}
+              strokeLinecap={"round"}
+              strokeWidth={"1.2"}
+              viewBox={"0 0 8 8"}
             >
-              <path d="M7 1 1 7M7 4.5 4.5 7" />
+              <path d={"M7 1 1 7M7 4.5 4.5 7"} />
             </svg>
           </div>
         </>

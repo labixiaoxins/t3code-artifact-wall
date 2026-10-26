@@ -1,4 +1,6 @@
+import { uiText } from "~/i18n";
 import { type EnvironmentId, type ScopedProjectRef } from "@t3tools/contracts";
+import { sidebarRelativeTime } from "../sidebarInboxPresentation";
 import type { EnvironmentServerConfig } from "@t3tools/client-runtime/connection";
 import { ThreadContextDragGhost } from "./chat/ThreadContextDragGhost";
 import {
@@ -314,7 +316,10 @@ const NO_DRAGGED_ORDERS: {
 // Where the dragged row would sort if dropped on the settled or the
 // time-ordered active shelf; the strategy previews those slots.
 function resolveDraggedOrders(input: {
-  readonly drag: { readonly activeKey: string; readonly occurredAt: string };
+  readonly drag: {
+    readonly activeKey: string;
+    readonly occurredAt: string;
+  };
   readonly threadByKey: ReadonlyMap<string, EnvironmentThreadShell>;
   readonly settledThreads: readonly EnvironmentThreadShell[];
   readonly activeThreads: readonly EnvironmentThreadShell[];
@@ -695,7 +700,7 @@ function useSidebarLookups() {
     projectGroups.map((project) => [project.projectKey, project] as const),
   );
   const projectScopeItems = [
-    { value: "all", label: "All projects" },
+    { value: "all", label: uiText("All projects") },
     ...projectGroups.map((project) => ({ value: project.projectKey, label: project.displayName })),
   ];
   return {
@@ -717,7 +722,7 @@ function scheduleSnoozeWake(wakeAt: string | null, onWake: () => void): (() => v
   // setTimeout delays are signed 32-bit: anything larger overflows and fires
   // immediately, turning a far-future wake (event-condition snoozes synced
   // from elsewhere) into a tight re-arm loop.
-  const delayMs = Math.min(Math.max(0, wakeAtMs - Date.now()) + 50, 2_147_483_647);
+  const delayMs = Math.min(Math.max(0, wakeAtMs - Date.now()) + 50, 2147483647);
   const id = window.setTimeout(onWake, delayMs);
   return () => window.clearTimeout(id);
 }
@@ -736,8 +741,8 @@ function checkThreadOperations(
   if (canOperateThreads(threads)) return true;
   toastManager.add({
     type: "error",
-    title: "Thread action unavailable",
-    description: "This connection cannot change one or more selected threads.",
+    title: uiText("Thread action unavailable"),
+    description: uiText("This connection cannot change one or more selected threads."),
   });
   return false;
 }
@@ -783,11 +788,13 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   const updateThreadMetadata = useOrchestrationCommand(threadEnvironment.updateMetadata, {
     reportFailure: false,
   });
-  const { copyToClipboard: copyPathToClipboard } = useCopyToClipboard<{ path: string }>({
+  const { copyToClipboard: copyPathToClipboard } = useCopyToClipboard<{
+    path: string;
+  }>({
     onCopy: ({ path }) => {
       toastManager.add({
         type: "success",
-        title: "Path copied",
+        title: uiText("Path copied"),
         description: path,
       });
     },
@@ -795,18 +802,20 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: "Failed to copy path",
+          title: uiText("Failed to copy path"),
           description: error instanceof Error ? error.message : "An error occurred.",
         }),
       );
     },
   });
-  const { copyToClipboard: copyBranchToClipboard } = useCopyToClipboard<{ branch: string }>({
+  const { copyToClipboard: copyBranchToClipboard } = useCopyToClipboard<{
+    branch: string;
+  }>({
     target: "branch name",
     onCopy: ({ branch }) => {
       toastManager.add({
         type: "success",
-        title: "Branch copied",
+        title: uiText("Branch copied"),
         description: branch,
       });
     },
@@ -814,17 +823,19 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: "Failed to copy branch",
+          title: uiText("Failed to copy branch"),
           description: error instanceof Error ? error.message : "An error occurred.",
         }),
       );
     },
   });
-  const { copyToClipboard: copyThreadIdToClipboard } = useCopyToClipboard<{ threadId: ThreadId }>({
+  const { copyToClipboard: copyThreadIdToClipboard } = useCopyToClipboard<{
+    threadId: ThreadId;
+  }>({
     onCopy: ({ threadId }) => {
       toastManager.add({
         type: "success",
-        title: "Thread ID copied",
+        title: uiText("Thread ID copied"),
         description: threadId,
       });
     },
@@ -832,7 +843,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: "Failed to copy thread ID",
+          title: uiText("Failed to copy thread ID"),
           description: error instanceof Error ? error.message : "An error occurred.",
         }),
       );
@@ -1254,7 +1265,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       const trimmed = title.trim();
       setRenamingThreadKey(null);
       if (trimmed.length === 0) {
-        toastManager.add({ type: "warning", title: "Thread title cannot be empty" });
+        toastManager.add({ type: "warning", title: uiText("Thread title cannot be empty") });
         return;
       }
       if (trimmed === originalTitle) return;
@@ -1267,7 +1278,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Failed to rename thread",
+            title: uiText("Failed to rename thread"),
             description: error instanceof Error ? error.message : "An error occurred.",
           }),
         );
@@ -1325,7 +1336,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
 
   const attemptSettle = (
     threadRef: ScopedThreadRef,
-    opts: { coSettlingKeys?: ReadonlySet<string> } = {},
+    opts: {
+      coSettlingKeys?: ReadonlySet<string>;
+    } = {},
   ) => {
     void (async () => {
       const threadKey = scopedThreadKey(threadRef);
@@ -1340,7 +1353,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
           toastManager.add(
             stackedThreadToast({
               type: "error",
-              title: "Failed to settle thread",
+              title: uiText("Failed to settle thread"),
               description: error instanceof Error ? error.message : "An error occurred.",
             }),
           );
@@ -1377,7 +1390,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Failed to un-settle thread",
+            title: uiText("Failed to un-settle thread"),
             description: error instanceof Error ? error.message : "An error occurred.",
           }),
         );
@@ -1392,7 +1405,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Failed to wake thread",
+            title: uiText("Failed to wake thread"),
             description: error instanceof Error ? error.message : "An error occurred.",
           }),
         );
@@ -1572,7 +1585,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Failed to pin thread",
+            title: uiText("Failed to pin thread"),
             description: error instanceof Error ? error.message : "An error occurred.",
           }),
         );
@@ -1587,7 +1600,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Failed to unpin thread",
+            title: uiText("Failed to unpin thread"),
             description: error instanceof Error ? error.message : "An error occurred.",
           }),
         );
@@ -1919,7 +1932,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   const performSnooze = async (
     threadRef: ScopedThreadRef,
     preset: Pick<SnoozePreset, "snoozedUntil">,
-    opts: { coSnoozingKeys?: ReadonlySet<string> } = {},
+    opts: {
+      coSnoozingKeys?: ReadonlySet<string>;
+    } = {},
   ) => {
     const threadKey = scopedThreadKey(threadRef);
     if (snoozingThreadKeysRef.current.has(threadKey)) {
@@ -1950,7 +1965,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   const attemptSnooze = (
     threadRef: ScopedThreadRef,
     preset: Pick<SnoozePreset, "snoozedUntil">,
-    opts: { coSnoozingKeys?: ReadonlySet<string> } = {},
+    opts: {
+      coSnoozingKeys?: ReadonlySet<string>;
+    } = {},
   ) => {
     void (async () => {
       const outcome = await performSnooze(threadRef, preset, opts);
@@ -1958,7 +1975,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Failed to snooze thread",
+            title: uiText("Failed to snooze thread"),
             description:
               outcome.error instanceof Error ? outcome.error.message : "An error occurred.",
           }),
@@ -2020,14 +2037,14 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               : []),
             {
               id: "settle",
-              label: `Settle (${count})`,
+              label: uiText("Settle ({0})", {"0": count}),
               disabled: settlingThreads.length === 0 || !canOperateThreads(settlingThreads),
             },
             ...(canSnoozeSelection
               ? [
                   {
                     id: "snooze",
-                    label: `Snooze (${count})`,
+                    label: uiText("Snooze ({0})", {"0": count}),
                     disabled: !canOperateThreads(selectedThreads),
                     children: [
                       ...snoozePresets.map((preset) => ({
@@ -2037,7 +2054,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                       })),
                       {
                         id: "snooze:custom",
-                        label: "Custom…",
+                        label: uiText("Custom…"),
                         separatorBefore: true,
                         disabled: !canOperateThreads(selectedThreads),
                       },
@@ -2055,10 +2072,10 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                   },
                 ]
               : []),
-            { id: "mark-unread", label: `Mark unread (${count})` },
+            { id: "mark-unread", label: uiText("Mark unread ({0})", {"0": count}) },
             {
               id: "delete",
-              label: `Delete (${count})`,
+              label: uiText("Delete ({0})", {"0": count}),
               destructive: true,
               disabled: !canOperateThreads(selectedThreads),
             },
@@ -2140,7 +2157,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
             toastManager.add(
               stackedThreadToast({
                 type: "error",
-                title: "Failed to regenerate thread titles",
+                title: uiText("Failed to regenerate thread titles"),
                 description: error instanceof Error ? error.message : "An error occurred.",
               }),
             );
@@ -2204,7 +2221,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Failed to delete threads",
+            title: uiText("Failed to delete threads"),
             description: firstError instanceof Error ? firstError.message : "An error occurred.",
           }),
         );
@@ -2219,7 +2236,13 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   );
 
   const handleDraftContextMenu = useStableCallback(
-    (draftId: DraftId, position: { x: number; y: number }) => {
+    (
+      draftId: DraftId,
+      position: {
+        x: number;
+        y: number;
+      },
+    ) => {
       void (async () => {
         const api = readLocalApi();
         const session = useComposerDraftStore.getState().getDraftSession(draftId);
@@ -2271,7 +2294,13 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   );
 
   const handleThreadContextMenu = useStableCallback(
-    (threadRef: ScopedThreadRef, position: { x: number; y: number }) => {
+    (
+      threadRef: ScopedThreadRef,
+      position: {
+        x: number;
+        y: number;
+      },
+    ) => {
       void (async () => {
         const api = readLocalApi();
         if (!api) return;
@@ -2387,7 +2416,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               toastManager.add(
                 stackedThreadToast({
                   type: "error",
-                  title: "Could not create thread",
+                  title: uiText("Could not create thread"),
                   description: error instanceof Error ? error.message : "An error occurred.",
                 }),
               );
@@ -2420,7 +2449,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               toastManager.add(
                 stackedThreadToast({
                   type: "error",
-                  title: "Failed to update auto-settle",
+                  title: uiText("Failed to update auto-settle"),
                   description: error instanceof Error ? error.message : "An error occurred.",
                 }),
               );
@@ -2441,7 +2470,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               toastManager.add(
                 stackedThreadToast({
                   type: "error",
-                  title: "Failed to regenerate thread title",
+                  title: uiText("Failed to regenerate thread title"),
                   description: error instanceof Error ? error.message : "An error occurred.",
                 }),
               );
@@ -2456,8 +2485,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               toastManager.add(
                 stackedThreadToast({
                   type: "error",
-                  title: "Path unavailable",
-                  description: "This thread does not have a workspace path to copy.",
+                  title: uiText("Path unavailable"),
+                  description: uiText("This thread does not have a workspace path to copy."),
                 }),
               );
               return;
@@ -2519,7 +2548,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               toastManager.add(
                 stackedThreadToast({
                   type: "error",
-                  title: "Failed to delete thread",
+                  title: uiText("Failed to delete thread"),
                   description: error instanceof Error ? error.message : "An error occurred.",
                 }),
               );
@@ -2631,9 +2660,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       <ThreadContextDragGhost />
       <SidebarChromeHeader isElectron={isElectron} />
       <SidebarContent
-        className="min-h-full"
+        className={"min-h-full"}
         fixedHeader={
-          <SidebarGroup className="z-[1]">
+          <SidebarGroup className={"z-[1]"}>
             <SidebarThreadHeader
               searchFieldRef={headerSearchRef}
               hasProjects={projectGroups.length > 0}
@@ -2667,28 +2696,28 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                       <SidebarHeaderIconButton
                         label={
                           scopedProjectGroup
-                            ? `Filter threads by project: ${scopedProjectGroup.displayName}`
-                            : "Filter threads by project"
+                            ? uiText("Filter threads by project: {0}", {"0": scopedProjectGroup.displayName})
+                            : uiText("Filter threads by project")
                         }
                       />
                     }
                   >
                     {scopedProjectGroup ? (
-                      <span className="flex shrink-0">
-                        <ProjectFavicon project={scopedProjectGroup} className="size-4" />
+                      <span className={"flex shrink-0"}>
+                        <ProjectFavicon project={scopedProjectGroup} className={"size-4"} />
                       </span>
                     ) : (
-                      <ListFilterIcon className="size-4" />
+                      <ListFilterIcon className={"size-4"} />
                     )}
                   </ComboboxTrigger>
                   <ComboboxPopup
-                    align="start"
+                    align={"start"}
                     anchor={headerSearchRef}
-                    className="max-w-[min(18rem,var(--available-width))] overflow-hidden"
+                    className={"max-w-[min(18rem,var(--available-width))] overflow-hidden"}
                   >
                     <ComboboxSearchInput
-                      aria-label="Search projects"
-                      placeholder="Search projects..."
+                      aria-label={"\u641C\u7D22\u9879\u76EE"}
+                      placeholder={"\u641C\u7D22\u9879\u76EE\u2026"}
                       value={projectScopeMenuState.query}
                       onKeyDown={(event) => {
                         if (
@@ -2712,7 +2741,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                         })
                       }
                     />
-                    <ComboboxEmpty>No matching projects.</ComboboxEmpty>
+                    <ComboboxEmpty>{uiText("No matching projects.")}</ComboboxEmpty>
                     <ComboboxList>
                       {(item: (typeof projectScopeItems)[number]) => {
                         const project = projectGroupByScopeKey.get(item.value) ?? null;
@@ -2726,11 +2755,11 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                             }}
                           >
                             {project ? (
-                              <ProjectFavicon project={project} className="size-4 shrink-0" />
+                              <ProjectFavicon project={project} className={"size-4 shrink-0"} />
                             ) : (
-                              <FolderIcon className="size-4 shrink-0" />
+                              <FolderIcon className={"size-4 shrink-0"} />
                             )}
-                            <span className="min-w-0 flex-1 truncate text-sm">{item.label}</span>
+                            <span className={"min-w-0 flex-1 truncate text-sm"}>{item.label}</span>
                             {project && showProjectEnvironments ? (
                               <ProjectEnvironmentBadge
                                 group={project}
@@ -2740,18 +2769,18 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                             ) : null}
                             {project ? (
                               <Button
-                                size="icon-xs"
-                                variant="ghost-muted"
+                                size={"icon-xs"}
+                                variant={"ghost-muted"}
                                 tabIndex={-1}
-                                aria-hidden="true"
-                                title={`Project settings for ${project.displayName}`}
-                                className="ml-auto"
+                                aria-hidden={"true"}
+                                title={uiText("Project settings for {0}", {"0": project.displayName})}
+                                className={"ml-auto"}
                                 onPointerDown={(event) => event.stopPropagation()}
                                 onClick={(event) => {
                                   void handleProjectSettings(event, project);
                                 }}
                               >
-                                <SettingsIcon className="size-3.5" />
+                                <SettingsIcon className={"size-3.5"} />
                               </Button>
                             ) : null}
                           </ComboboxItem>
@@ -2782,20 +2811,20 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
           </SidebarGroup>
         }
       >
-        <SidebarGroup className="flex-1" role="presentation">
+        <SidebarGroup className={"flex-1"} role={"presentation"}>
           {isSearchingThreads ? (
             threadSearchResults.length > 0 ? (
               <TooltipProvider
-                key="sidebar-thread-search-tooltips-150"
+                key={"sidebar-thread-search-tooltips-150"}
                 delay={150}
                 closeDelay={0}
                 timeout={400}
               >
                 <ul
-                  id="sidebar-thread-search-results"
-                  role="listbox"
-                  aria-label="Thread search results"
-                  className="flex flex-col gap-px"
+                  id={"sidebar-thread-search-results"}
+                  role={"listbox"}
+                  aria-label={uiText("Thread search results")}
+                  className={"flex flex-col gap-px"}
                 >
                   {threadSearchResults.map((thread, index) => {
                     const threadKey = scopedThreadKey(
@@ -2844,16 +2873,16 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               </TooltipProvider>
             ) : (
               <p
-                role="status"
-                className="px-2 py-6 text-center text-xs text-sidebar-muted-foreground"
+                role={"status"}
+                className={"px-2 py-6 text-center text-xs text-sidebar-muted-foreground"}
               >
-                {threadSearch.isPending ? "Searching thread messages…" : "No threads found"}
+                {threadSearch.isPending ? uiText("Searching thread messages…") : uiText("No threads found")}
               </p>
             )
           ) : null}
           {!isSearchingThreads ? (
             <TooltipProvider
-              key="sidebar-thread-tooltips-150"
+              key={"sidebar-thread-tooltips-150"}
               delay={150}
               closeDelay={0}
               timeout={400}
@@ -2875,7 +2904,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                     // which hides its rows from ordinary linear navigation. A
                     // presentational list also makes its implicit listitems
                     // presentational while preserving every descendant control.
-                    role="presentation"
+                    role={"presentation"}
                     className={cn(
                       "relative flex flex-col gap-px",
                       sidebarListItems.length > 0 && "flex-1",
@@ -2995,7 +3024,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                       const from = isContextDrag ? null : (dragState?.activeSection ?? null);
                       const items: ReactNode[] = [
                         <SidebarDraftBlock
-                          key="draft-sessions"
+                          key={"draft-sessions"}
                           projectByKey={projectByKey}
                           projectDisplayNameByKey={projectDisplayNameByKey}
                           scopedProjectKeys={scopedProjectKeys}
@@ -3013,9 +3042,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                           case "pinned-header":
                             items.push(
                               <SidebarDragBoundary
-                                key="pinned-header"
-                                marker="pinned-header"
-                                label="Pinned"
+                                key={"pinned-header"}
+                                marker={"pinned-header"}
+                                label={uiText("Pinned")}
                                 visible={from !== null}
                                 isDropTarget={dragTargetSection === "pinned"}
                               />,
@@ -3024,9 +3053,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                           case "pinned-divider":
                             items.push(
                               <SidebarDragBoundary
-                                key="pinned-divider"
-                                marker="pinned-divider"
-                                label="Active"
+                                key={"pinned-divider"}
+                                marker={"pinned-divider"}
+                                label={uiText("Active")}
                                 visible={from !== null}
                                 isDropTarget={dragTargetSection === "active"}
                               />,
@@ -3035,9 +3064,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                           case "active-placeholder":
                             items.push(
                               <SidebarSectionPlaceholder
-                                key="active-placeholder"
-                                marker="active-placeholder"
-                                label="Active"
+                                key={"active-placeholder"}
+                                marker={"active-placeholder"}
+                                label={uiText("Active")}
                                 showHint={
                                   from !== null &&
                                   (activeThreads.length === 0 ||
@@ -3053,13 +3082,13 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                           case "working-header":
                             items.push(
                               <SidebarSectionHeader
-                                key="working-shelf-header"
-                                marker="working-header"
-                                className="mt-auto"
+                                key={"working-shelf-header"}
+                                marker={"working-header"}
+                                className={"mt-auto"}
                                 label={
                                   workingShelfExpanded
-                                    ? "Working"
-                                    : `Working (${workingThreads.length})`
+                                    ? uiText("Working")
+                                    : uiText("Working ({0})", {"0": workingThreads.length})
                                 }
                                 toggle={{
                                   expanded: workingShelfExpanded,
@@ -3071,13 +3100,13 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                           case "snoozed-header":
                             items.push(
                               <SidebarSectionHeader
-                                key="snoozed-shelf-header"
-                                marker="snoozed-header"
+                                key={"snoozed-shelf-header"}
+                                marker={"snoozed-header"}
                                 className={cn(workingThreads.length === 0 && "mt-auto")}
                                 label={
                                   snoozedShelfExpanded
-                                    ? "Snoozed"
-                                    : `Snoozed (${snoozedThreads.length})`
+                                    ? uiText("Snoozed")
+                                    : uiText("Snoozed ({0})", {"0": snoozedThreads.length})
                                 }
                                 toggle={{
                                   expanded: snoozedShelfExpanded,
@@ -3089,15 +3118,15 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                           case "settled-header":
                             items.push(
                               <SidebarSectionHeader
-                                key="settled-shelf-header"
-                                marker="settled-header"
+                                key={"settled-shelf-header"}
+                                marker={"settled-header"}
                                 className={cn(
                                   workingThreads.length + snoozedThreads.length === 0 && "mt-auto",
                                 )}
                                 label={
                                   settledShelfExpanded
-                                    ? "Settled"
-                                    : `Settled (${settledThreads.length})`
+                                    ? uiText("Settled")
+                                    : uiText("Settled ({0})", {"0": settledThreads.length})
                                 }
                                 dragging={from !== null}
                                 isDropTarget={dragTargetSection === "settled"}
@@ -3111,9 +3140,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                           case "settled-placeholder":
                             items.push(
                               <SidebarSectionPlaceholder
-                                key="settled-placeholder"
-                                marker="settled-placeholder"
-                                label="Settled"
+                                key={"settled-placeholder"}
+                                marker={"settled-placeholder"}
+                                label={uiText("Settled")}
                                 showHint={
                                   from !== null &&
                                   (renderedSettledThreads.length === 0 ||
@@ -3131,14 +3160,17 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                       return items;
                     })()}
                     {settledShelfExpanded && hiddenSettledCount > 0 ? (
-                      <li className="list-none">
+                      <li className={"list-none"}>
                         <button
-                          type="button"
+                          type={"button"}
                           onClick={showMoreSettled}
-                          className="flex h-9 w-full cursor-pointer items-center gap-2.5 rounded-md px-2.5 text-left text-sm text-sidebar-muted-foreground/55 hover:bg-sidebar-row-hover hover:text-sidebar-foreground"
+                          className={
+                            "flex h-9 w-full cursor-pointer items-center gap-2.5 rounded-md px-2.5 text-left text-sm text-sidebar-muted-foreground/55 hover:bg-sidebar-row-hover hover:text-sidebar-foreground"
+                          }
                         >
-                          <PlusIcon aria-hidden className="size-4 shrink-0" />
-                          Show {Math.min(hiddenSettledCount, SETTLED_TAIL_PAGE_COUNT)} more
+                          <PlusIcon aria-hidden className={"size-4 shrink-0"} />
+                          {"\u66F4\u591A "}
+                          {Math.min(hiddenSettledCount, SETTLED_TAIL_PAGE_COUNT)}
                         </button>
                       </li>
                     ) : null}
@@ -3155,23 +3187,29 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
             snoozedThreads.length +
             settledThreads.length ===
             0 ? (
-            <div className="flex flex-col items-center gap-2 px-2 py-6 text-center text-xs text-muted-foreground/60">
+            <div
+              className={
+                "flex flex-col items-center gap-2 px-2 py-6 text-center text-xs text-muted-foreground/60"
+              }
+            >
               {projects.length === 0 ? (
                 <>
-                  <span>No projects yet</span>
+                  <span>{uiText("No projects yet")}</span>
                   <button
-                    type="button"
+                    type={"button"}
                     onClick={openAddProjectCommandPalette}
-                    className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-sidebar-border px-2.5 py-1 text-2xs font-medium text-sidebar-muted-foreground transition-colors hover:bg-sidebar-row-hover hover:text-sidebar-foreground"
+                    className={
+                      "inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-sidebar-border px-2.5 py-1 text-2xs font-medium text-sidebar-muted-foreground transition-colors hover:bg-sidebar-row-hover hover:text-sidebar-foreground"
+                    }
                   >
-                    <PlusIcon className="-mx-0.5 size-3" />
-                    Add project
+                    <PlusIcon className={"-mx-0.5 size-3"} />
+                    {uiText("Add project")}
                   </button>
                 </>
               ) : scopedProjectGroup ? (
-                `No threads in ${scopedProjectGroup.displayName} yet`
+                uiText("No threads in {0} yet", {"0": scopedProjectGroup.displayName})
               ) : (
-                "No threads yet"
+                uiText("No threads yet")
               )}
             </div>
           ) : null}

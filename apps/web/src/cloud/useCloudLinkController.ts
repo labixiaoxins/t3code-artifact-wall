@@ -1,3 +1,5 @@
+import { uiText } from "~/i18n";
+import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
 import { useAtomValue } from "@effect/atom-react";
 import { useAuth } from "@clerk/react";
 import { findErrorTraceId } from "@t3tools/client-runtime/errors";
@@ -80,13 +82,13 @@ export function useCloudLinkController() {
     setOperationError(traceId ? `${message} Trace ID: ${traceId}` : message);
     toastManager.add({
       type: "error",
-      title: "Could not update T3 Connect",
+      title: uiText("Could not update T3 Connect"),
       description: message,
       data: traceId
         ? {
             secondaryActionProps: {
               children: "Copy trace ID",
-              onClick: () => void navigator.clipboard?.writeText(traceId),
+              onClick: () => void writeTextToClipboard(traceId, "trace ID").catch(() => undefined),
             },
           }
         : undefined,

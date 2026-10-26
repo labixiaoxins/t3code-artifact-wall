@@ -68,6 +68,7 @@ export class ProviderTurnStartError extends Schema.TaggedError<ProviderTurnStart
 ) {}
 
 const isProviderTurnStartError = Schema.is(ProviderTurnStartError);
+const encodeWorkspaceNote = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
 
 /**
  * Claude refuses these before it reads the prompt: replacing a process running background work,
@@ -311,11 +312,21 @@ export const layer: Layer.Layer<
           readonly itemProviderThreadId: OrchestrationV2ProviderThread["id"];
           readonly item:
             | Pick<
-                Extract<OrchestrationV2TurnItem, { type: "error" }>,
+                Extract<
+                  OrchestrationV2TurnItem,
+                  {
+                    type: "error";
+                  }
+                >,
                 "type" | "title" | "failure"
               >
             | Pick<
-                Extract<OrchestrationV2TurnItem, { type: "command_execution" }>,
+                Extract<
+                  OrchestrationV2TurnItem,
+                  {
+                    type: "command_execution";
+                  }
+                >,
                 "type" | "title" | "input" | "output" | "exitCode"
               >;
           readonly providerThreadUpdate?: OrchestrationV2ProviderThread;
@@ -1183,6 +1194,18 @@ export const layer: Layer.Layer<
                     createdAt: yield* DateTime.now,
                   }),
                 ];
+          const nativeId = runningProviderThread.nativeThreadRef?.nativeId;
+          const hasPendingHandoff = [...effectiveHandoffs, ...retryHandoff].some(
+            (handoff) =>
+              nativeId === undefined ||
+              handoff.delivery?.nativeThreadId !== nativeId ||
+              handoff.delivery.status === "pending",
+          );
+          const workspaceNote =
+            !compact && (hasPendingHandoff || restartNote !== "")
+              ? `Current task workspace: ${encodeWorkspaceNote({ projectId: projection.thread.projectId, threadId: projection.thread.id, cwd: resolvedRuntimePolicy.cwd, branch: projection.thread.branch })}. Historical paths may belong to earlier workspaces; verify the current files and running instance before editing or testing.`
+              : "";
+          const resumeNotes = [workspaceNote, restartNote].filter(Boolean).join("\n\n");
           const delivery = yield* deliverContextHandoffs({
             handoffs: [...effectiveHandoffs, ...retryHandoff],
             deferInline: compact,
@@ -1191,7 +1214,8 @@ export const layer: Layer.Layer<
               return handoffBudget({
                 tokenCap,
                 modelContextWindow,
-                userText: restartNote === "" ? userText : `${restartNote}\n\n${userText}`,
+                // The note is sent with the user text, so it spends the same allowance.
+                userText: resumeNotes === "" ? userText : `${resumeNotes}\n\n${userText}`,
                 attachments: message.attachments,
                 providerThread: budgetProviderThread,
                 nativeContextEstimate:
@@ -1231,7 +1255,7 @@ export const layer: Layer.Layer<
           });
           if (!(yield* isCurrentAttemptInStatus("running"))) return;
           const start = compact ? session.compactThread! : session.startTurn;
-          const context = [delivery.context, restartNote]
+          const context = [delivery.context, resumeNotes]
             .filter((part) => part !== "")
             .join("\n\n");
           const { restartContinuationOfRunId: _resumedRunId, ...promptedInput } = turnInput;

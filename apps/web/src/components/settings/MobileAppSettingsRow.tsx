@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { AndroidIcon, AppleIcon } from "../Icons";
 import { Button } from "../ui/button";
 import { Popover, PopoverPopup, PopoverTitle, PopoverTrigger } from "../ui/popover";
@@ -51,7 +52,7 @@ export function MobileAppSettingsRow() {
                     variant="outline"
                     render={<a href={url} target="_blank" rel="noreferrer noopener" />}
                   >
-                    Open {store}
+                    {uiText("Open") + " "}{store}
                   </Button>
                 </div>
               </PopoverPopup>

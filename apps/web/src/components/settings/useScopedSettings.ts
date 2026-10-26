@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { AuthSettingsWriteScope } from "@t3tools/contracts";
 import { useEnvironmentsWithScope } from "../../state/session";
 import {
@@ -58,7 +59,7 @@ function useRunScopedPlan() {
     if (plan.unavailableReason) {
       toastManager.add({
         type: "warning",
-        title: "Setting not saved",
+        title: uiText("Setting not saved"),
         description: plan.unavailableReason,
       });
       return;

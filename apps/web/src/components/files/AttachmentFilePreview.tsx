@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { filePreviewDelimiter } from "@t3tools/shared/delimitedPreview";
 import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
 import { formatAttachmentSize } from "@t3tools/client-runtime/state/attachments";
@@ -31,12 +32,11 @@ import {
 } from "./fileSurfaceChrome";
 
 const SourcePreview = lazy(() => import("./ReadOnlySourcePreview"));
-
-const STALE_URL_MS = 5 * 60_000;
+const STALE_URL_MS = 5 * 60000;
 
 export function ReadOnlySourcePreview(props: { name: string; text: string }) {
   return (
-    <Suspense fallback={<FileSurfaceLoading className="p-4" />}>
+    <Suspense fallback={<FileSurfaceLoading className={"p-4"} />}>
       <SourcePreview {...props} />
     </Suspense>
   );
@@ -53,7 +53,10 @@ export function AttachmentFilePreview(props: {
   mimeType: string;
   sizeBytes: number;
   file?: Blob | null;
-  asset?: { environmentId: EnvironmentId; attachmentId: string };
+  asset?: {
+    environmentId: EnvironmentId;
+    attachmentId: string;
+  };
   htmlRender?: boolean;
   threadRef?: ScopedThreadRef;
   origin?: string;
@@ -87,7 +90,10 @@ export function AttachmentFilePreview(props: {
   const [remoteUrl, setRemoteUrl] = useState<string | null>(null);
   const [rendered, setRendered] = useState(true);
   const [revision, setRevision] = useState(0);
-  const [content, setContent] = useState<{ text: string; truncated: boolean } | null>(null);
+  const [content, setContent] = useState<{
+    text: string;
+    truncated: boolean;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [contentError, setContentError] = useState<string | null>(null);
   const authorizedAt = useRef(0);
@@ -181,7 +187,7 @@ export function AttachmentFilePreview(props: {
       // navigating its custom app scheme to an external browser.
       const downloadUrl = URL.createObjectURL(file);
       // Scheduled before the click so the URL is revoked even if the click throws.
-      setTimeout(() => URL.revokeObjectURL(downloadUrl), 30_000);
+      setTimeout(() => URL.revokeObjectURL(downloadUrl), 30000);
       const anchor = document.createElement("a");
       anchor.href = downloadUrl;
       anchor.download = props.name;
@@ -191,7 +197,7 @@ export function AttachmentFilePreview(props: {
         const cause = Cause.squash(result.cause);
         toastManager.add({
           type: "error",
-          title: "Could not save file",
+          title: uiText("Could not save file"),
           description: cause instanceof Error ? cause.message : "Please try again.",
         });
       }
@@ -213,8 +219,12 @@ export function AttachmentFilePreview(props: {
     delimiter && rendered ? (
       <DelimitedTablePreview name={props.name} text={content.text} delimiter={delimiter} />
     ) : kind === "markdown" && rendered ? (
-      <ScrollArea className="min-h-0 flex-1">
-        <ChatMarkdown text={content.text} cwd={undefined} className="mx-auto max-w-4xl px-6 py-5" />
+      <ScrollArea className={"min-h-0 flex-1"}>
+        <ChatMarkdown
+          text={content.text}
+          cwd={undefined}
+          className={"mx-auto max-w-4xl px-6 py-5"}
+        />
       </ScrollArea>
     ) : (
       <ReadOnlySourcePreview name={props.name} text={content.text} />
@@ -230,49 +240,55 @@ export function AttachmentFilePreview(props: {
   ) : kind === "audio" ? (
     <AudioPreview src={url} name={props.name} onError={() => setError("Unable to load audio.")} />
   ) : kind === "video" ? (
-    <div className="flex min-h-0 flex-1 items-center justify-center bg-black">
+    <div className={"flex min-h-0 flex-1 items-center justify-center bg-black"}>
       <video
         controls
         playsInline
         src={url}
         aria-label={props.name}
-        className="max-h-full max-w-full"
+        className={"max-h-full max-w-full"}
         onError={() => setError("Unable to load video.")}
       />
     </div>
   ) : kind === "image" ? (
     // oxlint-disable-next-line t3code/require-centered-scroll-gutter -- The image is capped at max-h-full max-w-full, so this never scrolls.
-    <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-4">
+    <div className={"flex min-h-0 flex-1 items-center justify-center overflow-auto p-4"}>
       <img
         src={url}
         alt={props.name}
-        className="max-h-full max-w-full object-contain"
+        className={"max-h-full max-w-full object-contain"}
         onError={() => setError("Unable to load image.")}
       />
     </div>
   ) : (
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-1 px-6 text-center">
-      <p className="text-sm font-medium">No preview for this file</p>
-      <p className="max-w-sm text-xs leading-relaxed text-muted-foreground">
-        Save it to open in an app that supports {props.name.split(".").at(-1) || "this format"}{" "}
-        files.
+    <div
+      className={"flex min-h-0 flex-1 flex-col items-center justify-center gap-1 px-6 text-center"}
+    >
+      <p className={"text-sm font-medium"}>{uiText("No preview for this file")}</p>
+      <p className={"max-w-sm text-xs leading-relaxed text-muted-foreground"}>
+        {uiText("Save it to open in an app that supports")}
+        {props.name.split(".").at(-1) || uiText("this format")}
+        {uiText("files.")}
       </p>
     </div>
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
+    <div className={"flex min-h-0 flex-1 flex-col overflow-hidden bg-background"}>
       <div className={cn(FILE_SURFACE_SUBHEADER_CLASS)} data-surface-subheader>
-        <div className="flex min-w-0 flex-1 items-center text-xs">
-          <span className="shrink-0 px-0.5 text-muted-foreground">
-            {props.origin ?? "Attachment"}
+        <div className={"flex min-w-0 flex-1 items-center text-xs"}>
+          <span className={"shrink-0 px-0.5 text-muted-foreground"}>
+            {props.origin ?? uiText("Attachment")}
           </span>
-          <ChevronRightIcon className="mx-1 size-3.5 shrink-0 text-muted-foreground/60" />
-          <span aria-current="page" className="min-w-0 truncate px-0.5 font-medium text-foreground">
+          <ChevronRightIcon className={"mx-1 size-3.5 shrink-0 text-muted-foreground/60"} />
+          <span
+            aria-current={"page"}
+            className={"min-w-0 truncate px-0.5 font-medium text-foreground"}
+          >
             {props.name}
           </span>
           {props.sizeBytes > 0 ? (
-            <span className="ml-2 shrink-0 text-muted-foreground">
+            <span className={"ml-2 shrink-0 text-muted-foreground"}>
               {formatAttachmentSize(props.sizeBytes)}
             </span>
           ) : null}
@@ -284,53 +300,53 @@ export function AttachmentFilePreview(props: {
             onPress={() => setRendered((value) => !value)}
           >
             <MorphIcon
-              className="size-3.5"
+              className={"size-3.5"}
               icon={rendered ? Code2 : renderedMode === "table" ? Table2 : Eye}
             />
           </FileSurfaceAction>
         ) : null}
         {showsRawText ? (
           <FileSurfaceAction
-            label={wordWrap ? "Disable word wrap" : "Enable word wrap"}
+            label={wordWrap ? uiText("Disable word wrap") : uiText("Enable word wrap")}
             pressed={wordWrap}
             onPress={() => updateClientSettings({ wordWrap: !wordWrap })}
           >
-            <WrapTextIcon className="size-3.5" />
+            <WrapTextIcon className={"size-3.5"} />
           </FileSurfaceAction>
         ) : null}
         {content ? (
           <FileSurfaceAction
-            label={isCopied ? "Copied" : content.truncated ? "Copy preview" : "Copy contents"}
+            label={isCopied ? uiText("Copied") : content.truncated ? uiText("Copy preview") : uiText("Copy contents")}
             onPress={() => copyToClipboard(content.text, undefined)}
           >
-            <MorphIcon className="size-3.5" icon={isCopied ? Check : Copy} />
+            <MorphIcon className={"size-3.5"} icon={isCopied ? Check : Copy} />
           </FileSurfaceAction>
         ) : null}
         {url ? (
           <FileSurfaceAction
-            label={saving ? "Preparing file…" : "Save file"}
+            label={saving ? uiText("Preparing file…") : uiText("Save file")}
             disabled={saving}
             onPress={save}
           >
-            <DownloadIcon className="size-3.5" />
+            <DownloadIcon className={"size-3.5"} />
           </FileSurfaceAction>
         ) : null}
         {props.onRemove ? (
-          <FileSurfaceAction label="Remove from draft" onPress={props.onRemove}>
-            <Trash2Icon className="size-3.5" />
+          <FileSurfaceAction label={uiText("Remove from draft")} onPress={props.onRemove}>
+            <Trash2Icon className={"size-3.5"} />
           </FileSurfaceAction>
         ) : null}
         {props.onClose ? (
-          <FileSurfaceAction label="Close" onPress={props.onClose}>
-            <XIcon className="size-3.5" />
+          <FileSurfaceAction label={uiText("Close")} onPress={props.onClose}>
+            <XIcon className={"size-3.5"} />
           </FileSurfaceAction>
         ) : null}
       </div>
       {content?.truncated ? (
         <FileSurfaceNotice>
-          Preview limited to the first 1 MB
-          {props.sizeBytes > 0 ? ` of a ${props.sizeBytes.toLocaleString()} byte file` : ""}. Save
-          the file to read it in full.
+          {uiText("Preview limited to the first 1 MB")}
+          {props.sizeBytes > 0 ? uiText(" of a {0} byte file", {"0": props.sizeBytes.toLocaleString()}) : ""}
+          {". Save the file to read it in full."}
         </FileSurfaceNotice>
       ) : null}
       {body}

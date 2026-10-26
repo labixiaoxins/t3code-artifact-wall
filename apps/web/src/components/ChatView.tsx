@@ -19,6 +19,13 @@ import { useComposerResume } from "./chat/useComposerResume";
 import { useImplementPlanInNewThread } from "./chat/useProposedPlanSend";
 import { ThreadFind, ThreadFindCanvas, type ThreadFindControls } from "./chat/ThreadFindProvider";
 import { THREAD_FIND_BAR_RESERVED_HEIGHT } from "./chat/ThreadFindBar";
+import { latestProviderTurnTokenUsage } from "../lib/contextWindow";
+import { createPortal } from "react-dom";
+import { ContextHandoffNotice } from "./chat/ContextHandoffNotice";
+import { ARTIFACT_DRAG_TYPE } from "../artifactWall";
+import { fileFromArtifact } from "../lib/artifactWallClient";
+import { WallArtifact } from "@t3tools/contracts";
+import * as ArtifactSchema from "effect/Schema";
 import { usageLimitRecoveryBannerItem } from "./chat/UsageLimitRecoveryBanner";
 import { resolveDraftHeroState } from "./ChatView.logic";
 import { useQueuedRunEdit } from "./chat/useQueuedRunEdit";
@@ -31,6 +38,8 @@ import {
   rememberCheckoutIsRepo,
 } from "./ChatView.logic";
 import { useLogicalProjectEnvironments } from "../hooks/useLogicalProjectEnvironments";
+import { useScratchProject } from "../hooks/useScratchProject";
+import { onToggleThreadPanelRequest } from "../threadPanelBus";
 import { useStableCallback } from "../hooks/useStableCallback";
 import { useProjectScriptEditing } from "./chat/useProjectScriptEditing";
 import { RightPanelSurfaceContent } from "./chat/RightPanelSurfaceContent";
@@ -166,6 +175,7 @@ import { threadPullRequestPanelTarget } from "./pullRequest/pullRequestDetail.lo
 import { LinkPullRequestDialogHost } from "./pullRequest/LinkPullRequestDialog";
 import { useDeviceState } from "~/state/device";
 import { BranchToolbar, type BranchToolbarHandle } from "./BranchToolbar";
+import { DraftWorkspaceNotice } from "./chat/DraftWorkspaceNotice";
 import { makeWorkspaceFileDropHandlers } from "./chat/workspaceFileDrop";
 import { isEditableFocused } from "../lib/editableFocus";
 import { DEFAULT_RESOLVED_KEYBINDINGS } from "@t3tools/shared/keybindings";
@@ -306,10 +316,7 @@ import {
   hasDismissedResumeCompaction,
   shouldOfferResumeCompaction,
 } from "./chat/ContextWindowMeter.logic";
-import {
-  deriveLatestContextWindowSnapshot,
-  latestProviderTurnTokenUsage,
-} from "../lib/contextWindow";
+import { deriveLatestContextWindowSnapshot } from "../lib/contextWindow";
 import {
   MOBILE_COMPOSER_VIEW_TRANSITION_NAME,
   MOBILE_DRAFT_HEADLINE_VIEW_TRANSITION_NAME,
@@ -440,7 +447,7 @@ export default function ChatView(props: ChatViewProps) {
     reportFailure: false,
   });
   const loadEarlierThreadHistory = useAtomCommand(threadEnvironment.loadEarlierHistory, {
-    label: "load earlier thread history",
+    label: uiText("load earlier thread history"),
     reportFailure: false,
   });
   const { environments } = useEnvironments();
@@ -489,6 +496,12 @@ export default function ChatView(props: ChatViewProps) {
     composerRef,
   });
   const composerDraftTarget = queuedRunEdit.draftTarget;
+  const artifactDraftKey =
+    typeof composerDraftTarget === "string"
+      ? composerDraftTarget
+      : scopedThreadKey(composerDraftTarget);
+  const artifactDraftTargetRef = useRef(artifactDraftKey);
+  artifactDraftTargetRef.current = artifactDraftKey;
   const reportedModelSelection = serverProjection
     ? deriveReportedModelSelection(serverProjection)
     : null;
@@ -597,6 +610,7 @@ export default function ChatView(props: ChatViewProps) {
   const branchToolbarRef = useRef<BranchToolbarHandle>(null);
   const [restingComposerControlsHost, setRestingComposerControlsHost] =
     useState<HTMLDivElement | null>(null);
+  const [contextControlsHost, setContextControlsHost] = useState<HTMLDivElement | null>(null);
   const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useState(false);
   const citeAssistantText = (
     citation: AssistantCitation,
@@ -606,8 +620,10 @@ export default function ChatView(props: ChatViewProps) {
     if (!inserted) {
       toastManager.add({
         type: "warning",
-        title: "The composer is not ready",
-        description: "Try citing the selection after the connection or pending input is resolved.",
+        title: uiText("The composer is not ready"),
+        description: uiText(
+          "Try citing the selection after the connection or pending input is resolved.",
+        ),
       });
     }
     return inserted;
@@ -1422,7 +1438,7 @@ export default function ChatView(props: ChatViewProps) {
   const downloadFileAttachment = async (attachment: ChatFileAttachment) => {
     const connection = readPreparedConnection(environmentId);
     if (!connection) {
-      toastManager.add({ type: "error", title: "The environment is not connected." });
+      toastManager.add({ type: "error", title: uiText("The environment is not connected.") });
       return;
     }
 
@@ -1812,8 +1828,8 @@ export default function ChatView(props: ChatViewProps) {
     if (prompt !== null && !composer.insertTextAtEnd(prompt, { ensureLeadingBoundary: true })) {
       toastManager.add({
         type: "error",
-        title: "Unable to add to chat",
-        description: "The composer is busy; try again once it is ready.",
+        title: uiText("Unable to add to chat"),
+        description: uiText("The composer is busy; try again once it is ready."),
       });
       return;
     }
@@ -3156,7 +3172,7 @@ export default function ChatView(props: ChatViewProps) {
   const content = (
     <div
       ref={setWorkspaceLayoutElement}
-      className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-background"
+      className={"relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-background"}
     >
       <DeviceSetupDialogHost
         threadKey={activeThreadKey}
@@ -3191,7 +3207,9 @@ export default function ChatView(props: ChatViewProps) {
           {isElectron && rightPanelControlsAtRoot ? (
             <span
               aria-hidden
-              className="pointer-events-none fixed top-[var(--workspace-controls-top)] right-[var(--workspace-controls-right)] h-[var(--workspace-topbar-height)] w-28 [-webkit-app-region:no-drag]"
+              className={
+                "pointer-events-none fixed top-[var(--workspace-controls-top)] right-[var(--workspace-controls-right)] h-[var(--workspace-topbar-height)] w-28 [-webkit-app-region:no-drag]"
+              }
             />
           ) : null}
           {!rightPanelControlsAtRoot && !rightPanelControlsInPanel ? panelLayoutControls : null}
@@ -3211,8 +3229,7 @@ export default function ChatView(props: ChatViewProps) {
               : {})}
           />
         </header>
-
-        <div className="relative flex min-h-0 min-w-0 flex-1">
+        <div className={"relative flex min-h-0 min-w-0 flex-1"}>
           <ThreadFindCanvas
             findOptions={{
               skills: timelineSkills,
@@ -3225,10 +3242,48 @@ export default function ChatView(props: ChatViewProps) {
             onOpenChange={setIsThreadFindActive}
             detailsCardTopInset={isThreadFindActive ? THREAD_FIND_BAR_RESERVED_HEIGHT : 0}
             composerOverlayElement={isDraftHeroState ? null : composerOverlayElement}
-            data-chat-workspace-drop-target="true"
+            data-chat-workspace-drop-target={"true"}
             onDragEnter={workspaceFileDropHandlers.onDragEnter}
             onDragOver={workspaceFileDropHandlers.onDragOver}
             onDragLeave={workspaceFileDropHandlers.onDragLeave}
+            onDragOverCapture={(event) => {
+              if (event.dataTransfer.types.includes(ARTIFACT_DRAG_TYPE)) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.dataTransfer.dropEffect = "copy";
+              }
+            }}
+            onDropCapture={(event) => {
+              const data = event.dataTransfer.getData(ARTIFACT_DRAG_TYPE);
+              if (!data) return;
+              event.preventDefault();
+              event.stopPropagation();
+              try {
+                const payload = JSON.parse(data) as {
+                  environmentId?: string;
+                  artifact?: unknown;
+                };
+                if (payload.environmentId !== activeThread.environmentId) return;
+                const artifact = ArtifactSchema.decodeUnknownSync(WallArtifact)(payload.artifact);
+                const target = artifactDraftKey;
+                void fileFromArtifact(activeThread.environmentId, artifact)
+                  .then((file) => {
+                    // Preserve the drop's draft if the user navigates while the file is fetched.
+                    if (artifactDraftTargetRef.current === target)
+                      composerRef.current?.addDroppedFiles([file]);
+                    else
+                      toastManager.add({
+                        title: "会话已切换，请回到原会话重新附加",
+                        type: "error",
+                      });
+                  })
+                  .catch(() =>
+                    toastManager.add({ title: "无法附加产物，请刷新后重试", type: "error" }),
+                  );
+              } catch {
+                toastManager.add({ title: "无法识别产物", type: "error" });
+              }
+            }}
             onDrop={workspaceFileDropHandlers.onDrop}
           >
             <ThreadFind onClose={focusComposerStable} />
@@ -3300,7 +3355,7 @@ export default function ChatView(props: ChatViewProps) {
                     threadStatusLine
                   ) : (
                     <>
-                      <div className="chat-content-lane">
+                      <div className={"chat-content-lane"}>
                         <HandoffRow
                           environmentId={environmentId}
                           endpoints={pendingHandoff}
@@ -3400,22 +3455,26 @@ export default function ChatView(props: ChatViewProps) {
             <div
               ref={setComposerOverlayElement}
               inert={isRevertingCheckpoint}
-              data-chat-composer-overlay="true"
+              data-chat-composer-overlay={"true"}
               className={
                 isDraftHeroState
                   ? "pointer-events-none absolute inset-0 z-20 flex items-center"
                   : "pointer-events-none absolute inset-x-0 bottom-0 z-20 pt-1.5 sm:pt-2"
               }
             >
-              <div ref={draftHeroTransitionGroupRef} className="chat-composer-lane w-full">
+              <div ref={draftHeroTransitionGroupRef} className={"chat-composer-lane w-full"}>
                 <div
-                  data-chat-composer-stack="true"
-                  className="group/composer-stack pointer-events-auto relative z-10 mx-auto w-full max-w-(--chat-content-max-width)"
+                  data-chat-composer-stack={"true"}
+                  className={
+                    "group/composer-stack pointer-events-auto relative z-10 mx-auto w-full max-w-(--chat-content-max-width)"
+                  }
                 >
                   {isDraftHeroState ? (
-                    <div className="absolute inset-x-0 bottom-full">
+                    <div className={"absolute inset-x-0 bottom-full"}>
                       <div
-                        className="pb-4 group-has-data-[composer-shoulder-tab]/composer-stack:pb-0"
+                        className={
+                          "pb-4 group-has-data-[composer-shoulder-tab]/composer-stack:pb-0"
+                        }
                         style={
                           forceExpandedMobileComposer
                             ? { viewTransitionName: MOBILE_DRAFT_HEADLINE_VIEW_TRANSITION_NAME }
@@ -3432,7 +3491,7 @@ export default function ChatView(props: ChatViewProps) {
                   ) : null}
                   <div
                     ref={draftHeroComposerAnchorRef}
-                    className="relative z-10"
+                    className={"relative z-10"}
                     style={
                       forceExpandedMobileComposer
                         ? { viewTransitionName: MOBILE_COMPOSER_VIEW_TRANSITION_NAME }
@@ -3446,7 +3505,7 @@ export default function ChatView(props: ChatViewProps) {
                         inert={queuedRunEdit.isSaving}
                         aria-busy={queuedRunEdit.isSaving}
                       >
-                        <div className="relative z-10">
+                        <div className={"relative z-10"}>
                           {showProviderSubagentBar ? (
                             <ProviderSubagentBar
                               provider={selectedProviderEntry ?? null}
@@ -3467,9 +3526,51 @@ export default function ChatView(props: ChatViewProps) {
                               }
                             />
                           ) : null}
+                          {!isServerThread && draftId && activeProject ? (
+                            <DraftWorkspaceNotice
+                              draftId={draftId}
+                              project={activeProject}
+                              workspacePath={activeWorkspaceRoot ?? activeProject.workspaceRoot}
+                              canChange={() => !envLocked && !sendInFlightRef.current}
+                            />
+                          ) : null}
+                          {contextControlsHost &&
+                          isServerThread &&
+                          activeThreadShell &&
+                          serverProjection &&
+                          activeWorkspaceRoot
+                            ? createPortal(
+                                <ContextHandoffNotice
+                                  key={routeThreadKey}
+                                  environmentId={environmentId}
+                                  thread={activeThreadShell}
+                                  projection={serverProjection}
+                                  cwd={activeWorkspaceRoot}
+                                  enabled={settings.longConversationReminderEnabled}
+                                  onCompact={
+                                    manualCompactionProviderAvailable
+                                      ? () => composerRef.current?.compactContext()
+                                      : undefined
+                                  }
+                                  compactDisabled={compactDisabled}
+                                  showThroughput={settings.turnThroughputEnabled}
+                                  disconnected={
+                                    activeEnvironmentUnavailable ||
+                                    activeReconnectingEnvironmentId === environmentId
+                                  }
+                                  disabled={
+                                    isConnecting ||
+                                    activeEnvironmentUnavailable ||
+                                    isRevertingCheckpoint
+                                  }
+                                />,
+                                contextControlsHost,
+                              )
+                            : null}
                           {!composerMounted ? null : (
                             <ChatComposer
                               canOperateThread={canOperateThread}
+                              onContextControlsHostChange={setContextControlsHost}
                               reportedModelSelection={reportedModelSelection}
                               multipleModelSelections={multipleModelSelections}
                               supportsMultipleModels={
@@ -3640,14 +3741,14 @@ export default function ChatView(props: ChatViewProps) {
                           )}
                         </div>
                       </ComposerSurface.Host>
-                      <div className="min-h-0">
+                      <div className={"min-h-0"}>
                         <div
                           data-terminal-open={terminalUiState.terminalOpen ? "true" : undefined}
-                          className="relative z-0"
+                          className={"relative z-0"}
                         >
                           {mountComposerModelStrip ? (
                             <ComposerSurface.ContextStrip
-                              data-composer-model-strip="true"
+                              data-composer-model-strip={"true"}
                               aria-hidden={showComposerModelStrip ? undefined : true}
                               inert={showComposerModelStrip ? undefined : true}
                               className={cn(
@@ -3658,12 +3759,12 @@ export default function ChatView(props: ChatViewProps) {
                             >
                               <div
                                 ref={setRestingComposerControlsHost}
-                                className="min-w-0 flex-1"
+                                className={"min-w-0 flex-1"}
                               />
                             </ComposerSurface.ContextStrip>
                           ) : null}
                           {mountComposerContextStrip && (
-                            <div className="pointer-events-auto">
+                            <div className={"pointer-events-auto"}>
                               <BranchToolbar
                                 forceNewWorktree={multipleModelSelections !== null}
                                 ref={branchToolbarRef}
@@ -3713,7 +3814,9 @@ export default function ChatView(props: ChatViewProps) {
                     </ComposerSurface.Shell>
                     <div
                       aria-hidden
-                      className="h-[calc(env(safe-area-inset-bottom)+1rem)] sm:h-[calc(env(safe-area-inset-bottom)+1.25rem)]"
+                      className={
+                        "h-[calc(env(safe-area-inset-bottom)+1rem)] sm:h-[calc(env(safe-area-inset-bottom)+1.25rem)]"
+                      }
                     />
                   </div>
                 </div>
@@ -3742,6 +3845,27 @@ export default function ChatView(props: ChatViewProps) {
             />
 
             <ThreadDetailsPanel
+              continuation={{
+                thread: activeThread,
+                projection: serverProjection ?? null,
+                onQuote: (text) => {
+                  if (!activeThreadRef) return false;
+                  const inserted = composerRef.current?.insertTextAtCursor(text) ?? false;
+                  if (inserted) {
+                    useRightPanelStore
+                      .getState()
+                      .setThreadPanelOpen(activeThreadRef, "popover", false);
+                    scheduleComposerFocus();
+                  }
+                  return inserted;
+                },
+              }}
+              onAttachArtifactFiles={(files) => {
+                if (artifactDraftTargetRef.current !== artifactDraftKey)
+                  throw new Error("会话已切换，请回到原会话重新附加");
+                composerRef.current?.addDroppedFiles(files);
+                scheduleComposerFocus();
+              }}
               anchor={threadPanelPopoverAnchorRef}
               handle={threadPanelPopoverHandle}
               onPresentationChange={setThreadPanelPresentation}

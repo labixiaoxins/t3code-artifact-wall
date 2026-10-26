@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useAtomCommand } from "~/state/use-atom-command";
 import type { EnvironmentId, PullRequestRef, PullRequestReviewVerdict } from "@t3tools/contracts";
 import { CheckIcon, MessageSquareIcon, XCircleIcon } from "lucide-react";
@@ -23,19 +24,19 @@ const VERDICTS: ReadonlyArray<{
 }> = [
   {
     value: "comment",
-    label: "Comment",
+    label: uiText("Comment"),
     sent: "Review submitted",
     icon: <MessageSquareIcon className="size-3" />,
   },
   {
     value: "approve",
-    label: "Approve",
+    label: uiText("Approve"),
     sent: "Pull request approved",
     icon: <CheckIcon className="size-3" />,
   },
   {
     value: "request-changes",
-    label: "Request changes",
+    label: uiText("Request changes"),
     sent: "Changes requested",
     icon: <XCircleIcon className="size-3" />,
   },
@@ -94,7 +95,7 @@ export function PullRequestReviewForm({
     });
     onPendingChange(false);
     if (result._tag === "Failure") {
-      toastManager.add({ type: "error", title: "The review could not be submitted" });
+      toastManager.add({ type: "error", title: uiText("The review could not be submitted") });
       return;
     }
     // More remarks may have been added while the host was accepting this snapshot. Leave those,
@@ -127,7 +128,7 @@ export function PullRequestReviewForm({
         rows={3}
         value={body}
         placeholder={placeholder}
-        aria-label="Review summary"
+        aria-label={uiText("Review summary")}
         onChange={(event) => setSummary(reviewKey, event.target.value)}
       />
       <div className="mt-2 flex justify-end gap-2">
@@ -139,7 +140,7 @@ export function PullRequestReviewForm({
               if (value !== null) setRequestedVerdict(value);
             }}
           >
-            <SelectTrigger size="xs" className="mr-auto w-auto min-w-0" aria-label="Review verdict">
+            <SelectTrigger size="xs" className="mr-auto w-auto min-w-0" aria-label={uiText("Review verdict")}>
               <span className="flex items-center gap-1.5">
                 {selectedVerdict?.icon}
                 {selectedVerdict?.label}
@@ -166,7 +167,7 @@ export function PullRequestReviewForm({
             if (selectedVerdict !== undefined) void submit(selectedVerdict);
           }}
         >
-          {pending ? "Submitting..." : "Submit review"}
+          {pending ? uiText("Submitting...") : uiText("Submit review")}
         </Button>
       </div>
     </>

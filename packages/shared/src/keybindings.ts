@@ -137,20 +137,35 @@ export function matchesKeybindingShortcut(
 }
 
 type WhenToken =
-  | { type: "identifier"; value: string }
-  | { type: "not" }
-  | { type: "and" }
-  | { type: "or" }
-  | { type: "lparen" }
-  | { type: "rparen" };
+  | {
+      type: "identifier";
+      value: string;
+    }
+  | {
+      type: "not";
+    }
+  | {
+      type: "and";
+    }
+  | {
+      type: "or";
+    }
+  | {
+      type: "lparen";
+    }
+  | {
+      type: "rparen";
+    };
 
 export const DEFAULT_KEYBINDINGS: ReadonlyArray<KeybindingRule> = [
   { key: "mod+b", command: "sidebar.toggle" },
   { key: "mod+[", command: "navigation.back", when: "!terminalFocus" },
   { key: "mod+]", command: "navigation.forward", when: "!terminalFocus" },
   { key: "mod+j", command: "terminal.toggle" },
+  { key: "mod+shift+i", command: "inbox.next", when: "!terminalFocus" },
   { key: "mod+alt+b", command: "rightPanel.toggle" },
   { key: "mod+shift+b", command: "threadPanel.toggle", when: "!terminalFocus" },
+  { key: "mod+alt+i", command: "threadPanel.toggle", when: "!terminalFocus" },
   { key: "mod+t", command: "rightPanel.new", when: "rightPanelOpen && !terminalFocus" },
   { key: "mod+d", command: "terminal.split", when: "terminalFocus" },
   { key: "mod+shift+d", command: "terminal.splitVertical", when: "terminalFocus" },
@@ -227,6 +242,7 @@ export const DEFAULT_KEYBINDINGS: ReadonlyArray<KeybindingRule> = [
   { key: "c", command: "usage.cost", when: "usagePageOpen" },
   { key: "t", command: "usage.tokens", when: "usagePageOpen" },
   { key: "l", command: "usage.limits", when: "usagePageOpen" },
+  { key: "d", command: "usage.disk", when: "usagePageOpen" },
   { key: "mod+shift+1", command: "usage.period.day", when: "usagePageOpen" },
   { key: "mod+shift+2", command: "usage.period.week", when: "usagePageOpen" },
   { key: "mod+shift+3", command: "usage.period.month", when: "usagePageOpen" },

@@ -1,6 +1,8 @@
+import { uiText } from "~/i18n";
 import { ThreadHoverCardPopup } from "../ThreadHoverCard";
 import { AgentElapsed } from "./AgentElapsed";
 import { projectedSubagentsToRuntime } from "@t3tools/client-runtime/state/subagentRuntime";
+import { contextCompactionLabel } from "@t3tools/client-runtime/work-log/presentation";
 import type { ReactNode } from "react";
 import { useThreadShell, useProject } from "../../state/entities";
 import { SubagentTooltipContent } from "./SubagentTooltipContent";
@@ -85,17 +87,17 @@ export function V2LifecycleRow(props: {
   const { item } = props;
   if (item.type === "run_interrupt_request") {
     return (
-      <div className="flex justify-end px-1 py-1" data-v2-item-type={item.type}>
-        <div className="flex max-w-[80%] items-center gap-2 text-xs text-destructive">
-          <span aria-hidden="true" className="font-mono">
-            ■
+      <div className={"flex justify-end px-1 py-1"} data-v2-item-type={item.type}>
+        <div className={"flex max-w-[80%] items-center gap-2 text-xs text-destructive"}>
+          <span aria-hidden={"true"} className={"font-mono"}>
+            {"\u25A0"}
           </span>
-          <span className="font-medium">Interrupt requested</span>
-          <span aria-hidden="true" className="opacity-50">
-            ·
+          <span className={"font-medium"}>{uiText("Interrupt requested")}</span>
+          <span aria-hidden={"true"} className={"opacity-50"}>
+            {"\u00B7"}
           </span>
-          <span className="font-medium">{item.message}</span>
-          <span className="text-3xs text-muted-foreground">
+          <span className={"font-medium"}>{item.message}</span>
+          <span className={"text-3xs text-muted-foreground"}>
             {formatShortTimestamp(props.createdAt, props.timestampFormat)}
           </span>
         </div>
@@ -105,9 +107,9 @@ export function V2LifecycleRow(props: {
   if (item.type === "run_interrupt_result") {
     return (
       <TimelineSystemDivider
-        label="Run interrupted"
+        label={uiText("Run interrupted")}
         detail={item.message}
-        tone="danger"
+        tone={"danger"}
         icon={XIcon}
       />
     );
@@ -117,14 +119,10 @@ export function V2LifecycleRow(props: {
       item.beforeTokenCount === undefined && item.afterTokenCount === undefined
         ? null
         : `${item.beforeTokenCount ?? "?"} → ${item.afterTokenCount ?? "?"} tokens`;
-    const label =
-      item.status === "failed"
-        ? "Context compaction failed"
-        : item.status === "cancelled" || item.status === "interrupted"
-          ? "Context compaction stopped"
-          : item.status === "pending" || item.status === "running" || item.status === "waiting"
-            ? "Compacting context"
-            : "Context compacted";
+    const label = contextCompactionLabel({
+      status: item.status,
+      completionConfirmed: item.completionConfirmed,
+    });
     return (
       <TimelineSystemDivider label={label} detail={item.summary ?? tokenDetail} icon={MinusIcon} />
     );
@@ -142,7 +140,7 @@ export function V2LifecycleRow(props: {
     const relatedThreadId = item.source.type === "run" ? item.source.threadId : item.targetThreadId;
     return (
       <TimelineSystemDivider
-        label={item.source.type === "run" ? "Forked from conversation" : "Conversation fork"}
+        label={item.source.type === "run" ? uiText("Forked from conversation") : uiText("Conversation fork")}
         icon={GitForkIcon}
         actionLabel={item.source.type === "run" ? "Open source conversation" : "Open fork"}
         onAction={() => props.onOpenThread(relatedThreadId)}
@@ -154,21 +152,23 @@ export function V2LifecycleRow(props: {
       return (
         <div
           data-v2-item-type={item.type}
-          className="flex min-w-0 items-center gap-3 rounded-lg border border-border/60 p-3"
+          className={"flex min-w-0 items-center gap-3 rounded-lg border border-border/60 p-3"}
         >
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted/60">
-            <MessageSquareIcon className="size-4 text-secondary-label" aria-hidden />
+          <span
+            className={"flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted/60"}
+          >
+            <MessageSquareIcon className={"size-4 text-secondary-label"} aria-hidden />
           </span>
-          <span className="min-w-0 flex-1 truncate text-sm font-medium">
-            {item.title ?? "Created thread"}
+          <span className={"min-w-0 flex-1 truncate text-sm font-medium"}>
+            {item.title ?? uiText("Created thread")}
           </span>
           <Button
-            size="xs"
-            variant="outline"
-            aria-label={`Open ${item.title ?? "created thread"}`}
+            size={"xs"}
+            variant={"outline"}
+            aria-label={uiText("Open {0}", {"0": item.title ?? "created thread"})}
             onClick={() => props.onOpenThread(item.targetThreadId)}
           >
-            Open chat
+            {uiText("Open chat")}
           </Button>
         </div>
       );
@@ -176,14 +176,19 @@ export function V2LifecycleRow(props: {
     return (
       <WorkLogRow
         data-v2-item-type={item.type}
-        icon={<T3Wordmark className="size-4 text-icon-muted" aria-hidden />}
-        label={<>Created thread{item.title ? ` · ${item.title}` : ""}</>}
+        icon={<T3Wordmark className={"size-4 text-icon-muted"} aria-hidden />}
+        label={
+          <>
+            {uiText("Created thread")}
+            {item.title ? ` · ${item.title}` : ""}
+          </>
+        }
         trailing={
           <InlineButton
-            aria-label={`Open ${item.title ?? "created thread"}`}
+            aria-label={uiText("Open {0}", {"0": item.title ?? "created thread"})}
             onClick={() => props.onOpenThread(item.targetThreadId)}
           >
-            Open chat
+            {uiText("Open chat")}
           </InlineButton>
         }
       />
@@ -213,16 +218,19 @@ export function V2LifecycleRow(props: {
 
 const STATUS_VISUALS: Record<
   OrchestrationV2TurnItem["status"],
-  { dotClass: string; label: string }
+  {
+    dotClass: string;
+    label: string;
+  }
 > = {
-  pending: { dotClass: "bg-info", label: "Queued" },
-  running: { dotClass: "bg-info", label: "Running" },
-  waiting: { dotClass: "bg-info", label: "Waiting" },
-  idle: { dotClass: "bg-muted-foreground/50", label: "Idle · resumable" },
-  completed: { dotClass: "bg-success", label: "Completed" },
-  failed: { dotClass: "bg-destructive", label: "Failed" },
-  cancelled: { dotClass: "bg-muted-foreground/60", label: "Stopped" },
-  interrupted: { dotClass: "bg-muted-foreground/60", label: "Stopped" },
+  pending: { dotClass: "bg-info", label: uiText("Queued") },
+  running: { dotClass: "bg-info", label: uiText("Running") },
+  waiting: { dotClass: "bg-info", label: uiText("Waiting") },
+  idle: { dotClass: "bg-muted-foreground/50", label: uiText("Idle · resumable") },
+  completed: { dotClass: "bg-success", label: uiText("Completed") },
+  failed: { dotClass: "bg-destructive", label: uiText("Failed") },
+  cancelled: { dotClass: "bg-muted-foreground/60", label: uiText("Stopped") },
+  interrupted: { dotClass: "bg-muted-foreground/60", label: uiText("Stopped") },
 };
 
 function subagentStatusVisual(status: OrchestrationV2TurnItem["status"]) {
@@ -281,11 +289,11 @@ function SubagentAvatar({
           driverKind={driver}
           displayName={displayName ?? driver}
           acpRegistryIconUrl={iconUrl}
-          className="z-auto"
-          iconClassName="size-3.5"
+          className={"z-auto"}
+          iconClassName={"size-3.5"}
         />
       ) : (
-        <BotIcon className="size-3.5 text-muted-foreground" />
+        <BotIcon className={"size-3.5 text-muted-foreground"} />
       )}
       {status ? (
         <span
@@ -443,9 +451,9 @@ function SubagentTimelineLink(props: {
         driver={props.driver}
         status={status ?? undefined}
       />
-      <span className="min-w-0 flex-1">
-        <span className="flex items-baseline gap-2">
-          <span className="min-w-0 truncate text-xs font-medium text-foreground">
+      <span className={"min-w-0 flex-1"}>
+        <span className={"flex items-baseline gap-2"}>
+          <span className={"min-w-0 truncate text-xs font-medium text-foreground"}>
             {props.title}
           </span>
           {detail !== null && (props.event !== undefined || status !== "completed") ? (
@@ -468,19 +476,21 @@ function SubagentTimelineLink(props: {
           {detail === null ? (
             statusLabel
           ) : detail.includes("/") && !detail.includes(" ") ? (
-            <MiddleTruncate value={detail} showTitle={false} className="flex" />
+            <MiddleTruncate value={detail} showTitle={false} className={"flex"} />
           ) : (
-            <span className="block truncate">{detail}</span>
+            <span className={"block truncate"}>{detail}</span>
           )}
         </span>
       </span>
-      <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+      <span className={"shrink-0 text-xs text-muted-foreground tabular-nums"}>
         {props.event ? props.event.timestamp : <SubagentElapsed agent={timing} />}
       </span>
       {threadId !== null ? (
         <ChevronRightIcon
           aria-hidden
-          className="size-3.5 shrink-0 text-muted-foreground/60 transition-colors group-hover/subagent:text-foreground"
+          className={
+            "size-3.5 shrink-0 text-muted-foreground/60 transition-colors group-hover/subagent:text-foreground"
+          }
         />
       ) : null}
     </>
@@ -493,14 +503,18 @@ function SubagentTimelineLink(props: {
         delay={200}
         render={
           threadId === null ? (
-            <div data-v2-item-type="subagent" aria-description={statusLabel} className={className}>
+            <div
+              data-v2-item-type={"subagent"}
+              aria-description={statusLabel}
+              className={className}
+            >
               {content}
             </div>
           ) : (
             <button
-              type="button"
-              data-v2-item-type="subagent"
-              aria-label={`Open ${props.title}`}
+              type={"button"}
+              data-v2-item-type={"subagent"}
+              aria-label={uiText("Open {0}", {"0": props.title})}
               aria-description={statusLabel}
               onClick={() => props.onOpenThread(threadId)}
               className={cn(
@@ -596,16 +610,16 @@ export function HandoffRow(props: {
   const entries = settings ? applyProviderInstanceSettings(derived, settings, null) : derived;
   return (
     <TimelineSystemDivider
-      label={props.pending ? "Context handoff pending" : "Context handoff"}
+      label={props.pending ? uiText("Context handoff pending") : uiText("Context handoff")}
       icon={ArrowRightLeftIcon}
       showDetailSeparator={false}
       tone={props.failed ? "danger" : "neutral"}
       detail={
-        <span className="inline-flex min-w-0 flex-wrap items-center justify-center gap-1.5">
+        <span className={"inline-flex min-w-0 flex-wrap items-center justify-center gap-1.5"}>
           {fromEndpoints.map((endpoint, index) => (
             <span
               key={`${endpoint.instanceId}:${endpoint.model ?? ""}`}
-              className="inline-flex min-w-0 items-center"
+              className={"inline-flex min-w-0 items-center"}
             >
               <HandoffEndpoint
                 entries={entries}
@@ -613,14 +627,14 @@ export function HandoffRow(props: {
                 model={endpoint.model}
               />
               {index < fromEndpoints.length - 1 ? (
-                <span aria-hidden="true" className="ml-0.5">
-                  ,
+                <span aria-hidden={"true"} className={"ml-0.5"}>
+                  {","}
                 </span>
               ) : null}
             </span>
           ))}
           {fromEndpoints.length > 0 ? (
-            <ArrowRightIcon aria-hidden="true" className="size-3 shrink-0" />
+            <ArrowRightIcon aria-hidden={"true"} className={"size-3 shrink-0"} />
           ) : null}
           <HandoffEndpoint entries={entries} instanceId={to.instanceId} model={to.model} />
         </span>
@@ -656,7 +670,9 @@ function HandoffEndpoint(props: {
         render={
           <span
             tabIndex={0}
-            className="inline-flex min-w-0 items-center gap-1.5 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+            className={
+              "inline-flex min-w-0 items-center gap-1.5 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+            }
           >
             <ProviderInstanceIcon
               driverKind={entry?.driverKind ?? ProviderDriverKind.make(props.instanceId)}
@@ -665,9 +681,9 @@ function HandoffEndpoint(props: {
               acpRegistryAgentId={entry?.acpRegistryAgentId}
               acpRegistryIconUrl={entry?.acpRegistryIconUrl}
               showBadge={showBadge}
-              size="compact"
+              size={"compact"}
               iconClassName={cn(showBadge && "opacity-60")}
-              indicatorBackground="var(--background)"
+              indicatorBackground={"var(--background)"}
             />
             <span
               className={cn("truncate font-medium", labelColor.className)}
@@ -679,7 +695,9 @@ function HandoffEndpoint(props: {
         }
       />
       <TooltipPopup>
-        {entry?.displayName ?? props.instanceId} · {label}
+        {entry?.displayName ?? props.instanceId}
+        {" \u00B7 "}
+        {label}
       </TooltipPopup>
     </Tooltip>
   );

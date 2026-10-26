@@ -4,6 +4,7 @@ import { ThreadId, TurnItemId, type OrchestrationV2TurnItem } from "@t3tools/con
 import * as DateTime from "effect/DateTime";
 
 import {
+  contextCompactionLabel,
   commandDetailRepeatsCommand,
   extractCommandOutputText,
   resolveWorkEntryToolPresentation,
@@ -13,9 +14,29 @@ import {
   workEntryDisplayIndicatesToolFailure,
   workEntryIndicatesToolSuccess,
 } from "./presentation.js";
+describe("contextCompactionLabel", () => {
+  it("keeps success separate from failed, stopped, active, and unconfirmed results", () => {
+    expect(contextCompactionLabel({ status: "completed", completionConfirmed: false })).toBe(
+      "Context compaction result unconfirmed",
+    );
+    expect(contextCompactionLabel({ status: "failed" })).toBe("Context compaction failed");
+    expect(contextCompactionLabel({ status: "interrupted" })).toBe("Context compaction stopped");
+    expect(contextCompactionLabel({ status: "running" })).toBe("Compacting context");
+    expect(
+      contextCompactionLabel({ status: "completed", beforeTokenCount: 1000, afterTokenCount: 500 }),
+    ).toBe("Context compacted 1K → 500 tokens");
+  });
+});
 
 function commandItem(
-  fields: Partial<Extract<OrchestrationV2TurnItem, { type: "command_execution" }>> = {},
+  fields: Partial<
+    Extract<
+      OrchestrationV2TurnItem,
+      {
+        type: "command_execution";
+      }
+    >
+  > = {},
 ): OrchestrationV2TurnItem {
   return {
     id: TurnItemId.make("command"),

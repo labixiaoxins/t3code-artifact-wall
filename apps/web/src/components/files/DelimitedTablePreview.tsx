@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 /* oxlint-disable react/no-array-index-key -- Table rows and columns have stable positions and may contain identical values. */
 import { parseDelimitedPreview } from "@t3tools/shared/delimitedPreview";
 
@@ -14,8 +15,7 @@ export function DelimitedTablePreview(props: {
     <div className="flex min-h-0 flex-1 flex-col">
       {table.truncated ? (
         <FileSurfaceNotice>
-          Table limited to the first 100 rows and 30 columns. Switch to source for the rest.
-        </FileSurfaceNotice>
+          {uiText("Table limited to the first 100 rows and 30 columns. Switch to source for the rest.")}</FileSurfaceNotice>
       ) : null}
       <div className="min-h-0 flex-1 overflow-auto">
         <table

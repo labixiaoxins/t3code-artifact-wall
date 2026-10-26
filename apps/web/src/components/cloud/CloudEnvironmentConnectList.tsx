@@ -1,3 +1,5 @@
+import { uiText } from "~/i18n";
+import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
 import { findErrorTraceId } from "@t3tools/client-runtime/errors";
 import {
   type EnvironmentConnectionPresentation,
@@ -37,8 +39,7 @@ import { Skeleton } from "../ui/skeleton";
 import { toastManager } from "../ui/toast";
 import { Tooltip, TooltipTrigger, TooltipPopup } from "../ui/tooltip";
 import { presentSavedCloudEnvironmentConnection } from "./cloudEnvironmentConnectionPresentation";
-
-const EMPTY_DISCOVERY_REFRESH_INTERVAL_MS = 5_000;
+const EMPTY_DISCOVERY_REFRESH_INTERVAL_MS = 5000;
 
 function discoveredCompatibilityError(
   status: Option.Option<RelayEnvironmentStatusResponse> | undefined,
@@ -58,11 +59,11 @@ function RemoteEnvironmentRowsSkeleton() {
   return (
     <div className={ITEM_ROW_CLASSNAME}>
       <div className={ITEM_ROW_INNER_CLASSNAME}>
-        <div className="min-w-0 flex-1 space-y-2">
-          <Skeleton shape="pill" className="h-4 w-32" />
-          <Skeleton shape="pill" className="h-3 w-20" />
+        <div className={"min-w-0 flex-1 space-y-2"}>
+          <Skeleton shape={"pill"} className={"h-4 w-32"} />
+          <Skeleton shape={"pill"} className={"h-3 w-20"} />
         </div>
-        <Skeleton className="h-7 w-16" />
+        <Skeleton className={"h-7 w-16"} />
       </div>
     </div>
   );
@@ -171,13 +172,13 @@ export function CloudEnvironmentConnectRows({
     console.error("[t3-connect] Could not connect environment", { message, traceId, cause });
     toastManager.add({
       type: "error",
-      title: "Could not connect environment",
+      title: uiText("Could not connect environment"),
       description: message,
       data: traceId
         ? {
             secondaryActionProps: {
               children: "Copy trace ID",
-              onClick: () => void navigator.clipboard?.writeText(traceId),
+              onClick: () => void writeTextToClipboard(traceId, "trace ID").catch(() => undefined),
             },
           }
         : undefined,
@@ -287,17 +288,17 @@ export function CloudEnvironmentConnectRows({
     if (discoveryProblem !== null && !environmentsState.refreshing) {
       return (
         <div className={ITEM_ROW_CLASSNAME}>
-          <p className="text-sm font-medium text-destructive">
-            Could not load T3 Connect environments
+          <p className={"text-sm font-medium text-destructive"}>
+            {uiText("Could not load T3 Connect environments")}
           </p>
-          <p className="mt-1 text-xs text-muted-foreground">{discoveryProblem}</p>
+          <p className={"mt-1 text-xs text-muted-foreground"}>{discoveryProblem}</p>
           <Button
-            size="sm"
-            variant="outline"
-            className="mt-3"
+            size={"sm"}
+            variant={"outline"}
+            className={"mt-3"}
             onClick={() => void refreshRelayEnvironments()}
           >
-            Try again
+            {uiText("Try again")}
           </Button>
         </div>
       );
@@ -368,7 +369,9 @@ export function CloudEnvironmentConnectRows({
       return (
         <label
           key={environment.environmentId}
-          className="flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5 has-disabled:cursor-default"
+          className={
+            "flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5 has-disabled:cursor-default"
+          }
         >
           <Checkbox
             checked={!unsupported && selection.selectedIds.has(environment.environmentId)}
@@ -385,12 +388,12 @@ export function CloudEnvironmentConnectRows({
           <EnvironmentMachineIcon
             aria-hidden
             kind={machineKind}
-            className="size-4 shrink-0 text-muted-foreground"
+            className={"size-4 shrink-0 text-muted-foreground"}
           />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-medium">{environment.label}</span>
+          <span className={"min-w-0 flex-1"}>
+            <span className={"block truncate text-sm font-medium"}>{environment.label}</span>
             {unsupportedDetail !== null ? (
-              <span className="mt-0.5 block text-xs text-muted-foreground">
+              <span className={"mt-0.5 block text-xs text-muted-foreground"}>
                 {unsupportedDetail}
               </span>
             ) : null}
@@ -404,15 +407,15 @@ export function CloudEnvironmentConnectRows({
               )}
             >
               {connectingEnvironmentIds.has(environment.environmentId)
-                ? "Connecting…"
+                ? uiText("Connecting…")
                 : (savedConnection?.buttonLabel ??
                   (availability === "online"
-                    ? "Available"
+                    ? uiText("Available")
                     : availability === "offline"
-                      ? "Offline"
+                      ? uiText("Offline")
                       : availability === "error"
-                        ? "Unavailable"
-                        : "Checking…"))}
+                        ? uiText("Unavailable")
+                        : uiText("Checking…")))}
             </TooltipTrigger>
             <TooltipPopup>{unsupportedDetail ?? statusText}</TooltipPopup>
           </Tooltip>
@@ -422,8 +425,8 @@ export function CloudEnvironmentConnectRows({
     return (
       <div key={environment.environmentId} className={ITEM_ROW_CLASSNAME}>
         <div className={ITEM_ROW_INNER_CLASSNAME}>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
+          <div className={"min-w-0"}>
+            <div className={"flex items-center gap-2"}>
               <ConnectionStatusDot
                 dotClassName={dotClassName}
                 pingClassName={
@@ -451,9 +454,9 @@ export function CloudEnvironmentConnectRows({
               <EnvironmentMachineIcon
                 aria-hidden
                 kind={machineKind}
-                className="size-4 shrink-0 text-muted-foreground"
+                className={"size-4 shrink-0 text-muted-foreground"}
               />
-              <p className="truncate text-sm font-medium">{environment.label}</p>
+              <p className={"truncate text-sm font-medium"}>{environment.label}</p>
             </div>
             <p
               className={cn(
@@ -470,28 +473,28 @@ export function CloudEnvironmentConnectRows({
           </div>
           {unsupported && !savedEnvironment ? (
             <Tooltip>
-              <TooltipTrigger render={<span className="inline-flex" tabIndex={0} />}>
-                <Button size="sm" disabled>
-                  Add
+              <TooltipTrigger render={<span className={"inline-flex"} tabIndex={0} />}>
+                <Button size={"sm"} disabled>
+                  {uiText("Add")}
                 </Button>
               </TooltipTrigger>
-              <TooltipPopup>{unsupportedDetail ?? "Client not supported"}</TooltipPopup>
+              <TooltipPopup>{unsupportedDetail ?? uiText("Client not supported")}</TooltipPopup>
             </Tooltip>
           ) : savedConnection ? (
-            <Button size="sm" variant="outline" disabled>
+            <Button size={"sm"} variant={"outline"} disabled>
               {savedConnection.buttonLabel}
             </Button>
           ) : (
             <Button
-              size="sm"
+              size={"sm"}
               disabled={connectingEnvironmentIds.size > 0}
               onClick={() => void connectEnvironment(environment)}
             >
               {connectingEnvironmentIds.has(environment.environmentId)
-                ? "Adding…"
+                ? uiText("Adding…")
                 : savedWithoutRelay.has(environment.environmentId)
-                  ? "Add route"
-                  : "Add"}
+                  ? uiText("Add route")
+                  : uiText("Add")}
             </Button>
           )}
         </div>

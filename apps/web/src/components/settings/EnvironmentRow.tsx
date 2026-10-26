@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   type ConnectionTarget,
   connectionRouteId,
@@ -23,7 +24,7 @@ export function environmentTransportLabel(
   activeTarget: ConnectionTarget | null = null,
 ): string {
   const { entry } = environment;
-  if (entry.target._tag === "PrimaryConnectionTarget") return "This machine";
+  if (entry.target._tag === "PrimaryConnectionTarget") return uiText("This machine");
   const routes = connectionRoutes(entry);
   if (routes.length > 1) {
     const active =

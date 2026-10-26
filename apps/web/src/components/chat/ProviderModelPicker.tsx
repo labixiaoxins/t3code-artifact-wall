@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   ANTIGRAVITY_DEFAULT_MODEL,
   type ProviderInstanceId,
@@ -265,8 +266,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
           </Tooltip>
           {selectedModel?.isUnavailable && !selectedEntries && props.triggerLabel === undefined ? (
             <Badge variant="outline" size="sm">
-              Unavailable
-            </Badge>
+              {uiText("Unavailable")}</Badge>
           ) : null}
         </span>
         <span aria-hidden="true" className="flex items-center">

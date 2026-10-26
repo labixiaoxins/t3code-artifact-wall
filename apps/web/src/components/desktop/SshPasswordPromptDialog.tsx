@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { settlePromise } from "@t3tools/client-runtime/state/runtime";
 import type { DesktopSshPasswordPromptRequest } from "@t3tools/contracts";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
@@ -185,7 +186,7 @@ function ActiveSshPasswordPrompt({
                         : "shrink-0 text-xs text-muted-foreground"
                     }
                   >
-                    {isExpired ? "Expired" : remainingLabel}
+                    {isExpired ? uiText("Expired") : remainingLabel}
                   </span>
                 ) : null}
               </div>
@@ -211,11 +212,10 @@ function ActiveSshPasswordPrompt({
         </DialogPanel>
         <DialogFooter>
           <Button disabled={isResponding} type="button" variant="outline" onClick={cancelPrompt}>
-            {isExpired ? "Dismiss" : "Cancel"}
+            {isExpired ? uiText("Dismiss") : uiText("Cancel")}
           </Button>
           <Button disabled={isResponding || isExpired} form={formId} type="submit">
-            Continue
-          </Button>
+            {uiText("Continue")}</Button>
         </DialogFooter>
       </DialogPopup>
     </Dialog>

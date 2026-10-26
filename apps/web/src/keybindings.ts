@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   type KeybindingCommand,
   type KeybindingShortcut,
@@ -207,13 +208,13 @@ export function resolveChatShortcutCommand(
 }
 
 export function formatShortcutKeyLabel(key: string): string {
-  if (key === " ") return "Space";
+  if (key === " ") return uiText("Space");
   if (key.length === 1) return key.toUpperCase();
   if (key === "escape") return "Esc";
-  if (key === "arrowup") return "Up";
-  if (key === "arrowdown") return "Down";
-  if (key === "arrowleft") return "Left";
-  if (key === "arrowright") return "Right";
+  if (key === "arrowup") return uiText("Up");
+  if (key === "arrowdown") return uiText("Down");
+  if (key === "arrowleft") return uiText("Left");
+  if (key === "arrowright") return uiText("Right");
   return key.slice(0, 1).toUpperCase() + key.slice(1);
 }
 

@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useAtomValue } from "@effect/atom-react";
 import { EnvironmentId } from "@t3tools/contracts";
 import { Atom } from "effect/reactivity";
@@ -95,10 +96,10 @@ function UpdateEverythingDialogContent({
         {running > 0 ? (
           <p className="pt-2 text-sm">
             {stopped === 0
-              ? `${threads} will be interrupted and can resume after the restart.`
+              ? uiText("{0} will be interrupted and can resume after the restart.", {"0": threads})
               : continuing === 0
-                ? `${threads} will be interrupted.`
-                : `${threads} will be interrupted. ${continuing} can resume after the restart.`}
+                ? uiText("{0} will be interrupted.", {"0": threads})
+                : uiText("{0} will be interrupted. {1} can resume after the restart.", {"0": threads, "1": continuing})}
           </p>
         ) : null}
         {skipped.length > 0 ? (
@@ -108,8 +109,8 @@ function UpdateEverythingDialogContent({
         ) : null}
       </AlertDialogHeader>
       <AlertDialogFooter>
-        <AlertDialogClose render={<Button variant="outline" />}>Cancel</AlertDialogClose>
-        <Button onClick={onConfirm}>Update</Button>
+        <AlertDialogClose render={<Button variant="outline" />}>{uiText("Cancel")}</AlertDialogClose>
+        <Button onClick={onConfirm}>{uiText("Update")}</Button>
       </AlertDialogFooter>
     </>
   );

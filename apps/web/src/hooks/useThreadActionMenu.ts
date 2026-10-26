@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { scopeProjectRef } from "@t3tools/client-runtime/environment";
 import { requestCustomSnooze } from "../components/CustomSnoozeDialog";
 import {
@@ -93,22 +94,22 @@ export function useThreadActionMenu(input: {
   const timestampFormat = useClientSettings((s) => s.timestampFormat);
   const { copyToClipboard: copyPathToClipboard } = useCopyToClipboard<{ path: string }>({
     onCopy: ({ path }) => {
-      toastManager.add({ type: "success", title: "Path copied", description: path });
+      toastManager.add({ type: "success", title: uiText("Path copied"), description: path });
     },
-    onError: (error) => failureToast("Failed to copy path", error),
+    onError: (error) => failureToast(uiText("Failed to copy path"), error),
   });
   const { copyToClipboard: copyBranchToClipboard } = useCopyToClipboard<{ branch: string }>({
     target: "branch name",
     onCopy: ({ branch }) => {
-      toastManager.add({ type: "success", title: "Branch copied", description: branch });
+      toastManager.add({ type: "success", title: uiText("Branch copied"), description: branch });
     },
-    onError: (error) => failureToast("Failed to copy branch", error),
+    onError: (error) => failureToast(uiText("Failed to copy branch"), error),
   });
   const { copyToClipboard: copyThreadIdToClipboard } = useCopyToClipboard<{ threadId: ThreadId }>({
     onCopy: ({ threadId }) => {
-      toastManager.add({ type: "success", title: "Thread ID copied", description: threadId });
+      toastManager.add({ type: "success", title: uiText("Thread ID copied"), description: threadId });
     },
-    onError: (error) => failureToast("Failed to copy thread ID", error),
+    onError: (error) => failureToast(uiText("Failed to copy thread ID"), error),
   });
 
   const openMenu = (position: { x: number; y: number }) => {
@@ -150,7 +151,7 @@ export function useThreadActionMenu(input: {
         !readEnvironmentScope(threadRef.environmentId, AuthOrchestrationOperateScope)
       ) {
         failureToast(
-          "Thread action unavailable",
+          uiText("Thread action unavailable"),
           new Error("This connection cannot change threads."),
         );
         return;
@@ -163,7 +164,7 @@ export function useThreadActionMenu(input: {
         if (!preset) return;
         const result = await snoozeThread(threadRef, preset.snoozedUntil);
         if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
-          failureToast("Failed to snooze thread", squashAtomCommandFailure(result));
+          failureToast(uiText("Failed to snooze thread"), squashAtomCommandFailure(result));
         }
         return;
       }
@@ -202,7 +203,7 @@ export function useThreadActionMenu(input: {
             }),
           );
           if (result._tag === "Failure") {
-            failureToast("Could not create thread", squashAtomCommandFailure(result));
+            failureToast(uiText("Could not create thread"), squashAtomCommandFailure(result));
           }
           return;
         }
@@ -249,8 +250,8 @@ export function useThreadActionMenu(input: {
             toastManager.add(
               stackedThreadToast({
                 type: "error",
-                title: "Path unavailable",
-                description: "This thread does not have a workspace path to copy.",
+                title: uiText("Path unavailable"),
+                description: uiText("This thread does not have a workspace path to copy."),
               }),
             );
             return;
@@ -309,7 +310,7 @@ export function useThreadActionMenu(input: {
             // that itself, and "Failed to delete thread" would be a lie.
             readThreadShell(threadRef) !== null
           ) {
-            failureToast("Failed to delete thread", squashAtomCommandFailure(deleted));
+            failureToast(uiText("Failed to delete thread"), squashAtomCommandFailure(deleted));
           }
           return;
         }

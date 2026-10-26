@@ -1,3 +1,5 @@
+import { cn } from "~/lib/utils";
+import { uiText } from "~/i18n";
 import { resolveThreadWorkingStartedAt } from "@t3tools/client-runtime/state/models";
 import { backgroundWorkHoldsCompletion } from "@t3tools/shared/orchestrationV2PendingBackgroundWork";
 import { threadPullRequestSearchTerms } from "@t3tools/shared/threadPullRequests";
@@ -50,7 +52,10 @@ export function resolveSidebarRowAccessibility(input: {
   readonly statusLabel: string | null;
   readonly projectDisplayName: string | null;
   readonly isActive: boolean;
-}): { readonly label: string; readonly current: "page" | undefined } {
+}): {
+  readonly label: string;
+  readonly current: "page" | undefined;
+} {
   return {
     label: [input.title, input.statusLabel, input.projectDisplayName].filter(Boolean).join(", "),
     current: input.isActive ? "page" : undefined,
@@ -146,8 +151,15 @@ export function sidebarMarkerId(marker: SidebarListMarker): string {
 }
 
 export type SidebarListItem =
-  | { readonly kind: "thread"; readonly key: string; readonly section: SidebarSection }
-  | { readonly kind: "marker"; readonly marker: SidebarListMarker };
+  | {
+      readonly kind: "thread";
+      readonly key: string;
+      readonly section: SidebarSection;
+    }
+  | {
+      readonly kind: "marker";
+      readonly marker: SidebarListMarker;
+    };
 
 export function sidebarListItemId(item: SidebarListItem): string {
   return item.kind === "thread" ? item.key : sidebarMarkerId(item.marker);
@@ -203,27 +215,40 @@ export function resolveSidebarDropTarget(
 }
 
 export type SidebarThreadDropPlan =
-  | { readonly kind: "none" }
+  | {
+      readonly kind: "none";
+    }
   | {
       readonly kind: "reorder-pinned";
       readonly order: readonly string[];
-      readonly assignments: ReadonlyArray<{ readonly id: string; readonly orderKey: string }>;
+      readonly assignments: ReadonlyArray<{
+        readonly id: string;
+        readonly orderKey: string;
+      }>;
     }
   | {
       readonly kind: "pin";
       readonly order: readonly string[];
       readonly orderKey: string | undefined;
-      readonly extraAssignments: ReadonlyArray<{ readonly id: string; readonly orderKey: string }>;
+      readonly extraAssignments: ReadonlyArray<{
+        readonly id: string;
+        readonly orderKey: string;
+      }>;
     }
   | {
       readonly kind: "move-active";
       readonly order: readonly string[] | null;
-      readonly assignments: ReadonlyArray<{ readonly id: string; readonly orderKey: string }>;
+      readonly assignments: ReadonlyArray<{
+        readonly id: string;
+        readonly orderKey: string;
+      }>;
       readonly unpin: boolean;
       readonly unsettle: boolean;
       readonly unsnooze: boolean;
     }
-  | { readonly kind: "settle" };
+  | {
+      readonly kind: "settle";
+    };
 
 export type SidebarDropVerb = "pin" | "unpin" | "settle" | "unsettle" | "wake";
 
@@ -440,7 +465,9 @@ export type ThreadTraversalDirection = "previous" | "next";
  * whole batch.
  */
 export async function deleteSelectedThreadEntries<
-  TEntry extends { readonly threadKey: string },
+  TEntry extends {
+    readonly threadKey: string;
+  },
 >(input: {
   entries: readonly TEntry[];
   delete: (
@@ -466,18 +493,37 @@ export async function deleteSelectedThreadEntries<
 }
 
 export async function archiveSelectedThreadEntries<
-  TEntry extends { readonly threadKey: string },
-  TResult extends { readonly _tag: "Success" | "Failure" },
+  TEntry extends {
+    readonly threadKey: string;
+  },
+  TResult extends {
+    readonly _tag: "Success" | "Failure";
+  },
 >(input: {
   entries: readonly TEntry[];
   archive: (entry: TEntry, onArchived: () => void) => Promise<TResult>;
 }): Promise<{
   archivedThreadKeys: readonly string[];
-  mutationFailure: Extract<TResult, { readonly _tag: "Failure" }> | null;
-  followupFailures: readonly Extract<TResult, { readonly _tag: "Failure" }>[];
+  mutationFailure: Extract<
+    TResult,
+    {
+      readonly _tag: "Failure";
+    }
+  > | null;
+  followupFailures: readonly Extract<
+    TResult,
+    {
+      readonly _tag: "Failure";
+    }
+  >[];
 }> {
   const archivedThreadKeys: string[] = [];
-  const followupFailures: Extract<TResult, { readonly _tag: "Failure" }>[] = [];
+  const followupFailures: Extract<
+    TResult,
+    {
+      readonly _tag: "Failure";
+    }
+  >[] = [];
 
   for (const entry of input.entries) {
     let didArchive = false;
@@ -486,7 +532,12 @@ export async function archiveSelectedThreadEntries<
     });
     if (didArchive || result._tag === "Success") archivedThreadKeys.push(entry.threadKey);
     if (result._tag === "Success") continue;
-    const failure = result as Extract<TResult, { readonly _tag: "Failure" }>;
+    const failure = result as Extract<
+      TResult,
+      {
+        readonly _tag: "Failure";
+      }
+    >;
     if (didArchive) {
       followupFailures.push(failure);
       continue;
@@ -502,13 +553,13 @@ export function buildMultiSelectThreadContextMenuItems(input: {
   hasRunningThread: boolean;
 }): readonly ContextMenuItem<"mark-unread" | "archive" | "delete">[] {
   return [
-    { id: "mark-unread", label: `Mark unread (${input.count})` },
+    { id: "mark-unread", label: uiText("Mark unread ({0})", {"0": input.count}) },
     {
       id: "archive",
-      label: `Archive (${input.count})`,
+      label: uiText("Archive ({0})", {"0": input.count}),
       disabled: input.hasRunningThread,
     },
-    { id: "delete", label: `Delete (${input.count})`, destructive: true },
+    { id: "delete", label: uiText("Delete ({0})", {"0": input.count}), destructive: true },
   ];
 }
 
@@ -559,13 +610,13 @@ export function buildBulkTitleRegenerationContextMenuItem(input: {
   if (input.actionableCount === 0) {
     return {
       id: "regenerate-title",
-      label: `Regenerating… (${input.supportedCount})`,
+      label: uiText("Regenerating… ({0})", {"0": input.supportedCount}),
       disabled: true,
     };
   }
   return {
     id: "regenerate-title",
-    label: `Regenerate titles (${input.actionableCount})`,
+    label: uiText("Regenerate titles ({0})", {"0": input.actionableCount}),
   };
 }
 
@@ -573,14 +624,14 @@ export function buildBulkUnpinContextMenuItem(input: {
   pinnedCount: number;
 }): ContextMenuItem<"unpin"> | null {
   if (input.pinnedCount === 0) return null;
-  return { id: "unpin", label: `Unpin (${input.pinnedCount})` };
+  return { id: "unpin", label: uiText("Unpin ({0})", {"0": input.pinnedCount}) };
 }
 
 export interface ThreadStatusPill {
   label:
     | "Working"
     | "Connecting"
-    | "Completed"
+    | "有新结果"
     | "Failed"
     | "Pending Approval"
     | "Awaiting Input"
@@ -599,7 +650,7 @@ const THREAD_STATUS_PRIORITY: Record<ThreadStatusPill["label"], number> = {
   Connecting: 3,
   Waiting: 2.5,
   "Plan Ready": 2,
-  Completed: 1,
+  有新结果: 1,
 };
 
 type ThreadStatusInput = Pick<
@@ -1017,8 +1068,11 @@ export function pullRequestMatchesSearchQuery(
   const haystack = normalizeSearchText(threadPullRequestSearchTerms(pullRequest).join(" "));
   return normalizedQuery.split(" ").every((token) => haystack.includes(token));
 }
-
-export function filterSidebarProjectScopeItems<TItem extends { readonly value: string }>(input: {
+export function filterSidebarProjectScopeItems<
+  TItem extends {
+    readonly value: string;
+  },
+>(input: {
   items: readonly TItem[];
   query: string;
   matches: (item: TItem, query: string) => boolean;
@@ -1034,9 +1088,17 @@ export interface SidebarProjectScopeMenuState {
 }
 
 export type SidebarProjectScopeMenuAction =
-  | { readonly type: "query-changed"; readonly query: string }
-  | { readonly type: "open-changed"; readonly open: boolean }
-  | { readonly type: "project-settings-opened" };
+  | {
+      readonly type: "query-changed";
+      readonly query: string;
+    }
+  | {
+      readonly type: "open-changed";
+      readonly open: boolean;
+    }
+  | {
+      readonly type: "project-settings-opened";
+    };
 
 export function reduceSidebarProjectScopeMenuState(
   state: SidebarProjectScopeMenuState,
@@ -1143,7 +1205,7 @@ export function resolveThreadStatusPill(input: {
 
   if (hasUnseenCompletion(thread)) {
     return {
-      label: "Completed",
+      label: "有新结果",
       colorClass: "text-emerald-600 dark:text-emerald-300/90",
       dotClass: "bg-emerald-500 dark:bg-emerald-300/90",
       pulse: false,
@@ -1345,5 +1407,35 @@ export function sortScopedProjectsForSidebar<
       left.title.localeCompare(right.title) ||
       left.environmentId.localeCompare(right.environmentId) ||
       left.id.localeCompare(right.id),
+  );
+}
+
+export function resolveThreadRowClassName(input: {
+  isActive: boolean;
+  isSelected: boolean;
+}): string {
+  const baseClassName =
+    "h-8 w-full translate-x-0 cursor-pointer justify-start rounded-md px-2 text-left text-sm select-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring";
+  if (input.isSelected && input.isActive) {
+    return cn(
+      baseClassName,
+      "bg-sidebar-row-active text-sidebar-foreground font-medium hover:bg-sidebar-row-active hover:text-sidebar-foreground",
+    );
+  }
+  if (input.isSelected) {
+    return cn(
+      baseClassName,
+      "bg-sidebar-row-selected text-sidebar-foreground hover:bg-sidebar-row-active hover:text-sidebar-foreground",
+    );
+  }
+  if (input.isActive) {
+    return cn(
+      baseClassName,
+      "bg-sidebar-row-active text-sidebar-foreground font-medium hover:bg-sidebar-row-active hover:text-sidebar-foreground",
+    );
+  }
+  return cn(
+    baseClassName,
+    "text-sidebar-muted-foreground/80 hover:bg-sidebar-row-hover hover:text-sidebar-foreground",
   );
 }

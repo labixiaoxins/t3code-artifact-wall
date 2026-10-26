@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { isAtomCommandInterrupted } from "@t3tools/client-runtime/state/runtime";
 import type { EnvironmentId, PullRequestRef } from "@t3tools/contracts";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
@@ -106,7 +107,7 @@ export function usePullRequestFilesViewed(options: {
         const owned = new Set(mine.filter((path) => !queued.current.has(path)));
         setOverlay((current) => revertFileViewedOverlay(current, batch, owned));
         if (owned.size > 0 && !isAtomCommandInterrupted(result)) {
-          toastManager.add({ type: "error", title: "Could not update viewed files" });
+          toastManager.add({ type: "error", title: uiText("Could not update viewed files") });
           refresh();
         }
         return;

@@ -662,7 +662,13 @@ const restartCancelledWorkSurvivesStaleRunUpdate = Effect.gen(function* () {
 const threadWorktreePathsIncludeArchivedOnRequest = Effect.gen(function* () {
   const store = yield* ProjectionStore.ProjectionStoreV2;
   const now = yield* DateTime.now;
-  const create = (id: string, input: { worktreePath: string | null; archived?: boolean }) => {
+  const create = (
+    id: string,
+    input: {
+      worktreePath: string | null;
+      archived?: boolean;
+    },
+  ) => {
     const threadId = ThreadId.make(id);
     const thread = {
       createdBy: "user" as const,
@@ -781,7 +787,11 @@ const commandReadsSkipSettledLeafNodes = Effect.gen(function* () {
       },
     });
   }
-  const nodeNames = (records: { readonly nodes: ReadonlyArray<{ readonly id: string }> }) =>
+  const nodeNames = (records: {
+    readonly nodes: ReadonlyArray<{
+      readonly id: string;
+    }>;
+  }) =>
     records.nodes
       .map((node) => node.id.replace("node:settled-leaf-nodes:", ""))
       .filter((name) => nodes.some(([candidate]) => candidate === name))
@@ -1193,6 +1203,48 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       assert.deepEqual(yield* store.getTurnStartHistory(threadId, [runId]), history);
       assert.deepEqual(yield* store.getTurnStartHistory(threadId, []), []);
       assert.deepEqual(yield* store.getTurnStartHistory(threadId, [RunId.make("run:other")]), []);
+      const toolId = TurnItemId.make("item:handoff-tool-receipt");
+      const now = yield* DateTime.now;
+      yield* store.apply({
+        id: EventId.make("event:handoff-tool-receipt"),
+        type: "turn-item.updated",
+        threadId,
+        runId,
+        occurredAt: now,
+        payload: {
+          id: toolId,
+          threadId,
+          runId,
+          nodeId: null,
+          providerThreadId: null,
+          providerTurnId: null,
+          nativeItemRef: null,
+          parentItemId: null,
+          ordinal: 2,
+          title: "publish_asset",
+          startedAt: now,
+          completedAt: now,
+          type: "dynamic_tool",
+          toolName: "publish_asset",
+          input: { secret: "private-fixture" },
+          output: { binary: "x".repeat(20000) },
+          status: "cancelled",
+          updatedAt: now,
+        },
+      });
+      const receipt = (yield* store.getTurnStartHistory(threadId, [runId])).find(
+        (item) => item.id === toolId,
+      );
+      assert.equal(receipt?.type, "dynamic_tool");
+      if (receipt?.type === "dynamic_tool") {
+        assert.equal(receipt.toolName, "publish_asset");
+        assert.isNull(receipt.input);
+        assert.isUndefined(receipt.output);
+      }
+      const original = (yield* store.getThreadProjection(threadId)).turnItems.find(
+        (item) => item.id === toolId,
+      );
+      assert.isTrue(original?.type === "dynamic_tool" && original.output !== undefined);
     }),
   );
   it.effect("preserves stored provider usage when a terminal update omits it", () =>
@@ -1204,17 +1256,17 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       const providerTurnId = ProviderTurnId.make("provider-turn:provider-usage-reload");
       const nodeId = NodeId.make("node:provider-usage-reload");
       const initialUsage = {
-        usedTokens: 12_000,
-        maxTokens: 200_000,
-        inputTokens: 11_000,
-        outputTokens: 1_000,
+        usedTokens: 12000,
+        maxTokens: 200000,
+        inputTokens: 11000,
+        outputTokens: 1000,
         updatedAt: "2026-08-29T12:00:00.000Z",
       } as const;
       const replacementUsage = {
-        usedTokens: 18_000,
-        maxTokens: 200_000,
-        inputTokens: 16_000,
-        outputTokens: 2_000,
+        usedTokens: 18000,
+        maxTokens: 200000,
+        inputTokens: 16000,
+        outputTokens: 2000,
         updatedAt: "2026-08-29T12:00:01.000Z",
       } as const;
 
@@ -1338,11 +1390,10 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
           deletedAt: null,
         },
       });
-
-      for (let ordinal = 1; ordinal <= 1_000; ordinal += 1) {
+      for (let ordinal = 1; ordinal <= 1000; ordinal += 1) {
         const id = `turn-item:bounded-sql-history:${ordinal}`;
         const runId = `run:bounded-sql-history:${ordinal}`;
-        const message = ordinal === 1 || ordinal === 1_000;
+        const message = ordinal === 1 || ordinal === 1000;
         yield* sql`
           INSERT INTO orchestration_v2_projection_runs (
             run_id, thread_id, ordinal, provider, provider_thread_id, status,
@@ -1408,8 +1459,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
           )
         `;
       }
-
-      for (const ordinal of [1, 1_000]) {
+      for (const ordinal of [1, 1000]) {
         yield* projectionStore.apply({
           id: EventId.make(`event:bounded-sql-history:message:${ordinal}`),
           type: "message.updated",
@@ -1485,7 +1535,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         assert.lengthOf(snapshot.projection.runs, 76);
         assert.lengthOf(snapshot.projection.visibleTurnItems, 76);
         assert.strictEqual(snapshot.projection.turnItems[0]?.ordinal, 925);
-        assert.strictEqual(snapshot.projection.turnItems.at(-1)?.ordinal, 1_000);
+        assert.strictEqual(snapshot.projection.turnItems.at(-1)?.ordinal, 1000);
         assert.deepEqual(
           snapshot.projection.messages.map((message) => message.id),
           [MessageId.make("message:bounded-sql-history:1000")],
@@ -1499,7 +1549,9 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
           [baselineId],
         );
       }
-      const retainedRequestPlan = yield* sql<{ readonly detail: string }>`
+      const retainedRequestPlan = yield* sql<{
+        readonly detail: string;
+      }>`
         EXPLAIN QUERY PLAN
         WITH selected AS (
           SELECT run_id, type
@@ -1570,13 +1622,13 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       }
 
       assert.isAtLeast(pageCount, 4);
-      assert.lengthOf(loadedIds, 1_000);
-      assert.strictEqual(new Set(loadedIds).size, 1_000);
+      assert.lengthOf(loadedIds, 1000);
+      assert.strictEqual(new Set(loadedIds).size, 1000);
       assert.deepEqual(
         loadedIds.toSorted(
           (left, right) => Number(left.split(":").at(-1)) - Number(right.split(":").at(-1)),
         ),
-        Array.from({ length: 1_000 }, (_, index) => `turn-item:bounded-sql-history:${index + 1}`),
+        Array.from({ length: 1000 }, (_, index) => `turn-item:bounded-sql-history:${index + 1}`),
       );
 
       const tiedIds = [
@@ -1632,7 +1684,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
           })}
         )
       `;
-      for (let ordinal = 1_001; ordinal <= 1_100; ordinal += 1) {
+      for (let ordinal = 1001; ordinal <= 1100; ordinal += 1) {
         const id = `turn-item:bounded-sql-history:hidden:${ordinal}`;
         yield* sql`
           INSERT INTO orchestration_v2_projection_turn_items (
@@ -1674,7 +1726,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         snapshotSequence: hiddenSuffixSnapshot.snapshotSequence,
       });
       assert.lengthOf(hiddenSuffixPage.projection.visibleTurnItems, 75);
-      assert.strictEqual(hiddenSuffixPage.latestLocalTurnOrdinal, 1_100);
+      assert.strictEqual(hiddenSuffixPage.latestLocalTurnOrdinal, 1100);
       assert.isTrue(hiddenSuffixPage.hasMoreHistory);
       assert.isFalse(
         hiddenSuffixPage.projection.visibleTurnItems.some((row) =>
@@ -1723,7 +1775,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
           })}
         )
       `;
-      for (let ordinal = 1_101; ordinal <= 1_200; ordinal += 1) {
+      for (let ordinal = 1101; ordinal <= 1200; ordinal += 1) {
         const id = `turn-item:bounded-sql-history:cancelled:${ordinal}`;
         yield* sql`
           INSERT INTO orchestration_v2_projection_turn_items (
@@ -1832,7 +1884,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         projection: cancelledSuffixSnapshot.projection,
         snapshotSequence: cancelledSuffixSnapshot.snapshotSequence,
       });
-      assert.strictEqual(cancelledSuffixPage.latestLocalTurnOrdinal, 1_202);
+      assert.strictEqual(cancelledSuffixPage.latestLocalTurnOrdinal, 1202);
       assert.lengthOf(cancelledSuffixPage.projection.visibleTurnItems, 75);
       assert.isFalse(
         cancelledSuffixPage.projection.visibleTurnItems.some((row) =>
@@ -1931,10 +1983,10 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       `;
       yield* insertInterruptItem({
         id: interruptRequestId,
-        ordinal: 1_201,
+        ordinal: 1201,
         type: "run_interrupt_request",
       });
-      for (let ordinal = 1_202; ordinal <= 1_281; ordinal += 1) {
+      for (let ordinal = 1202; ordinal <= 1281; ordinal += 1) {
         const id = `turn-item:bounded-sql-history:interrupt-filler:${ordinal}`;
         yield* sql`
           INSERT INTO orchestration_v2_projection_turn_items (
@@ -1968,7 +2020,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       }
       yield* insertInterruptItem({
         id: interruptResultId,
-        ordinal: 1_282,
+        ordinal: 1282,
         type: "run_interrupt_result",
       });
 
@@ -2328,13 +2380,15 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         readThreadId,
         laterThreadId,
       ]);
-
-      const [stored] = yield* sql<{ readonly payload_json: string }>`
+      const [stored] = yield* sql<{
+        readonly payload_json: string;
+      }>`
         SELECT payload_json FROM orchestration_v2_projection_threads
         WHERE thread_id = ${laterThreadId}
       `;
-      const setPayload = (payload: string) =>
-        sql`UPDATE orchestration_v2_projection_threads SET payload_json = ${payload}
+      const setPayload = (
+        payload: string,
+      ) => sql`UPDATE orchestration_v2_projection_threads SET payload_json = ${payload}
           WHERE thread_id = ${laterThreadId}`;
       yield* setPayload("{}");
       const failure = yield* sql
@@ -2353,13 +2407,15 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       const sql = yield* SqlClient.SqlClient;
       const { projectId, activeThreadId, forkThreadId, otherThreadId } =
         yield* assertProjectScopedShells("sql-project-shell");
-
-      const [stored] = yield* sql<{ readonly payload_json: string }>`
+      const [stored] = yield* sql<{
+        readonly payload_json: string;
+      }>`
         SELECT payload_json FROM orchestration_v2_projection_threads
         WHERE thread_id = ${otherThreadId}
       `;
-      const setPayload = (payload: string) =>
-        sql`UPDATE orchestration_v2_projection_threads SET payload_json = ${payload}
+      const setPayload = (
+        payload: string,
+      ) => sql`UPDATE orchestration_v2_projection_threads SET payload_json = ${payload}
           WHERE thread_id = ${otherThreadId}`;
       yield* setPayload("{}");
       const [unscoped, scoped] = yield* Effect.all([
@@ -3787,9 +3843,9 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       for (const marker of ["AS blocking_failure_payload_json", "AS failure_payload_json"]) {
         const statement = statements.find((query) => query.includes(marker));
         assert.isDefined(statement, marker);
-        const plan = (yield* sql.unsafe<{ readonly detail: string }>(
-          `EXPLAIN QUERY PLAN ${statement}`,
-        )).map((row) => row.detail);
+        const plan = (yield* sql.unsafe<{
+          readonly detail: string;
+        }>(`EXPLAIN QUERY PLAN ${statement}`)).map((row) => row.detail);
         const bindingLookup = plan.findIndex((detail) => detail.startsWith("SEARCH binding "));
         const sessionLookup = plan.findIndex((detail) => detail.startsWith("SEARCH session "));
         assert.isAtLeast(bindingLookup, 0, marker);

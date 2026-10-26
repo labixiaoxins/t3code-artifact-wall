@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
 import { cn } from "~/lib/utils";
 
@@ -55,8 +56,7 @@ export function PullRequestCopyableCode({
             isCopied ? "opacity-100" : "opacity-0",
           )}
         >
-          Copied
-        </span>
+          {uiText("Copied")}</span>
       </TooltipTrigger>
       <TooltipPopup variant="code" side={tooltipSide}>
         {`${isCopied ? "Copied" : copyLabel}: ${value}`}
