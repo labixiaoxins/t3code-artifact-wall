@@ -1,3 +1,4 @@
+import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
 import { uiText } from "~/i18n";
 import { Check, Copy } from "lucide";
 import { PlayIcon, WrapTextIcon } from "lucide-react";
@@ -166,11 +167,7 @@ export function MarkdownCodeBlock({
     !/[\p{Cc}\p{Cf}]/u.test(code.slice(0, -1));
 
   const handleCopy = () => {
-    if (typeof navigator === "undefined" || navigator.clipboard == null) {
-      return;
-    }
-    void navigator.clipboard
-      .writeText(code)
+    void writeTextToClipboard(code, "code")
       .then(() => {
         if (copiedTimerRef.current != null) {
           clearTimeout(copiedTimerRef.current);

@@ -1,3 +1,4 @@
+import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
 import { uiText } from "~/i18n";
 import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
 import type { Dispatch } from "react";
@@ -235,22 +236,11 @@ export function useRightPanelActions(input: RightPanelActionsInput) {
   };
   const moveRightPanelSurfaceStable = useStableCallback(moveRightPanelSurface);
   const copyRightPanelFilePath = (relativePath: string) => {
-    if (typeof window === "undefined" || !navigator.clipboard?.writeText) {
-      toastManager.add(
-        stackedThreadToast({
-          type: "error",
-          title: uiText("Failed to copy path"),
-          description: "Clipboard API unavailable.",
-        }),
-      );
-      return;
-    }
-
     const clipboardPath = formatFilePathForClipboard(
       relativePath,
       resolvePathLinkTarget(relativePath, gitCwd ?? activeProjectCwd ?? ""),
     );
-    void navigator.clipboard.writeText(clipboardPath).then(
+    void writeTextToClipboard(clipboardPath, "path").then(
       () => {
         toastManager.add({
           type: "success",
