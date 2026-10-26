@@ -175,7 +175,11 @@ it("only creates starter presets from the live Codex model and supported reasoni
     ],
   });
   const starters = starterPresets([provider]);
-  expect(starters.map((preset) => preset.name)).toEqual(["快速处理", "重要实现", "三方审查"]);
+  expect(starters.map((preset) => preset.name)).toEqual([
+    "Quick handling",
+    "Important implementation",
+    "Three-way review",
+  ]);
   expect(starters[0]?.selection.options).toEqual([]);
   expect(starters[2]?.selection).toEqual({
     instanceId: "codex_work",

@@ -1,5 +1,8 @@
 // Adapted from ZhiweiXiao98/t3code b604575 (MIT). Application UI copy only.
 export const zhCN: Readonly<Record<string, string>> = {
+  "Quick handling": "快速处理",
+  "Important implementation": "重要实现",
+  "Three-way review": "三方审查",
   "Current execution": "当前执行",
   "Account alias": "账号别名",
   "Reported model": "已回报模型",

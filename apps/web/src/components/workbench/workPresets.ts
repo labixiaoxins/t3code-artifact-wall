@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { ModelSelection, type EnvironmentId, type ServerProvider } from "@t3tools/contracts";
 import * as Schema from "effect/Schema";
 import * as Equal from "effect/Equal";
@@ -135,5 +136,9 @@ export function starterPresets(providers: readonly ServerProvider[]): readonly W
         : [];
     return { name, selection: { instanceId: provider.instanceId, model: model.slug, options } };
   };
-  return [make("快速处理", "low"), make("重要实现", "high"), make("三方审查", "high")];
+  return [
+    make(uiText("Quick handling"), "low"),
+    make(uiText("Important implementation"), "high"),
+    make(uiText("Three-way review"), "high"),
+  ];
 }
