@@ -368,10 +368,13 @@ export function useNewThreadHandler() {
         runtimeMode: defaultRuntimeMode,
         ...(carryInteractionMode ? { interactionMode: carryInteractionMode } : {}),
       });
-      applyStickyState(draftId);
-      const modelSelectionOverride = resolveModelSelectionOverride(draftId);
-      if (modelSelectionOverride) {
-        setModelSelection(draftId, modelSelectionOverride, { replaceOptions: true });
+      // Draft creation may have captured an explicit work-style preset.
+      if (!hasExplicitComposerModelSelection(getComposerDraft(draftId))) {
+        applyStickyState(draftId);
+        const modelSelectionOverride = resolveModelSelectionOverride(draftId);
+        if (modelSelectionOverride) {
+          setModelSelection(draftId, modelSelectionOverride, { replaceOptions: true });
+        }
       }
       await router.navigate({
         to: "/draft/$draftId",

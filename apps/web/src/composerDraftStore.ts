@@ -1,3 +1,4 @@
+import { nextTaskPreset } from "./components/workbench/workPresets";
 import { stripInlineContextReferences } from "./lib/composerContextReferences";
 import { elementContextToPreviewAnnotation } from "./lib/elementContext";
 import {
@@ -2603,6 +2604,21 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
             };
             const existingDraft = state.draftsByThreadKey[draftId];
             let nextDraftsByThreadKey = state.draftsByThreadKey;
+            // Capture the preference only at draft creation. Selecting or editing a
+            // preset must never mutate an existing draft, queued turn, or live thread.
+            const presetSelection =
+              !existingThread && !existingDraft ? nextTaskPreset(projectRef.environmentId) : null;
+            if (presetSelection) {
+              nextDraftsByThreadKey = {
+                ...nextDraftsByThreadKey,
+                [draftId]: {
+                  ...createEmptyThreadDraft(),
+                  activeProvider: presetSelection.instanceId,
+                  modelSelectionExplicit: true,
+                  modelSelectionByProvider: { [presetSelection.instanceId]: presetSelection },
+                },
+              };
+            }
             if (
               existingThread &&
               existingThread.environmentId !== projectRef.environmentId &&

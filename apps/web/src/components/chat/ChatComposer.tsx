@@ -1,3 +1,4 @@
+import { WorkPresetPicker } from "../workbench/WorkPresetPicker";
 import { uiText } from "~/i18n";
 import { useComposerTypingGuard } from "./useComposerTypingGuard";
 import { useContextControlsHost } from "./useContextControlsHost";
@@ -3702,6 +3703,11 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                 isComposerResting && "py-2 sm:py-2",
               )}
             >
+              <WorkPresetPicker
+                environmentId={environmentId}
+                currentSelection={selectedModelSelection}
+                providers={providerStatuses}
+              />
               {isStashMenuOpen && !composerMenuOpen && (
                 <ComposerCommandMenuLayer anchor={composerMenuAnchor}>
                   <ComposerStashMenu

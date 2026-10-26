@@ -131,6 +131,12 @@ const SOURCE_CONTROL_HOST_SEARCH_ITEMS = sourceControlClients.definitions.flatMa
 
 export const SETTINGS_SEARCH_ITEMS = [
   {
+    id: "workbench-change-history",
+    title: uiText("Change history"),
+    to: "/settings/general",
+    searchTerms: ["修改记录 工作方式 预设 撤销 preset undo history"],
+  },
+  {
     id: "storage-worktree-keep-when",
     targetId: "storage-worktrees",
     title: uiText("Keep worktrees with local changes"),

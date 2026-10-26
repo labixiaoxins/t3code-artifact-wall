@@ -69,7 +69,7 @@ it("opens the run tab without removing existing inspector entries", async () => 
   const run = [
     ...screen.container.querySelectorAll<HTMLButtonElement>("[aria-label=检查器] button"),
   ].find((button) => button.textContent === "运行")!;
-  run.click();
+  run.dispatchEvent(new KeyboardEvent("keydown", { key: "r", altKey: true, bubbles: true }));
   await expect.poll(() => pressed(screen.container)).toEqual(["运行"]);
   expect(screen.container.querySelector("[data-testid=body]")!.textContent).toBe("run");
   expect(screen.container.querySelectorAll("[aria-label=检查器] button")).toHaveLength(4);

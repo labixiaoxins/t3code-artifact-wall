@@ -155,7 +155,6 @@ vi.mock("../composerDraftStore", () => {
 });
 vi.mock("../lib/chatThreadActions", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../lib/chatThreadActions")>()),
-  hasExplicitComposerModelSelection: () => false,
   resolveNewThreadModelSelectionOverride: () => null,
 }));
 vi.mock("../lib/t3ProjectFileDefaults", () => ({
@@ -243,4 +242,29 @@ describe.each([
     expect(testState.router.navigate).not.toHaveBeenCalled();
     expect(testState.draftStore.setLogicalProjectDraftThreadId).not.toHaveBeenCalled();
   });
+});
+
+it("keeps the explicit preset captured by draft creation instead of applying sticky defaults", async () => {
+  testState.reset(null);
+  const selection = {
+    instanceId: "codex",
+    model: "gpt-6.1-sol",
+    options: [{ id: "reasoningEffort", value: "high" }],
+  };
+  using _draft = vi.spyOn(testState.draftStore, "getComposerDraft").mockImplementation(() => ({
+    modelSelectionExplicit: true,
+    activeProvider: "codex",
+    modelSelectionByProvider: { codex: selection },
+  }));
+  testState.draftStore.applyStickyState.mockClear();
+  testState.draftStore.setModelSelection.mockClear();
+  const pending = useNewThreadHandler()({
+    environmentId: "environment-ssh",
+    projectId: "project-remote",
+  } as never);
+  testState.completeProjectFileRead(null);
+  await pending;
+  expect(testState.draftStore.setLogicalProjectDraftThreadId).toHaveBeenCalledOnce();
+  expect(testState.draftStore.applyStickyState).not.toHaveBeenCalled();
+  expect(testState.draftStore.setModelSelection).not.toHaveBeenCalled();
 });

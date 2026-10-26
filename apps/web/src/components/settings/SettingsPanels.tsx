@@ -1,4 +1,5 @@
 import type { KeepAwakeMode } from "@t3tools/contracts/settings";
+import { PresetChangeHistory } from "../workbench/PresetChangeHistory";
 import { uiText } from "~/i18n";
 import { formatRelativeTimeLabel } from "../../timestampFormat";
 import { LanguageSettings } from "~/i18n/LanguageSettings";
@@ -897,6 +898,9 @@ export function GeneralSettingsPanel() {
   return (
     <SettingsPageContainer>
       <LanguageSettings />
+      <SettingsSection id="workbench-change-history" title={uiText("Change history")}>
+        <PresetChangeHistory />
+      </SettingsSection>
       <ProjectDefaultsSettings category="general" />
       <SettingsSection id="organization" title={uiText("Organization")}>
         <SettingsRow
