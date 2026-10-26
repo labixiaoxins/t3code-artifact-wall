@@ -57,8 +57,8 @@ function queuedImageResources(projection: ThreadQueueProjection | undefined) {
     attachments.flatMap((attachment) =>
       attachment.type === "image"
         ? [{ _tag: "attachment" as const, attachmentId: attachment.id }]
-        : [],
-    ),
+        : []
+    )
   );
 }
 
@@ -79,7 +79,7 @@ export function QueuedRunsControl({
   readonly onCancelEdit: () => void;
 }) {
   const projection = useThreadProjection(
-    scopeThreadRef(props.environmentId, props.threadId),
+    scopeThreadRef(props.environmentId, props.threadId)
   )?.projection;
   const reorder = useAtomCommand(threadEnvironment.reorderQueuedRun);
   const promote = useAtomCommand(threadEnvironment.promoteQueuedRun);
@@ -103,7 +103,7 @@ export function QueuedRunsControl({
   const queuedImageAttachmentResources = queuedImageResources(projection);
   const queuedImageAttachmentUrls = useAssetUrls(
     props.environmentId,
-    queuedImageAttachmentResources,
+    queuedImageAttachmentResources
   );
   const workflow = projection ? deriveThreadQueueWorkflowState(projection) : null;
   const queued = workflow?.queuedRuns ?? [];
@@ -114,10 +114,10 @@ export function QueuedRunsControl({
     queuedImageAttachmentUrls.flatMap((url, index) => {
       const resource = queuedImageAttachmentResources[index];
       return url && resource ? [[resource.attachmentId, url] as const] : [];
-    }),
+    })
   );
   const optimisticQueued = props.optimisticMessages.filter(
-    (message) => message.inputIntent === "queued_turn" && !acknowledgedMessageIds.has(message.id),
+    (message) => message.inputIntent === "queued_turn" && !acknowledgedMessageIds.has(message.id)
   );
   const items = [
     ...queued.map(({ run, text, attachments }, serverIndex) => ({
@@ -259,8 +259,8 @@ export function QueuedRunsControl({
             {items.map((item) => {
               const previewText = assistantCitationsToPlainText(
                 replaceComposerContextReferences(item.text, (reference) =>
-                  reference.kind === "image" && item.thumbnails.length > 0 ? "" : reference.label,
-                ),
+                  reference.kind === "image" && item.thumbnails.length > 0 ? "" : reference.label
+                )
               ).trim();
               const rowRunId = item.runId;
               const rowServerIndex = item.serverIndex;
@@ -275,7 +275,7 @@ export function QueuedRunsControl({
                   className={cn(
                     "relative rounded-sm",
                     isEditing && "bg-accent text-accent-foreground",
-                    dragState !== null && dragState.runId === item.runId && "opacity-50",
+                    dragState !== null && dragState.runId === item.runId && "opacity-50"
                   )}
                   draggable={rowDraggable}
                   onDragStart={(event) => {
@@ -425,7 +425,7 @@ export function QueuedRunsControl({
                             <PencilIcon />
                           </TooltipTrigger>
                           <TooltipPopup>
-                            {uiText("Edit in the composer{0}", {"0": item.serverIndex === queued.length - 1 && props.editShortcutLabel ? ` (${props.editShortcutLabel})` : ""})}
+                            {uiText ("Edit in the composer{0}",{"0": item.serverIndex === queued.length - 1 &&props.editShortcutLabel ? ` (${props.editShortcutLabel})` : ""})}
                           </TooltipPopup>
                         </Tooltip>
                         <Tooltip>
@@ -441,7 +441,7 @@ export function QueuedRunsControl({
                               }}
                             >
                               <CornerUpRightIcon />
-                              {workflow?.canSendNow ? "Send now" : "Steer"}
+                              {workflow?.canSendNow ? "Send now" : uiText("Steer")}
                             </Button>
                           </TooltipTrigger>
                           <TooltipPopup>

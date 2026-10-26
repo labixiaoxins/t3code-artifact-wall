@@ -7,7 +7,7 @@ import { serializeCodeBlockToMarkdown } from "../../markdown-clipboard";
 import { Button } from "../ui/button";
 
 type Pele = typeof import("pele/lazy");
-type PeleLoad = { readonly status: "loaded"; readonly pele: Pele } | { readonly status: "failed" };
+type PeleLoad = { readonly status: "loaded"; readonly pele: Pele; } | { readonly status: "failed"; };
 
 let coreLoad: Promise<PeleLoad> | null = null;
 // Each diagram type is its own chunk, so a chat with one flowchart loads only
@@ -17,7 +17,7 @@ const diagramLoads = new Map<DiagramType, Promise<PeleLoad>>();
 function loadCore(): Promise<PeleLoad> {
   coreLoad ??= import("pele/lazy").then(
     (pele): PeleLoad => ({ status: "loaded", pele }),
-    (): PeleLoad => ({ status: "failed" }),
+    (): PeleLoad => ({ status: "failed" })
   );
   return coreLoad;
 }
@@ -27,7 +27,7 @@ function loadDiagramType(pele: Pele, type: DiagramType): Promise<PeleLoad> {
   if (!load) {
     load = pele.load(type).then(
       (): PeleLoad => ({ status: "loaded", pele }),
-      (): PeleLoad => ({ status: "failed" }),
+      (): PeleLoad => ({ status: "failed" })
     );
     diagramLoads.set(type, load);
   }
@@ -88,7 +88,7 @@ function loadMath(): Promise<MathResolver | null> {
         return markup;
       };
     },
-    () => null,
+    () => null
   );
   return mathLoad;
 }
@@ -215,7 +215,7 @@ function diagramImageUrl(svg: SVGSVGElement): string {
   element.style.backgroundColor = getComputedStyle(document.body).backgroundColor;
   if (expandedImageUrl) URL.revokeObjectURL(expandedImageUrl);
   expandedImageUrl = URL.createObjectURL(
-    new Blob([new XMLSerializer().serializeToString(element)], { type: "image/svg+xml" }),
+    new Blob([new XMLSerializer().serializeToString(element)], { type: "image/svg+xml" })
   );
   return expandedImageUrl;
 }
@@ -249,7 +249,7 @@ export function MermaidDiagram({
       onRender: () => setRenderError(null),
       onError: (error) =>
         setRenderError(
-          error instanceof Error ? error.message : "The diagram could not be rendered.",
+          error instanceof Error ? error.message : "The diagram could not be rendered."
         ),
     });
     return () => mounted.destroy();
@@ -278,7 +278,7 @@ export function MermaidDiagram({
       {renderError ? <DiagramError message={renderError} source={source} /> : null}
       <button
         type="button"
-        aria-label="Expand diagram"
+        aria-label={uiText("Expand diagram")}
         hidden={renderError !== null}
         className="block w-full cursor-zoom-in rounded-md focus-visible:outline-2 focus-visible:outline-ring"
         onClick={() => {
@@ -304,11 +304,10 @@ function DiagramError({
   return (
     <div>
       <div className="flex items-center justify-between gap-2">
-        <p className="m-0 text-xs text-destructive">Unable to render diagram: {message}</p>
+        <p className="m-0 text-xs text-destructive">{uiText("Unable to render diagram:")}{message}</p>
         {onRetry ? (
           <Button type="button" variant="ghost" size="xs" onClick={onRetry}>
-            Retry
-          </Button>
+            {uiText("Retry")}</Button>
         ) : null}
       </div>
       <pre

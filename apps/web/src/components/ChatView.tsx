@@ -1,3 +1,5 @@
+import { uiText } from "~/i18n";
+import { onToggleThreadPanelRequest } from "../threadPanelBus";
 import { ScrollToEndButton, WorkspaceFileDropOverlay } from "./chat/TimelineOverlays";
 import { usePasteToFocusComposer } from "./chat/usePasteToFocusComposer";
 import {
@@ -19,7 +21,6 @@ import { useComposerResume } from "./chat/useComposerResume";
 import { useImplementPlanInNewThread } from "./chat/useProposedPlanSend";
 import { ThreadFind, ThreadFindCanvas, type ThreadFindControls } from "./chat/ThreadFindProvider";
 import { THREAD_FIND_BAR_RESERVED_HEIGHT } from "./chat/ThreadFindBar";
-import { latestProviderTurnTokenUsage } from "../lib/contextWindow";
 import { createPortal } from "react-dom";
 import { ContextHandoffNotice } from "./chat/ContextHandoffNotice";
 import { ARTIFACT_DRAG_TYPE } from "../artifactWall";
@@ -38,8 +39,6 @@ import {
   rememberCheckoutIsRepo,
 } from "./ChatView.logic";
 import { useLogicalProjectEnvironments } from "../hooks/useLogicalProjectEnvironments";
-import { useScratchProject } from "../hooks/useScratchProject";
-import { onToggleThreadPanelRequest } from "../threadPanelBus";
 import { useStableCallback } from "../hooks/useStableCallback";
 import { useProjectScriptEditing } from "./chat/useProjectScriptEditing";
 import { RightPanelSurfaceContent } from "./chat/RightPanelSurfaceContent";
@@ -316,7 +315,10 @@ import {
   hasDismissedResumeCompaction,
   shouldOfferResumeCompaction,
 } from "./chat/ContextWindowMeter.logic";
-import { deriveLatestContextWindowSnapshot } from "../lib/contextWindow";
+import {
+  deriveLatestContextWindowSnapshot,
+  latestProviderTurnTokenUsage,
+} from "../lib/contextWindow";
 import {
   MOBILE_COMPOSER_VIEW_TRANSITION_NAME,
   MOBILE_DRAFT_HEADLINE_VIEW_TRANSITION_NAME,
@@ -379,8 +381,7 @@ const EMPTY_AUTO_UPDATE_ENVIRONMENTS: ReadonlyArray<EnvironmentPresentation> = [
 
 const EMPTY_PENDING_FILE_SURFACE_IDS: ReadonlySet<string> = new Set();
 
-type ChatViewProps =
-  | {
+type ChatViewProps = {
       environmentId: EnvironmentId;
       threadId: ThreadId;
       onDiffPanelOpen?: () => void;
@@ -454,7 +455,7 @@ export default function ChatView(props: ChatViewProps) {
   const providersByEnvironment = useEnvironmentProviders();
   const primaryEnvironment = usePrimaryEnvironment();
   const environmentById = new Map(
-    environments.map((environment) => [environment.environmentId, environment]),
+    environments.map((environment) => [environment.environmentId, environment])
   );
   const baseComposerDraftTarget: ScopedThreadRef | DraftId =
     routeKind === "server" ? routeThreadRef : props.draftId;
@@ -463,7 +464,7 @@ export default function ChatView(props: ChatViewProps) {
       ? store.getDraftSessionByRef(routeThreadRef)
       : draftId
         ? store.getDraftSession(draftId)
-        : null,
+        : null
   );
   const serverThreadShell = useQuietThreadShell(routeThreadRef);
   const routeThreadDetailRef = resolveThreadDetailRef(routeThreadRef, {
@@ -496,13 +497,11 @@ export default function ChatView(props: ChatViewProps) {
     composerRef,
   });
   const composerDraftTarget = queuedRunEdit.draftTarget;
-  const artifactDraftKey =
-    typeof composerDraftTarget === "string"
-      ? composerDraftTarget
-      : scopedThreadKey(composerDraftTarget);
-  const artifactDraftTargetRef = useRef(artifactDraftKey);
-  artifactDraftTargetRef.current = artifactDraftKey;
-  const reportedModelSelection = serverProjection
+  const artifactDraftKey = typeof composerDraftTarget === "string"
+        ? composerDraftTarget: scopedThreadKey (composerDraftTarget);
+    const artifactDraftTargetRef = useRef(artifactDraftKey);
+    artifactDraftTargetRef.current = artifactDraftKey;
+    const reportedModelSelection = serverProjection
     ? deriveReportedModelSelection(serverProjection)
     : null;
   const threadStatus = useThreadStatus(routeThreadDetailRef);
@@ -513,12 +512,12 @@ export default function ChatView(props: ChatViewProps) {
   });
   const threadDetailLoading = threadSyncPhase === "loading";
   const activeProviderThread = serverProjection?.providerThreads.find(
-    (thread) => thread.id === serverProjection.thread.activeProviderThreadId,
+    (thread) => thread.id === serverProjection.thread.activeProviderThreadId
   );
   const activeThreadLiveTokenUsage = latestProviderTurnTokenUsage(
     serverProjection?.providerTurns ?? [],
     serverProjection,
-    activeProviderThread,
+    activeProviderThread
   );
   const serverVisibleTurnItems = useQuietThreadVisibleTurnItems(routeThreadDetailRef);
   const serverThreadHistory = useThreadHistory(routeThreadDetailRef);
@@ -571,13 +570,13 @@ export default function ChatView(props: ChatViewProps) {
   })() as AssistantCitationRequest | null;
   const { resolvedTheme } = useTheme();
   const composerRuntimeMode = useComposerDraftStore(
-    (store) => store.getComposerDraft(composerDraftTarget)?.runtimeMode ?? null,
+    (store) => store.getComposerDraft(composerDraftTarget)?.runtimeMode ?? null
   );
   const composerInteractionMode = useComposerDraftStore(
-    (store) => store.getComposerDraft(composerDraftTarget)?.interactionMode ?? null,
+    (store) => store.getComposerDraft(composerDraftTarget)?.interactionMode ?? null
   );
   const composerActiveProvider = useComposerDraftStore(
-    (store) => store.getComposerDraft(composerDraftTarget)?.activeProvider ?? null,
+    (store) => store.getComposerDraft(composerDraftTarget)?.activeProvider ?? null
   );
   const composerSelectedModelSelection = useComposerDraftStore((store) => {
     const draft = store.getComposerDraft(composerDraftTarget);
@@ -596,7 +595,7 @@ export default function ChatView(props: ChatViewProps) {
       // Linked prompts can replace text without pruning stored context records.
       const referenced = new Set(collectInlineContextIds(draft.prompt));
       return draft.threadContexts.filter((record) => referenced.has(record.contextId));
-    }),
+    })
   );
   const composerHasNonPromptContent = useComposerDraftStore((store) => {
     const draft = store.getComposerDraft(composerDraftTarget);
@@ -611,10 +610,10 @@ export default function ChatView(props: ChatViewProps) {
   const [restingComposerControlsHost, setRestingComposerControlsHost] =
     useState<HTMLDivElement | null>(null);
   const [contextControlsHost, setContextControlsHost] = useState<HTMLDivElement | null>(null);
-  const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useState(false);
+const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useState(false);
   const citeAssistantText = (
     citation: AssistantCitation,
-    sourceAnchor: AssistantCitationSourceAnchor,
+    sourceAnchor: AssistantCitationSourceAnchor
   ) => {
     const inserted = composerRef.current?.citeAssistantText(citation, sourceAnchor) ?? false;
     if (!inserted) {
@@ -642,7 +641,7 @@ export default function ChatView(props: ChatViewProps) {
   const feedbackSubmissions =
     feedbackSubmissionsByThreadKey[routeThreadKey] ?? EMPTY_FEEDBACK_SUBMISSIONS;
   const feedbackUploading = feedbackSubmissions.some(
-    (submission) => submission.status === "uploading",
+    (submission) => submission.status === "uploading"
   );
   const [localDraftErrorsByDraftId, setLocalDraftErrorsByDraftId] = useState<
     Record<string, LocalThreadErrorEntry>
@@ -652,7 +651,7 @@ export default function ChatView(props: ChatViewProps) {
   >({});
   const [isConnecting, _setIsConnecting] = useState(false);
   const isRevertingCheckpoint = useComposerDraftStore((store) =>
-    store.rewindingThreadKeys.has(routeThreadKey),
+    store.rewindingThreadKeys.has(routeThreadKey)
   );
 
   const workspaceFileDragRouteKey = `${routeThreadKey}:${draftId ?? ""}`;
@@ -705,10 +704,10 @@ export default function ChatView(props: ChatViewProps) {
   const { sendInFlight: sendInFlightRef } = draftSendState(routeThreadKey);
   const multipleModelSelections = useAtomValue(fanoutSelectionsAtom);
   const setMultipleModelSelections = (
-    selections: SetStateAction<ReadonlyArray<ModelSelection> | null>,
+    selections: SetStateAction<ReadonlyArray<ModelSelection> | null>
   ) => {
     appAtomRegistry.update(fanoutSelectionsAtom, (current) =>
-      typeof selections === "function" ? selections(current) : selections,
+      typeof selections === "function" ? selections(current) : selections
     );
   };
   const setMultipleModelSelectionsStable = useStableCallback(setMultipleModelSelections);
@@ -716,7 +715,7 @@ export default function ChatView(props: ChatViewProps) {
   const terminalUiOpenByThreadRef = useRef<Record<string, boolean>>({});
 
   const terminalUiState = useTerminalUiStateStore((state) =>
-    selectThreadTerminalUiState(state.terminalUiStateByThreadKey, routeThreadRef),
+    selectThreadTerminalUiState(state.terminalUiStateByThreadKey, routeThreadRef)
   );
 
   const fallbackDraftProjectRef = draftThread
@@ -753,8 +752,8 @@ export default function ChatView(props: ChatViewProps) {
         resolveProjectSettings(
           settings,
           fallbackDraftProject?.id ?? null,
-          fallbackDraftProject ?? undefined,
-        ).settings.defaultModelSelection ?? NO_PROVIDER_MODEL_SELECTION,
+          fallbackDraftProject ?? undefined
+        ).settings.defaultModelSelection ?? NO_PROVIDER_MODEL_SELECTION
       )
     : undefined;
   const isServerThread = serverThread !== null;
@@ -813,7 +812,7 @@ export default function ChatView(props: ChatViewProps) {
   const workflowOpeningParentProjection = useQuietThreadProjection(
     workflowOpeningParentId === null || parentSubagentEnvironmentId === null
       ? null
-      : scopeThreadRef(parentSubagentEnvironmentId, workflowOpeningParentId),
+      : scopeThreadRef(parentSubagentEnvironmentId, workflowOpeningParentId)
   );
   const workflowOpening =
     serverProjection === null || workflowOpeningParentId === null
@@ -837,7 +836,7 @@ export default function ChatView(props: ChatViewProps) {
   const visibleThreadError = shouldShowThreadErrorBanner(
     routeThreadKey,
     threadError,
-    isThreadErrorBannerDismissedForSession(threadErrorBannerKey),
+    isThreadErrorBannerDismissedForSession(threadErrorBannerKey)
   )
     ? threadError
     : null;
@@ -871,18 +870,18 @@ export default function ChatView(props: ChatViewProps) {
       return [];
     }
     return activeThreadKnownSessionsRaw.filter(
-      (session) => session.target.threadId === activeThreadId,
+      (session) => session.target.threadId === activeThreadId
     );
   })();
   const activeServerOrderedTerminalIds = activeThreadKnownSessions.map(
-    (session) => session.target.terminalId,
+    (session) => session.target.terminalId
   );
   const activeTerminalLabelsById = (() => {
     const labels = new Map<string, string>();
     for (const session of activeThreadKnownSessions) {
       labels.set(
         session.target.terminalId,
-        resolveTerminalSessionLabel(session.target.terminalId, session.state.summary),
+        resolveTerminalSessionLabel(session.target.terminalId, session.state.summary)
       );
     }
     return labels;
@@ -890,7 +889,7 @@ export default function ChatView(props: ChatViewProps) {
   const activeThreadRef = useActiveThreadRef(activeThread);
   const activeThreadKey = activeThreadRef ? scopedThreadKey(activeThreadRef) : null;
   const activeEnvironmentServerBrowser = useEnvironmentSupportsServerBrowser(
-    activeThreadRef?.environmentId ?? null,
+    activeThreadRef?.environmentId ?? null
   );
   const browserAvailable = isPreviewSupportedInRuntime() || activeEnvironmentServerBrowser;
   const activeThreadShell = serverThread;
@@ -917,7 +916,7 @@ export default function ChatView(props: ChatViewProps) {
   const anchorRunSettled = (() => {
     if (timelineAnchorMessageId === null) return false;
     const anchorRun = serverProjection?.runs.find(
-      (run) => run.userMessageId === timelineAnchorMessageId,
+      (run) => run.userMessageId === timelineAnchorMessageId
     );
     if (anchorRun === undefined) return false;
     return (
@@ -932,7 +931,7 @@ export default function ChatView(props: ChatViewProps) {
     setTimelineAnchor({ threadKey: activeThreadKey, messageId: null });
   }
   const activeRightPanelKind = useRightPanelStore((state) =>
-    selectActiveRightPanel(state.byThreadKey, activeThreadRef),
+    selectActiveRightPanel(state.byThreadKey, activeThreadRef)
   );
   const diffOpen = activeRightPanelKind === "diff";
   const explicitDiffOpenRef = useRef<ScopedThreadRef | null>(null);
@@ -944,10 +943,10 @@ export default function ChatView(props: ChatViewProps) {
     }
   }, [activeThreadRef, diffOpen]);
   const rightPanelState = useRightPanelStore((state) =>
-    selectThreadRightPanelState(state.byThreadKey, activeThreadRef),
+    selectThreadRightPanelState(state.byThreadKey, activeThreadRef)
   );
   const activeRightPanelSurface = useRightPanelStore((state) =>
-    selectActiveRightPanelSurface(state.byThreadKey, activeThreadRef),
+    selectActiveRightPanelSurface(state.byThreadKey, activeThreadRef)
   );
   const activePreviewState = useThreadPreviewState(activeThreadRef);
   const activePreviewServerEpoch = activePreviewState.serverEpoch;
@@ -956,12 +955,12 @@ export default function ChatView(props: ChatViewProps) {
     ? (tabId: string) => previewRuntimeTabId(activeThreadRef, activePreviewServerEpoch, tabId)
     : undefined;
   const activePreviewMiniPlayer = usePreviewMiniPlayerStore((state) =>
-    selectThreadPreviewMiniPlayer(state.byThreadKey, activeThreadRef),
+    selectThreadPreviewMiniPlayer(state.byThreadKey, activeThreadRef)
   );
   const panelTerminalIds = new Set(
     rightPanelState.surfaces.flatMap((surface) =>
-      surface.kind === "terminal" ? surface.terminalIds : [],
-    ),
+      surface.kind === "terminal" ? surface.terminalIds : []
+    )
   );
   const canReuseTerminal = activeThreadKnownSessionsRaw !== null;
   const previewPanelOpen = activeRightPanelKind === "preview" && browserAvailable;
@@ -977,7 +976,7 @@ export default function ChatView(props: ChatViewProps) {
     rightPanelPresenceValue,
     panelAnimationsActive,
     activeThreadKey,
-    panelAnimationDurationMs,
+    panelAnimationDurationMs
   );
   const rightPanelPresent = rightPanelPresence.present;
   const rightPanelControlsInPanel =
@@ -987,7 +986,7 @@ export default function ChatView(props: ChatViewProps) {
   const renderedRightPanelSurfaces = rightPanelPresence.value?.surfaces ?? [];
   const previewMiniPlayerVisible = shouldRenderPreviewMiniPlayer(
     activePreviewMiniPlayer?.source ?? null,
-    renderedRightPanelSurface,
+    renderedRightPanelSurface
   );
   const canMaximizeRightPanel = rightPanelOpen && !shouldUsePlanSidebarSheet;
   const rightPanelMaximized = canMaximizeRightPanel && rightPanelState.maximized === true;
@@ -999,8 +998,8 @@ export default function ChatView(props: ChatViewProps) {
     selectThreadPanelOpen(
       state.threadPanelVisibilityByThreadKey,
       activeThreadRef,
-      threadPanelPresentation,
-    ),
+      threadPanelPresentation
+    )
   );
 
   useEffect(() => {
@@ -1008,14 +1007,14 @@ export default function ChatView(props: ChatViewProps) {
     const hiddenTabIds = new Set(
       Object.values(activePreviewState.sessions)
         .filter((session) => session.runtime === "server" && session.reveal === false)
-        .map((session) => session.tabId),
+        .map((session) => session.tabId)
     );
     useRightPanelStore
       .getState()
       .reconcileBrowserSurfaces(
         activeThreadRef,
         Object.keys(activePreviewState.sessions),
-        hiddenTabIds,
+        hiddenTabIds
       );
   }, [activePreviewState.sessions, activeThreadRef, previewSessionsReady]);
 
@@ -1038,7 +1037,7 @@ export default function ChatView(props: ChatViewProps) {
     serverProjection,
     activePlan,
     activeActivityRun?.runId ?? null,
-    activeActivityRunSettled,
+    activeActivityRunSettled
   );
   const activeComposerTasksProgress = (() => {
     if (!composerTasksPlan) return null;
@@ -1046,7 +1045,7 @@ export default function ChatView(props: ChatViewProps) {
     const totalSteps = composerTasksPlan.steps.length;
     if (totalSteps === 0) return null;
     const completedSteps = composerTasksPlan.steps.filter(
-      (step) => step.status === "completed",
+      (step) => step.status === "completed"
     ).length;
     const step =
       composerTasksPlan.steps.find((candidate) => candidate.status === "inProgress")?.step ??
@@ -1066,7 +1065,7 @@ export default function ChatView(props: ChatViewProps) {
   const activeProjectSettings = resolveProjectSettings(
     settings,
     activeProject?.id ?? null,
-    activeProject ?? undefined,
+    activeProject ?? undefined
   );
   const activeProjectScripts = activeProject ? resolveProjectScripts(settings, activeProject) : [];
   const { projectCloneBannerItem, projectCloneSendBlockReason } =
@@ -1090,7 +1089,7 @@ export default function ChatView(props: ChatViewProps) {
   };
   const handleOpenDraftProjectSettingsStable = useStableCallback(handleOpenDraftProjectSettings);
   const activeEnvironmentBootstrapComplete = useEnvironmentShellHasSnapshot(
-    activeThread?.environmentId ?? null,
+    activeThread?.environmentId ?? null
   );
   const activeProjectKey = activeProject
     ? `${activeProject.environmentId}:${activeProject.workspaceRoot}`
@@ -1149,17 +1148,17 @@ export default function ChatView(props: ChatViewProps) {
     activeProject !== null &&
     isScratchProject(
       activeProject,
-      environmentById.get(activeProject.environmentId)?.serverConfig?.scratchWorkspaceRoot ?? null,
+      environmentById.get(activeProject.environmentId)?.serverConfig?.scratchWorkspaceRoot ?? null
     );
   const logicalProjectEnvironments = useLogicalProjectEnvironments(
     activeProject,
-    activeProjectIsScratch && draftId !== null,
+    activeProjectIsScratch && draftId !== null
   );
   const hasMultipleEnvironments = logicalProjectEnvironments.length > 1;
   const canAutoBalanceEnvironments = hasMultipleEnvironments && !activeProjectIsScratch;
   const activeEnvironmentOption =
     logicalProjectEnvironments.find(
-      (environment) => environment.environmentId === activeThread?.environmentId,
+      (environment) => environment.environmentId === activeThread?.environmentId
     ) ?? null;
   const showComposerEnvironmentIndicator = shouldShowEnvironmentIndicator({
     activeEnvironment: activeEnvironmentOption,
@@ -1232,7 +1231,7 @@ export default function ChatView(props: ChatViewProps) {
     draftThread?.environmentSelection !== "manual" &&
     (!composerHasAttachments || Boolean(draftThread?.loadBalancedEnvironmentId)) &&
     (!draftThread?.branch || draftThread.environmentSelection === "auto") &&
-    !draftThread?.worktreePath,
+    !draftThread?.worktreePath
   );
   const autoUpdateEnvironments = automaticEnvironment
     ? logicalProjectEnvironments.flatMap(({ environmentId }) => {
@@ -1254,8 +1253,8 @@ export default function ChatView(props: ChatViewProps) {
     applyProviderInstanceSettings(
       deriveProviderInstanceEntries(providerStatuses),
       settings,
-      activeProject?.id ?? null,
-    ),
+      activeProject?.id ?? null
+    )
   );
   const activeThreadModelInstanceId = activeThread?.modelSelection.instanceId;
   const { selectedProviderEntry, requestedDriverKind } = resolveComposerProviderSelection({
@@ -1386,7 +1385,7 @@ export default function ChatView(props: ChatViewProps) {
   });
   const optimisticCompactionMessage = optimisticUserMessages.at(-1);
   const latestServerUserItem = serverVisibleTurnItems.findLast(
-    (row) => row.item.type === "user_message",
+    (row) => row.item.type === "user_message"
   )?.item;
   const compactRequestIsActive =
     (isSendBusy &&
@@ -1404,14 +1403,14 @@ export default function ChatView(props: ChatViewProps) {
       (item.status === "completed" ||
         item.status === "failed" ||
         item.status === "interrupted" ||
-        item.status === "cancelled"),
+        item.status === "cancelled")
   );
   const compactionRunning = serverVisibleTurnItems.some(
     ({ item }) =>
       item.type === "compaction" &&
       item.runId !== null &&
       item.runId === activeRuntime?.activeRunId &&
-      item.status === "running",
+      item.status === "running"
   );
   const isCompacting =
     (isSendBusy || phase === "connecting" || phase === "running") &&
@@ -1425,7 +1424,7 @@ export default function ChatView(props: ChatViewProps) {
   const activeContextWindow = deriveLatestContextWindowSnapshot(
     serverVisibleTurnItems ?? [],
     activeThreadLiveTokenUsage,
-    activeProviderThread,
+    activeProviderThread
   );
   const pendingBackgroundTasks = deriveThreadPendingBackgroundTasks(serverProjection);
   const activeWorkStartedAt =
@@ -1481,7 +1480,7 @@ export default function ChatView(props: ChatViewProps) {
       : [
           { ...codexFeedbackMessage(submission), runId: null },
           { ...codexFeedbackMessage(submission, "assistant"), runId: null },
-        ],
+        ]
   );
   const timelineEntriesInput = {
     optimisticMessages: optimisticUserMessages,
@@ -1512,11 +1511,11 @@ export default function ChatView(props: ChatViewProps) {
         kind: "message",
         createdAt: message.createdAt,
         message,
-      }) as const,
+      }) as const
   );
   const timelineEntries = isServerThread ? serverTimelineEntries : draftTimelineEntries;
   const timelineMessages = timelineEntries.flatMap((entry) =>
-    entry.kind === "message" ? [entry.message] : [],
+    entry.kind === "message" ? [entry.message] : []
   );
   const timelineEmpty = timelineEntries.length === 0 && !hasStreamedTimelineRows;
   const displayedTimeline = resolveThreadSwitchTimeline({
@@ -1528,7 +1527,7 @@ export default function ChatView(props: ChatViewProps) {
   const displayedTimelineKey = displayedTimeline.displayThreadKey ?? routeThreadKey;
   const paintOnlyDisplayedTimeline = isPaintOnlyThreadTimeline(
     displayedTimeline.displayThreadKey,
-    activeThreadKey,
+    activeThreadKey
   );
   const displayedThreadRef = parseScopedThreadKey(displayedTimelineKey);
   const {
@@ -1572,7 +1571,7 @@ export default function ChatView(props: ChatViewProps) {
   } = useDraftHeroLayoutTransition(
     isDraftHeroState,
     panelAnimationsActive,
-    panelAnimationDurationMs,
+    panelAnimationDurationMs
   );
   const turnDiffSummaries = useThreadCheckpointSummaries(routeThreadDetailRef);
   const availableRevertTurnCounts = deriveAvailableRevertTurnCounts(serverProjection);
@@ -1583,7 +1582,7 @@ export default function ChatView(props: ChatViewProps) {
 
   const workspaceMutationId = deriveWorkspaceMutationId(
     serverVisibleTurnItems,
-    turnDiffSummaries.at(-1)?.completedAt ?? null,
+    turnDiffSummaries.at(-1)?.completedAt ?? null
   );
 
   const gitCwd = activeProject
@@ -1599,7 +1598,7 @@ export default function ChatView(props: ChatViewProps) {
       : vcsEnvironment.status({
           environmentId,
           input: { cwd: gitStatusCwd },
-        }),
+        })
   );
   useWorkspaceMutationRefresh({
     enabled: gitStatusCwd !== null,
@@ -1638,7 +1637,7 @@ export default function ChatView(props: ChatViewProps) {
     useLocalStorage(
       `t3code:resume-compaction-dismissed:${environmentId}:${activeProviderInstanceId ?? "claudeAgent"}`,
       false,
-      Schema.Boolean,
+      Schema.Boolean
     );
   const nativeResumeCompactionDismissed = hasDismissedResumeCompaction(
     (serverProjection?.runtimeRequests ?? [])
@@ -1646,7 +1645,7 @@ export default function ChatView(props: ChatViewProps) {
       .map((request) => ({
         kind: "user-input.resolved",
         payload: { answers: request.answers },
-      })),
+      }))
   );
   useEffect(() => {
     if (nativeResumeCompactionDismissed && !resumeCompactionPermanentlyDismissed) {
@@ -1666,7 +1665,7 @@ export default function ChatView(props: ChatViewProps) {
   }
   const visibleProviderStatus = shouldShowProviderStatusBanner(
     activeProviderStatus,
-    dismissedProviderStatusBannerKey,
+    dismissedProviderStatusBannerKey
   )
     ? activeProviderStatus
     : null;
@@ -1697,11 +1696,11 @@ export default function ChatView(props: ChatViewProps) {
     ? resolveSelectableModel(
         selectedProviderEntry.driverKind,
         activeThread?.modelSelection.model,
-        providerSubagentModels,
+        providerSubagentModels
       )
     : null;
   const providerSubagentCatalogModel = providerSubagentModels.find(
-    (model) => model.slug === providerSubagentModelSlug,
+    (model) => model.slug === providerSubagentModelSlug
   );
   const providerSubagentModelLabel = providerSubagentCatalogModel
     ? getTriggerDisplayModelName(providerSubagentCatalogModel)
@@ -1712,7 +1711,7 @@ export default function ChatView(props: ChatViewProps) {
       : formatModelSelectionEffort(
           activeThread.modelSelection,
           providerSubagentModels,
-          reportedModelSelection,
+          reportedModelSelection
         );
   const mountComposerContextStrip = shouldShowComposerContextStrip({
     isDraftHeroState,
@@ -1742,22 +1741,22 @@ export default function ChatView(props: ChatViewProps) {
   const splitTerminalShortcutLabel = shortcutLabelForCommand(
     keybindings,
     "terminal.split",
-    terminalShortcutLabelOptions,
+    terminalShortcutLabelOptions
   );
   const splitTerminalVerticalShortcutLabel = shortcutLabelForCommand(
     keybindings,
     "terminal.splitVertical",
-    terminalShortcutLabelOptions,
+    terminalShortcutLabelOptions
   );
   const newTerminalShortcutLabel = shortcutLabelForCommand(
     keybindings,
     "terminal.new",
-    terminalShortcutLabelOptions,
+    terminalShortcutLabelOptions
   );
   const closeTerminalShortcutLabel = shortcutLabelForCommand(
     keybindings,
     "terminal.close",
-    terminalShortcutLabelOptions,
+    terminalShortcutLabelOptions
   );
 
   const {
@@ -1807,7 +1806,7 @@ export default function ChatView(props: ChatViewProps) {
       const error = squashAtomCommandFailure(result);
       setThreadError(
         activeThread.id,
-        error instanceof Error ? error.message : "Failed to interrupt the current turn.",
+        error instanceof Error ? error.message : "Failed to interrupt the current turn."
       );
     }
   };
@@ -1901,18 +1900,18 @@ export default function ChatView(props: ChatViewProps) {
   });
   const canOperatePreview = useEnvironmentScope(
     activeThreadRef?.environmentId ?? null,
-    AuthPreviewOperateScope,
+    AuthPreviewOperateScope
   );
   const supportsThreadPullRequests =
     serverConfig?.environment.capabilities.threadPullRequests === true;
   const visiblePullRequests = visibleThreadPullRequests(
-    (activeThreadShell ?? activeThread)?.pullRequests ?? [],
+    (activeThreadShell ?? activeThread)?.pullRequests ?? []
   );
   const visiblePullRequestCount = visiblePullRequests.length;
   const pullRequestsSurfaceAvailable =
     isServerThread && supportsThreadPullRequests && visiblePullRequestCount > 0;
   const { state: deviceState, loaded: deviceStateLoaded } = useDeviceState(
-    activeThreadRef?.environmentId ?? null,
+    activeThreadRef?.environmentId ?? null
   );
   useAgentOpenedPreviews({
     threadRef: activeThreadRef,
@@ -1927,7 +1926,7 @@ export default function ChatView(props: ChatViewProps) {
   // The thread's own change request, placed against the project it belongs to. Without a
   // project there is nothing to resolve it against, so the caller falls back to the browser.
   const activeProjectRepository = sourceControlRepositorySelector(
-    activeProject?.repositoryIdentity,
+    activeProject?.repositoryIdentity
   );
   const {
     linked: linkedThreadPullRequest,
@@ -1946,7 +1945,7 @@ export default function ChatView(props: ChatViewProps) {
   });
   const proactivePullRequestsKey = pullRequestsSurfaceAvailable
     ? JSON.stringify(
-        visiblePullRequests.map((link) => [link.host, link.repository, link.number]).sort(),
+        visiblePullRequests.map((link) => [link.host, link.repository, link.number]).sort()
       )
     : linkedThreadPullRequestKey;
   const activeRunningTurnId = activeRuntime?.activeRunId ?? null;
@@ -2011,7 +2010,7 @@ export default function ChatView(props: ChatViewProps) {
             ...metadataUpdate,
           },
         }),
-        () => undefined,
+        () => undefined
       );
       if (result._tag === "Failure") {
         return result;
@@ -2028,7 +2027,7 @@ export default function ChatView(props: ChatViewProps) {
             createdAt: input.createdAt,
           },
         }),
-        () => undefined,
+        () => undefined
       );
       if (result._tag === "Failure") {
         return result;
@@ -2045,7 +2044,7 @@ export default function ChatView(props: ChatViewProps) {
             createdAt: input.createdAt,
           },
         }),
-        () => undefined,
+        () => undefined
       );
     }
     return result;
@@ -2123,14 +2122,14 @@ export default function ChatView(props: ChatViewProps) {
       return;
     }
     const removedMessages = optimisticUserMessages.filter((message) =>
-      serverAcknowledgedUserMessageIds.has(message.id),
+      serverAcknowledgedUserMessageIds.has(message.id)
     );
     if (removedMessages.length === 0) {
       return;
     }
     const timer = window.setTimeout(() => {
       setOptimisticUserMessages((existing) =>
-        existing.filter((message) => !serverAcknowledgedUserMessageIds.has(message.id)),
+        existing.filter((message) => !serverAcknowledgedUserMessageIds.has(message.id))
       );
     }, 0);
     for (const removedMessage of removedMessages) {
@@ -2183,7 +2182,7 @@ export default function ChatView(props: ChatViewProps) {
     activeThread &&
     activeMessageCount === 0 &&
     activeThread.worktreePath === null &&
-    !envLocked,
+    !envLocked
   );
   if (
     !canOverrideServerThreadEnvMode &&
@@ -2237,23 +2236,23 @@ export default function ChatView(props: ChatViewProps) {
       composerReportedResting: composerRestingRef.current,
     });
     const modelStrip = composerOverlayElement?.querySelector<HTMLElement>(
-      '[data-composer-model-strip="true"]',
+      '[data-composer-model-strip="true"]'
     );
     const restingOnlyHeight =
       modelStrip && isResting
         ? Math.max(
             0,
-            modelStrip.offsetHeight + Number.parseFloat(getComputedStyle(modelStrip).marginTop),
+            modelStrip.offsetHeight + Number.parseFloat(getComputedStyle(modelStrip).marginTop)
           )
         : 0;
     const noticeStack = composerOverlayElement?.querySelector<HTMLElement>(
-      '[data-composer-banner-stack="true"]',
+      '[data-composer-banner-stack="true"]'
     );
     const expandedNoticesHeight = noticeStack
       ? Math.max(
           0,
           noticeStack.getBoundingClientRect().height -
-            Number.parseFloat(getComputedStyle(noticeStack).minHeight),
+            Number.parseFloat(getComputedStyle(noticeStack).minHeight)
         )
       : 0;
     const nextInset = resolveComposerTimelineInset({
@@ -2276,12 +2275,12 @@ export default function ChatView(props: ChatViewProps) {
     // the reservation follows it up. A hero composer's overlay fills the pane,
     // so only its stack counts there.
     const stack = composerOverlayElement?.querySelector<HTMLElement>(
-      '[data-chat-composer-stack="true"]',
+      '[data-chat-composer-stack="true"]'
     );
     const expandedComposerHeight =
       isDraftHeroState && stack ? Math.ceil(stack.getBoundingClientRect().height) : nextInset;
     const mobileCollapsed = Boolean(
-      stack?.querySelector('[data-chat-composer-mobile-collapsed="true"]'),
+      stack?.querySelector('[data-chat-composer-mobile-collapsed="true"]')
     );
     if (!mobileCollapsed) composerExpandedHeightRef.current = expandedComposerHeight;
     const reservedHeight = Math.max(composerExpandedHeightRef.current, expandedComposerHeight);
@@ -2290,10 +2289,10 @@ export default function ChatView(props: ChatViewProps) {
       setComposerReservedHeight(reservedHeight);
     }
     const mainSurface = composerOverlayElement?.querySelector<HTMLElement>(
-      '[data-chat-composer-main-surface="true"]',
+      '[data-chat-composer-main-surface="true"]'
     );
     const button = composerOverlayElement?.parentElement?.querySelector<HTMLElement>(
-      'button[aria-label="Scroll to end"]',
+      'button[aria-label="Scroll to end"]'
     );
     const clearance =
       composerOverlayElement && mainSurface && button
@@ -2303,9 +2302,9 @@ export default function ChatView(props: ChatViewProps) {
             button: button.getBoundingClientRect(),
             attachments: Array.from(
               composerOverlayElement.querySelectorAll<HTMLElement>(
-                '[data-composer-banner-surface="attached"]',
+                '[data-composer-banner-surface="attached"]'
               ),
-              (element) => element.getBoundingClientRect(),
+              (element) => element.getBoundingClientRect()
             ),
           })
         : nextHeight;
@@ -2342,7 +2341,7 @@ export default function ChatView(props: ChatViewProps) {
       : null;
     return observeResize(
       stack ? [composerOverlayElement, stack] : composerOverlayElement,
-      updateHeight,
+      updateHeight
     );
   }, [
     composerOverlayElement,
@@ -2388,10 +2387,10 @@ export default function ChatView(props: ChatViewProps) {
           stackedThreadToast({
             type: "error",
             title: target.failureTitle,
-            description: error instanceof Error ? error.message : "An error occurred.",
-          }),
+            description: error instanceof Error ? error.message : uiText("An error occurred."),
+          })
         );
-      },
+      }
     );
   };
   const pullRequestPanelTarget = activeThread
@@ -2447,6 +2446,8 @@ export default function ChatView(props: ChatViewProps) {
     onDiffPanelOpen,
     closeRightPanelSurface,
   });
+  useEffect(() => onToggleThreadPanelRequest(toggleThreadPanelStable), [toggleThreadPanelStable]);
+
   const pullRequestSurfaceAvailable = supportsPullRequests && pullRequestPanelTarget !== null;
   const nowMinute = useNowMinute();
   const {
@@ -2502,19 +2503,19 @@ export default function ChatView(props: ChatViewProps) {
   const activeThreadHasCompactableConversation = serverVisibleTurnItems.some(
     ({ item }) =>
       item.type === "user_message" &&
-      (item.text.trim().toLowerCase() !== "/compact" || item.attachments.length > 0),
+      (item.text.trim().toLowerCase() !== "/compact" || item.attachments.length > 0)
   );
   const pendingHandoffSelection = composerSelectedModelSelection ?? activeThread?.modelSelection;
   const pendingHandoffSelectionUsable = providerInstanceEntries.some(
     (entry) =>
       entry.instanceId === pendingHandoffSelection?.instanceId &&
       entry.enabled &&
-      entry.isAvailable,
+      entry.isAvailable
   );
   const pendingHandoff = resolvePendingHandoff(
     serverProjection,
     pendingHandoffSelectionUsable ? pendingHandoffSelection : null,
-    providerStatuses,
+    providerStatuses
   );
   const compactThreadUnavailable =
     !canOperateThread ||
@@ -2546,7 +2547,7 @@ export default function ChatView(props: ChatViewProps) {
     activeContextWindow &&
     resolveIdleCompaction(
       settings,
-      activeProviderInstanceId ?? ProviderInstanceId.make("claudeAgent"),
+      activeProviderInstanceId ?? ProviderInstanceId.make("claudeAgent")
     ) !== "off" &&
     !resumeCompactionPermanentlyDismissed &&
     !nativeResumeCompactionDismissed &&
@@ -2563,7 +2564,7 @@ export default function ChatView(props: ChatViewProps) {
       ? activeContextWindow.usedTokens
       : null;
   const [fullHistoryThreadKeys, setFullHistoryThreadKeys] = useState<ReadonlySet<string>>(
-    () => new Set(),
+    () => new Set()
   );
   const keepFullHistory = fullHistoryThreadKeys.has(routeThreadKey);
   const setKeepFullHistory = (threadKey: string, keep: boolean) => {
@@ -2591,7 +2592,7 @@ export default function ChatView(props: ChatViewProps) {
       setFeedbackSubmissionsByThreadKey((current) => ({
         ...current,
         [routeThreadKey]: (current[routeThreadKey] ?? []).filter(
-          (entry) => entry.id !== submission.id,
+          (entry) => entry.id !== submission.id
         ),
       }));
     });
@@ -2619,7 +2620,7 @@ export default function ChatView(props: ChatViewProps) {
   const composerBannerItems = (() => {
     const limitRecoveryItems = limitRecoveryBanner === null ? [] : [limitRecoveryBanner];
     const backgroundWorkItems = [childInputBanner, goalBanner, backgroundWorkBanner].filter(
-      (item) => item !== null,
+      (item) => item !== null
     );
     const usageLimitsItems = usageLimitsBanner === null ? [] : [usageLimitsBanner];
     const projectCloneItems = projectCloneBannerItem === null ? [] : [projectCloneBannerItem];
@@ -2743,7 +2744,7 @@ export default function ChatView(props: ChatViewProps) {
         if (event.repeat) return;
         const currentId = readPendingEnvironmentChange()?.environmentId ?? environmentId;
         const index = logicalProjectEnvironments.findIndex(
-          (env) => env.environmentId === currentId,
+          (env) => env.environmentId === currentId
         );
         const next = logicalProjectEnvironments[(index + 1) % logicalProjectEnvironments.length];
         if (next) onEnvironmentChangeStable(next.environmentId);
@@ -2960,7 +2961,7 @@ export default function ChatView(props: ChatViewProps) {
   const onComposerSendStable = useStableCallback(onSend);
   const sendPreviewAnnotation = (
     annotation: PreviewAnnotationPayload,
-    image: ComposerImageAttachment | null,
+    image: ComposerImageAttachment | null
   ) => {
     void onSend(undefined, "auto", "foreground", { annotation, image });
   };
@@ -3035,14 +3036,14 @@ export default function ChatView(props: ChatViewProps) {
 
   const pendingSidebarFileDrops = useSidebarPendingFileDropStore((state) => state.pending);
   const consumePendingFileDrop = useSidebarPendingFileDropStore(
-    (state) => state.consumePendingFileDrop,
+    (state) => state.consumePendingFileDrop
   );
   useEffect(() => {
     if (pendingSidebarFileDrops.length === 0) return;
     if (
       typeof composerDraftTarget === "string" ||
       !pendingSidebarFileDrops.some((drop) =>
-        isSameSidebarThreadRef(composerDraftTarget, drop.threadRef),
+        isSameSidebarThreadRef(composerDraftTarget, drop.threadRef)
       )
     ) {
       return;
@@ -3068,11 +3069,11 @@ export default function ChatView(props: ChatViewProps) {
 
   const addDroppedFilesToComposer = useStableCallback(
     (files: Parameters<ChatComposerHandle["addDroppedFiles"]>[0]) =>
-      composerRef.current?.addDroppedFiles(files),
+      composerRef.current?.addDroppedFiles(files)
   );
   const addDroppedFoldersToComposer = useStableCallback(
     (folders: Parameters<ChatComposerHandle["addDroppedFolders"]>[0]) =>
-      composerRef.current?.addDroppedFolders(folders),
+      composerRef.current?.addDroppedFolders(folders)
   );
 
   if (!activeThread) {
@@ -3172,7 +3173,7 @@ export default function ChatView(props: ChatViewProps) {
   const content = (
     <div
       ref={setWorkspaceLayoutElement}
-      className={"relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-background"}
+      className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-background"
     >
       <DeviceSetupDialogHost
         threadKey={activeThreadKey}
@@ -3183,7 +3184,7 @@ export default function ChatView(props: ChatViewProps) {
       <div
         className={cn(
           "flex min-h-0 min-w-0 flex-col overflow-x-hidden",
-          rightPanelMaximized ? "w-0 flex-none" : "flex-1",
+          rightPanelMaximized ? "w-0 flex-none" : "flex-1"
         )}
         data-chat-column-maximized-away={rightPanelMaximized ? "true" : "false"}
         data-chat-column
@@ -3198,18 +3199,16 @@ export default function ChatView(props: ChatViewProps) {
                   "drag-region flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center px-3 sm:px-5",
                   reserveTitleBarControlInset &&
                     !inlineRightPanelOwnsTitleBar &&
-                    "wco:pr-(--workspace-native-controls-inset)",
+                    "wco:pr-(--workspace-native-controls-inset)"
                 )
               : "flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center pl-(--workspace-gutter-start) pr-(--workspace-gutter-end)",
-            COLLAPSED_SIDEBAR_TITLEBAR_INSET_CLASS,
+            COLLAPSED_SIDEBAR_TITLEBAR_INSET_CLASS
           )}
         >
           {isElectron && rightPanelControlsAtRoot ? (
             <span
               aria-hidden
-              className={
-                "pointer-events-none fixed top-[var(--workspace-controls-top)] right-[var(--workspace-controls-right)] h-[var(--workspace-topbar-height)] w-28 [-webkit-app-region:no-drag]"
-              }
+              className="pointer-events-none fixed top-[var(--workspace-controls-top)] right-[var(--workspace-controls-right)] h-[var(--workspace-topbar-height)] w-28 [-webkit-app-region:no-drag]"
             />
           ) : null}
           {!rightPanelControlsAtRoot && !rightPanelControlsInPanel ? panelLayoutControls : null}
@@ -3229,7 +3228,8 @@ export default function ChatView(props: ChatViewProps) {
               : {})}
           />
         </header>
-        <div className={"relative flex min-h-0 min-w-0 flex-1"}>
+
+        <div className="relative flex min-h-0 min-w-0 flex-1">
           <ThreadFindCanvas
             findOptions={{
               skills: timelineSkills,
@@ -3242,48 +3242,10 @@ export default function ChatView(props: ChatViewProps) {
             onOpenChange={setIsThreadFindActive}
             detailsCardTopInset={isThreadFindActive ? THREAD_FIND_BAR_RESERVED_HEIGHT : 0}
             composerOverlayElement={isDraftHeroState ? null : composerOverlayElement}
-            data-chat-workspace-drop-target={"true"}
+            data-chat-workspace-drop-target="true"
             onDragEnter={workspaceFileDropHandlers.onDragEnter}
             onDragOver={workspaceFileDropHandlers.onDragOver}
             onDragLeave={workspaceFileDropHandlers.onDragLeave}
-            onDragOverCapture={(event) => {
-              if (event.dataTransfer.types.includes(ARTIFACT_DRAG_TYPE)) {
-                event.preventDefault();
-                event.stopPropagation();
-                event.dataTransfer.dropEffect = "copy";
-              }
-            }}
-            onDropCapture={(event) => {
-              const data = event.dataTransfer.getData(ARTIFACT_DRAG_TYPE);
-              if (!data) return;
-              event.preventDefault();
-              event.stopPropagation();
-              try {
-                const payload = JSON.parse(data) as {
-                  environmentId?: string;
-                  artifact?: unknown;
-                };
-                if (payload.environmentId !== activeThread.environmentId) return;
-                const artifact = ArtifactSchema.decodeUnknownSync(WallArtifact)(payload.artifact);
-                const target = artifactDraftKey;
-                void fileFromArtifact(activeThread.environmentId, artifact)
-                  .then((file) => {
-                    // Preserve the drop's draft if the user navigates while the file is fetched.
-                    if (artifactDraftTargetRef.current === target)
-                      composerRef.current?.addDroppedFiles([file]);
-                    else
-                      toastManager.add({
-                        title: "会话已切换，请回到原会话重新附加",
-                        type: "error",
-                      });
-                  })
-                  .catch(() =>
-                    toastManager.add({ title: "无法附加产物，请刷新后重试", type: "error" }),
-                  );
-              } catch {
-                toastManager.add({ title: "无法识别产物", type: "error" });
-              }
-            }}
             onDrop={workspaceFileDropHandlers.onDrop}
           >
             <ThreadFind onClose={focusComposerStable} />
@@ -3355,7 +3317,7 @@ export default function ChatView(props: ChatViewProps) {
                     threadStatusLine
                   ) : (
                     <>
-                      <div className={"chat-content-lane"}>
+                      <div className="chat-content-lane">
                         <HandoffRow
                           environmentId={environmentId}
                           endpoints={pendingHandoff}
@@ -3455,26 +3417,22 @@ export default function ChatView(props: ChatViewProps) {
             <div
               ref={setComposerOverlayElement}
               inert={isRevertingCheckpoint}
-              data-chat-composer-overlay={"true"}
+              data-chat-composer-overlay="true"
               className={
                 isDraftHeroState
                   ? "pointer-events-none absolute inset-0 z-20 flex items-center"
                   : "pointer-events-none absolute inset-x-0 bottom-0 z-20 pt-1.5 sm:pt-2"
               }
             >
-              <div ref={draftHeroTransitionGroupRef} className={"chat-composer-lane w-full"}>
+              <div ref={draftHeroTransitionGroupRef} className="chat-composer-lane w-full">
                 <div
-                  data-chat-composer-stack={"true"}
-                  className={
-                    "group/composer-stack pointer-events-auto relative z-10 mx-auto w-full max-w-(--chat-content-max-width)"
-                  }
+                  data-chat-composer-stack="true"
+                  className="group/composer-stack pointer-events-auto relative z-10 mx-auto w-full max-w-(--chat-content-max-width)"
                 >
                   {isDraftHeroState ? (
-                    <div className={"absolute inset-x-0 bottom-full"}>
+                    <div className="absolute inset-x-0 bottom-full">
                       <div
-                        className={
-                          "pb-4 group-has-data-[composer-shoulder-tab]/composer-stack:pb-0"
-                        }
+                        className="pb-4 group-has-data-[composer-shoulder-tab]/composer-stack:pb-0"
                         style={
                           forceExpandedMobileComposer
                             ? { viewTransitionName: MOBILE_DRAFT_HEADLINE_VIEW_TRANSITION_NAME }
@@ -3491,7 +3449,7 @@ export default function ChatView(props: ChatViewProps) {
                   ) : null}
                   <div
                     ref={draftHeroComposerAnchorRef}
-                    className={"relative z-10"}
+                    className="relative z-10"
                     style={
                       forceExpandedMobileComposer
                         ? { viewTransitionName: MOBILE_COMPOSER_VIEW_TRANSITION_NAME }
@@ -3505,7 +3463,7 @@ export default function ChatView(props: ChatViewProps) {
                         inert={queuedRunEdit.isSaving}
                         aria-busy={queuedRunEdit.isSaving}
                       >
-                        <div className={"relative z-10"}>
+                        <div className="relative z-10">
                           {showProviderSubagentBar ? (
                             <ProviderSubagentBar
                               provider={selectedProviderEntry ?? null}
@@ -3513,7 +3471,7 @@ export default function ChatView(props: ChatViewProps) {
                                 selectedProviderEntry !== undefined &&
                                 shouldShowInstanceBadge(
                                   selectedProviderEntry,
-                                  providerInstanceEntries,
+                                  providerInstanceEntries
                                 )
                               }
                               modelLabel={providerSubagentModelLabel}
@@ -3526,51 +3484,24 @@ export default function ChatView(props: ChatViewProps) {
                               }
                             />
                           ) : null}
-                          {!isServerThread && draftId && activeProject ? (
-                            <DraftWorkspaceNotice
-                              draftId={draftId}
-                              project={activeProject}
-                              workspacePath={activeWorkspaceRoot ?? activeProject.workspaceRoot}
-                              canChange={() => !envLocked && !sendInFlightRef.current}
-                            />
-                          ) : null}
-                          {contextControlsHost &&
-                          isServerThread &&
-                          activeThreadShell &&
-                          serverProjection &&
-                          activeWorkspaceRoot
-                            ? createPortal(
-                                <ContextHandoffNotice
-                                  key={routeThreadKey}
-                                  environmentId={environmentId}
-                                  thread={activeThreadShell}
-                                  projection={serverProjection}
-                                  cwd={activeWorkspaceRoot}
-                                  enabled={settings.longConversationReminderEnabled}
-                                  onCompact={
-                                    manualCompactionProviderAvailable
-                                      ? () => composerRef.current?.compactContext()
-                                      : undefined
-                                  }
-                                  compactDisabled={compactDisabled}
-                                  showThroughput={settings.turnThroughputEnabled}
-                                  disconnected={
-                                    activeEnvironmentUnavailable ||
-                                    activeReconnectingEnvironmentId === environmentId
-                                  }
-                                  disabled={
-                                    isConnecting ||
-                                    activeEnvironmentUnavailable ||
-                                    isRevertingCheckpoint
-                                  }
-                                />,
-                                contextControlsHost,
-                              )
-                            : null}
-                          {!composerMounted ? null : (
+                          {!isServerThread && draftId && activeProject ? (<DraftWorkspaceNotice draftId={draftId} project={activeProject} workspacePath={activeWorkspaceRoot ?? activeProject.workspaceRoot} canChange={() => !envLocked && !sendInFlightRef.current}/>) : null}{contextControlsHost &&
+            isServerThread &&
+            activeThreadShell &&
+            serverProjection &&
+            activeWorkspaceRoot
+            ? createPortal(<ContextHandoffNotice key={routeThreadKey} environmentId={environmentId} thread={activeThreadShell} projection={serverProjection} cwd={activeWorkspaceRoot} enabled={settings.longConversationReminderEnabled} onCompact={manualCompactionProviderAvailable
+                    ? () => composerRef.current?.compactContext()
+                    : undefined} compactDisabled={compactDisabled
+                              } showThroughput={settings.turnThroughputEnabled
+                              } disconnected={activeEnvironmentUnavailable ||
+                    false} disabled={isConnecting ||
+                    activeEnvironmentUnavailable ||
+                    isRevertingCheckpoint
+                              }/>, contextControlsHost)
+            : null
+                              }{!composerMounted ? null : (
                             <ChatComposer
-                              canOperateThread={canOperateThread}
-                              onContextControlsHostChange={setContextControlsHost}
+                              canOperateThread={canOperateThread} onContextControlsHostChange={setContextControlsHost}
                               reportedModelSelection={reportedModelSelection}
                               multipleModelSelections={multipleModelSelections}
                               supportsMultipleModels={
@@ -3741,30 +3672,30 @@ export default function ChatView(props: ChatViewProps) {
                           )}
                         </div>
                       </ComposerSurface.Host>
-                      <div className={"min-h-0"}>
+                      <div className="min-h-0">
                         <div
                           data-terminal-open={terminalUiState.terminalOpen ? "true" : undefined}
-                          className={"relative z-0"}
+                          className="relative z-0"
                         >
                           {mountComposerModelStrip ? (
                             <ComposerSurface.ContextStrip
-                              data-composer-model-strip={"true"}
+                              data-composer-model-strip="true"
                               aria-hidden={showComposerModelStrip ? undefined : true}
                               inert={showComposerModelStrip ? undefined : true}
                               className={cn(
                                 "group-data-model-strip-transition/composer-surface:before:backdrop-blur-(--glass-blur) group-data-model-strip-transition/composer-surface:before:bg-(--chat-composer-glass-surface)/(--glass-opacity)",
                                 !showComposerModelStrip &&
-                                  "pointer-events-none invisible absolute inset-x-0 top-full",
+                                  "pointer-events-none invisible absolute inset-x-0 top-full"
                               )}
                             >
                               <div
                                 ref={setRestingComposerControlsHost}
-                                className={"min-w-0 flex-1"}
+                                className="min-w-0 flex-1"
                               />
                             </ComposerSurface.ContextStrip>
                           ) : null}
                           {mountComposerContextStrip && (
-                            <div className={"pointer-events-auto"}>
+                            <div className="pointer-events-auto">
                               <BranchToolbar
                                 forceNewWorktree={multipleModelSelections !== null}
                                 ref={branchToolbarRef}
@@ -3814,9 +3745,7 @@ export default function ChatView(props: ChatViewProps) {
                     </ComposerSurface.Shell>
                     <div
                       aria-hidden
-                      className={
-                        "h-[calc(env(safe-area-inset-bottom)+1rem)] sm:h-[calc(env(safe-area-inset-bottom)+1.25rem)]"
-                      }
+                      className="h-[calc(env(safe-area-inset-bottom)+1rem)] sm:h-[calc(env(safe-area-inset-bottom)+1.25rem)]"
                     />
                   </div>
                 </div>
@@ -3844,28 +3773,24 @@ export default function ChatView(props: ChatViewProps) {
               onConfirm={handleSwitchCheckoutToThreadStable}
             />
 
-            <ThreadDetailsPanel
-              continuation={{
-                thread: activeThread,
-                projection: serverProjection ?? null,
-                onQuote: (text) => {
-                  if (!activeThreadRef) return false;
-                  const inserted = composerRef.current?.insertTextAtCursor(text) ?? false;
-                  if (inserted) {
-                    useRightPanelStore
-                      .getState()
-                      .setThreadPanelOpen(activeThreadRef, "popover", false);
+            <ThreadDetailsPanel continuation={{
+            thread: activeThread,
+            projection: serverProjection ?? null,
+            onQuote: (text) => {
+            if (!activeThreadRef)
+                    return false;
+                const inserted = composerRef.current?.insertTextAtCursor(text) ?? false;
+                if (inserted) {
+              useRightPanelStore.getState().setThreadPanelOpen(activeThreadRef, "popover", false);
                     scheduleComposerFocus();
-                  }
-                  return inserted;
-                },
-              }}
-              onAttachArtifactFiles={(files) => {
-                if (artifactDraftTargetRef.current !== artifactDraftKey)
-                  throw new Error("会话已切换，请回到原会话重新附加");
-                composerRef.current?.addDroppedFiles(files);
-                scheduleComposerFocus();
-              }}
+          }
+                return inserted;
+            },
+        }} onAttachArtifactFiles={(files) => {
+            if (artifactDraftTargetRef.current !== artifactDraftKey)
+                throw new Error("会话已切换，请回到原会话重新附加");
+            composerRef.current?.addDroppedFiles(files);
+            scheduleComposerFocus();}}
               anchor={threadPanelPopoverAnchorRef}
               handle={threadPanelPopoverHandle}
               onPresentationChange={setThreadPanelPresentation}
@@ -4025,7 +3950,7 @@ export default function ChatView(props: ChatViewProps) {
   );
 }
 
-function PreviewSessionSync(props: { readonly threadRef: ScopedThreadRef }) {
+function PreviewSessionSync(props: { readonly threadRef: ScopedThreadRef; }) {
   usePreviewSession(props.threadRef);
   return null;
 }

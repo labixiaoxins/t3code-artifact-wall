@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { type OrchestrationV2ProviderTurn, type RunAttemptId } from "@t3tools/contracts";
 import {
   deriveLatestThreadRun,
@@ -115,13 +116,13 @@ const ENVIRONMENT_RECONNECT_WARNING_GRACE_MS = 2_000;
 
 export function agentControlledBrowserCloseConfirmation(
   surfaces: readonly RightPanelSurface[],
-  desktopByTabId: Readonly<Record<string, Pick<DesktopPreviewOverlay, "controller"> | undefined>>,
+  desktopByTabId: Readonly<Record<string, Pick<DesktopPreviewOverlay, "controller"> | undefined>>
 ): string | null {
   const activeBrowserCount = surfaces.filter(
     (surface) =>
       surface.kind === "preview" &&
       surface.resourceId !== null &&
-      desktopByTabId[surface.resourceId]?.controller === "agent",
+      desktopByTabId[surface.resourceId]?.controller === "agent"
   ).length;
   if (activeBrowserCount === 0) return null;
   if (activeBrowserCount === 1) {
@@ -138,7 +139,7 @@ export function agentControlledBrowserCloseConfirmation(
 
 export function shouldRenderPreviewMiniPlayer(
   source: PreviewMiniPlayerSource | null,
-  renderedRightPanelSurface: RightPanelSurface | null,
+  renderedRightPanelSurface: RightPanelSurface | null
 ): boolean {
   if (source === null) return false;
   if (source.kind === "browser") {
@@ -156,7 +157,7 @@ export function shouldRenderPreviewMiniPlayer(
 
 export function shouldOpenProactivePullRequest(
   previousTargetKey: string | null | undefined,
-  targetKey: string | null,
+  targetKey: string | null
 ): boolean {
   return targetKey !== null && targetKey !== previousTargetKey;
 }
@@ -171,11 +172,7 @@ interface ProactivePanelObservation {
 
 export function observeProactivePanelUserChoice(
   previous: ProactivePanelObservation | null,
-  input: {
-    threadKey: string;
-    runningTurnId: RunId | null;
-    userActionRevision: number;
-  },
+  input: { threadKey: string; runningTurnId: RunId | null; userActionRevision: number; }
 ): ProactivePanelObservation {
   const sameThread = previous?.threadKey === input.threadKey;
   const newTurn =
@@ -193,7 +190,7 @@ export function observeProactivePanelUserChoice(
 export function shouldRetargetThreadPullRequestPanel(
   previous: ThreadLinkedPullRequest | null,
   current: ThreadLinkedPullRequest | null,
-  surface: RightPanelSurface | null,
+  surface: RightPanelSurface | null
 ): boolean {
   if (previous === null || current === null || surface?.kind !== "pull-request") return false;
   const previousRepository = previous.repository.toLowerCase();
@@ -237,7 +234,7 @@ export function resolveProactiveTurnDiffAction(input: {
   }
   const changedLines = input.checkpoint.files.reduce(
     (total, file) => total + file.additions + file.deletions,
-    0,
+    0
   );
   return input.checkpoint.files.length >= 3 || changedLines >= 50 ? "open" : "ignore";
 }
@@ -258,7 +255,7 @@ export function resolveExplicitDiffOpenOnActivate(input: {
 
 export function codexArtifactTemplatePromptToAppend(
   currentDraft: string,
-  template: CodexArtifactTemplate,
+  template: CodexArtifactTemplate
 ): string | null {
   return appendCodexArtifactTemplateUsePrompt(currentDraft, template) === currentDraft
     ? null
@@ -387,7 +384,7 @@ function rememberThreadTimelineEntries(held: HeldThreadTimeline<readonly unknown
 }
 
 export function rememberReadyThreadTimeline<T extends readonly unknown[]>(
-  held: HeldThreadTimeline<T>,
+  held: HeldThreadTimeline<T>
 ): void {
   if (held.threadKey === null || held.entries.length === 0) {
     return;
@@ -396,7 +393,7 @@ export function rememberReadyThreadTimeline<T extends readonly unknown[]>(
 }
 
 export function peekRememberedThreadTimeline<T extends readonly unknown[]>(
-  threadKey: string | null,
+  threadKey: string | null
 ): T | null {
   if (threadKey === null) {
     return null;
@@ -405,7 +402,7 @@ export function peekRememberedThreadTimeline<T extends readonly unknown[]>(
 }
 
 export function peekHeldThreadTimeline<
-  T extends readonly unknown[],
+  T extends readonly unknown[]
 >(): HeldThreadTimeline<T> | null {
   if (lastReadyThreadKey === null) {
     return null;
@@ -434,7 +431,7 @@ export function threadKeysShareEnvironment(left: string | null, right: string | 
 
 export function isPaintOnlyThreadTimeline(
   displayThreadKey: string | null,
-  activeThreadKey: string | null,
+  activeThreadKey: string | null
 ): boolean {
   return (
     displayThreadKey !== null && activeThreadKey !== null && displayThreadKey !== activeThreadKey
@@ -447,10 +444,7 @@ export function resolveThreadSwitchTimeline<T extends readonly unknown[]>(input:
   nextEntries: T;
   rememberedForActive?: T | null;
   lastReady?: HeldThreadTimeline<T> | null;
-}): {
-  entries: T;
-  displayThreadKey: string | null;
-} {
+}): { entries: T; displayThreadKey: string | null; } {
   if (input.nextEntries.length > 0) {
     return { entries: input.nextEntries, displayThreadKey: input.activeThreadKey };
   }
@@ -489,14 +483,14 @@ export function scheduleEnvironmentReconnectWarning(showWarning: () => void): ()
 
 export function hasEnvironmentReconnectWarningGraceElapsed(
   activeEnvironmentId: EnvironmentId | null,
-  elapsedEnvironmentId: EnvironmentId | null,
+  elapsedEnvironmentId: EnvironmentId | null
 ): boolean {
   return activeEnvironmentId !== null && activeEnvironmentId === elapsedEnvironmentId;
 }
 
 export function startNewThreadForProject(
   projectRef: ScopedProjectRef | null,
-  handleNewThread: (projectRef: ScopedProjectRef) => Promise<unknown>,
+  handleNewThread: (projectRef: ScopedProjectRef) => Promise<unknown>
 ): boolean {
   if (projectRef === null) return false;
   void handleNewThread(projectRef);
@@ -534,7 +528,7 @@ export function resolveThreadMetadataUpdateForNextTurn(input: {
 export function buildLocalDraftThread(
   threadId: ThreadId,
   draftThread: DraftThreadState,
-  fallbackModelSelection: ModelSelection,
+  fallbackModelSelection: ModelSelection
 ): Thread {
   const timestamp = DateTime.makeUnsafe(draftThread.createdAt);
   return presentThreadShell(draftThread.environmentId, {
@@ -577,7 +571,7 @@ export function resolveComposerProviderSelection(input: {
   lockedInstanceId: ProviderInstanceId | null | undefined;
 }) {
   const requestedInstanceId = input.candidateInstanceIds.find(
-    (candidate) => candidate != null && candidate !== NO_PROVIDER_MODEL_SELECTION.instanceId,
+    (candidate) => candidate != null && candidate !== NO_PROVIDER_MODEL_SELECTION.instanceId
   );
   const requestedDriverKind =
     input.lockedProvider ??
@@ -597,19 +591,19 @@ export function resolveComposerProviderSelection(input: {
     (entry) =>
       (!input.lockedProvider || entry.driverKind === input.lockedProvider) &&
       (!lockedContinuationGroupKey || entry.continuationGroupKey === lockedContinuationGroupKey) &&
-      (!requiresExactInstance || entry.instanceId === input.lockedInstanceId),
+      (!requiresExactInstance || entry.instanceId === input.lockedInstanceId)
   );
   const selectedProviderEntry =
     input.candidateInstanceIds
       .map((candidate) =>
         compatibleEntries.find(
-          (entry) => entry.instanceId === candidate && entry.enabled && entry.isAvailable,
-        ),
+          (entry) => entry.instanceId === candidate && entry.enabled && entry.isAvailable
+        )
       )
       .find((entry) => entry !== undefined) ??
     resolveSelectableProviderInstanceEntry(
       compatibleEntries.filter((entry) => entry.driverKind === requestedDriverKind),
-      undefined,
+      undefined
     ) ??
     resolveSelectableProviderInstanceEntry(compatibleEntries, undefined);
   const unavailableProviderInstanceId = selectedProviderEntry
@@ -629,10 +623,7 @@ export function resolveComposerInteractionMode(input: {
   planModeEnabled: boolean;
   provider: Pick<ServerProvider, "showInteractionModeToggle"> | null | undefined;
   interactionMode: ProviderInteractionMode;
-}): {
-  enabled: boolean;
-  interactionMode: ProviderInteractionMode;
-} {
+}): { enabled: boolean; interactionMode: ProviderInteractionMode; } {
   const enabled =
     input.planModeEnabled &&
     input.provider != null &&
@@ -644,11 +635,10 @@ export function resolveComposerInteractionMode(input: {
 }
 
 export function getAntigravitySendBlockReason(
-  provider:
-    | Pick<ServerProvider, "driver" | "installed" | "auth" | "models" | "status">
+  provider: Pick<ServerProvider, "driver" | "installed" | "auth" | "models" | "status">
     | null
     | undefined,
-  model: string,
+  model: string
 ): string | null {
   if (provider?.driver !== "antigravity") return null;
   if (!provider.installed) {
@@ -682,11 +672,11 @@ export function reconcileMountedTerminalThreadIds(input: {
 }): string[] {
   const openThreadIdSet = new Set(input.openThreadIds);
   const hiddenThreadIds = input.currentThreadIds.filter(
-    (threadId) => threadId !== input.activeThreadId && openThreadIdSet.has(threadId),
+    (threadId) => threadId !== input.activeThreadId && openThreadIdSet.has(threadId)
   );
   const maxHiddenThreadCount = Math.max(
     0,
-    input.maxHiddenThreadCount ?? MAX_HIDDEN_MOUNTED_TERMINAL_THREADS,
+    input.maxHiddenThreadCount ?? MAX_HIDDEN_MOUNTED_TERMINAL_THREADS
   );
   const nextThreadIds =
     hiddenThreadIds.length > maxHiddenThreadCount
@@ -706,12 +696,8 @@ export function reconcileMountedTerminalThreadIds(input: {
 
 // Null identifies the project checkout when a launch or session is known.
 export function resolveTerminalWorktreePath(input: {
-  launchContext: {
-    readonly worktreePath: string | null;
-  } | null;
-  summary: {
-    readonly worktreePath: string | null;
-  } | null;
+  launchContext: { readonly worktreePath: string | null; } | null;
+  summary: { readonly worktreePath: string | null; } | null;
   threadWorktreePath: string | null;
 }): string | null {
   if (input.launchContext !== null) return input.launchContext.worktreePath;
@@ -778,10 +764,10 @@ export async function prepareRevertedMessageAttachments(input: {
       if (result._tag === "Failure") throw squashAtomCommandFailure(result);
       const url = resolveAssetUrl(input.httpBaseUrl, result.value.relativeUrl);
       if (url === null) throw new Error("The environment returned an invalid attachment URL.");
-      const response = await fetch(url, { signal: AbortSignal.timeout(30000) });
+      const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
       if (!response.ok) throw new Error(`Could not restore attachment: ${attachment.name}`);
       return new File([await response.blob()], attachment.name, { type: attachment.mimeType });
-    }),
+    })
   );
 }
 
@@ -798,17 +784,13 @@ export function revokeUserMessagePreviewUrls(message: ChatMessage): void {
 }
 
 export function timelineHasEphemeralPreviewUrls(
-  entries: ReadonlyArray<
-    Pick<TimelineEntry, "kind"> & {
-      message?: ChatMessage;
-    }
-  >,
+  entries: ReadonlyArray<Pick<TimelineEntry, "kind"> & { message?: ChatMessage; }>
 ): boolean {
   return entries.some(
     (entry) =>
       entry.kind === "message" &&
       entry.message !== undefined &&
-      collectUserMessageBlobPreviewUrls(entry.message).length > 0,
+      collectUserMessageBlobPreviewUrls(entry.message).length > 0
   );
 }
 
@@ -848,7 +830,7 @@ export function resolveBackgroundDraftWorkspaceOptions(input: {
 }
 
 export function cloneComposerImageForRetry(
-  image: ComposerImageAttachment,
+  image: ComposerImageAttachment
 ): ComposerImageAttachment {
   if (typeof URL === "undefined" || !image.previewUrl.startsWith("blob:")) {
     return image;
@@ -893,11 +875,8 @@ export function deriveComposerSendState(options: {
 
 export function buildExpiredTerminalContextToastCopy(
   expiredTerminalContextCount: number,
-  variant: "omitted" | "empty",
-): {
-  title: string;
-  description: string;
-} {
+  variant: "omitted" | "empty"
+): { title: string; description: string; } {
   const count = Math.max(1, Math.floor(expiredTerminalContextCount));
   const noun = count === 1 ? "Expired terminal context" : "Expired terminal contexts";
   if (variant === "empty") {
@@ -914,10 +893,7 @@ export function buildExpiredTerminalContextToastCopy(
 
 export function branchMismatchKey(
   threadId: string | null,
-  mismatch: {
-    threadBranch: string;
-    currentBranch: string;
-  } | null,
+  mismatch: { threadBranch: string; currentBranch: string; } | null
 ): string | null {
   if (!threadId || !mismatch) {
     return null;
@@ -977,14 +953,14 @@ function checkoutIsRepoKey(environmentId: EnvironmentId, cwd: string): string {
 export function rememberCheckoutIsRepo(
   environmentId: EnvironmentId,
   cwd: string,
-  isRepo: boolean,
+  isRepo: boolean
 ): void {
   sessionCheckoutIsRepo.set(checkoutIsRepoKey(environmentId, cwd), isRepo);
 }
 
 export function recallCheckoutIsRepo(
   environmentId: EnvironmentId,
-  cwd: string | null,
+  cwd: string | null
 ): boolean | undefined {
   return cwd === null
     ? undefined
@@ -996,14 +972,13 @@ export function threadHasStarted(thread: Thread | null | undefined): boolean {
 }
 
 export function threadShellHasStarted(
-  shell:
-    | Pick<EnvironmentThreadShell, "latestRun" | "latestUserMessageAt" | "runtime">
+  shell: Pick<EnvironmentThreadShell, "latestRun" | "latestUserMessageAt" | "runtime">
     | null
-    | undefined,
+    | undefined
 ): boolean {
   return Boolean(
     shell &&
-    (shell.latestRun !== null || shell.latestUserMessageAt !== null || shell.runtime !== null),
+    (shell.latestRun !== null || shell.latestUserMessageAt !== null || shell.runtime !== null)
   );
 }
 
@@ -1044,10 +1019,7 @@ export function getStartedThreadModelChangeBlockReason(input: {
   currentModelSelection: ModelSelection;
   currentProviderInstanceId?: ModelSelection["instanceId"] | null | undefined;
   nextModelSelection: ModelSelection;
-}): {
-  title: string;
-  description: string;
-} | null {
+}): { title: string; description: string; } | null {
   if (!input.hasStartedSession) {
     return null;
   }
@@ -1071,10 +1043,10 @@ export function getStartedThreadModelChangeBlockReason(input: {
     };
   }
   const currentProvider = input.providers.find(
-    (snapshot) => snapshot.instanceId === currentModelSelection.instanceId,
+    (snapshot) => snapshot.instanceId === currentModelSelection.instanceId
   );
   const nextProvider = input.providers.find(
-    (snapshot) => snapshot.instanceId === input.nextModelSelection.instanceId,
+    (snapshot) => snapshot.instanceId === input.nextModelSelection.instanceId
   );
   if (
     currentProvider?.requiresNewThreadForModelChange !== true &&
@@ -1090,7 +1062,7 @@ export function getStartedThreadModelChangeBlockReason(input: {
 
 export async function waitForStartedServerThread(
   threadRef: ScopedThreadRef,
-  timeoutMs = 1000,
+  timeoutMs = 1000
 ): Promise<boolean> {
   const threadAtom = environmentThreadShells.threadShellAtom(threadRef);
   return waitForAtomValue({
@@ -1106,14 +1078,14 @@ export async function waitForRevertedMessage(
   turnCount: number,
   requestId: CommandId,
   revert: () => Promise<void>,
-  timeoutMs = 120000,
+  timeoutMs = 120000
 ): Promise<void> {
   const threadAtom = environmentThreadDetails.stateAtom(threadRef);
   const readProjection = () => Option.getOrNull(appAtomRegistry.get(threadAtom).data);
   const initial = readProjection();
   const providerThreadId = initial?.thread.activeProviderThreadId;
   const initialProviderThread = initial?.providerThreads.find(
-    (providerThread) => providerThread.id === providerThreadId,
+    (providerThread) => providerThread.id === providerThreadId
   );
   const initialProviderThreadIds = new Set(initial?.providerThreads.map((thread) => thread.id));
   // Paging can omit the source run. Rollback commits the entire settled suffix atomically.
@@ -1163,7 +1135,7 @@ export async function waitForRevertedMessage(
                 providerThread.appThreadId === initial?.thread.id &&
                 providerThread.providerInstanceId === initialProviderThread?.providerInstanceId &&
                 !initialProviderThreadIds.has(providerThread.id))) &&
-            providerThread.lastRunOrdinal === (turnCount === 0 ? null : turnCount),
+            providerThread.lastRunOrdinal === (turnCount === 0 ? null : turnCount)
         ) &&
         thread.runs.some((run) => run.id === witness.id && run.status === "rolled_back")
       )
@@ -1201,7 +1173,7 @@ export function createLocalDispatchSnapshot(
     preparingWorktree?: boolean;
     latestUserMessageId?: ChatMessage["id"] | null;
     submissionIntent?: ComposerSubmissionIntent;
-  },
+  }
 ): LocalDispatchSnapshot {
   const latestRun = activeThread?.latestRun ?? null;
   const runtime = activeThread?.runtime ?? null;
@@ -1226,12 +1198,12 @@ export function createLocalDispatchSnapshot(
  * turn items avoids dropping steer rows in that gap.
  */
 export function deriveCommittedServerUserMessageIds(
-  visibleTurnItems: ReadonlyArray<ThreadStructureRow>,
+  visibleTurnItems: ReadonlyArray<ThreadStructureRow>
 ): ReadonlySet<ChatMessage["id"]> {
   return new Set(
     visibleTurnItems.flatMap((row) =>
-      row.item.type === "user_message" ? [row.item.messageId] : [],
-    ),
+      row.item.type === "user_message" ? [row.item.messageId] : []
+    )
   );
 }
 
@@ -1293,11 +1265,8 @@ export function hasServerAcknowledgedLocalDispatch(input: {
 }
 
 export function shouldRefocusComposerOnWindowFocus(
-  activeElement:
-    | (Pick<Element, "tagName" | "closest" | "getAttribute"> & {
-        isContentEditable?: boolean;
-      })
-    | null,
+  activeElement: (Pick<Element, "tagName" | "closest" | "getAttribute"> & { isContentEditable?: boolean; })
+    | null
 ): boolean {
   if (activeElement === null || activeElement.tagName === "BODY") return true;
   if (
@@ -1318,7 +1287,7 @@ export function shouldRefocusComposerOnWindowFocus(
   }
   return (
     activeElement.closest(
-      '[role="dialog"], [role="alertdialog"], [role="application"], [data-slot$="-popup"], [data-terminal-owner]',
+      '[role="dialog"], [role="alertdialog"], [role="application"], [data-slot$="-popup"], [data-terminal-owner]'
     ) === null
   );
 }
@@ -1370,8 +1339,7 @@ export function mergeDirectPreviewAnnotation(input: {
   readonly images: ReadonlyArray<ComposerImageAttachment>;
   readonly fileCount: number;
   readonly previewAnnotations: ReadonlyArray<PreviewAnnotationPayload>;
-  readonly direct:
-    | {
+  readonly direct: {
         readonly annotation: PreviewAnnotationPayload;
         readonly image: ComposerImageAttachment | null;
       }
@@ -1390,7 +1358,7 @@ export function mergeDirectPreviewAnnotation(input: {
     input.images.length + input.fileCount < PROVIDER_SEND_TURN_MAX_ATTACHMENTS;
   const images = direct.image && imageAppended ? [...input.images, direct.image] : input.images;
   const previewAnnotations = input.previewAnnotations.some(
-    (annotation) => annotation.id === direct.annotation.id,
+    (annotation) => annotation.id === direct.annotation.id
   )
     ? input.previewAnnotations
     : [
@@ -1436,11 +1404,11 @@ export type LocalThreadErrorEntry = {
 };
 
 export function chatActionErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "An error occurred.";
+  return error instanceof Error ? error.message : uiText("An error occurred.");
 }
 
-export function releaseChatTimelineAnchor<T extends { readonly messageId: MessageId | null }>(
-  current: T,
+export function releaseChatTimelineAnchor<T extends { readonly messageId: MessageId | null; }>(
+  current: T
 ): T {
   return current.messageId === null ? current : { ...current, messageId: null };
 }
@@ -1457,10 +1425,10 @@ export function makeThreadErrorSetter(input: {
   readonly draftId: DraftId | null;
   readonly serverThreadRef: ScopedThreadRef | null;
   readonly setLocalServerErrorsByThreadKey: (
-    update: SetStateAction<Record<string, LocalThreadErrorEntry>>,
+    update: SetStateAction<Record<string, LocalThreadErrorEntry>>
   ) => void;
   readonly setLocalDraftErrorsByDraftId: (
-    update: SetStateAction<Record<string, LocalThreadErrorEntry>>,
+    update: SetStateAction<Record<string, LocalThreadErrorEntry>>
   ) => void;
 }) {
   return (targetThreadId: ThreadId | null, error: string | null) => {
@@ -1497,7 +1465,7 @@ export function makeModelDisabledReason(
   context: Omit<
     Parameters<typeof getStartedThreadModelChangeBlockReason>[0],
     "nextModelSelection"
-  > | null,
+  > | null
 ) {
   return (instanceId: ProviderInstanceId, model: string): string | null => {
     if (!context) return null;
@@ -1543,7 +1511,7 @@ export function snapshotComposerSend(contents: ComposerSendContents) {
       .reduce(
         (text, context) =>
           removeInlineContextReference(text, terminalContextReference(context).contextId).prompt,
-        contents.prompt,
+        contents.prompt
       )
       .trim(),
   };
@@ -1596,11 +1564,11 @@ export function planComposerTurn(input: {
  * server returned, or the local id on the data-URL path.
  */
 export function boundAttachmentIds(
-  turnAttachments: ReadonlyArray<{ readonly id?: string | undefined }>,
-  attachments: ReadonlyArray<{ readonly id: string }>,
+  turnAttachments: ReadonlyArray<{ readonly id?: string | undefined; }>,
+  attachments: ReadonlyArray<{ readonly id: string; }>
 ): string[] {
   return turnAttachments.map((attachment, index) =>
-    "id" in attachment && attachment.id !== undefined ? attachment.id : attachments[index]!.id,
+    "id" in attachment && attachment.id !== undefined ? attachment.id : attachments[index]!.id
   );
 }
 
@@ -1613,7 +1581,7 @@ export function withMessageContext(input: {
   readonly text: string;
   readonly context: OrchestrationMessageContext | undefined;
   readonly supportsInlineMessageContext: boolean;
-}): { readonly text: string; readonly context?: OrchestrationMessageContext } {
+}): { readonly text: string; readonly context?: OrchestrationMessageContext; } {
   const { text, context } = input;
   if (context === undefined) return { text };
   if (!input.supportsInlineMessageContext) {
@@ -1624,7 +1592,7 @@ export function withMessageContext(input: {
 
 /** The attachments the optimistic user row shows before the server echoes the message. */
 export function optimisticMessageAttachments(
-  attachments: ReadonlyArray<ComposerImageAttachment | ComposerFileAttachment>,
+  attachments: ReadonlyArray<ComposerImageAttachment | ComposerFileAttachment>
 ) {
   return attachments.map((attachment) =>
     attachment.type === "image"
@@ -1645,7 +1613,7 @@ export function optimisticMessageAttachments(
           sizeBytes: attachment.sizeBytes,
           downloadable: false,
           ...(attachment.source ? { source: attachment.source } : {}),
-        },
+        }
   );
 }
 
@@ -1672,7 +1640,7 @@ export function presentThreadShellFromProjection(
   live: {
     readonly updatedAt: ThreadProjection["updatedAt"];
     readonly lastVisitedAt: ThreadProjection["thread"]["lastVisitedAt"];
-  },
+  }
 ) {
   const { updatedAt, lastVisitedAt } = live;
   const latestRun = deriveLatestThreadRun(projection);
@@ -1692,18 +1660,18 @@ export function presentThreadShellFromProjection(
       latestUserMessageAt:
         projection.messages.findLast((message) => message.role === "user")?.updatedAt ?? null,
       hasActionableProposedPlan: projection.plans.some(
-        (plan) => plan.kind === "proposed_plan" && plan.status === "active",
+        (plan) => plan.kind === "proposed_plan" && plan.status === "active"
       ),
       providerInstanceHistory: [
         ...new Set(
           projection.providerThreads
             .filter((thread) => thread.appThreadId === threadId && thread.ownerNodeId === null)
-            .map((thread) => thread.providerInstanceId),
+            .map((thread) => thread.providerInstanceId)
         ),
       ],
       goal:
         projection.providerThreads.find(
-          (thread) => thread.id === projection.thread.activeProviderThreadId,
+          (thread) => thread.id === projection.thread.activeProviderThreadId
         )?.goal ?? null,
       itemCount: projection.turnItems.length,
       visibleItemCount: projection.visibleTurnItems.length,
@@ -1719,7 +1687,7 @@ export function deriveThreadPendingBackgroundTasks(projection: ThreadStructure |
   if (projection === null) return [];
   const sessionError =
     projection.providerSessions.findLast(
-      (session) => session.providerInstanceId === projection.thread.providerInstanceId,
+      (session) => session.providerInstanceId === projection.thread.providerInstanceId
     )?.lastError ?? null;
   const latestRun =
     usageLimitRunPresentedAsLatest(projection.runs, projection.turnItems, sessionError) ??
@@ -1744,7 +1712,7 @@ export function deriveThreadPendingBackgroundTasks(projection: ThreadStructure |
 export function deriveAvailableRevertTurnCounts(projection: ThreadStructure | null) {
   const available = new Set<number>();
   const providerThread = projection?.providerThreads.find(
-    (candidate) => candidate.id === projection.thread.activeProviderThreadId,
+    (candidate) => candidate.id === projection.thread.activeProviderThreadId
   );
   if (
     !providerThread?.providerSessionId ||
@@ -1785,7 +1753,7 @@ export function deriveAvailableRevertTurnCounts(projection: ThreadStructure | nu
  */
 export function deriveWorkspaceMutationId(
   visibleTurnItems: ReadonlyArray<ThreadStructureRow>,
-  latestCheckpointCompletedAt: string | null,
+  latestCheckpointCompletedAt: string | null
 ) {
   let itemId: string | null = null;
   for (let index = visibleTurnItems.length - 1; index >= 0; index -= 1) {

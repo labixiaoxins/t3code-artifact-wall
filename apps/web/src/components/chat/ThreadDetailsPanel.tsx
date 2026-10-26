@@ -1,3 +1,4 @@
+import type { ThreadStructure } from "@t3tools/client-runtime/state/shell";
 import { uiText } from "~/i18n";
 import { ContinuationHistoryPanel } from "./ContinuationHistoryPanel";
 import { ArtifactWall } from "./ArtifactWall";
@@ -45,7 +46,7 @@ export interface ThreadDetailsPanelProps extends Pick<
   draftId?: DraftId;
   continuation?: {
     thread: EnvironmentThreadShell;
-    projection: OrchestrationV2ThreadProjection | null;
+    projection: ThreadStructure | null;
     onQuote: (text: string) => boolean;
   };
   onAttachArtifactFiles?: (files: File[]) => void;

@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useStableCallback } from "../../hooks/useStableCallback";
 import { type EnvironmentId } from "@t3tools/contracts";
 import { type EnvironmentConnectionPresentation } from "@t3tools/client-runtime/connection";
@@ -111,7 +112,7 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: "Could not reconnect environment",
+          title: uiText("Could not reconnect environment"),
           description: error instanceof Error ? error.message : "Failed to reconnect.",
         }),
       );
@@ -139,7 +140,7 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Could not disconnect server",
+            title: uiText("Could not disconnect server"),
             description: error instanceof Error ? error.message : "Failed to disconnect.",
           }),
         );
@@ -193,15 +194,14 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
           size="xs"
           variant="ghost"
           disabled={disconnectingEnvironment}
-          title="Hide this server's threads. Switch it on again in Connections."
+          title={uiText("Hide this server's threads. Switch it on again in Connections.")}
           onClick={() =>
             void handleDisconnectActiveEnvironmentStable(
               activeEnvironmentUnavailableState.environmentId,
             )
           }
         >
-          Disconnect server
-        </Button>
+          {uiText("Disconnect server")}</Button>
       ) : undefined;
     const environmentReconnecting =
       unavailableConnection !== null &&
@@ -214,7 +214,10 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
         id: `environment-unavailable:${activeEnvironmentUnavailableState.environmentId}`,
         variant: unavailableConnection.phase === "error" ? "error" : "warning",
         icon: <WifiOffIcon />,
-        title: `${activeEnvironmentUnavailableState.label} is ${environmentReconnecting ? "reconnecting" : "offline"}`,
+        title: uiText("{0} is {1}", {
+          "0": activeEnvironmentUnavailableState.label,
+          "1": environmentReconnecting ? "reconnecting" : "offline",
+        }),
         description: activeEnvironment ? (
           <ConnectionDiagnosisHeadline environment={activeEnvironment} />
         ) : undefined,
@@ -230,8 +233,7 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
                   )
                 }
               >
-                Reconnect
-              </Button>
+                {uiText("Reconnect")}</Button>
             ) : null}
             {disconnectAction}
           </>
@@ -254,7 +256,7 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
         icon: <ComposerServerUpdateIcon status={serverUpdateState.status} />,
         title:
           updateInProgress || updateFailed ? (
-            `${updateFailed ? "Could not update" : "Updating"} ${versionMismatchServerLabel}`
+            `${updateFailed ? "Could not update" : uiText("Updating")} ${versionMismatchServerLabel}`
           ) : versionMismatch ? (
             <Tooltip>
               <TooltipTrigger
@@ -263,8 +265,7 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
                     type="button"
                     className="block max-w-full cursor-help truncate rounded-sm text-left"
                   >
-                    Server update available
-                  </button>
+                    {uiText("Server update available")}</button>
                 }
               />
               <TooltipPopup side="top">
@@ -273,7 +274,7 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
               </TooltipPopup>
             </Tooltip>
           ) : (
-            "Server update available"
+            uiText("Server update available")
           ),
         description:
           serverUpdateState.status === "failed"
@@ -298,7 +299,7 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
             desktopAppUpdate={versionMismatchDesktopAppUpdate}
             threadContinuation={versionMismatchThreadContinuation}
             targetVersion={versionMismatch.clientVersion}
-            label={updateFailed ? "Retry" : "Update"}
+            label={updateFailed ? uiText("Retry") : uiText("Update")}
             variant="ghost"
           />
         ),

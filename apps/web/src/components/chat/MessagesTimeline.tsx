@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { ThreadFindTimelineContext } from "./ThreadFindProvider";
 import { MarkdownFindContext } from "./markdownFindContext";
 import { useChatCanvas } from "./ChatCanvasContext";
@@ -178,7 +179,7 @@ interface MessagesTimelineProps {
   citationHistoryLoading?: boolean;
   onCiteAssistantText?: (
     citation: AssistantCitation,
-    sourceAnchor: AssistantCitationSourceAnchor,
+    sourceAnchor: AssistantCitationSourceAnchor
   ) => boolean;
   isWorking: boolean;
   runlessWorkActive?: boolean;
@@ -242,11 +243,11 @@ interface MessagesTimelineProps {
   onAnchorSizeChanged: (messageId: MessageId, size: number) => void;
   contentInsetEndAdjustment: number;
   onIsAtEndChange: (isAtEnd: boolean) => void;
-  /**
-   * Off while the user is reading history; LegendList's own maintainScrollAtEnd
-   * would otherwise re-pin regardless of ChatView's scroll-mode refs whenever
-   * the user drifts near the bottom.
-   */
+    /**
+     * Off while the user is reading history; LegendList's own maintainScrollAtEnd
+     * would otherwise re-pin regardless of ChatView's scroll-mode refs whenever
+     * the user drifts near the bottom.
+     */
   liveFollowEnabled: boolean;
   onContentOverflowChange?: (overflows: boolean) => void;
   onToolOutputCollapsedAtEnd?: () => void;
@@ -358,16 +359,16 @@ const ConversationTimeline = memo(function ConversationTimeline({
   // scrolling keeps rewriting the stored entry, which must not move the restore.
   const [listState, setListState] = useState(() => timelineListStateFor(listIdentityKey));
   const [expandedRunIds, setExpandedRunIds] = useState<ReadonlySet<RunId>>(
-    () => listState.rememberedPosition?.disclosures?.runs ?? new Set(),
+    () => listState.rememberedPosition?.disclosures?.runs ?? new Set()
   );
   const [expandedWorkGroupIds, setExpandedWorkGroupIds] = useState<ReadonlySet<string>>(
-    () => listState.rememberedPosition?.disclosures?.workGroups ?? new Set(),
+    () => listState.rememberedPosition?.disclosures?.workGroups ?? new Set()
   );
   const [expandedAttemptIds, setExpandedAttemptIds] = useState<ReadonlySet<RunAttemptId>>(
-    () => listState.rememberedPosition?.disclosures?.attempts ?? new Set(),
+    () => listState.rememberedPosition?.disclosures?.attempts ?? new Set()
   );
   const [positionedThreadKey, setPositionedThreadKey] = useState<string | null>(() =>
-    listState.rememberedPosition?.atEnd === false ? null : listIdentityKey,
+    listState.rememberedPosition?.atEnd === false ? null : listIdentityKey
   );
   const restoringThreadPosition = positionedThreadKey !== listIdentityKey;
   const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
@@ -557,7 +558,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
     setExpandedFindRunId(activeFindRunId);
     if (activeFindRunId) {
       setExpandedRunIds((previous) =>
-        previous.has(activeFindRunId) ? previous : new Set(previous).add(activeFindRunId),
+        previous.has(activeFindRunId) ? previous : new Set(previous).add(activeFindRunId)
       );
     }
   }
@@ -574,7 +575,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
     setExpandedFindAttemptId(activeFindAttemptId);
     if (activeFindAttemptId) {
       setExpandedAttemptIds((previous) =>
-        previous.has(activeFindAttemptId) ? previous : new Set(previous).add(activeFindAttemptId),
+        previous.has(activeFindAttemptId) ? previous : new Set(previous).add(activeFindAttemptId)
       );
     }
   }
@@ -624,7 +625,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
   });
 
   const [timelineViewportElement, setTimelineViewportElement] = useState<HTMLDivElement | null>(
-    null,
+    null
   );
   const chatWidth = useClientSettings((settings) => settings.chatWidth);
   const {
@@ -678,7 +679,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
         };
   const [minimapHitStripWidth, setMinimapHitStripWidth] = useState(0);
   const [minimapCurrentIndex, setMinimapCurrentIndex] = useState<number | null>(null);
-  const handleAnchorReady = (info: { anchorIndex: number | undefined }) => {
+  const handleAnchorReady = (info: { anchorIndex: number | undefined; }) => {
     if (anchorMessageId !== null && info.anchorIndex !== undefined) {
       onAnchorReady(anchorMessageId, info.anchorIndex);
     }
@@ -692,7 +693,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
     rows,
     anchorMessageId,
     (row) => (row.kind === "message" && row.message.role === "user" ? row.message.id : null),
-    { anchorOffset: CHAT_TIMELINE_ANCHOR_OFFSET },
+    { anchorOffset: CHAT_TIMELINE_ANCHOR_OFFSET }
   );
   const anchoredEndSpace = anchoredEndSpaceConfig
     ? {
@@ -766,7 +767,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
       const inView = isTimelineMinimapRowVisible(
         item.rowIndex,
         visibleRange.start,
-        visibleRange.end,
+        visibleRange.end
       );
       const next = inView ? "true" : "false";
       // Avoid dirtying style state on every scroll tick for unchanged strips.
@@ -780,7 +781,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
       rowIndices: minimapRowIndices,
     });
     setMinimapCurrentIndex((current) =>
-      current === nextCurrentIndex ? current : nextCurrentIndex,
+      current === nextCurrentIndex ? current : nextCurrentIndex
     );
   });
 
@@ -818,7 +819,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
               workGroupState: workGroupViewState,
             },
           },
-          liveFollowEnabled && !anchoredEndSpace,
+          liveFollowEnabled && !anchoredEndSpace
         );
       }
     }
@@ -845,7 +846,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
         minimapRefreshFrameRef.current = null;
       }
     },
-    [],
+    []
   );
 
   useEffect(() => {
@@ -874,10 +875,10 @@ const ConversationTimeline = memo(function ConversationTimeline({
           ?.getBoundingClientRect().width ?? viewportWidth;
       const nextHasPersistentGutter = resolveTimelineMinimapHasPersistentGutter(
         viewportWidth,
-        contentWidth,
+        contentWidth
       );
       setMinimapHasPersistentGutter((current) =>
-        current === nextHasPersistentGutter ? current : nextHasPersistentGutter,
+        current === nextHasPersistentGutter ? current : nextHasPersistentGutter
       );
       setMinimapHitStripWidth(resolveTimelineMinimapHitStripWidth(viewportWidth, contentWidth));
       reportContentOverflow();
@@ -1017,7 +1018,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
   // the list would re-render the outgoing thread's rows with the incoming
   // thread's context just before they unmount. extraData hands a changed
   // sharedState to the rows that stay.
-  const renderItem = ({ item }: { item: MessagesTimelineRow }) => (
+  const renderItem = ({ item }: { item: MessagesTimelineRow; }) => (
     <TimelineRowCtx value={sharedState}>
       <div className="messages-timeline-row-frame">
         <div
@@ -1113,7 +1114,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
             onItemSizeChanged={handleItemSizeChanged}
             className={cn(
               "messages-timeline-scroll scrollbar-gutter-both h-full min-h-0 overflow-x-hidden overscroll-y-contain [overflow-anchor:none]",
-              topFadeEnabled && "topbar-scroll-fade",
+              topFadeEnabled && "topbar-scroll-fade"
             )}
             ListHeaderComponent={listHeader}
             ListFooterComponent={timelineListFooter}
@@ -1189,7 +1190,7 @@ function getItemType(item: MessagesTimelineRow) {
   return `message:${item.message.role}:${lengthBucket}`;
 }
 
-const TimelineRowContent = memo(function TimelineRowContent({ row }: { row: TimelineRow }) {
+const TimelineRowContent = memo(function TimelineRowContent({ row }: { row: TimelineRow; }) {
   const isExpandedToolGroup = row.kind === "work" && row.isExpandedToolGroup;
   const isSubagentGroup = row.kind === "event" && row.projectedItem.item.type === "subagent";
   const isWorkLogRow =
@@ -1221,7 +1222,7 @@ const TimelineRowContent = memo(function TimelineRowContent({ row }: { row: Time
         (row.kind === "message" && row.message.role === "assistant") ||
           row.kind === "assistant-meta"
           ? "group/assistant"
-          : null,
+          : null
       )}
       data-timeline-row-id={row.id}
       data-timeline-row-kind={row.kind}
@@ -1275,7 +1276,7 @@ const TimelineRowContent = memo(function TimelineRowContent({ row }: { row: Time
 function WorktreeSetupTimelineRow({
   row,
 }: {
-  row: Extract<TimelineRow, { kind: "worktree-setup" }>;
+  row: Extract<TimelineRow, { kind: "worktree-setup"; }>;
 }) {
   const ctx = use(TimelineRowCtx);
   const terminalId = row.snapshot.setupScript?.terminalId ?? null;
@@ -1297,14 +1298,13 @@ function WorktreeSetupTimelineRow({
 function ContextCompactionTimelineRow({
   row,
 }: {
-  row: Extract<TimelineRow, { kind: "context-compaction" }>;
+  row: Extract<TimelineRow, { kind: "context-compaction"; }>;
 }) {
   const content = (
     <span className="flex items-center gap-1.5">
       <Minimize2Icon aria-hidden="true" className="size-3" />
       {row.tokenCounts ? (
-        <>
-          {uiText("Context compacted") + " "}{row.tokenCounts.before}
+        <>{"Context compacted" + " "} {row.tokenCounts.before}
           <ArrowRightIcon aria-hidden="true" className="size-3" />
           {row.tokenCounts.after} tokens
         </>
@@ -1332,7 +1332,7 @@ function ContextCompactionTimelineRow({
   );
 }
 
-function TurnFoldTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "turn-fold" }> }) {
+function TurnFoldTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "turn-fold"; }>; }) {
   const ctx = use(TimelineRowCtx);
 
   return (
@@ -1356,7 +1356,7 @@ function TurnFoldTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "turn-
   );
 }
 
-function AttemptFoldTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "attempt-fold" }> }) {
+function AttemptFoldTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "attempt-fold"; }>; }) {
   const ctx = use(TimelineRowCtx);
 
   return (

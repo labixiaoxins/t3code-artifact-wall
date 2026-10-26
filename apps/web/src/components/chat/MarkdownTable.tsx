@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { Check, Copy, Maximize2, Minimize2 } from "lucide";
 import { useEffect, useLayoutEffect, useRef, useState, type ComponentProps } from "react";
 
@@ -157,8 +158,8 @@ export function MarkdownTable({ children, ...props }: ComponentProps<"table">) {
             <TooltipPopup side="top">{copyLabel}</TooltipPopup>
           </Tooltip>
           <MenuPopup align="end">
-            <MenuItem onClick={() => handleCopy("markdown")}>Copy as Markdown</MenuItem>
-            <MenuItem onClick={() => handleCopy("csv")}>Copy as CSV</MenuItem>
+            <MenuItem onClick={() => handleCopy("markdown")}>{uiText("Copy as Markdown")}</MenuItem>
+            <MenuItem onClick={() => handleCopy("csv")}>{uiText("Copy as CSV")}</MenuItem>
           </MenuPopup>
         </Menu>
       </div>

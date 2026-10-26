@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type {
   ModelSelection,
   ProviderInstanceId,
@@ -82,7 +83,7 @@ export const ComposerFooterModeControls = memo(function ComposerFooterModeContro
             />
           )}
           <span data-composer-control-label className="sr-only sm:not-sr-only">
-            {props.interactionMode === "plan" ? "Plan" : "Build"}
+            {props.interactionMode === "plan" ? uiText("Plan") : uiText("Build")}
           </span>
         </TooltipTrigger>
         <TooltipPopup side="top">{interactionModeTooltip}</TooltipPopup>
@@ -106,7 +107,7 @@ export const ComposerFooterModeControls = memo(function ComposerFooterModeContro
               <ComposerSelectControl
                 data-composer-shortcut="composer.mode"
                 size={size}
-                aria-label="Runtime mode"
+                aria-label={uiText("Runtime mode")}
               />
             }
           >

@@ -89,7 +89,7 @@ export function useLinkedThreadPullRequest(
   linkedPullRequest: ThreadLinkedPullRequest | null | undefined,
   enabled = true,
   pullRequests?: ReadonlyArray<ThreadPullRequestLink>,
-  branchPullRequest?: ThreadLinkedPullRequest | null,
+  branchPullRequest?: ThreadLinkedPullRequest | null
 ): LinkedThreadPullRequestStatus | null {
   const supportsLinks = useSupportsMultiplePullRequests(environmentId);
   const current = supportsLinks ? resolveThreadCurrentPullRequestLink(pullRequests ?? []) : null;
@@ -103,13 +103,13 @@ export function useLinkedThreadPullRequest(
   const queried = useEnvironmentQuery(
     !enabled || environmentId === null || reference === null
       ? null
-      : linkedPullRequestDetailAtom({ environmentId, input: reference }),
+      : linkedPullRequestDetailAtom({ environmentId, input: reference })
   );
   const detail = useSharedPullRequestSummary(
     environmentId,
     reference,
     queried.data,
-    queried.dataUpdatedAt,
+    queried.dataUpdatedAt
   );
 
   if (current !== null) return currentStatus;
@@ -127,7 +127,7 @@ function linkedPullRequestReference(fallback: ThreadLinkedPullRequest) {
 }
 
 export function linkedPullRequestSnapshotStatus(
-  link: ThreadPullRequestLink,
+  link: ThreadPullRequestLink
 ): LinkedThreadPullRequestStatus | null {
   const snapshot = link.snapshot;
   if (snapshot === null) return null;
@@ -211,9 +211,7 @@ export function ThreadPullRequestBadgeControl({
   onOpenList,
   onOpenPullRequest,
 }: {
-  render: ReactElement<{
-    render?: useRender.RenderProp;
-  }>;
+  render: ReactElement<{ render?: useRender.RenderProp; }>;
   badge: ThreadPullRequestBadge | null;
   pullRequests: ReadonlyArray<ThreadPullRequestLink>;
   number?: number | undefined;
@@ -250,9 +248,7 @@ function PullRequestBadge({
   onOpenList,
   onOpenPullRequest,
 }: {
-  render: ReactElement<{
-    render?: useRender.RenderProp;
-  }>;
+  render: ReactElement<{ render?: useRender.RenderProp; }>;
   presentation: NonNullable<ReturnType<typeof resolveThreadPullRequestBadgePresentation>>;
   opensList: boolean;
   url: string | undefined;
@@ -270,9 +266,9 @@ function PullRequestBadge({
       }
     : onOpenPullRequest;
   const element = opensList ? (
-    <button type={"button"} />
+    <button type="button" />
   ) : (
-    <a href={url} target={"_blank"} rel={"noopener noreferrer"} />
+    <a href={url} target="_blank" rel="noopener noreferrer" />
   );
   const control = useRender({
     render,
@@ -289,28 +285,24 @@ function PullRequestBadge({
         <span
           className={cn("contents font-normal text-xs tabular-nums", presentation.toneClassName)}
         >
-          <presentation.Icon aria-hidden className={"size-3 shrink-0"} />
+          <presentation.Icon aria-hidden className="size-3 shrink-0" />
           <span>{presentation.text}</span>
         </span>
       </TooltipTrigger>
       <TooltipPopup
-        side={"top"}
+        side="top"
         sideOffset={0}
-        variant={"glass"}
-        className={"pointer-events-auto w-80 max-w-[calc(100vw-2rem)] text-left whitespace-normal"}
+        variant="glass"
+        className="pointer-events-auto w-80 max-w-[calc(100vw-2rem)] text-left whitespace-normal"
       >
-        <div
-          className={
-            "-mx-1 max-h-[calc(var(--available-height)-0.5rem-2px)] overflow-y-auto overscroll-contain"
-          }
-        >
+        <div className="-mx-1 max-h-[calc(var(--available-height)-0.5rem-2px)] overflow-y-auto overscroll-contain">
           {visibleThreadPullRequests(pullRequests).length > 0 ? (
             <ThreadPullRequestsMiniList
               pullRequests={pullRequests}
               onOpenPullRequest={onOpenPullRequest}
             />
           ) : number !== undefined && url !== undefined ? (
-            <ul className={"flex flex-col gap-1"}>
+            <ul className="flex flex-col gap-1">
               <ThreadPullRequestMiniListItem
                 number={number}
                 url={url}
@@ -334,11 +326,11 @@ export function ThreadPullRequestsMiniList({
   onOpenPullRequest?: (event: MouseEvent<HTMLAnchorElement>, url: string) => void;
 }) {
   const lines = pullRequestListLines(
-    resolveThreadPullRequestChains(visibleThreadPullRequests(pullRequests)),
+    resolveThreadPullRequestChains(visibleThreadPullRequests(pullRequests))
   );
   if (lines.length === 0) return null;
   return (
-    <ul className={"flex flex-col gap-1"}>
+    <ul className="flex flex-col gap-1">
       {lines.map((line) => {
         const snapshot = line.link.snapshot;
         const presentation =
@@ -356,10 +348,9 @@ export function ThreadPullRequestsMiniList({
             onOpenPullRequest={onOpenPullRequest}
           >
             {line.stack ? (
-              <span className={"ml-auto shrink-0 pl-1 text-3xs"}>
+              <span className="ml-auto shrink-0 pl-1 text-3xs">
                 {line.stack.kind === "native" ? uiText("stack") : uiText("chain")}
-                {" \u00B7 "}
-                {line.stack.size}
+                {" \u00B7 "} {line.stack.size}
               </span>
             ) : null}
           </ThreadPullRequestMiniListItem>
@@ -393,11 +384,9 @@ function ThreadPullRequestMiniListItem({
         aria-hidden
         className={cn("size-3 shrink-0", presentation?.toneClassName ?? "stroke-muted-foreground")}
       />
-      <span className={"shrink-0 font-mono tabular-nums"}>
-        {"#"}
-        {number}
-      </span>
-      <span className={"min-w-0 truncate text-foreground/75"}>{title}</span>
+      <span className="shrink-0 font-mono tabular-nums">
+        {"#"}{number}</span>
+      <span className="min-w-0 truncate text-foreground/75">{title}</span>
       {children}
     </>
   );
@@ -406,18 +395,16 @@ function ThreadPullRequestMiniListItem({
       {onOpenPullRequest ? (
         <a
           href={url}
-          target={"_blank"}
-          rel={"noopener noreferrer"}
-          className={
-            "flex min-w-0 items-center gap-2 rounded-sm px-1 py-1 hover:bg-accent focus-visible:bg-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-          }
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex min-w-0 items-center gap-2 rounded-sm px-1 py-1 hover:bg-accent focus-visible:bg-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => onOpenPullRequest(event, url)}
         >
           {content}
         </a>
       ) : (
-        <div className={"flex min-w-0 items-center gap-2"}>{content}</div>
+        <div className="flex min-w-0 items-center gap-2">{content}</div>
       )}
     </li>
   );
@@ -425,7 +412,7 @@ function ThreadPullRequestMiniListItem({
 
 export function prStatusIndicator(
   pr: ThreadPr,
-  provider: VcsStatusResult["sourceControlProvider"] | null | undefined,
+  provider: VcsStatusResult["sourceControlProvider"] | null | undefined
 ): PrStatusIndicator | null {
   if (!pr) return null;
   const { shortLabel } = sourceControlClients.get(provider?.kind).changeRequest;
@@ -455,16 +442,12 @@ export function ChangeRequestStatusIcon({
   return <presentation.Icon className={className} />;
 }
 
-export function PrStatusTooltipContent({ status }: { status: PrStatusIndicator }) {
+export function PrStatusTooltipContent({ status }: { status: PrStatusIndicator; }) {
   return (
-    <span
-      className={
-        "flex max-w-[min(34rem,calc(100vw-2rem))] items-stretch overflow-hidden whitespace-nowrap"
-      }
-    >
-      <span className={"shrink-0 pr-2 font-medium"}>{status.tooltipLead}</span>
-      <span className={"min-h-4 shrink-0 border-border/70 border-l"} aria-hidden={"true"} />
-      <span className={"min-w-0 truncate pl-2"}>{status.tooltipTitle}</span>
+    <span className="flex max-w-[min(34rem,calc(100vw-2rem))] items-stretch overflow-hidden whitespace-nowrap">
+      <span className="shrink-0 pr-2 font-medium">{status.tooltipLead}</span>
+      <span className="min-h-4 shrink-0 border-border/70 border-l" aria-hidden="true" />
+      <span className="min-w-0 truncate pl-2">{status.tooltipTitle}</span>
     </span>
   );
 }
@@ -501,14 +484,14 @@ export const threadChangeRequestSnapshotsAtom = Atom.make<
 >(new Map()).pipe(Atom.keepAlive, Atom.withLabel("sidebar:thread-change-request-snapshots"));
 
 function isTerminalChangeRequestState(
-  state: NonNullable<ThreadPr>["state"],
+  state: NonNullable<ThreadPr>["state"]
 ): state is "merged" | "closed" {
   return state === "merged" || state === "closed";
 }
 
 function sourceControlProvidersEqual(
   left: VcsStatusResult["sourceControlProvider"] | undefined,
-  right: VcsStatusResult["sourceControlProvider"] | undefined,
+  right: VcsStatusResult["sourceControlProvider"] | undefined
 ): boolean {
   if (left === right) return true;
   if (left == null || right == null) return left == null && right == null;
@@ -517,7 +500,7 @@ function sourceControlProvidersEqual(
 
 function linkedPullRequestsEqual(
   left: ThreadLinkedPullRequest | null | undefined,
-  right: ThreadLinkedPullRequest | null | undefined,
+  right: ThreadLinkedPullRequest | null | undefined
 ): boolean {
   if (left == null || right == null) return left == null && right == null;
   return (
@@ -530,7 +513,7 @@ function linkedPullRequestsEqual(
 
 export function threadChangeRequestSnapshotsEqual(
   left: ThreadChangeRequestSnapshot,
-  right: ThreadChangeRequestSnapshot,
+  right: ThreadChangeRequestSnapshot
 ): boolean {
   return (
     left.branch === right.branch &&
@@ -719,7 +702,7 @@ export function resolveDisplayedThreadPrProvider(input: {
 }
 
 export function terminalStatusFromRunningIds(
-  runningTerminalIds: ReadonlyArray<string>,
+  runningTerminalIds: ReadonlyArray<string>
 ): TerminalStatusIndicator | null {
   if (runningTerminalIds.length === 0) {
     return null;
@@ -762,12 +745,12 @@ export function ThreadTerminalStatusButton({
       <TooltipTrigger
         render={
           <button
-            type={"button"}
+            type="button"
             aria-label={label}
             data-testid={`sidebar-terminal-status-${threadRef.threadId}`}
             className={cn(
               "inline-flex shrink-0 cursor-pointer items-center justify-center rounded-sm outline-none hover:opacity-80 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-              status?.colorClass,
+              status?.colorClass
             )}
             onPointerDown={(event) => event.stopPropagation()}
             onKeyDown={(event) => event.stopPropagation()}
@@ -781,11 +764,11 @@ export function ThreadTerminalStatusButton({
         }
       >
         <TerminalIcon
-          className={"size-3.5 motion-safe:animate-status-pulse"}
+          className="size-3.5 motion-safe:animate-status-pulse"
           onAnimationStart={synchronizeTerminalPulse}
         />
       </TooltipTrigger>
-      <TooltipPopup side={"top"}>{label}</TooltipPopup>
+      <TooltipPopup side="top">{label}</TooltipPopup>
     </Tooltip>
   );
 }
@@ -810,16 +793,16 @@ export function ThreadWorktreeIndicator({
       <TooltipTrigger
         render={
           <span
-            role={"img"}
+            role="img"
             aria-label={tooltip}
             data-testid={`thread-worktree-${thread.id}`}
-            className={"inline-flex items-center justify-center"}
+            className="inline-flex items-center justify-center"
           />
         }
       >
-        <FolderGit2Icon className={"size-3 text-muted-foreground/40"} />
+        <FolderGit2Icon className="size-3 text-muted-foreground/40" />
       </TooltipTrigger>
-      <TooltipPopup side={"top"}>{tooltip}</TooltipPopup>
+      <TooltipPopup side="top">{tooltip}</TooltipPopup>
     </Tooltip>
   );
 }
@@ -840,7 +823,7 @@ export function ThreadStatusLabel({
         <TooltipTrigger
           render={
             <span
-              role={"img"}
+              role="img"
               aria-label={status.label}
               className={`inline-flex size-3.5 shrink-0 items-center justify-center ${status.colorClass}`}
             />
@@ -850,7 +833,7 @@ export function ThreadStatusLabel({
             className={`size-[9px] rounded-full ${status.dotClass} ${status.pulse ? "motion-safe:animate-status-pulse" : ""}`}
           />
         </TooltipTrigger>
-        <TooltipPopup side={"top"}>{status.label}</TooltipPopup>
+        <TooltipPopup side="top">{status.label}</TooltipPopup>
       </Tooltip>
     );
   }
@@ -860,7 +843,7 @@ export function ThreadStatusLabel({
       <TooltipTrigger
         render={
           <span
-            role={"img"}
+            role="img"
             aria-label={status.label}
             className={`inline-flex items-center gap-1 text-3xs ${status.colorClass}`}
           />
@@ -869,9 +852,9 @@ export function ThreadStatusLabel({
         <span
           className={`h-1.5 w-1.5 rounded-full ${status.dotClass} ${status.pulse ? "motion-safe:animate-status-pulse" : ""}`}
         />
-        <span className={"hidden md:inline"}>{status.label}</span>
+        <span className="hidden md:inline">{status.label}</span>
       </TooltipTrigger>
-      <TooltipPopup side={"top"}>{status.label}</TooltipPopup>
+      <TooltipPopup side="top">{status.label}</TooltipPopup>
     </Tooltip>
   );
 }
@@ -886,11 +869,11 @@ export function ThreadRowLeadingStatus({
   const { leaseLiveStatus, rowRef } = useSidebarRowSubscriptionLease(false);
   // A new ref callback would detach and reattach the row, and each reattach sets lease state.
   const statusRef = useStableCallback((node: HTMLSpanElement | null) =>
-    rowRef(node?.parentElement ?? null),
+    rowRef(node?.parentElement ?? null)
   );
   const threadRef = scopeThreadRef(thread.environmentId, thread.id);
   const localLastVisitedAt = useUiStateStore(
-    (state) => state.threadLastVisitedAtById[scopedThreadKey(threadRef)],
+    (state) => state.threadLastVisitedAtById[scopedThreadKey(threadRef)]
   );
   const lastVisitedAt = resolveThreadLastVisitedAt(thread.lastVisitedAt, localLastVisitedAt);
   const threadProject = useProject(scopeProjectRef(thread.environmentId, thread.projectId));
@@ -899,7 +882,7 @@ export function ThreadRowLeadingStatus({
   const linkedPullRequest = useLinkedThreadPullRequest(
     thread.environmentId,
     thread.linkedPullRequest,
-    leaseLiveStatus,
+    leaseLiveStatus
   );
   const gitStatus = useEnvironmentQuery(
     leaseLiveStatus &&
@@ -910,11 +893,11 @@ export function ThreadRowLeadingStatus({
           environmentId: thread.environmentId,
           input: { cwd: gitCwd, includeRemote: false },
         })
-      : null,
+      : null
   );
   const visibleGitStatus = useRetainedValue(
     JSON.stringify([thread.environmentId, gitCwd]),
-    gitStatus.data,
+    gitStatus.data
   );
   const displayedPrInput = {
     threadBranch: thread.branch,
@@ -956,16 +939,16 @@ export function ThreadRowLeadingStatus({
               />
             }
           >
-            <ChangeRequestStatusIcon state={pr.state} isDraft={pr.isDraft} className={"size-3"} />
+            <ChangeRequestStatusIcon state={pr.state} isDraft={pr.isDraft} className="size-3" />
           </TooltipTrigger>
-          <TooltipPopup side={"top"}>
+          <TooltipPopup side="top">
             <PrStatusTooltipContent status={prStatus} />
           </TooltipPopup>
         </Tooltip>
       ) : null}
       {pendingLink ? (
         <PullRequestGlyph.pullRequest
-          className={"size-3 text-muted-foreground"}
+          className="size-3 text-muted-foreground"
           aria-label={uiText("PR #{0}, status pending", {"0": pendingLink.number})}
         />
       ) : null}
@@ -974,7 +957,7 @@ export function ThreadRowLeadingStatus({
   );
 }
 
-export function ThreadRowTrailingStatus({ thread }: { thread: SidebarThreadSummary }) {
+export function ThreadRowTrailingStatus({ thread }: { thread: SidebarThreadSummary; }) {
   const runningTerminalIds = useThreadRunningTerminalIds({
     environmentId: thread.environmentId,
     threadId: thread.id,
@@ -992,13 +975,13 @@ export function ThreadRowTrailingStatus({ thread }: { thread: SidebarThreadSumma
   }
 
   return (
-    <span className={"inline-flex shrink-0 items-center gap-1.5"}>
+    <span className="inline-flex shrink-0 items-center gap-1.5">
       {terminalStatus ? (
         <Tooltip>
           <TooltipTrigger
             render={
               <span
-                role={"img"}
+                role="img"
                 aria-label={terminalStatus.label}
                 className={`inline-flex items-center justify-center ${terminalStatus.colorClass}`}
               />
@@ -1009,7 +992,7 @@ export function ThreadRowTrailingStatus({ thread }: { thread: SidebarThreadSumma
               onAnimationStart={synchronizeTerminalPulse}
             />
           </TooltipTrigger>
-          <TooltipPopup side={"top"}>{terminalStatus.label}</TooltipPopup>
+          <TooltipPopup side="top">{terminalStatus.label}</TooltipPopup>
         </Tooltip>
       ) : null}
       {isRemoteThread ? (
@@ -1017,17 +1000,17 @@ export function ThreadRowTrailingStatus({ thread }: { thread: SidebarThreadSumma
           <TooltipTrigger
             render={
               <span
-                aria-label={threadEnvironmentLabel ?? uiText("Remote")}
-                className={"inline-flex items-center justify-center"}
+                aria-label={threadEnvironmentLabel ?? "Remote"}
+                className="inline-flex items-center justify-center"
               />
             }
           >
             <EnvironmentMachineIcon
               kind={remoteMachine}
-              className={"size-3 text-muted-foreground/60"}
+              className="size-3 text-muted-foreground/60"
             />
           </TooltipTrigger>
-          <TooltipPopup side={"top"}>{threadEnvironmentLabel}</TooltipPopup>
+          <TooltipPopup side="top">{threadEnvironmentLabel}</TooltipPopup>
         </Tooltip>
       ) : null}
     </span>
@@ -1066,7 +1049,7 @@ export function ThreadSearchPullRequestNumber({
     thread.linkedPullRequest,
     enabled && matched,
     thread.pullRequests,
-    thread.branchPullRequest,
+    thread.branchPullRequest
   );
   if (!matched) return null;
   const badge = supportsMultiplePullRequests
@@ -1081,7 +1064,7 @@ export function ThreadSearchPullRequestNumber({
     current ??
     [thread.linkedPullRequest, thread.branchPullRequest].find(
       (reference) =>
-        reference != null && pullRequestMatchesSearchQuery({ linkedPullRequest: reference }, query),
+        reference != null && pullRequestMatchesSearchQuery({ linkedPullRequest: reference }, query)
     );
   const presentation = resolveThreadPullRequestBadgePresentation({
     badge,
@@ -1105,7 +1088,7 @@ export function ThreadSearchPullRequestNumber({
         "inline-flex shrink-0 items-center gap-0.5 text-xs tabular-nums",
         settled
           ? cn("text-secondary-label transition-colors", state && settledPrHoverColorClass(state))
-          : presentation.toneClassName,
+          : presentation.toneClassName
       )}
     >
       {/* text-current opts out of the command palette's muted icon color. */}

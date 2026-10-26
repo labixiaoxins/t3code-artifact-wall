@@ -1,3 +1,4 @@
+import type { ThreadStructure } from "@t3tools/client-runtime/state/shell";
 import { readUiLocale } from "~/i18n";
 import type { EnvironmentId, OrchestrationV2ThreadProjection, ThreadId } from "@t3tools/contracts";
 import {
@@ -29,7 +30,7 @@ import {
 export function ContinuationHistoryPanel(props: {
   environmentId: EnvironmentId;
   thread: EnvironmentThreadShell;
-  projection: OrchestrationV2ThreadProjection | null;
+  projection: ThreadStructure | null;
   onQuote: (text: string) => boolean;
   /** Shown instead of nothing when this thread has no earlier or later segments. */
   emptyLabel?: string;
@@ -190,7 +191,7 @@ function OriginalThreadHistory({
   environmentId: EnvironmentId;
   parent: EnvironmentThreadShell;
   disconnected: boolean;
-  projection: OrchestrationV2ThreadProjection | null;
+  projection: ThreadStructure | null;
   onQuote: (text: string) => boolean;
 }) {
   // The existing thread state loads a bounded window and holds an opaque history cursor.

@@ -1,7 +1,4 @@
-"use client";
 import { uiText } from "~/i18n";
-
-
 import { PlusIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import type { ProviderDriverKind, ServerProviderModel } from "@t3tools/contracts";
@@ -51,7 +48,7 @@ export function CustomModelEditor({
   const [error, setError] = useState<string | null>(null);
   const presets = driverKind ? (DESCRIPTOR_PRESETS_BY_KIND[driverKind] ?? []) : [];
   const startFromCandidates = builtInModels.filter(
-    (model) => (model.capabilities?.optionDescriptors?.length ?? 0) > 0,
+    (model) => (model.capabilities?.optionDescriptors?.length ?? 0) > 0
   );
   const domId = (suffix: string) => `provider-instance-${instanceId}-custom-model-${suffix}`;
 
@@ -60,7 +57,7 @@ export function CustomModelEditor({
     setDraft((current) => ({
       ...current,
       descriptors: current.descriptors.map((descriptor) =>
-        descriptor.key === key ? { ...descriptor, ...patch } : descriptor,
+        descriptor.key === key ? { ...descriptor, ...patch } : descriptor
       ),
     }));
   };
@@ -167,7 +164,8 @@ export function CustomModelEditor({
           }
           aria-label={uiText("Default choice")}
         />
-        {uiText("Default") + " "}</label>
+        {"Default" + " "}
+      </label>
       <Button
         size="icon-micro"
         variant="ghost-muted"
@@ -189,7 +187,7 @@ export function CustomModelEditor({
       className="flex flex-col gap-2 rounded-md border border-border/60 bg-background/40 p-2.5"
     >
       <div className="flex flex-wrap items-center gap-2">
-        <span className="w-14 shrink-0 text-2xs text-muted-foreground">{uiText("Option") + " "}{index + 1}</span>
+        <span className="w-14 shrink-0 text-2xs text-muted-foreground">{"Option" + " "} {index + 1}</span>
         {presets.length > 0 ? (
           <Select
             value={idSelectValue(descriptor)}
@@ -271,7 +269,8 @@ export function CustomModelEditor({
             }
           >
             <PlusIcon className="size-3" />
-            {uiText("Add choice") + " "}</Button>
+            {"Add choice" + " "}
+          </Button>
         </div>
       ) : null}
     </div>
@@ -332,7 +331,7 @@ export function CustomModelEditor({
         <div className="flex flex-wrap gap-1">
           {presets
             .filter(
-              (preset) => !draft.descriptors.some((descriptor) => descriptor.id === preset.id),
+              (preset) => !draft.descriptors.some((descriptor) => descriptor.id === preset.id)
             )
             .map((preset) => (
               <Button
@@ -354,7 +353,8 @@ export function CustomModelEditor({
             onClick={() => addDescriptor(emptyEditorDescriptor())}
           >
             <PlusIcon className="size-3" />
-            {uiText("Custom option") + " "}</Button>
+            {"Custom option" + " "}
+          </Button>
         </div>
       </div>
 

@@ -46,14 +46,14 @@ describe("storage cleanup settings", () => {
     expect(
       decodeServerSettingsPatch({
         worktreeCleanup: { mode: "custom", rules: { worktreeAfterDays: 8 } },
-      }),
+      })
     ).toEqual({ worktreeCleanup: { mode: "custom", rules: { worktreeAfterDays: 8 } } });
     expect(() =>
       decodeServerSettings({
         projectSettingsOverrides: {
           project: { worktreeCleanup: { mode: "custom", rules: { worktreeAfterDays: 8 } } },
         },
-      }),
+      })
     ).toThrow();
     expect(
       decodeServerSettings({
@@ -70,7 +70,7 @@ describe("storage cleanup settings", () => {
             },
           },
         },
-      }).projectSettingsOverrides[ProjectId.make("project")]?.worktreeCleanup,
+      }).projectSettingsOverrides[ProjectId.make("project")]?.worktreeCleanup
     ).toMatchObject({
       mode: "custom",
       rules: { worktreeSettledAfterDays: null, worktreeKeepWhen: "uncommitted-changes" },
@@ -93,10 +93,10 @@ describe("storage cleanup settings", () => {
       rules: { worktreeKeepWhen: "uncommitted-changes" },
     });
     expect(
-      decodeServerSettingsPatch({ storageCleanup: { worktreeKeepWhen: "tracked-changes" } }),
+      decodeServerSettingsPatch({ storageCleanup: { worktreeKeepWhen: "tracked-changes" } })
     ).toEqual({ storageCleanup: { worktreeKeepWhen: "tracked-changes" } });
     expect(() =>
-      decodeServerSettingsPatch({ storageCleanup: { worktreeKeepWhen: "unknown" } }),
+      decodeServerSettingsPatch({ storageCleanup: { worktreeKeepWhen: "unknown" } })
     ).toThrow();
   });
 });
@@ -148,7 +148,7 @@ describe("resolveIdleCompaction", () => {
       },
     });
     expect(resolveIdleCompaction(settings, ProviderInstanceId.make("claude_work"))).toBe(
-      "onReturn",
+      "onReturn"
     );
     expect(resolveIdleCompaction(settings, ProviderInstanceId.make("claude_personal"))).toBe("off");
     expect(resolveIdleCompaction(settings, ProviderInstanceId.make("claudeAgent"))).toBe("off");
@@ -156,7 +156,7 @@ describe("resolveIdleCompaction", () => {
 
   it("reads the mode from the legacy switch, in either form servers saved it", () => {
     expect(globalIdleCompaction(decodeServerSettings({ compactIdleThreads: true }))).toBe(
-      "beforeCacheExpires",
+      "beforeCacheExpires"
     );
     expect(globalIdleCompaction(decodeServerSettings({ compactIdleThreads: "off" }))).toBe("off");
     expect(globalIdleCompaction(decodeServerSettings({}))).toBe("onReturn");
@@ -176,7 +176,7 @@ describe("resolveIdleCompaction", () => {
 
   it("patches the field the server reads", () => {
     expect(
-      idleCompactionPatch({ compactIdleThreads: false, idleCompaction: "onReturn" }, "off"),
+      idleCompactionPatch({ compactIdleThreads: false, idleCompaction: "onReturn" }, "off")
     ).toEqual({
       idleCompaction: "off",
     });
@@ -217,18 +217,18 @@ describe("provider enabled defaults", () => {
     expect(resolveProviderInstanceEnabled({ driver: grok, config: {} })).toBe(false);
     expect(resolveProviderInstanceEnabled({ driver: codex, config: {} })).toBe(true);
     expect(
-      resolveProviderInstanceEnabled({ driver: ProviderDriverKind.make("ollama"), config: {} }),
+      resolveProviderInstanceEnabled({ driver: ProviderDriverKind.make("ollama"), config: {} })
     ).toBe(true);
     expect(resolveProviderInstanceEnabled({ driver: grok, enabled: true, config: {} })).toBe(true);
     expect(resolveProviderInstanceEnabled({ driver: codex, enabled: false, config: {} })).toBe(
-      false,
+      false
     );
     expect(resolveProviderInstanceEnabled({ driver: grok, config: { enabled: true } })).toBe(true);
     expect(
-      resolveProviderInstanceEnabled({ driver: grok, enabled: true, config: { enabled: false } }),
+      resolveProviderInstanceEnabled({ driver: grok, enabled: true, config: { enabled: false } })
     ).toBe(false);
     expect(
-      resolveProviderInstanceEnabled({ driver: codex, enabled: false, config: { enabled: true } }),
+      resolveProviderInstanceEnabled({ driver: codex, enabled: false, config: { enabled: true } })
     ).toBe(false);
   });
 });
@@ -237,13 +237,13 @@ describe("ServerSettings worktree defaults", () => {
   it("defaults the thread env mode to inherit and keeps stored values", () => {
     expect(decodeServerSettings({}).defaultThreadEnvMode).toBeNull();
     expect(decodeServerSettings({ defaultThreadEnvMode: "worktree" }).defaultThreadEnvMode).toBe(
-      "worktree",
+      "worktree"
     );
     expect(
-      decodeServerSettings({ defaultThreadEnvMode: "remote" }).defaultThreadEnvMode,
+      decodeServerSettings({ defaultThreadEnvMode: "remote" }).defaultThreadEnvMode
     ).toBeNull();
     expect(
-      decodeServerSettingsPatch({ defaultThreadEnvMode: null }).defaultThreadEnvMode,
+      decodeServerSettingsPatch({ defaultThreadEnvMode: null }).defaultThreadEnvMode
     ).toBeNull();
   });
 
@@ -251,7 +251,7 @@ describe("ServerSettings worktree defaults", () => {
     const encode = Schema.encodeSync(ServerSettings);
     expect("defaultThreadEnvMode" in encode(decodeServerSettings({}))).toBe(false);
     expect(
-      encode(decodeServerSettings({ defaultThreadEnvMode: "worktree" })).defaultThreadEnvMode,
+      encode(decodeServerSettings({ defaultThreadEnvMode: "worktree" })).defaultThreadEnvMode
     ).toBe("worktree");
   });
 });
@@ -294,7 +294,7 @@ const decodeDeviceHostSettings = Schema.decodeSync(ServerSettings);
 const decodeOlderDeviceHostSettings = Schema.decodeUnknownSync(
   Schema.Struct({
     deviceHosts: Schema.Array(Schema.Struct({ id: Schema.String, target: Schema.String })),
-  }),
+  })
 );
 
 it("keeps EAS hosts out of the SSH host list servers and clients before EAS hosts decode", () => {
@@ -318,7 +318,7 @@ it("validates remote device hosts and rejects ambiguous host ids", () => {
   expect(() => decodeDeviceHostSettings({ deviceHosts: [host, host] })).toThrow();
   expect(() => decodeDeviceHostSettings({ deviceHosts: [{ ...host, id: "local" }] })).toThrow();
   expect(() =>
-    decodeDeviceHostSettings({ deviceHosts: [{ ...host, target: "-oProxyCommand=bad" }] }),
+    decodeDeviceHostSettings({ deviceHosts: [{ ...host, target: "-oProxyCommand=bad" }] })
   ).toThrow();
   expect(() => decodeDeviceHostSettings({ deviceHosts: [{ ...host, port: 0 }] })).toThrow();
 });
@@ -346,7 +346,7 @@ describe("requiredScopesForProjectMutation", () => {
     const projectId = "project-1" as ProjectId;
     const commandId = "command-1" as CommandId;
     expect(
-      requiredScopesForProjectMutation({ type: "project.update", commandId, projectId }),
+      requiredScopesForProjectMutation({ type: "project.update", commandId, projectId })
     ).toEqual(["orchestration:operate"]);
     expect(
       requiredScopesForProjectMutation({
@@ -354,7 +354,7 @@ describe("requiredScopesForProjectMutation", () => {
         commandId,
         projectId,
         scripts: [],
-      }),
+      })
     ).toEqual(["orchestration:operate", "settings:write"]);
   });
 });
@@ -368,5 +368,22 @@ describe("server model preferences", () => {
     const input = { favorites: [], providerModelPreferences: {} };
     expect(encodeServerSettings(decodeServerSettings(input))).toMatchObject(input);
     expect(decodeServerSettingsPatch(input)).toEqual(input);
+  });
+});
+
+it("defaults to the legacy sidebar this fork builds on", () => {
+    expect(decodeClientSettings({}).legacySidebarEnabled).toBe(true);
+  });
+
+describe("ServerSettings keepAwake", () => {
+  it("keeps the screen awake while working by default", () => {
+    expect(decodeServerSettings({}).keepAwake).toBe("display");
+  });
+  it("accepts each mode and rejects unknown ones", () => {
+    for (const mode of ["off", "system", "display"] as const) {
+      expect(decodeServerSettings({ keepAwake: mode }).keepAwake).toBe(mode);
+      expect(decodeServerSettingsPatch({ keepAwake: mode })).toEqual({ keepAwake: mode });
+    }
+    expect(() => decodeServerSettingsPatch({ keepAwake: "always" })).toThrow();
   });
 });

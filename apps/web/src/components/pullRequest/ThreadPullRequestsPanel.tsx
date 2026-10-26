@@ -73,9 +73,9 @@ function ChecksGlyph({
   const presentation = pullRequestChecksStatePresentation(state);
   return (
     <Tooltip>
-      <TooltipTrigger render={<span className={"inline-flex shrink-0"} />}>
+      <TooltipTrigger render={<span className="inline-flex shrink-0" />}>
         <presentation.Icon
-          role={"img"}
+          role="img"
           aria-label={presentation.label}
           className={cn("size-3.5", presentation.toneClassName)}
         />
@@ -102,10 +102,7 @@ function LinkRowImpl({
 }) {
   const openPrLink = useOpenPrLink(threadRef);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [menuPosition, setMenuPosition] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ x: number; y: number; } | null>(null);
   const menuAnchor = menuPosition
     ? { getBoundingClientRect: () => new DOMRect(menuPosition.x, menuPosition.y, 0, 0) }
     : undefined;
@@ -142,11 +139,11 @@ function LinkRowImpl({
       }}
       style={{ paddingLeft: `${0.5 + Math.min(depth, 3) * 1.25}rem` }}
     >
-      {depth > 0 ? <span aria-hidden className={"-ml-2 h-6 w-px shrink-0 bg-border/70"} /> : null}
+      {depth > 0 ? <span aria-hidden className="-ml-2 h-6 w-px shrink-0 bg-border/70" /> : null}
       {snapshot === null ? (
         <PullRequestGlyph.pullRequest
           aria-label={uiText("Waiting for host state")}
-          className={"size-4 shrink-0 text-muted-foreground"}
+          className="size-4 shrink-0 text-muted-foreground"
         />
       ) : (
         <PullRequestRowGlyph
@@ -175,22 +172,20 @@ function LinkRowImpl({
                     baseBranch: snapshot.baseBranch,
                     state: snapshot.state,
                     isDraft: snapshot.isDraft,
-                  }),
+                  })
                 )
         }
-        className={"flex min-w-0 flex-1"}
+        className="flex min-w-0 flex-1"
       >
         <PullRequestRowLines
           number={
             <Tooltip>
               <TooltipTrigger render={<span className={PULL_REQUEST_ROW_NUMBER_CLASS} />}>
-                {"#"}
-                {link.number}
+                {"#"}{link.number}
               </TooltipTrigger>
               <TooltipPopup>
                 {SOURCE_LABELS[link.source]}
-                {" \u00B7 "}
-                <RelativeTime timestamp={link.linkedAt} />
+                {" \u00B7 "} <RelativeTime timestamp={link.linkedAt} />
               </TooltipPopup>
             </Tooltip>
           }
@@ -200,14 +195,11 @@ function LinkRowImpl({
               <>
                 {watching ? (
                   <Tooltip>
-                    <TooltipTrigger render={<span className={"inline-flex shrink-0"} />}>
-                      <EyeIcon role={"img"} aria-label={uiText("Watching")} className={"size-3.5"} />
+                    <TooltipTrigger render={<span className="inline-flex shrink-0" />}>
+                      <EyeIcon role="img" aria-label={uiText("Watching")} className="size-3.5" />
                     </TooltipTrigger>
                     <TooltipPopup>
-                      {
-                        uiText("Watching: the agent wakes when checks finish, someone comments, or the branch conflicts")
-                      }
-                    </TooltipPopup>
+                      {uiText("Watching: the agent wakes when checks finish, someone comments, or the branch conflicts")}</TooltipPopup>
                   </Tooltip>
                 ) : null}
                 {snapshot?.checksState ? <ChecksGlyph state={snapshot.checksState} /> : null}
@@ -222,7 +214,7 @@ function LinkRowImpl({
               <PullRequestDiffStat
                 additions={snapshot?.additions ?? 0}
                 deletions={snapshot?.deletions ?? 0}
-                className={"font-mono"}
+                className="font-mono"
               />
             ) : (
               <PullRequestChangeBreakdownStat
@@ -235,7 +227,7 @@ function LinkRowImpl({
                 }}
                 additions={snapshot?.additions ?? 0}
                 deletions={snapshot?.deletions ?? 0}
-                className={"font-mono"}
+                className="font-mono"
               />
             )
           }
@@ -245,32 +237,31 @@ function LinkRowImpl({
                 <Tooltip>
                   <TooltipTrigger
                     render={
-                      <span
-                        className={"inline-flex shrink-0 items-center gap-0.5 text-foreground/70"}
-                      />
+                      <span className="inline-flex shrink-0 items-center gap-0.5 text-foreground/70" />
                     }
                   >
-                    <PullRequestGlyph.stack aria-hidden className={"size-3"} />
+                    <PullRequestGlyph.stack aria-hidden className="size-3" />
                     {stack.size}
                   </TooltipTrigger>
                   <TooltipPopup>
                     {stack.kind === "native"
                       ? uiText("{0} stack of {1}: merging a layer lands the ones below it.", {"0": sourceControlClients.hostLabelForChangeRequestUrl(link.url), "1": stack.size})
-                      : uiText("{0} pull requests chained by base branch.", {"0": stack.size})}
+                      : uiText("{0} pull requests chained by base branch.", {"0"
+                      : stack.size})}
                   </TooltipPopup>
                 </Tooltip>
               ) : null}
               {snapshot?.author ? (
                 <PullRequestRowAuthor
                   actor={snapshot.author}
-                  className={"shrink-0"}
-                  labelClassName={"max-w-28"}
+                  className="shrink-0"
+                  labelClassName="max-w-28"
                 />
               ) : null}
               {snapshot !== null ? (
                 <>
                   <Tooltip>
-                    <TooltipTrigger render={<span className={"flex min-w-0 max-w-32 font-mono"} />}>
+                    <TooltipTrigger render={<span className="flex min-w-0 max-w-32 font-mono" />}>
                       <MiddleTruncate value={link.repository} showTitle={false} />
                     </TooltipTrigger>
                     <TooltipPopup>{link.repository}</TooltipPopup>
@@ -278,10 +269,9 @@ function LinkRowImpl({
                   <PullRequestRowBranches head={snapshot.headBranch} base={snapshot.baseBranch} />
                 </>
               ) : (
-                <span className={"truncate font-mono"}>
+                <span className="truncate font-mono">
                   {link.host}
-                  {"/"}
-                  {link.repository}
+                  {"/"}{link.repository}
                 </span>
               )}
             </>
@@ -302,10 +292,10 @@ function LinkRowImpl({
           "has-[[data-popup-open]]:pointer-events-auto has-[[data-popup-open]]:opacity-100",
           "has-[:focus-visible]:pointer-events-auto has-[:focus-visible]:opacity-100",
           "group-has-[[data-pull-request-action-pending=true]]/pr-row:hidden",
-          speedMode && hasQuickActions && "hidden",
+          speedMode && hasQuickActions && "hidden"
         )}
       >
-        <span aria-hidden className={"absolute inset-0 bg-accent/60"} />
+        <span aria-hidden className="absolute inset-0 bg-accent/60" />
         <Menu
           open={menuOpen}
           onOpenChange={(open) => {
@@ -316,41 +306,37 @@ function LinkRowImpl({
           <MenuTrigger
             render={
               <Button
-                variant={"ghost"}
-                size={"icon-micro"}
+                variant="ghost"
+                size="icon-micro"
                 aria-label={uiText("Actions for #{0}", {"0": link.number})}
-                className={"relative"}
+                className="relative"
               >
-                <MoreHorizontalIcon className={"size-3.5"} />
+                <MoreHorizontalIcon className="size-3.5" />
               </Button>
             }
           />
           <MenuPopup
             anchor={menuAnchor}
             align={menuPosition ? "start" : "end"}
-            side={"bottom"}
+            side="bottom"
             sideOffset={menuPosition ? 0 : 4}
           >
             <MenuItem onClick={() => void writeTextToClipboard(link.url, "link")}>
-              <LinkIcon className={"size-3.5"} />
-              {uiText("Copy link")}
-            </MenuItem>
+              <LinkIcon className="size-3.5" />
+              {uiText("Copy link")}</MenuItem>
             <MenuItem onClick={(event) => openPrLink(event, link.url, threadRef)}>
-              <ArrowUpRightIcon className={"size-3.5"} />
-              {uiText("Open")}
-            </MenuItem>
+              <ArrowUpRightIcon className="size-3.5" />
+              {uiText("Open")}</MenuItem>
             {onSetWatching !== null && open ? (
               <MenuItem onClick={() => onSetWatching(link, !watching)}>
-                {watching ? (
-                  <EyeOffIcon className={"size-3.5"} />
-                ) : (
-                  <EyeIcon className={"size-3.5"} />
+                {watching ? ( <EyeOffIcon className="size-3.5" />
+                ) : ( <EyeIcon className="size-3.5" />
                 )}
                 {watching ? uiText("Stop watching") : uiText("Watch for changes")}
               </MenuItem>
             ) : null}
             <MenuItem onClick={() => onUnlink(link)}>
-              <PullRequestGlyph.unlink className={"size-3.5"} />
+              <PullRequestGlyph.unlink className="size-3.5" />
               {link.source === "stack" ? uiText("Dismiss from thread") : uiText("Unlink from thread")}
             </MenuItem>
           </MenuPopup>
@@ -375,26 +361,26 @@ function latestSyncedAt(links: ReadonlyArray<ThreadPullRequestLink>): string | n
 const lineKey = (line: PullRequestListLine) =>
   `${line.link.host}/${line.link.repository}#${line.link.number}`;
 
-export function ThreadPullRequestsPanel({ threadRef }: { threadRef: ScopedThreadRef }) {
+export function ThreadPullRequestsPanel({ threadRef }: { threadRef: ScopedThreadRef; }) {
   const configs = useServerConfigs();
   if (configs.get(threadRef.environmentId)?.environment.capabilities.threadPullRequests !== true) {
     return (
       <PullRequestsUnavailableState
         title={uiText("Linked pull requests unavailable")}
-        error={"This environment does not support multiple linked pull requests."}
+        error="This environment does not support multiple linked pull requests."
       />
     );
   }
   return <EnabledThreadPullRequestsPanel threadRef={threadRef} />;
 }
 
-function EnabledThreadPullRequestsPanel({ threadRef }: { threadRef: ScopedThreadRef }) {
+function EnabledThreadPullRequestsPanel({ threadRef }: { threadRef: ScopedThreadRef; }) {
   const thread = useThreadShell(threadRef);
   const projects = useProjects();
   const environmentProjects = projects
     .filter((project) => project.environmentId === threadRef.environmentId)
     .toSorted((left, right) =>
-      left.id === thread?.projectId ? -1 : right.id === thread?.projectId ? 1 : 0,
+      left.id === thread?.projectId ? -1 : right.id === thread?.projectId ? 1 : 0
     );
   // LegendList re-renders its rows when `data` changes identity. `links` and values derived
   // from it go through plain functions only here, before the next hook, so the compiler keeps
@@ -402,7 +388,7 @@ function EnabledThreadPullRequestsPanel({ threadRef }: { threadRef: ScopedThread
   const links = visibleThreadPullRequests(thread?.pullRequests ?? []);
   const lines = pullRequestListLines(resolveThreadPullRequestChains(links));
   const openCount = links.filter(
-    (link) => link.snapshot === null || link.snapshot.state === "open",
+    (link) => link.snapshot === null || link.snapshot.state === "open"
   ).length;
   const lastSynced = latestSyncedAt(links);
   const linkCount = links.length;
@@ -444,18 +430,14 @@ function EnabledThreadPullRequestsPanel({ threadRef }: { threadRef: ScopedThread
 
   if (linkCount === 0) {
     return (
-      <div className={"flex h-full flex-col items-center justify-center gap-2 p-6 text-center"}>
-        <PullRequestGlyph.link aria-hidden className={"size-6 text-muted-foreground/60"} />
-        <p className={"text-sm font-medium"}>{uiText("No linked pull requests")}</p>
-        <p className={"max-w-60 text-xs text-muted-foreground"}>
-          {
-            uiText("Pull requests the agent opens from this thread land here. Link one yourself from a URL or a number.")
-          }
-        </p>
-        <Button size={"sm"} variant={"outline"} onClick={openLinkDialog}>
-          <PlusIcon className={"size-3.5"} />
-          {uiText("Link pull request")}
-        </Button>
+      <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
+        <PullRequestGlyph.link aria-hidden className="size-6 text-muted-foreground/60" />
+        <p className="text-sm font-medium">{uiText("No linked pull requests")}</p>
+        <p className="max-w-60 text-xs text-muted-foreground">
+          {uiText("Pull requests the agent opens from this thread land here. Link one yourself from a URL or a number.")}</p>
+        <Button size="sm" variant="outline" onClick={openLinkDialog}>
+          <PlusIcon className="size-3.5" />
+          {uiText("Link pull request")}</Button>
       </div>
     );
   }
@@ -491,8 +473,7 @@ function EnabledThreadPullRequestsPanel({ threadRef }: { threadRef: ScopedThread
         />
         <footer className="flex items-center justify-between border-t border-border/60 px-2 py-1.5 text-2xs text-muted-foreground">
           <span>
-            {openCount} open · {linkCount} linked
-            {lastSynced ? (
+            {openCount} {uiText("open ·")}{linkCount} {uiText("linked")}{lastSynced ? (
               <>
                 {" · synced "}
                 <RelativeTime timestamp={lastSynced} />
@@ -501,8 +482,7 @@ function EnabledThreadPullRequestsPanel({ threadRef }: { threadRef: ScopedThread
           </span>
           <Button size="xs" variant="ghost" onClick={openLinkDialog}>
             <PlusIcon className="size-3.5" />
-            Link
-          </Button>
+            {uiText("Link")}</Button>
         </footer>
       </div>
     </PullRequestSpeedModeContext>

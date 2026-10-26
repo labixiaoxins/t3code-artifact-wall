@@ -17,14 +17,14 @@ export function MarkdownThreadLink(props: {
   const decodedId = percentDecodedThreadLinkId(props.threadId);
   const written = useThreadShell(scopeThreadRef(props.environmentId, props.threadId));
   const decoded = useThreadShell(
-    written === null && decodedId !== null ? scopeThreadRef(props.environmentId, decodedId) : null,
+    written === null && decodedId !== null ? scopeThreadRef(props.environmentId, decodedId) : null
   );
   const local = written ?? decoded;
   const refs = useThreadRefs(local === null);
   const remote = useThreadShell(
     local === null
       ? resolveThreadLinkRef(scopeThreadRef(props.environmentId, props.threadId), refs)
-      : null,
+      : null
   );
   const thread = local ?? remote;
   const environmentId = thread?.environmentId ?? props.environmentId;

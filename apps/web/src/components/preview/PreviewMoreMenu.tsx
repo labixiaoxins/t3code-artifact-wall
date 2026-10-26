@@ -1,7 +1,4 @@
-"use client";
 import { uiText } from "~/i18n";
-
-
 import type { DesktopPreviewColorScheme } from "@t3tools/contracts";
 import { Minus, MoreVertical, Plus as PlusIcon, RotateCcw } from "lucide-react";
 
@@ -52,7 +49,7 @@ interface Props {
   onToggleDeviceToolbar: () => void;
   nativePictureInPicture: boolean;
   profileName: string | undefined;
-  move?: { readonly label: string; readonly onMove: () => void };
+  move?: { readonly label: string; readonly onMove: () => void; };
 }
 
 const MenuTriggerButton = () => (
@@ -171,7 +168,7 @@ export function PreviewMoreMenu({
         <MenuGroup>
           {profileName ? (
             <MenuGroupLabel className="max-w-64">
-              <span className="block truncate">{uiText("Profile:") + " "}{profileName}</span>
+              <span className="block truncate">{"Profile:" + " "} {profileName}</span>
             </MenuGroupLabel>
           ) : null}
           <MenuItem onClick={actions.clearCookies}>{uiText("Clear cookies")}</MenuItem>

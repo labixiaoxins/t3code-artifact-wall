@@ -46,10 +46,7 @@ interface ChatHeaderProps {
   activeThreadTitle: string;
   isServerThread: boolean;
   activeProject: EnvironmentProject | null;
-  parentThreadLink: {
-    threadId: ThreadId;
-    title: string;
-  } | null;
+  parentThreadLink: { threadId: ThreadId; title: string; } | null;
   onOpenThread: (threadId: ThreadId) => void;
   rightPanelOpen: boolean;
   onNewThreadInProject: () => void;
@@ -59,17 +56,7 @@ interface ChatHeaderProps {
 function resolveRenameCommit(input: {
   readonly title: string;
   readonly originalTitle: string;
-}):
-  | {
-      action: "commit";
-      title: string;
-    }
-  | {
-      action: "reject-empty";
-    }
-  | {
-      action: "noop";
-    } {
+}): { action: "commit"; title: string; } | { action: "reject-empty"; } | { action: "noop"; } {
   const trimmed = input.title.trim();
   if (trimmed.length === 0) return { action: "reject-empty" };
   if (trimmed === input.originalTitle) return { action: "noop" };
@@ -93,7 +80,7 @@ export const ChatHeader = memo(function ChatHeader({
   onNewThreadInProject,
   onOpenProjectSettings,
 }: ChatHeaderProps) {
-  const activeProjectName = activeProject?.isScratch ? "No project" : activeProject?.title;
+  const activeProjectName = activeProject?.isScratch ? uiText("No project") : activeProject?.title;
   const activeProjectCwd = activeProject?.workspaceRoot ?? null;
   const interfaceFont = useClientSettings((settings) => settings.fontFamilySans);
   const breadcrumbContainerRef = useRef<HTMLDivElement>(null);
@@ -101,7 +88,7 @@ export const ChatHeader = memo(function ChatHeader({
   const activeThreadRef = scopeThreadRef(activeThreadEnvironmentId, activeThreadId);
   const canOperateThread = useEnvironmentScope(
     activeThreadEnvironmentId,
-    AuthOrchestrationOperateScope,
+    AuthOrchestrationOperateScope
   );
   const updateThreadMetadata = useOrchestrationCommand(threadEnvironment.updateMetadata, {
     reportFailure: false,
@@ -144,7 +131,7 @@ export const ChatHeader = memo(function ChatHeader({
             (ellipsis?.getBoundingClientRect().width ?? 0)
           );
         },
-        gap * (list.children.length - 1),
+        gap * (list.children.length - 1)
       );
       setCollapseParentTitle(width > list.clientWidth);
     };
@@ -197,7 +184,7 @@ export const ChatHeader = memo(function ChatHeader({
         toastManager.add({
           type: "error",
           title: uiText("Failed to rename thread"),
-          description: error instanceof Error ? error.message : "An error occurred.",
+          description: error instanceof Error ? error.message : uiText("An error occurred."),
         });
       }
     });
@@ -221,7 +208,7 @@ export const ChatHeader = memo(function ChatHeader({
       titleMenuTimerRef.current = null;
     },
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- A pending title menu belongs to the thread that was clicked, so switching threads drops it.
-    [activeThreadEnvironmentId, activeThreadId],
+    [activeThreadEnvironmentId, activeThreadId]
   );
   const openTitleMenuNow = () => {
     cancelPendingTitleMenu();
@@ -287,39 +274,34 @@ export const ChatHeader = memo(function ChatHeader({
       className={cn(
         "@container/quota-header flex min-w-0 flex-1 items-center gap-2 sm:gap-3",
         rightPanelOpen ? "pr-10" : "pr-24",
-        "max-md:pr-36",
+        "max-md:pr-36"
       )}
       onContextMenu={handleHeaderContextMenu}
     >
       <WorkspaceBreadcrumb
-        ariaLabel={"Thread breadcrumb"}
-        className={"flex-1 overflow-clip [overflow-clip-margin:2px]"}
+        ariaLabel="Thread breadcrumb"
+        className="flex-1 overflow-clip [overflow-clip-margin:2px]"
       >
         {activeProject ? (
           <>
-            <WorkspaceBreadcrumbItem className={"shrink"}>
+            <WorkspaceBreadcrumbItem className="shrink">
               <Tooltip>
                 <TooltipTrigger
                   render={
                     <button
-                      type={"button"}
+                      type="button"
                       aria-label={uiText("New thread in {0}", { "0": activeProjectName })}
                       onClick={onNewThreadInProject}
-                      className={
-                        "inline-flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                      }
+                      className="inline-flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                     />
                   }
                 >
-                  <ProjectFavicon project={activeProject} className={"size-3.5"} />
-                  <WorkspaceBreadcrumbText className={"max-w-40"}>
+                  <ProjectFavicon project={activeProject} className="size-3.5" />
+                  <WorkspaceBreadcrumbText className="max-w-40">
                     {activeProjectName}
                   </WorkspaceBreadcrumbText>
                 </TooltipTrigger>
-                <TooltipPopup side={"top"}>
-                  {uiText("New thread in")}
-                  {activeProjectName}
-                </TooltipPopup>
+                <TooltipPopup side="top">{uiText("New thread in")}{activeProjectName}</TooltipPopup>
               </Tooltip>
             </WorkspaceBreadcrumbItem>
             <WorkspaceBreadcrumbSeparator>
@@ -334,14 +316,12 @@ export const ChatHeader = memo(function ChatHeader({
                 <TooltipTrigger
                   render={
                     <button
-                      type={"button"}
+                      type="button"
                       aria-label={uiText("Open parent thread: {0}", {
                         "0": parentThreadLink.title,
                       })}
                       onClick={() => onOpenThread(parentThreadLink.threadId)}
-                      className={
-                        "inline-flex min-w-0 max-w-full cursor-pointer items-center rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                      }
+                      className="inline-flex min-w-0 max-w-full cursor-pointer items-center rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                     />
                   }
                 >
@@ -357,7 +337,7 @@ export const ChatHeader = memo(function ChatHeader({
                     </span>
                   ) : null}
                 </TooltipTrigger>
-                <TooltipPopup side={"top"}>{parentThreadLink.title}</TooltipPopup>
+                <TooltipPopup side="top">{parentThreadLink.title}</TooltipPopup>
               </Tooltip>
             </WorkspaceBreadcrumbItem>
             <WorkspaceBreadcrumbSeparator>
@@ -365,12 +345,12 @@ export const ChatHeader = memo(function ChatHeader({
             </WorkspaceBreadcrumbSeparator>
           </>
         ) : null}
-        <WorkspaceBreadcrumbItem current className={"min-w-10 flex-1"}>
+        <WorkspaceBreadcrumbItem current className="min-w-10 flex-1">
           {renamingTitle !== null ? (
             <input
               autoFocus
               dir="auto"
-              aria-label="Thread title"
+              aria-label={uiText("Thread title")}
               className="min-w-0 flex-1 rounded-sm bg-transparent text-sm font-medium text-foreground outline-none ring-1 ring-inset ring-ring/50 focus:ring-ring"
               defaultValue={renamingTitle}
               onBlur={(event) => {
@@ -393,15 +373,13 @@ export const ChatHeader = memo(function ChatHeader({
                 render={
                   <button
                     ref={titleButtonRef}
-                    type={"button"}
+                    type="button"
                     aria-label={uiText("Thread actions for {0}", { "0": activeThreadTitle })}
-                    aria-haspopup={"menu"}
+                    aria-haspopup="menu"
                     onClick={openMenuFromTitle}
                     onDoubleClick={canOperateThread ? handleTitleDoubleClick : undefined}
                     onBlur={cancelPendingTitleMenu}
-                    className={
-                      "group/thread-title inline-flex min-w-0 max-w-full cursor-pointer items-center gap-1 rounded-sm text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                    }
+                    className="group/thread-title inline-flex min-w-0 max-w-full cursor-pointer items-center gap-1 rounded-sm text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                   />
                 }
               >
@@ -411,12 +389,10 @@ export const ChatHeader = memo(function ChatHeader({
                 <ChevronDownIcon
                   aria-hidden
                   data-thread-title-chevron
-                  className={
-                    "size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/thread-title:opacity-100 group-focus-visible/thread-title:opacity-100"
-                  }
+                  className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/thread-title:opacity-100 group-focus-visible/thread-title:opacity-100"
                 />
               </TooltipTrigger>
-              <TooltipPopup side={"top"}>{activeThreadTitle}</TooltipPopup>
+              <TooltipPopup side="top">{activeThreadTitle}</TooltipPopup>
             </Tooltip>
           ) : (
             <Tooltip>
@@ -431,12 +407,12 @@ export const ChatHeader = memo(function ChatHeader({
               >
                 <WorkspaceBreadcrumbText>{activeThreadTitle}</WorkspaceBreadcrumbText>
               </TooltipTrigger>
-              <TooltipPopup side={"top"}>{activeThreadTitle}</TooltipPopup>
+              <TooltipPopup side="top">{activeThreadTitle}</TooltipPopup>
             </Tooltip>
           )}
         </WorkspaceBreadcrumbItem>
       </WorkspaceBreadcrumb>
-      <QuotaTopbar />
+    <QuotaTopbar />
     </div>
   );
 });

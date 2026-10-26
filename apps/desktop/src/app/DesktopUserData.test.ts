@@ -4,8 +4,6 @@ import * as Effect from "effect/Effect";
 import * as ConfigProvider from "effect/ConfigProvider";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
-import * as Layer from "effect/Layer";
-import * as PlatformError from "effect/PlatformError";
 
 import { resolveUserDataPath } from "./DesktopUserData.ts";
 
@@ -39,9 +37,9 @@ it.effect.each(["t3code", "T3 Code (Alpha)"])(
       });
       assert.equal(
         yield* fs.readFileString(path.join(destination, "Local State")),
-        "existing V2 state",
+        "existing V2 state"
       );
-    }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+    }).pipe(Effect.scoped, Effect.provide(NodeServices.layer))
 );
 it.effect(
   "uses an explicit isolated profile without inspecting or migrating the real profile",
@@ -56,7 +54,7 @@ it.effect(
     }).pipe(
       Effect.provideService(
         FileSystem.FileSystem,
-        FileSystem.makeNoop({ exists: () => Effect.die("must not inspect real profile") }),
+        FileSystem.makeNoop({ exists: () => Effect.die("must not inspect real profile") })
       ),
       Effect.provide(
         Layer.mergeAll(
@@ -64,11 +62,11 @@ it.effect(
           ConfigProvider.layer(
             ConfigProvider.fromEnv({
               env: { T3CODE_DESKTOP_USER_DATA_DIR: "/isolated/desktop-profile" },
-            }),
-          ),
-        ),
-      ),
-    ),
+            })
+          )
+        )
+      )
+    )
 );
 it.effect("rejects a relative profile override", () =>
   Effect.gen(function* () {
@@ -83,9 +81,9 @@ it.effect("rejects a relative profile override", () =>
       Layer.mergeAll(
         NodeServices.layer,
         ConfigProvider.layer(
-          ConfigProvider.fromEnv({ env: { T3CODE_DESKTOP_USER_DATA_DIR: "relative/profile" } }),
-        ),
-      ),
-    ),
-  ),
+          ConfigProvider.fromEnv({ env: { T3CODE_DESKTOP_USER_DATA_DIR: "relative/profile" } })
+        )
+      )
+    )
+  )
 );

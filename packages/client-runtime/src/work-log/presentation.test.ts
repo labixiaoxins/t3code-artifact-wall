@@ -4,8 +4,8 @@ import { ThreadId, TurnItemId, type OrchestrationV2TurnItem } from "@t3tools/con
 import * as DateTime from "effect/DateTime";
 
 import {
-  contextCompactionLabel,
   commandDetailRepeatsCommand,
+  contextCompactionLabel,
   extractCommandOutputText,
   resolveWorkEntryToolPresentation,
   toolItemForDisplay,
@@ -14,29 +14,9 @@ import {
   workEntryDisplayIndicatesToolFailure,
   workEntryIndicatesToolSuccess,
 } from "./presentation.js";
-describe("contextCompactionLabel", () => {
-  it("keeps success separate from failed, stopped, active, and unconfirmed results", () => {
-    expect(contextCompactionLabel({ status: "completed", completionConfirmed: false })).toBe(
-      "Context compaction result unconfirmed",
-    );
-    expect(contextCompactionLabel({ status: "failed" })).toBe("Context compaction failed");
-    expect(contextCompactionLabel({ status: "interrupted" })).toBe("Context compaction stopped");
-    expect(contextCompactionLabel({ status: "running" })).toBe("Compacting context");
-    expect(
-      contextCompactionLabel({ status: "completed", beforeTokenCount: 1000, afterTokenCount: 500 }),
-    ).toBe("Context compacted 1K → 500 tokens");
-  });
-});
 
 function commandItem(
-  fields: Partial<
-    Extract<
-      OrchestrationV2TurnItem,
-      {
-        type: "command_execution";
-      }
-    >
-  > = {},
+  fields: Partial<Extract<OrchestrationV2TurnItem, { type: "command_execution"; }>> = {}
 ): OrchestrationV2TurnItem {
   return {
     id: TurnItemId.make("command"),
@@ -70,7 +50,7 @@ describe("workEntryIndicatesToolFailure", () => {
   it.each([
     [{ exitCode: 2 }, true],
     [{ output: "sh: missing-command: command not found" }, true],
-    [{ output: `${"x".repeat(32_768)} command not found` }, false],
+    [{ output: `${"x".repeat(32768)} command not found` }, false],
   ] as const)(
     "preserves command failure state after removing displayed output: %j",
     (fields, failed) => {
@@ -85,7 +65,7 @@ describe("workEntryIndicatesToolFailure", () => {
       expect(workEntryDisplayIndicatesToolFailure(entry)).toBe(failed);
       expect(workEntryIndicatesToolSuccess(entry)).toBe(!failed);
       expect(JSON.stringify(toolItemForDisplay(structuredPayload))).not.toContain('"output":');
-    },
+    }
   );
 
   it("ignores failure phrases in reasoning text", () => {
@@ -130,7 +110,7 @@ describe("resolveWorkEntryToolPresentation", () => {
       toolData: { output: { isError: true } },
     };
     expect(resolveWorkEntryToolPresentation(entry)?.displayName).toBe(
-      "Failed to clone a repository",
+      "Failed to clone a repository"
     );
     expect(workEntryDisplayIndicatesToolFailure(entry)).toBe(true);
     expect(workEntryIndicatesToolSuccess(entry)).toBe(false);
@@ -164,25 +144,25 @@ describe("resolveWorkEntryToolPresentation", () => {
         label: "Tool call complete",
         toolTitle: "Inspect the current page",
         toolData: { server: "t3-code", tool: "preview_snapshot", result: { title: "Example" } },
-      }),
+      })
     ).toEqual({ displayName: "Taking a snapshot of the preview page", icon: "browser" });
   });
 
   it("uses the summary's state only when the provider omitted a lifecycle status", () => {
     const entry = { label: "T3-code.preview_click" };
     expect(resolveWorkEntryToolPresentation(entry, "inProgress")?.displayName).toBe(
-      "Clicking in the preview browser",
+      "Clicking in the preview browser"
     );
     expect(resolveWorkEntryToolPresentation(entry, "completed")?.displayName).toBe(
-      "Clicked in the preview browser",
+      "Clicked in the preview browser"
     );
     expect(
       resolveWorkEntryToolPresentation({ ...entry, toolLifecycleStatus: "completed" }, "inProgress")
-        ?.displayName,
+        ?.displayName
     ).toBe("Clicked in the preview browser");
     expect(
       resolveWorkEntryToolPresentation({ ...entry, toolLifecycleStatus: "failed" }, "completed")
-        ?.displayName,
+        ?.displayName
     ).toBe("Failed to click in the preview browser");
   });
 
@@ -199,7 +179,7 @@ describe("resolveWorkEntryToolPresentation", () => {
       resolveWorkEntryToolPresentation({
         label: "preview_click",
         toolData: { server: "another-server", tool: "preview_click" },
-      }),
+      })
     ).toBeNull();
   });
 });
@@ -214,10 +194,10 @@ describe("command work-log details", () => {
             { type: "text", text: "second" },
           ],
         },
-      }),
+      })
     ).toBe("first\nsecond");
     expect(extractCommandOutputText({ rawOutput: { content: "projected summary" } })).toBe(
-      "projected summary",
+      "projected summary"
     );
   });
 
@@ -231,7 +211,7 @@ describe("command work-log details", () => {
         rawCommand: null,
         toolName: "Bash",
         data: { toolName: "Bash", command },
-      }),
+      })
     ).toBe(true);
     expect(
       commandDetailRepeatsCommand({
@@ -240,7 +220,7 @@ describe("command work-log details", () => {
         rawCommand: null,
         toolName: "Bash",
         data: { toolName: "Bash", command: "printf goodbye" },
-      }),
+      })
     ).toBe(false);
   });
 
@@ -252,7 +232,7 @@ describe("command work-log details", () => {
         rawCommand: null,
         toolName: undefined,
         data: { toolCallId: "tool-1", command: "pnpm test" },
-      }),
+      })
     ).toBe(true);
     expect(
       commandDetailRepeatsCommand({
@@ -261,7 +241,21 @@ describe("command work-log details", () => {
         rawCommand: null,
         toolName: undefined,
         data: { command: "pnpm test" },
-      }),
+      })
     ).toBe(false);
+  });
+});
+
+describe("contextCompactionLabel", () => {
+  it("keeps success separate from failed, stopped, active, and unconfirmed results", () => {
+    expect(contextCompactionLabel({ status: "completed", completionConfirmed: false })).toBe(
+      "Context compaction result unconfirmed",
+    );
+    expect(contextCompactionLabel({ status: "failed" })).toBe("Context compaction failed");
+    expect(contextCompactionLabel({ status: "interrupted" })).toBe("Context compaction stopped");
+    expect(contextCompactionLabel({ status: "running" })).toBe("Compacting context");
+    expect(
+      contextCompactionLabel({ status: "completed", beforeTokenCount: 1000, afterTokenCount: 500 }),
+    ).toBe("Context compacted 1K → 500 tokens");
   });
 });

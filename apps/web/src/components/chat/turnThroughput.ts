@@ -1,3 +1,4 @@
+import type { ThreadStructure } from "@t3tools/client-runtime/state/shell";
 import type { OrchestrationV2ThreadProjection } from "@t3tools/contracts";
 import { latestProviderTurnForAttempt } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
@@ -25,7 +26,7 @@ const awaitingUserTypes = new Set(["approval_request", "user_input_request", "se
  * in on-demand details. Never divide the context-window counter by elapsed time: it is a
  * last-response snapshot.
  */
-export function selectTurnThroughput(projection: OrchestrationV2ThreadProjection) {
+export function selectTurnThroughput(projection: ThreadStructure) {
   const newest = (runs: typeof projection.runs) =>
     runs.reduce<(typeof projection.runs)[number] | undefined>(
       (latest, r) => (!latest || r.ordinal > latest.ordinal ? r : latest),
@@ -64,7 +65,7 @@ export function selectTurnThroughput(projection: OrchestrationV2ThreadProjection
   // Only this run/turn's activity: inherited history and child agents cannot impersonate this model.
   for (const item of projection.turnItems) {
     if (item.runId !== run.id || (turn && item.providerTurnId !== turn.id)) continue;
-    const updated = DateTime.toEpochMillis(item.updatedAt);
+    const updated = DateTime.toEpochMillis("updatedAt" in item ? item.updatedAt : start);
     if (item.type !== "user_message") lastActivityMs = Math.max(lastActivityMs, updated);
     if (active.has(item.status) && updated >= lastActiveMs) {
       lastActiveMs = updated;

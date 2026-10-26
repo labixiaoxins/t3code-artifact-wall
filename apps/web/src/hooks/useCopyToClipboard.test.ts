@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { COMPOSER_CONTEXT_CLIPBOARD_MIME } from "@t3tools/shared/composerContextClipboard";
 
-import { writeTextToClipboard } from "./useCopyToClipboard";
+import { ClipboardApiUnavailableError, writeTextToClipboard } from "./useCopyToClipboard";
 
 describe("writeTextToClipboard", () => {
   afterEach(() => manualClipboard.clear());

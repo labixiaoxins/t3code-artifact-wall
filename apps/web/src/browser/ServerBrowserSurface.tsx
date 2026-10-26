@@ -1,8 +1,5 @@
-"use client";
-import { uiText } from "~/i18n";
-
 import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
-
+import { uiText } from "~/i18n";
 import {
   createPreviewFramePainter,
   createPreviewStreamClient,
@@ -48,39 +45,30 @@ import { observeResize } from "~/lib/observeResize";
 export interface ServerBrowserHandle {
   readonly navigate: (url: string) => void;
   readonly history: (delta: -1 | 1) => void;
-  readonly reload: (options?: { readonly ignoreCache?: boolean }) => void;
+  readonly reload: (options?: { readonly ignoreCache?: boolean; }) => void;
   readonly viewport: (setting: PreviewViewportSetting) => void;
   readonly canvas: () => HTMLCanvasElement | null;
 }
 
 const RESIZE_THROTTLE_MS = 150;
-const ACCESS_RETRY_MS = 10000;
+const ACCESS_RETRY_MS = 10_000;
 // A recent probe answer near a new tap stands in for that tap's own answer,
 // which on a slow link arrives after the tap ends.
 const PROBE_REUSE_PX = 24;
-const PROBE_REUSE_MS = 10000;
+const PROBE_REUSE_MS = 10_000;
 // Kept in the input so soft keyboards have something to delete: Android
 // reports Backspace only as a deletion of text, not as a key.
 const INPUT_SENTINEL = "\u200b";
 const BACKSPACE = { key: "Backspace", code: "Backspace", keyCode: 8 } as const;
-const DELETE = { key: "Delete", code: "Delete", keyCode: 46 } as const;
+const DELETE = { key: "Delete", code: uiText("Delete"), keyCode: 46 } as const;
 const MAX_UNAUTHORIZED_REFUSALS = 3;
 const TAP_SLOP_PX = 8;
 const MULTI_CLICK_MS = 500;
 const MULTI_CLICK_SLOP_PX = 4;
 const WHEEL_LINE_PX = 16;
-type MouseInput = Extract<
-  PreviewStreamInput,
-  {
-    type: "mouse";
-  }
->;
-type WheelInput = Extract<
-  PreviewStreamInput,
-  {
-    type: "wheel";
-  }
->;
+
+type MouseInput = Extract<PreviewStreamInput, { type: "mouse"; }>;
+type WheelInput = Extract<PreviewStreamInput, { type: "wheel"; }>;
 
 interface PagePoint {
   readonly x: number;
@@ -135,7 +123,7 @@ function offerDownload(download: PreviewStreamDownload) {
     type: "info",
     title: uiText("Downloaded {0}", {"0": download.fileName}),
     actionProps: {
-      children: "Save",
+      children: uiText("Save"),
       onClick: () => {
         toastManager.close(id);
         const anchor = document.createElement("a");
@@ -183,10 +171,7 @@ export function ServerBrowserSurface(props: {
   const keySentRef = useRef(false);
   const clientRef = useRef<PreviewStreamClient | null>(null);
   const viewportRef = useRef<PreviewStreamViewport | null>(null);
-  const sizeRef = useRef<{
-    width: number;
-    height: number;
-  } | null>(null);
+  const sizeRef = useRef<{ width: number; height: number; } | null>(null);
   const hasFrameRef = useRef(false);
   const controlRef = useRef<PreviewStreamControl | null>(null);
   const [control, setControl] = useState<PreviewStreamControl | null>(null);
@@ -203,7 +188,7 @@ export function ServerBrowserSurface(props: {
         type: "error",
         title: uiText("Could not send the files to the page"),
         description: cause instanceof Error ? cause.message : undefined,
-      }),
+      })
     );
   };
   const unauthorizedRef = useRef(0);
@@ -223,22 +208,14 @@ export function ServerBrowserSurface(props: {
   } | null>(null);
   const touchRef = useRef<TouchGesture | null>(null);
   const probeRef = useRef<TouchProbe | null>(null);
-  const lastProbeRef = useRef<{
-    x: number;
-    y: number;
-    editable: boolean;
-    at: number;
-  } | null>(null);
+  const lastProbeRef = useRef<{ x: number; y: number; editable: boolean; at: number; } | null>(null);
   const firstFrame = useEffectEvent(() => onFirstFrame?.());
   const viewportChanged = useEffectEvent((viewport: PreviewStreamViewport) =>
-    onViewport?.(viewport),
+    onViewport?.(viewport)
   );
   const controlChanged = useEffectEvent((next: PreviewStreamControl | null) => onControl?.(next));
   const popupOpened = useEffectEvent((popupTabId: string) => onPopup?.(popupTabId));
-  const [cap, setCap] = useState<{
-    width: number;
-    height: number;
-  } | null>(null);
+  const [cap, setCap] = useState<{ width: number; height: number; } | null>(null);
 
   // These read only refs, so each is cached once. The stream effect keys on
   // clearInput and would reconnect if it changed.
@@ -334,7 +311,7 @@ export function ServerBrowserSurface(props: {
       viewport: (setting) => send({ type: "viewport", setting }),
       canvas: () => (!pdfUrl && hasFrameRef.current ? canvasRef.current : null),
     }),
-    [pdfUrl, send],
+    [pdfUrl, send]
   );
 
   useEffect(() => {
@@ -355,7 +332,7 @@ export function ServerBrowserSurface(props: {
           : {
               width: Math.max(width, current?.width ?? 0),
               height: Math.max(height, current?.height ?? 0),
-            },
+            }
       );
     };
     const measure = () => {
@@ -458,10 +435,10 @@ export function ServerBrowserSurface(props: {
           }
           refreshTimer = setTimeout(
             () => refreshPreviewStreamAccess(environmentId),
-            refusals === 1 ? 0 : 1000 * 2 ** (refusals - 1),
+            refusals === 1 ? 0 : 1000 * 2 ** (refusals - 1)
           );
         },
-      },
+      }
     );
     clientRef.current = client;
     return () => {
@@ -517,7 +494,7 @@ export function ServerBrowserSurface(props: {
     () => () => {
       if (inputFrameRef.current !== null) cancelAnimationFrame(inputFrameRef.current);
     },
-    [],
+    []
   );
 
   const handlePointer = (event: PointerEvent<HTMLCanvasElement>) => {
@@ -572,7 +549,7 @@ export function ServerBrowserSurface(props: {
             point,
             (touch.lastX - clientX) * point.scale,
             (touch.lastY - clientY) * point.scale,
-            0,
+            0
           );
         touch.lastX = clientX;
         touch.lastY = clientY;
@@ -606,7 +583,7 @@ export function ServerBrowserSurface(props: {
       clientX,
       clientY,
       type !== "pointerdown" &&
-        (cancelled || type === "pointerup" || previous !== 0 || event.buttons !== 0),
+        (cancelled || type === "pointerup" || previous !== 0 || event.buttons !== 0)
     );
     if (!point) return;
     const at = { x: point.x, y: point.y, modifiers: previewStreamModifiers(event) };
@@ -739,16 +716,16 @@ export function ServerBrowserSurface(props: {
       <div
         className={cn(
           "visible relative z-20 flex shrink-0 items-center justify-between gap-2 border-border bg-background px-2 py-1",
-          controlPosition === "bottom" ? "order-last border-t" : "border-b",
+          controlPosition === "bottom" ? "order-last border-t" : "border-b"
         )}
       >
-        <span role={"status"} className={"text-xs text-muted-foreground"}>
+        <span role="status" className="text-xs text-muted-foreground">
           {previewStreamControlLabel(control)}
         </span>
         {control?.canOperate ? (
           <Button
-            variant={"outline"}
-            size={"xs"}
+            variant="outline"
+            size="xs"
             disabled={control.controller === "another-viewer"}
             onClick={() =>
               send({ type: control.controller === "you" ? "releaseControl" : "takeControl" })
@@ -758,18 +735,18 @@ export function ServerBrowserSurface(props: {
           </Button>
         ) : null}
       </div>
-      <div className={"relative min-h-0 flex-1"}>
+      <div className="relative min-h-0 flex-1">
         {pdfUrl ? (
           <embed
             src={pdfUrl}
-            type={"application/pdf"}
-            title={"PDF document"}
-            className={"absolute inset-0 z-10 size-full border-0"}
+            type="application/pdf"
+            title="PDF document"
+            className="absolute inset-0 z-10 size-full border-0"
           />
         ) : null}
         <canvas
           ref={canvasRef}
-          className={"block size-full touch-none object-contain"}
+          className="block size-full touch-none object-contain"
           onPointerDown={handlePointer}
           onPointerMove={handlePointer}
           onPointerUp={handlePointer}
@@ -789,15 +766,15 @@ export function ServerBrowserSurface(props: {
           ref={inputRef}
           aria-label={uiText("Browser page")}
           aria-description={uiText("Press Shift+Escape to leave the browser page.")}
-          autoCapitalize={"off"}
-          autoComplete={"off"}
-          autoCorrect={"off"}
+          autoCapitalize="off"
+          autoComplete="off"
+          autoCorrect="off"
           spellCheck={false}
           disabled={pdfUrl !== null || control?.controller !== "you"}
           defaultValue={INPUT_SENTINEL}
           // The caret must sit after the sentinel for a deletion to have something to delete.
           onFocus={(event) => resetInput(event.currentTarget)}
-          className={"sr-only top-0 left-0 text-base"}
+          className="sr-only top-0 left-0 text-base"
           onKeyDown={(event) => handleKey("down", event)}
           onKeyUp={(event) => handleKey("up", event)}
           onInput={handleInput}
@@ -817,21 +794,18 @@ export function ServerBrowserSurface(props: {
         />
         {fileChooser && control?.controller === "you" ? (
           <div
-            className={
-              "absolute inset-x-2 top-2 z-10 flex flex-col gap-2 rounded-lg border border-border bg-background p-3 shadow-lg"
-            }
-            role={"dialog"}
+            className="absolute inset-x-2 top-2 z-10 flex flex-col gap-2 rounded-lg border border-border bg-background p-3 shadow-lg"
+            role="dialog"
             aria-label={uiText("Choose files for the page")}
           >
-            <p className={"text-sm"}>
-              {uiText("The page asks for")}
-              {fileChooser.multiple ? uiText("files") : uiText("a file")}
+            <p className="text-sm">
+              {uiText("The page asks for")}{fileChooser.multiple ? uiText("files") : uiText("a file")}
               {"."}
             </p>
             <input
               ref={fileInputRef}
-              type={"file"}
-              className={"hidden"}
+              type="file"
+              className="hidden"
               multiple={fileChooser.multiple}
               accept={fileChooser.accept}
               onChange={(event) => {
@@ -840,26 +814,22 @@ export function ServerBrowserSurface(props: {
                 if (files.length > 0) answerFileChooser(files);
               }}
             />
-            <div className={"flex justify-end gap-2"}>
-              <Button variant={"outline"} size={"sm"} onClick={() => answerFileChooser([])}>
-                {uiText("Cancel")}
-              </Button>
-              <Button size={"sm"} onClick={() => fileInputRef.current?.click()}>
-                {uiText("Choose")}
-                {fileChooser.multiple ? uiText("files") : uiText("file")}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => answerFileChooser([])}>
+                {uiText("Cancel")}</Button>
+              <Button size="sm" onClick={() => fileInputRef.current?.click()}>
+                {uiText("Choose")}{fileChooser.multiple ? uiText("files") : uiText("file")}
               </Button>
             </div>
           </div>
         ) : null}
         {control?.dialog ? (
           <div
-            className={
-              "absolute inset-x-2 top-2 z-10 flex flex-col gap-2 rounded-lg border border-border bg-background p-3 shadow-lg"
-            }
-            role={"dialog"}
+            className="absolute inset-x-2 top-2 z-10 flex flex-col gap-2 rounded-lg border border-border bg-background p-3 shadow-lg"
+            role="dialog"
             aria-label={uiText("Browser dialog")}
           >
-            <p className={"break-words text-sm"}>{control.dialog.message}</p>
+            <p className="break-words text-sm">{control.dialog.message}</p>
             {control.controller === "you" ? (
               <>
                 {control.dialog.type === "prompt" ? (
@@ -869,16 +839,15 @@ export function ServerBrowserSurface(props: {
                     onChange={(event) => setPromptText(event.target.value)}
                   />
                 ) : null}
-                <div className={"flex justify-end gap-2"}>
+                <div className="flex justify-end gap-2">
                   <Button
-                    variant={"outline"}
-                    size={"sm"}
+                    variant="outline"
+                    size="sm"
                     onClick={() => send({ type: "dialog", accept: false })}
                   >
-                    {uiText("Dismiss")}
-                  </Button>
+                    {uiText("Dismiss")}</Button>
                   <Button
-                    size={"sm"}
+                    size="sm"
                     onClick={() =>
                       send({
                         type: "dialog",
@@ -887,52 +856,40 @@ export function ServerBrowserSurface(props: {
                       })
                     }
                   >
-                    {uiText("Accept")}
-                  </Button>
+                    {uiText("Accept")}</Button>
                 </div>
               </>
             ) : (
-              <p className={"text-xs text-muted-foreground"}>{uiText("Take control to respond.")}</p>
+              <p className="text-xs text-muted-foreground">{uiText("Take control to respond.")}</p>
             )}
           </div>
         ) : null}
       </div>
       {visible && hostSetup ? (
-        <div
-          className={
-            "visible absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-background p-4 text-center"
-          }
-        >
-          <p role={"alert"} className={"max-w-sm text-sm text-muted-foreground"}>
+        <div className="visible absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-background p-4 text-center">
+          <p role="alert" className="max-w-sm text-sm text-muted-foreground">
             {previewStreamHostSetupMessage(hostSetup)}
           </p>
-          <CommandBlock command={hostSetup.command} className={"w-full max-w-md text-left"} />
-          <Button variant={"outline"} size={"sm"} onClick={() => setHostSetup(null)}>
-            {uiText("Try again")}
-          </Button>
+          <CommandBlock command={hostSetup.command} className="w-full max-w-md text-left" />
+          <Button variant="outline" size="sm" onClick={() => setHostSetup(null)}>
+            {uiText("Try again")}</Button>
         </div>
       ) : null}
       {visible && accessDenied ? (
         // The page can be invisible beneath an empty or unreachable state; reconnect must remain reachable.
-        <div
-          className={
-            "visible absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-background p-3 text-center"
-          }
-        >
-          <p role={"alert"} className={"text-xs text-muted-foreground"}>
-            {uiText("Browser connection was refused.")}
-          </p>
+        <div className="visible absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-background p-3 text-center">
+          <p role="alert" className="text-xs text-muted-foreground">
+            {uiText("Browser connection was refused.")}</p>
           <Button
-            variant={"outline"}
-            size={"sm"}
+            variant="outline"
+            size="sm"
             onClick={() => {
               unauthorizedRef.current = 0;
               setAccessDenied(false);
               refreshPreviewStreamAccess(environmentId);
             }}
           >
-            {uiText("Reconnect")}
-          </Button>
+            {uiText("Reconnect")}</Button>
         </div>
       ) : null}
     </div>
@@ -949,7 +906,7 @@ interface AgentCursorPlacement {
 function placeAgentCursor(
   pointer: PreviewStreamPointer,
   canvas: HTMLCanvasElement | null,
-  viewport: PreviewStreamViewport | null,
+  viewport: PreviewStreamViewport | null
 ): AgentCursorPlacement | null {
   if (!canvas || !viewport || canvas.width < 1 || canvas.height < 1) return null;
   const box = { width: canvas.clientWidth, height: canvas.clientHeight };

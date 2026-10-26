@@ -59,10 +59,7 @@ describe("deleteSelectedThreadEntries", () => {
     const pendingDelete = new Promise<typeof success>((resolve) => {
       resolveDelete = resolve;
     });
-    const worktreeChecks: {
-      threadKey: string;
-      deletedThreadKeys: string[];
-    }[] = [];
+    const worktreeChecks: { threadKey: string; deletedThreadKeys: string[]; }[] = [];
     const deletion = deleteSelectedThreadEntries({
       entries,
       delete: async ({ threadKey }, deletedThreadKeys) => {
@@ -262,7 +259,7 @@ describe("resolveSidebarThreadStatus", () => {
         hasPendingUserInput: true,
         runtime,
         blockedOnThreadWait: true,
-      }),
+      })
     ).toBe("input");
     expect(
       resolveSidebarThreadStatus({
@@ -271,7 +268,7 @@ describe("resolveSidebarThreadStatus", () => {
         hasPendingUserInput: true,
         blockedOnThreadWait: true,
         runtime,
-      }),
+      })
     ).toBe("approval");
   });
 
@@ -284,13 +281,13 @@ describe("resolveSidebarThreadStatus", () => {
     };
     expect(resolveSidebarThreadStatus({ ...idle, runtime: limited })).toBe("limited");
     expect(
-      resolveSidebarThreadStatus({ ...idle, runtime: { ...limited, status: "running" } }),
+      resolveSidebarThreadStatus({ ...idle, runtime: { ...limited, status: "running" } })
     ).toBe("working");
     expect(
-      resolveSidebarThreadStatus({ ...idle, runtime: { ...limited, status: "completed" } }),
+      resolveSidebarThreadStatus({ ...idle, runtime: { ...limited, status: "completed" } })
     ).toBe("ready");
     expect(resolveSidebarV2TopStatus({ status: "limited", isUnread: false, isWoke: false })).toBe(
-      "limited",
+      "limited"
     );
     expect(
       shouldRecedeSidebarThread({
@@ -299,7 +296,7 @@ describe("resolveSidebarThreadStatus", () => {
         isWoke: false,
         isActive: false,
         isSelected: false,
-      }),
+      })
     ).toBe(false);
   });
 
@@ -308,19 +305,19 @@ describe("resolveSidebarThreadStatus", () => {
       resolveSidebarThreadStatus({
         ...idle,
         runtime: { ...runtime, status: "failed" as const, lastError: "boom" },
-      }),
+      })
     ).toBe("failed");
     expect(
       resolveSidebarThreadStatus({
         ...idle,
         runtime: { ...runtime, status: "completed" as const, lastError: "persisted" },
-      }),
+      })
     ).toBe("ready");
     expect(
       resolveSidebarThreadStatus({
         ...idle,
         runtime: { ...runtime, status: "idle" as const, lastError: "persisted" },
-      }),
+      })
     ).toBe("waiting");
   });
 });
@@ -340,8 +337,8 @@ describe("searchSidebarThreads", () => {
   const contentKeys = (...ids: ReadonlyArray<string>) =>
     new Set(
       ids.map((id) =>
-        threadSearchMatchKey({ environmentId: localEnvironmentId, threadId: ThreadId.make(id) }),
-      ),
+        threadSearchMatchKey({ environmentId: localEnvironmentId, threadId: ThreadId.make(id) })
+      )
     );
 
   it("lists a thread matching both title and content once", () => {
@@ -367,7 +364,7 @@ describe("resolveWorkingStartedAt", () => {
       resolveWorkingStartedAt({
         latestRun: makeLatestRun(),
         runtime,
-      }),
+      })
     ).toBeNull();
   });
 
@@ -385,20 +382,20 @@ describe("resolveWorkingStartedAt", () => {
       for (const updatedAt of ["2026-03-09T10:30:00.000Z", "2026-03-09T10:50:00.000Z"]) {
         const activeRuntime = { ...runtime, updatedAt, activityStartedAt };
         expect(resolveWorkingStartedAt({ latestRun, runtime: activeRuntime })).toBe(
-          activityStartedAt,
+          activityStartedAt
         );
         expect(deriveActiveWorkStartedAt(latestRun, activeRuntime, updatedAt)).toBe(
-          activityStartedAt,
+          activityStartedAt
         );
       }
       expect(
         deriveActiveWorkStartedAt(
           latestRun,
           { ...runtime, activityStartedAt: null },
-          "2026-03-09T10:50:00.000Z",
-        ),
+          "2026-03-09T10:50:00.000Z"
+        )
       ).toBeNull();
-    },
+    }
   );
 });
 
@@ -448,7 +445,7 @@ describe("resolveThreadStatusPill", () => {
             activeRunId: null,
           },
         },
-      }),
+      })
     ).toMatchObject({
       label: "Waiting",
       colorClass: "text-sidebar-muted-foreground",
@@ -470,7 +467,7 @@ describe("resolveThreadStatusPill", () => {
             activeRunId: null,
           },
         },
-      }),
+      })
     ).toMatchObject({ label: "Plan Ready", pulse: false });
   });
 
@@ -486,7 +483,7 @@ describe("resolveThreadStatusPill", () => {
             activeRunId: null,
           },
         },
-      }),
+      })
     ).toBeNull();
   });
 
@@ -504,7 +501,7 @@ describe("resolveThreadStatusPill", () => {
             activeRunId: null,
           },
         },
-      }),
+      })
     ).toMatchObject({ label: "有新结果", pulse: false });
   });
 
@@ -523,7 +520,7 @@ describe("resolveThreadStatusPill", () => {
             lastError: "Provider turn failed.",
           },
         },
-      }),
+      })
     ).toMatchObject({ label: "Failed", pulse: false });
   });
 
@@ -537,7 +534,7 @@ describe("resolveThreadStatusPill", () => {
           lastVisitedAt: "2026-03-09T10:04:00.000Z",
           runtime: { ...baseThread.runtime, status: "failed", activeRunId: null },
         },
-      }),
+      })
     ).toMatchObject({ label: "Failed" });
   });
 
@@ -551,7 +548,7 @@ describe("resolveThreadStatusPill", () => {
           lastVisitedAt: "2026-03-09T10:06:00.000Z",
           runtime: { ...baseThread.runtime, status: "failed", activeRunId: null },
         },
-      }),
+      })
     ).toBeNull();
   });
 });
@@ -574,7 +571,7 @@ describe("resolveProjectStatusIndicator", () => {
           dotClass: "bg-sky-500",
           pulse: true,
         },
-      ]),
+      ])
     ).toMatchObject({ label: "Working" });
     expect(
       resolveProjectStatusIndicator([
@@ -585,7 +582,7 @@ describe("resolveProjectStatusIndicator", () => {
           pulse: false,
         },
         waiting,
-      ]),
+      ])
     ).toMatchObject({ label: "Waiting" });
   });
 });
@@ -831,8 +828,8 @@ describe("sortSidebarV2ProjectGroups", () => {
 
     expect(
       sortSidebarV2ProjectGroups(projects, threads, "updated_at").map(
-        (project) => project.projectKey,
-      ),
+        (project) => project.projectKey
+      )
     ).toEqual(["logical-newer", "logical-older"]);
   });
 });
@@ -871,7 +868,7 @@ describe("pinOrderKeyBetween", () => {
 });
 
 describe("sortPinnedThreadsForSidebar", () => {
-  const pinnable = (input: { id: string; createdAt: string; pinOrderKey?: string | null }) => ({
+  const pinnable = (input: { id: string; createdAt: string; pinOrderKey?: string | null; }) => ({
     id: input.id,
     createdAt: input.createdAt,
     pinOrderKey: input.pinOrderKey ?? null,
@@ -931,7 +928,7 @@ describe("navigation after parking a thread", () => {
       snoozedUntil,
       currentThreadKey,
       expected,
-      hasPendingApprovals: boolean = false,
+      hasPendingApprovals: boolean = false
     ) => {
       expect(
         shouldNavigateAfterThreadPark({
@@ -948,9 +945,9 @@ describe("navigation after parking a thread", () => {
             hasPendingApprovals,
             hasPendingUserInput: false,
           },
-        }),
+        })
       ).toBe(expected);
-    },
+    }
   );
 });
 
@@ -980,7 +977,7 @@ describe("unseen completion with background work", () => {
         isWoke: false,
         isActive: false,
         isSelected: false,
-      }),
+      })
     ).toBe(expected.receded);
     expect(isSidebarThreadWorking(thread)).toBe(expected.receded);
     expect(resolveThreadStatusPill({ thread })).toMatchObject({ label: expected.pill });
@@ -1021,7 +1018,7 @@ describe("Working shelf (beta)", () => {
       isSidebarThreadWorking({
         ...waiting,
         runtime: { ...runtime, status: "failed" as const, lastError: "boom" },
-      }),
+      })
     ).toBe(false);
   });
 
@@ -1031,18 +1028,14 @@ describe("Working shelf (beta)", () => {
         ...waiting,
         interactionMode: "plan",
         hasActionableProposedPlan: true,
-      }),
+      })
     ).toBe(false);
   });
 
   describe("sortInboxThreadsByReturn", () => {
     const thread = (
       id: string,
-      input: {
-        createdAt: string;
-        completedAt?: string | null;
-        unsettledAt?: string;
-      },
+      input: { createdAt: string; completedAt?: string | null; unsettledAt?: string; }
     ) => ({
       id: ThreadId.make(id),
       environmentId: localEnvironmentId,
@@ -1084,8 +1077,8 @@ describe("Working shelf (beta)", () => {
       ]);
       expect(
         sortInboxThreadsByReturn([finished, waiting], (entry) =>
-          entry === waiting ? Date.parse("2026-03-09T11:05:00.000Z") : undefined,
-        ).map((entry) => entry.id),
+          entry === waiting ? Date.parse("2026-03-09T11:05:00.000Z") : undefined
+        ).map((entry) => entry.id)
       ).toEqual(["asks-approval", "finished"]);
     });
   });
@@ -1141,9 +1134,9 @@ describe("Working shelf (beta)", () => {
               ["a2", "t"],
             ]),
             activeTimeOrdered: true,
-          }),
+          })
         ).toEqual({ kind: "none" });
-      },
+      }
     );
 
     it("arranges the rows it can write when another row's server cannot store an order", () => {
@@ -1204,7 +1197,7 @@ describe("Working shelf (beta)", () => {
           activeKey: "a1",
           activeSection: "active",
           target: { section: "active", pinnedOrder: ["p1"], activeOrder: ["a2", "a1"] },
-        }),
+        })
       ).toEqual({ kind: "none" });
       expect(
         planSidebarThreadDrop({
@@ -1212,7 +1205,7 @@ describe("Working shelf (beta)", () => {
           activeKey: "p1",
           activeSection: "pinned",
           target: { section: "active", pinnedOrder: [], activeOrder: ["a1", "p1", "a2"] },
-        }),
+        })
       ).toEqual({
         kind: "move-active",
         order: null,

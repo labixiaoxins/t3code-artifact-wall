@@ -4,7 +4,8 @@ import { describe, expect, it } from "vite-plus/test";
 import { deriveLogicalProjectKeyFromSettings } from "./logicalProject";
 import {
   buildSidebarProjectPickerEntries,
-  buildSidebarProjectSnapshots,
+  buildSidebarProjectSnapshots as buildSnapshots,
+  buildPhysicalToLogicalProjectKeyMap as buildPhysicalMapping,
   resolveSidebarProjectScopeKey,
   getSidebarProjectSettingsKey,
 } from "./sidebarProjectGrouping";
@@ -77,13 +78,13 @@ describe("environment grouping", () => {
       [{ environmentId: remote.environmentId, projectId: remote.id }],
     ]);
     expect(getSidebarProjectSettingsKey(filters[0]!, defaultGroupingSettings, input.projects)).toBe(
-      settingsGroups[0]?.projectKey,
+      settingsGroups[0]?.projectKey
     );
     expect(
       getSidebarProjectSettingsKey(filters[0]!, defaultGroupingSettings, input.projects, {
         environmentId: remote.environmentId,
         projectId: remote.id,
-      }),
+      })
     ).toBe(settingsGroups[1]?.projectKey);
   });
 
@@ -104,9 +105,9 @@ describe("environment grouping", () => {
         resolveEnvironmentLabel: () => null,
       });
       expect(
-        resolveSidebarProjectScopeKey({ groups, key, settings, canClearMissingScope: true }),
+        resolveSidebarProjectScopeKey({ groups, key, settings, canClearMissingScope: true })
       ).toBe(groups[0]?.projectKey);
-    },
+    }
   );
 
   it("prefers an existing ordinary repository scope over a scratch alias", () => {
@@ -147,7 +148,7 @@ describe("environment grouping", () => {
     });
 
     const snapshots = buildSidebarProjectSnapshots({
-      workspaceCollections: false,
+            workspaceCollections: false,
       projects: [primary, duplicate, remote],
       settings: defaultGroupingSettings,
       primaryEnvironmentId,
@@ -270,7 +271,7 @@ describe("environment grouping", () => {
       },
     });
     const destination = entries.find(
-      (entry) => entry.group.projectKey === destinationRepositoryIdentity.canonicalKey,
+      (entry) => entry.group.projectKey === destinationRepositoryIdentity.canonicalKey
     );
     const fallback = entries.find((entry) => entry.group.displayName === "fallback");
 

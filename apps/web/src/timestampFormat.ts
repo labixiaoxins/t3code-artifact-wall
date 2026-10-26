@@ -22,7 +22,7 @@ function getTimestampFormatOptions(
   };
 }
 
-function resolveTimestampLocale(systemLocale: string | null | undefined): string | undefined {
+export function resolveTimestampLocale(systemLocale: string | null | undefined): string | undefined {
   const tag = systemLocale?.trim();
   if (!tag) return undefined;
 
@@ -61,7 +61,7 @@ type LocaleWithWeekInfo = Intl.Locale & {
  * `undefined` when the runtime has no week data, so callers keep their own
  * default.
  */
-function resolveWeekStartsOn(locale: string | undefined): WeekdayIndex | undefined {
+export function resolveWeekStartsOn(locale: string | undefined): WeekdayIndex | undefined {
   try {
     const resolved: LocaleWithWeekInfo = new Intl.Locale(
       locale ?? Intl.DateTimeFormat().resolvedOptions().locale,
@@ -298,7 +298,7 @@ export function formatElapsedDurationLabel(isoDate: string, nowMs: number = Date
   return `${days}${readUiLocale() === "zh-CN" ? "天" : "d"}`;
 }
 
-function formatRelativeTimeUntil(isoDate: string): RelativeTimeParts | null {
+export function formatRelativeTimeUntil(isoDate: string): RelativeTimeParts | null {
   const date = parseTimestampDate(isoDate);
   if (!date) return null;
   const diffMs = date.getTime() - Date.now();
@@ -377,4 +377,10 @@ export function formatExpiresInLabel(isoDate: string, nowMs: number = Date.now()
   if (minutes > 0) tail.push(`${minutes}${readUiLocale() === "zh-CN" ? "分钟" : "m"}`);
   if (seconds > 0) tail.push(`${seconds}${readUiLocale() === "zh-CN" ? "秒" : "s"}`);
   return tail.length > 0 ? `Expires in ${days}d ${tail.join(" ")}` : `Expires in ${days}d`;
+}
+
+export function formatTimestamp(isoDate: string, timestampFormat: TimestampFormat): string {
+  const date = parseTimestampDate(isoDate);
+  if (!date) return "";
+  return getTimestampFormatter(timestampFormat, true).format(date);
 }

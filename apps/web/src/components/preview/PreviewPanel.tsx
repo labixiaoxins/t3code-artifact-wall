@@ -1,7 +1,4 @@
-"use client";
 import { uiText } from "~/i18n";
-
-
 import {
   AuthPreviewOperateScope,
   type PreviewAnnotationPayload,
@@ -23,7 +20,7 @@ interface Props {
   visible: boolean;
   onSendAnnotation?: (
     annotation: PreviewAnnotationPayload,
-    image: ComposerImageAttachment | null,
+    image: ComposerImageAttachment | null
   ) => void;
 }
 

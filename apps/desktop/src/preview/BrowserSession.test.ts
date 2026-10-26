@@ -46,7 +46,7 @@ const layerDialog = Layer.succeed(ElectronDialog.ElectronDialog, {
   showErrorBox: () => Effect.void,
 });
 const layer = BrowserSession.layer.pipe(
-  Layer.provide(Layer.merge(NodeServices.layer, layerDialog)),
+  Layer.provide(Layer.merge(NodeServices.layer, layerDialog))
 );
 
 describe("BrowserSession", () => {
@@ -78,7 +78,7 @@ describe("BrowserSession", () => {
       assert.strictEqual(partition, "persist:t3code-preview-f051bb2c68cb7b2fe969");
       assert.strictEqual(first, second);
       assert.strictEqual(fromPartition.mock.calls.length, 1);
-    }).pipe(Effect.provide(layer)),
+    }).pipe(Effect.provide(layer))
   );
 
   it.effect("keeps scopes that differ only by a lone surrogate in separate partitions", () =>
@@ -96,9 +96,9 @@ describe("BrowserSession", () => {
 
       assert.strictEqual(
         yield* browserSessions.getPartition("scope-a"),
-        "persist:t3code-preview-f051bb2c68cb7b2fe969",
+        "persist:t3code-preview-f051bb2c68cb7b2fe969"
       );
-    }).pipe(Effect.provide(layer)),
+    }).pipe(Effect.provide(layer))
   );
 
   it.effect("keeps legacy defaults disjoint from nondefault profile partitions", () =>
@@ -113,7 +113,7 @@ describe("BrowserSession", () => {
       assert.notStrictEqual(nondefaultProfile, legacyDefault);
       assert.isTrue(browserSessions.isPartition(legacyDefault));
       assert.isTrue(browserSessions.isPartition(nondefaultProfile));
-    }).pipe(Effect.provide(layer)),
+    }).pipe(Effect.provide(layer))
   );
 
   // A rewritten session UA — any variant, even ones that keep the Electron
@@ -149,7 +149,7 @@ describe("BrowserSession", () => {
       const browserSession = sessions.get(partition);
       assert.isDefined(browserSession);
       assert.strictEqual(browserSession.getUserAgent(), nativeUserAgent);
-    }).pipe(Effect.provide(layer)),
+    }).pipe(Effect.provide(layer))
   );
 
   it.effect("grants clipboard-sanitized-write through both the request and check handlers", () =>
@@ -184,7 +184,7 @@ describe("BrowserSession", () => {
         assert.isTrue(requestAllows(permission), `request handler should allow ${permission}`);
         assert.isTrue(
           checkHandler(null, permission) as boolean,
-          `check handler should allow ${permission}`,
+          `check handler should allow ${permission}`
         );
       }
 
@@ -195,10 +195,10 @@ describe("BrowserSession", () => {
         assert.isFalse(requestAllows(permission), `request handler should deny ${permission}`);
         assert.isFalse(
           checkHandler(null, permission) as boolean,
-          `check handler should deny ${permission}`,
+          `check handler should deny ${permission}`
         );
       }
-    }).pipe(Effect.provide(layer)),
+    }).pipe(Effect.provide(layer))
   );
 
   it.effect("opens custom-scheme links externally only after the user confirms", () =>
@@ -216,14 +216,13 @@ describe("BrowserSession", () => {
         getURL: () => "https://example.com/launch",
         executeJavaScript: vi.fn(() => Promise.resolve(true)),
       };
-
       const request = (externalURL: string) =>
         Effect.callback<boolean>((resume) => {
           requestHandler(
             guest,
             "openExternal",
             (granted: boolean) => resume(Effect.succeed(granted)),
-            { externalURL },
+            { externalURL }
           );
         });
 
@@ -237,7 +236,7 @@ describe("BrowserSession", () => {
         assert.isFalse(yield* request(url), `${url} must never open externally`);
       }
       assert.strictEqual(showMessageBox.mock.calls.length, 2);
-    }).pipe(Effect.provide(layer)),
+    }).pipe(Effect.provide(layer))
   );
 
   it.effect("clears a partition whose session has not been opened yet", () =>
@@ -255,6 +254,38 @@ describe("BrowserSession", () => {
       const created = sessions.get(partition);
       assert.isDefined(created);
       assert.strictEqual(created.clearStorageData.mock.calls.length, 1);
-    }).pipe(Effect.provide(layer)),
+    }).pipe(Effect.provide(layer))
+  );
+
+it.effect.each([
+    ["timer", false, true, 0],
+    ["background", true, false, 0],
+    ["cancel", true, true, 1],
+  ] as const)(
+    "suppresses repeated %s requests despite changing deep-link queries",
+    ([scenario, activated, focused, expectedDialogs]) =>
+      Effect.gen(function* () {
+        const browserSessions = yield* BrowserSession.BrowserSession;
+        const partition = yield* browserSessions.getPartition(scenario);
+        yield* browserSessions.getSession(scenario);
+        const handler = sessions.get(partition)!.setPermissionRequestHandler.mock.calls[0]![0];
+        showMessageBox.mockReset();
+        showMessageBox.mockReturnValue(1);
+        const guest = {
+          isDestroyed: () => false,
+          isFocused: () => focused,
+          getURL: () => "https://creator.douyin.com/creator-micro/content/manage",
+          executeJavaScript: vi.fn(() => Promise.resolve(activated)),
+        };
+        for (let i = 0; i < 10; i++) {
+          const granted = yield* Effect.callback<boolean>((resume) =>
+            handler(guest, "openExternal", (value: boolean) => resume(Effect.succeed(value)), {
+              externalURL: `bytedance://dispatch_message/?attempt=${i}`,
+            }),
+          );
+          assert.isFalse(granted);
+        }
+        assert.strictEqual(showMessageBox.mock.calls.length, expectedDialogs);
+      }).pipe(Effect.provide(layer)),
   );
 });

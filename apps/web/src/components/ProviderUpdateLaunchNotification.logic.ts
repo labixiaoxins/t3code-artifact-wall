@@ -43,7 +43,7 @@ interface ProviderUpdateSidebarPillOptions {
   readonly dismissedKeys?: ReadonlySet<string>;
 }
 
-const PROVIDER_UPDATE_SUCCESS_VISIBLE_MS = 3_000;
+const PROVIDER_UPDATE_SUCCESS_VISIBLE_MS = 3000;
 
 function formatVersion(value: string): string {
   return value.startsWith("v") ? value : `v${value}`;
@@ -51,7 +51,7 @@ function formatVersion(value: string): string {
 
 function chooseRepresentativeProvider(
   current: ServerProvider | undefined,
-  candidate: ServerProvider,
+  candidate: ServerProvider
 ): ServerProvider {
   if (!current) {
     return candidate;
@@ -72,7 +72,7 @@ function dedupeProvidersByDriver<T extends ServerProvider>(providers: ReadonlyAr
   for (const provider of providers) {
     latestProviderByDriver.set(
       provider.driver,
-      chooseRepresentativeProvider(latestProviderByDriver.get(provider.driver), provider) as T,
+      chooseRepresentativeProvider(latestProviderByDriver.get(provider.driver), provider) as T
     );
   }
 
@@ -93,7 +93,7 @@ function getProviderUpdatedDescription(providerCount: number): string {
 }
 
 function getProviderFailedUpdateTitle(
-  provider: Pick<ServerProvider, "driver" | "versionAdvisory">,
+  provider: Pick<ServerProvider, "driver" | "versionAdvisory">
 ): string {
   const providerName = PROVIDER_DISPLAY_NAMES[provider.driver] ?? provider.driver;
   const attemptedVersion = provider.versionAdvisory?.latestVersion;
@@ -103,7 +103,7 @@ function getProviderFailedUpdateTitle(
 }
 
 export function isProviderUpdateCandidate(
-  provider: ServerProvider,
+  provider: ServerProvider
 ): provider is ProviderUpdateCandidate {
   return (
     provider.enabled &&
@@ -119,13 +119,13 @@ export function isProviderUpdateActive(provider: Pick<ServerProvider, "updateSta
 }
 
 export function collectProviderUpdateCandidates(
-  providers: ReadonlyArray<ServerProvider>,
+  providers: ReadonlyArray<ServerProvider>
 ): ProviderUpdateCandidate[] {
   return dedupeProvidersByDriver(providers.filter(isProviderUpdateCandidate));
 }
 
 export function isProviderSettingsUpdateCandidate(
-  provider: ServerProvider,
+  provider: ServerProvider
 ): provider is ProviderSettingsUpdateCandidate {
   return (
     provider.enabled &&
@@ -139,7 +139,7 @@ export function isProviderSettingsUpdateCandidate(
 
 export function hasOneClickUpdateProviderCandidate(
   candidate: ProviderUpdateCandidate,
-  providers: ReadonlyArray<ServerProvider>,
+  providers: ReadonlyArray<ServerProvider>
 ): boolean {
   if (
     candidate.versionAdvisory.canUpdate !== true ||
@@ -170,7 +170,7 @@ export function hasOneClickUpdateProviderCandidate(
 
 export function canOneClickUpdateProviderCandidate(
   candidate: ProviderUpdateCandidate,
-  providers: ReadonlyArray<ServerProvider>,
+  providers: ReadonlyArray<ServerProvider>
 ): boolean {
   return (
     !isProviderUpdateActive(candidate) && hasOneClickUpdateProviderCandidate(candidate, providers)
@@ -179,7 +179,7 @@ export function canOneClickUpdateProviderCandidate(
 
 function formatProviderList(providers: ReadonlyArray<Pick<ServerProvider, "driver">>) {
   const names = providers.map(
-    (provider) => PROVIDER_DISPLAY_NAMES[provider.driver] ?? provider.driver,
+    (provider) => PROVIDER_DISPLAY_NAMES[provider.driver] ?? provider.driver
   );
   if (names.length <= 2) {
     return names.join(" and ");
@@ -193,16 +193,15 @@ export interface ProviderUpdateRun {
   readonly driver: ProviderDriverKind;
   readonly instanceId: ProviderInstanceId;
   readonly result: AtomCommandResult<
-    { readonly providers: ReadonlyArray<ServerProvider> },
+    { readonly providers: ReadonlyArray<ServerProvider>; },
     unknown
   >;
 }
 
 export function getProviderUpdateRunOutcome(
-  run: ProviderUpdateRun,
-):
-  | { readonly status: "interrupted" | "updated" }
-  | { readonly status: "failed"; readonly line: string } {
+  run: ProviderUpdateRun
+): { readonly status: "interrupted" | "updated"; }
+  | { readonly status: "failed"; readonly line: string; } {
   if (isAtomCommandInterrupted(run.result)) return { status: "interrupted" };
   const label = `${run.machineLabel} · ${PROVIDER_DISPLAY_NAMES[run.driver] ?? run.driver}`;
   if (run.result._tag === "Failure") {
@@ -213,7 +212,7 @@ export function getProviderUpdateRunOutcome(
     };
   }
   const updateState = run.result.value.providers.find(
-    (provider) => provider.instanceId === run.instanceId,
+    (provider) => provider.instanceId === run.instanceId
   )?.updateState;
   return updateState?.status === "succeeded"
     ? { status: "updated" }
@@ -235,7 +234,7 @@ export function getProviderUpdateRunToastView(runs: ReadonlyArray<ProviderUpdate
     return null;
   }
   const failureLines = settled.flatMap((outcome) =>
-    outcome.status === "failed" ? [outcome.line] : [],
+    outcome.status === "failed" ? [outcome.line] : []
   );
   if (failureLines.length === 0) {
     return {
@@ -262,7 +261,7 @@ function getUpdateFinishedAt(provider: ServerProvider): string | null {
 
 function isRecentTerminalProvider(
   provider: ServerProvider,
-  visibleAfterIso: string | undefined,
+  visibleAfterIso: string | undefined
 ): boolean {
   const status = provider.updateState?.status;
   if (status !== "failed" && status !== "unchanged" && status !== "succeeded") {
@@ -305,7 +304,7 @@ function latestTerminalProvidersByDriver(providers: ReadonlyArray<ServerProvider
 
 export function getProviderUpdateSidebarPillView(
   providers: ReadonlyArray<ServerProvider>,
-  options?: ProviderUpdateSidebarPillOptions,
+  options?: ProviderUpdateSidebarPillOptions
 ): ProviderUpdateSidebarPillView | null {
   // Update state is recorded per instance, so pick the instances with an
   // update before collapsing to one entry per driver.
@@ -316,9 +315,9 @@ export function getProviderUpdateSidebarPillView(
       PROVIDER_DISPLAY_NAMES[activeProvider.driver] ?? activeProvider.driver;
     return {
       key: `loading:${activeProviders
-        .map((provider) => `${provider.driver}:${provider.updateState?.status ?? "idle"}`)
-        .toSorted()
-        .join("|")}`,
+                .map((provider) => `${provider.driver}:${provider.updateState?.status ?? "idle"}`)
+                .toSorted()
+                .join("|")}`,
       tone: "loading",
       title:
         activeProviders.length === 1
@@ -332,23 +331,20 @@ export function getProviderUpdateSidebarPillView(
   }
 
   const recentTerminalProviders = latestTerminalProvidersByDriver(
-    providers.filter((provider) => isRecentTerminalProvider(provider, options?.visibleAfterIso)),
+    providers.filter((provider) => isRecentTerminalProvider(provider, options?.visibleAfterIso))
   );
   const terminalCandidates: ProviderUpdateSidebarPillView[] = [];
 
   const failedProviders = recentTerminalProviders.filter(
-    (provider) => provider.updateState?.status === "failed",
+    (provider) => provider.updateState?.status === "failed"
   );
   if (failedProviders.length > 0) {
     const failedProvider = failedProviders[0]!;
     terminalCandidates.push({
       key: `failed:${failedProviders
-        .map(
-          (provider) =>
-            `${provider.driver}:${provider.updateState?.finishedAt ?? "pending"}:${provider.updateState?.message ?? ""}`,
-        )
-        .toSorted()
-        .join("|")}`,
+                .map((provider) => `${provider.driver}:${provider.updateState?.finishedAt ?? "pending"}:${provider.updateState?.message ?? ""}`)
+                .toSorted()
+                .join("|")}`,
       tone: "error",
       title:
         failedProviders.length === 1
@@ -360,7 +356,7 @@ export function getProviderUpdateSidebarPillView(
   }
 
   const unchangedProviders = recentTerminalProviders.filter(
-    (provider) => provider.updateState?.status === "unchanged",
+    (provider) => provider.updateState?.status === "unchanged"
   );
   if (unchangedProviders.length > 0) {
     const unchangedProvider = unchangedProviders[0]!;
@@ -368,35 +364,29 @@ export function getProviderUpdateSidebarPillView(
       PROVIDER_DISPLAY_NAMES[unchangedProvider.driver] ?? unchangedProvider.driver;
     terminalCandidates.push({
       key: `unchanged:${unchangedProviders
-        .map(
-          (provider) =>
-            `${provider.driver}:${provider.updateState?.finishedAt ?? "pending"}:${provider.updateState?.message ?? ""}`,
-        )
-        .toSorted()
-        .join("|")}`,
+                .map((provider) => `${provider.driver}:${provider.updateState?.finishedAt ?? "pending"}:${provider.updateState?.message ?? ""}`)
+                .toSorted()
+                .join("|")}`,
       tone: "warning",
       title:
         unchangedProviders.length === 1
           ? `${unchangedProviderName} still needs an update`
           : `${unchangedProviders.length} providers still need updates`,
-      description: uiText("{0} {1} outdated. Review provider settings for details.", {"0": formatProviderList(unchangedProviders), "1": unchangedProviders.length === 1 ? "still appears" : "still appear"}),
+      description: uiText("{0} {1} outdated. Review provider settings for details.", { "0": formatProviderList(unchangedProviders), "1": unchangedProviders.length === 1 ? "still appears" : "still appear" }),
       dismissible: true,
     });
   }
 
   const succeededProviders = recentTerminalProviders.filter(
-    (provider) => provider.updateState?.status === "succeeded",
+    (provider) => provider.updateState?.status === "succeeded"
   );
   if (succeededProviders.length > 0) {
     const succeededProvider = succeededProviders[0]!;
     terminalCandidates.push({
       key: `succeeded:${succeededProviders
-        .map(
-          (provider) =>
-            `${provider.driver}:${provider.updateState?.finishedAt ?? "pending"}:${provider.updateState?.message ?? ""}`,
-        )
-        .toSorted()
-        .join("|")}`,
+                .map((provider) => `${provider.driver}:${provider.updateState?.finishedAt ?? "pending"}:${provider.updateState?.message ?? ""}`)
+                .toSorted()
+                .join("|")}`,
       tone: "success",
       title:
         succeededProviders.length === 1
@@ -437,5 +427,6 @@ function getFailedProviderUpdateDescription(providers: ReadonlyArray<ServerProvi
       return provider.updateState.message;
     }
   }
-  return uiText("{0} failed to update. Check provider settings for details.", {"0": formatProviderList(providers)});
+  return uiText ("{0} failed to update. Check provider settings for details.", { "0": formatProviderList (providers)
+  });
 }

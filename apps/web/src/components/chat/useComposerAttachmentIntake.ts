@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type { ChatComposerProps } from "./ChatComposer";
 import {
   type ChatFileAttachment,
@@ -125,7 +126,7 @@ export function useComposerAttachmentIntake(input: {
     ) {
       toastManager.add({
         type: "error",
-        title: "This question cannot accept attachments.",
+        title: uiText("This question cannot accept attachments."),
       });
       return false;
     }
@@ -232,10 +233,8 @@ export function useComposerAttachmentIntake(input: {
         const attached = storedFiles[0]!;
         toastManager.add({
           type: "info",
-          title: `Large paste attached as ${attached.name}`,
-          description: `${formatAttachmentSize(attached.sizeBytes)} · Use ${
-            isMacPlatform(navigator.platform) ? "⌘⇧V" : "Ctrl+Shift+V"
-          } to keep a large paste inline.`,
+          title: uiText("Large paste attached as {0}", {"0": attached.name}),
+          description: uiText("{0} · Use {1} to keep a large paste inline.", {"0": formatAttachmentSize(attached.sizeBytes), "1": isMacPlatform(navigator.platform) ? "⌘⇧V" : "Ctrl+Shift+V"}),
           data: { hideCopyButton: true },
         });
       }
@@ -379,8 +378,8 @@ export function useComposerAttachmentIntake(input: {
       }
       toastManager.add({
         type: "error",
-        title: "Pasted text is too large for this message",
-        description: "Remove some text or an attachment, then paste again.",
+        title: uiText("Pasted text is too large for this message"),
+        description: uiText("Remove some text or an attachment, then paste again."),
         data: { hideCopyButton: true },
       });
       return true;
@@ -401,8 +400,8 @@ export function useComposerAttachmentIntake(input: {
       if (!wouldExceedInputLimit) return false;
       toastManager.add({
         type: "error",
-        title: "Pasted text is too large to attach",
-        description: "Reduce the clipboard contents or save a smaller excerpt as a file.",
+        title: uiText("Pasted text is too large to attach"),
+        description: uiText("Reduce the clipboard contents or save a smaller excerpt as a file."),
         data: { hideCopyButton: true },
       });
       return true;

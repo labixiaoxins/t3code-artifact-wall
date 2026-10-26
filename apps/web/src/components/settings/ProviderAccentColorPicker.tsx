@@ -1,7 +1,4 @@
-"use client";
 import { uiText } from "~/i18n";
-
-
 import { PlusIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -107,7 +104,8 @@ function ProviderCustomColorPicker(props: {
                   onClick={props.onClear}
                 >
                   <XIcon className="size-3.5" aria-hidden />
-                  {uiText("Clear color") + " "}</Button>
+                  {"Clear color" + " "}
+                </Button>
               }
             />
           </div>

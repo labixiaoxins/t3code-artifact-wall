@@ -1,3 +1,7 @@
+import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
+import * as Option from "effect/Option";
+import { useEnvironmentThread } from "../../state/threads";
+import type { ThreadStructure } from "@t3tools/client-runtime/state/shell";
 import { uiText } from "~/i18n";
 import type { OrchestrationV2ThreadProjection } from "@t3tools/contracts";
 import { memo, useEffect, useMemo, useState } from "react";
@@ -10,12 +14,19 @@ import {
 /** Local one-second clock only; no polling requests or updates to the chat timeline. */
 export const TurnThroughput = memo(function TurnThroughput({
   projection,
+  environmentId,
+  threadId,
   disconnected = false,
 }: {
-  projection: OrchestrationV2ThreadProjection;
+  projection: ThreadStructure;
+  environmentId?: EnvironmentId;
+  threadId?: ThreadId;
   disconnected?: boolean;
 }) {
-  const snapshot = useMemo(() => selectTurnThroughput(projection), [projection]);
+  // Subscribe to streaming details only while this on-demand panel is mounted.
+  const live = useEnvironmentThread(environmentId ?? null, threadId ?? null);
+  const current = Option.getOrNull(live.data) ?? projection;
+  const snapshot = useMemo(() => selectTurnThroughput(current), [current]);
   const [now, setNow] = useState(() => Date.now());
   const ticking = snapshot?.running === true && !disconnected;
   useEffect(() => {

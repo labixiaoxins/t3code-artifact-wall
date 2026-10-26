@@ -1,7 +1,4 @@
-"use client";
 import { uiText } from "~/i18n";
-
-
 import { ProviderInstanceIcon } from "../chat/ProviderInstanceIcon";
 
 import { Radio as RadioPrimitive } from "@base-ui/react/radio";
@@ -117,7 +114,7 @@ export function AddProviderInstanceDialog({
   const [addingChatGptAccount, setAddingChatGptAccount] = useState(false);
   const [driver, setDriver] = useState<ProviderDriverKind>(DEFAULT_DRIVER_KIND);
   const [identityByDriver, setIdentityByDriver] = useState<Record<string, ProviderIdentityDraft>>(
-    {},
+    {}
   );
   const [selectedAcp, setSelectedAcp] = useState<AcpRegistrySearchAgent | null>(null);
   const [localEnvironment, setLocalEnvironment] = useState<
@@ -157,7 +154,7 @@ export function AddProviderInstanceDialog({
         return deriveInstanceId(driver, candidateLabel);
       },
       label,
-      existingIds,
+      existingIds
     );
   const driverSettingsFields = deriveProviderSettingsFields(driverOption);
   const instanceIdError = validateInstanceId(instanceId, existingIds);
@@ -179,7 +176,7 @@ export function AddProviderInstanceDialog({
       : "Select an ACP or configure one manually.";
   const wizardStepSummaries = isAcpRegistry
     ? ([
-        isLocalAcp ? "Local ACP command" : (selectedAcp?.name ?? (manualAgentId || null)),
+        isLocalAcp ? uiText("Local ACP command") : (selectedAcp?.name ?? (manualAgentId || null)),
         previewLabel,
         null,
       ] as const)
@@ -228,7 +225,7 @@ export function AddProviderInstanceDialog({
             })
         : resolveWizardNavigation(wizardStep, requestedStep, ADD_PROVIDER_WIZARD_STEPS.length, {
             instanceIdError,
-          }),
+          })
     );
   };
 
@@ -239,7 +236,7 @@ export function AddProviderInstanceDialog({
     const nextInstanceId = deriveAvailableInstanceId(
       (candidateLabel) => deriveInstanceId(ACP_REGISTRY_DRIVER_KIND, candidateLabel),
       nextLabel,
-      existingIds,
+      existingIds
     );
     setSelectedAcp(agent);
     setIsManualAcpConfiguration(false);
@@ -247,7 +244,7 @@ export function AddProviderInstanceDialog({
       updateProviderIdentityDraft(existing, ACP_REGISTRY_DRIVER_KIND, {
         label: nextLabel,
         instanceIdOverride: nextInstanceId,
-      }),
+      })
     );
     setConfigByDriver((existing) => ({
       ...existing,
@@ -274,7 +271,7 @@ export function AddProviderInstanceDialog({
       updateProviderIdentityDraft(existing, ACP_REGISTRY_DRIVER_KIND, {
         label: "",
         instanceIdOverride: null,
-      }),
+      })
     );
     setHasAttemptedSubmit(false);
   };
@@ -291,7 +288,7 @@ export function AddProviderInstanceDialog({
       updateProviderIdentityDraft(existing, ACP_REGISTRY_DRIVER_KIND, {
         label: uiText("Local ACP"),
         instanceIdOverride: null,
-      }),
+      })
     );
     setLocalEnvironment([]);
     setHasAttemptedSubmit(false);
@@ -364,7 +361,7 @@ export function AddProviderInstanceDialog({
       <WizardPopup size="wide">
         <WizardHeader
           title={uiText("Add provider")}
-          description={<>{uiText("Add an account or configure a provider on") + " "}{environmentLabel}.</>}
+          description={<>{"Add an account or configure a provider on" + " "} {environmentLabel}.</>}
         >
           {isAcpRegistry ? (
             <AddProviderInstanceWizardSteps

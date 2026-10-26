@@ -25,7 +25,7 @@ const lost = [{ kind: "subagent" as const, label: "Background subagent test" }];
 function run(
   ordinal: number,
   providerThreadId: ProviderThreadId,
-  extra: Partial<OrchestrationV2Run> = {},
+  extra: Partial<OrchestrationV2Run> = {}
 ): OrchestrationV2Run {
   return {
     id: RunId.make(`run:${ordinal}`),
@@ -81,7 +81,7 @@ it("delivers a resumed queued run's note even after a higher-ordinal run", () =>
       run: next,
       attempts: [{ id: next.activeAttemptId!, runId: next.id }],
     }),
-    lost,
+    lost
   );
 });
 
@@ -123,7 +123,7 @@ it("names a lost subagent by the id the agent resumes it with", () => {
       title: "Review",
       nativeItemRef: { driver: "claudeAgent", nativeId: "agent-1", strength: "strong" },
     } as never)?.label,
-    "Review (id agent-1)",
+    "Review (id agent-1)"
   );
 });
 
@@ -176,8 +176,8 @@ it("counts a prompted mid-turn or chained continuation as delivering the note", 
       continuation,
       [{ ...cut, restartCancelledBackgroundWork: [] }, continuation],
       [cutTurn],
-      [],
-    ),
+      []
+    )
   );
   const later = run(3, claudeThread);
   const pending = (delivered: boolean) =>
@@ -212,7 +212,7 @@ it("counts a prompted mid-turn or chained continuation as delivering the note", 
         run: later,
         attempts: [{ id: later.activeAttemptId!, runId: later.id }],
       }),
-      lost,
+      lost
     );
   }
 
@@ -233,6 +233,6 @@ it("counts a prompted mid-turn or chained continuation as delivering the note", 
       run: later,
       attempts,
     }),
-    [],
+    []
   );
 });

@@ -1,3 +1,4 @@
+import { shouldRefocusComposerOnWindowFocus } from "./ChatView.logic";
 import {
   boundAttachmentIds,
   findRecordedWorktreeSetup,
@@ -120,14 +121,14 @@ describe("resolveDraftPromotionNavigationTarget", () => {
         serverThreadRef,
         serverThread: makeThread({ latestRun: preparingRun }),
         backgroundSubmissionPending: false,
-      }),
+      })
     ).toBeNull();
     expect(
       resolveDraftPromotionNavigationTarget({
         serverThreadRef,
         serverThread: makeThread(),
         backgroundSubmissionPending: false,
-      }),
+      })
     ).toBeNull();
   });
 
@@ -138,14 +139,14 @@ describe("resolveDraftPromotionNavigationTarget", () => {
         serverThreadRef,
         serverThread,
         backgroundSubmissionPending: false,
-      }),
+      })
     ).toBe(serverThreadRef);
     expect(
       resolveDraftPromotionNavigationTarget({
         serverThreadRef,
         serverThread,
         backgroundSubmissionPending: true,
-      }),
+      })
     ).toBeNull();
   });
 });
@@ -179,7 +180,7 @@ describe("hasServerAcknowledgedLocalDispatch", () => {
   it("acknowledges a settled newer background turn", () => {
     const localDispatch = createLocalDispatchSnapshot(
       makeThread({ latestRun: completedTurn, runtime: readySession }),
-      { submissionIntent: "background" },
+      { submissionIntent: "background" }
     );
     const newerTurn = {
       ...completedTurn,
@@ -198,7 +199,7 @@ describe("hasServerAcknowledgedLocalDispatch", () => {
         hasPendingApproval: false,
         hasPendingUserInput: false,
         threadError: null,
-      }),
+      })
     ).toBe(true);
   });
 
@@ -220,13 +221,13 @@ describe("hasServerAcknowledgedLocalDispatch", () => {
         hasPendingApproval: false,
         hasPendingUserInput: false,
         threadError: null,
-      }),
+      })
     ).toBe(false);
   });
 
   it("waits for the matching running turn before acknowledging", () => {
     const localDispatch = createLocalDispatchSnapshot(
-      makeThread({ latestRun: completedTurn, runtime: readySession }),
+      makeThread({ latestRun: completedTurn, runtime: readySession })
     );
     const runningTurn = {
       ...completedTurn,
@@ -250,7 +251,7 @@ describe("hasServerAcknowledgedLocalDispatch", () => {
         hasPendingApproval: false,
         hasPendingUserInput: false,
         threadError: null,
-      }),
+      })
     ).toBe(false);
     expect(
       hasServerAcknowledgedLocalDispatch({
@@ -265,7 +266,7 @@ describe("hasServerAcknowledgedLocalDispatch", () => {
         hasPendingApproval: false,
         hasPendingUserInput: false,
         threadError: null,
-      }),
+      })
     ).toBe(true);
   });
 
@@ -282,7 +283,7 @@ describe("hasServerAcknowledgedLocalDispatch", () => {
     };
     const localDispatch = createLocalDispatchSnapshot(
       makeThread({ latestRun: runningRun, runtime: runningRuntime }),
-      { latestUserMessageId: MessageId.make("message-before-steer") },
+      { latestUserMessageId: MessageId.make("message-before-steer") }
     );
 
     expect(
@@ -295,7 +296,7 @@ describe("hasServerAcknowledgedLocalDispatch", () => {
         hasPendingApproval: false,
         hasPendingUserInput: false,
         threadError: null,
-      }),
+      })
     ).toBe(true);
   });
 });
@@ -395,7 +396,7 @@ describe("deriveCommittedServerUserMessageIds", () => {
     ];
 
     expect(deriveCommittedServerUserMessageIds(visibleTurnItems)).toEqual(
-      new Set([turnStartId, steerId]),
+      new Set([turnStartId, steerId])
     );
   });
 });
@@ -416,7 +417,7 @@ describe("resolveThreadSwitchTimeline", () => {
         loading: true,
         activeThreadKey: "env-1:thread-a",
         nextEntries: [],
-      }),
+      })
     ).toEqual({ entries: ["a1", "a2"], displayThreadKey: "env-1:thread-a" });
   });
 
@@ -428,7 +429,7 @@ describe("resolveThreadSwitchTimeline", () => {
         activeThreadKey: "env-2:thread-b",
         nextEntries: [],
         lastReady: held,
-      }),
+      })
     ).toEqual({ entries: [], displayThreadKey: "env-2:thread-b" });
   });
 
@@ -457,7 +458,7 @@ describe("resolveThreadSwitchTimeline", () => {
             ],
           },
         },
-      ]),
+      ])
     ).toBe(true);
     expect(
       timelineHasEphemeralPreviewUrls([
@@ -483,7 +484,7 @@ describe("resolveThreadSwitchTimeline", () => {
             ],
           },
         },
-      ]),
+      ])
     ).toBe(false);
   });
 });
@@ -542,7 +543,7 @@ describe("resolveComposerProviderSelection", () => {
         candidateInstanceIds: [thread.modelSelection.instanceId],
         lockedProvider,
         lockedInstanceId: thread.modelSelection.instanceId,
-      }).selectedProviderEntry?.instanceId,
+      }).selectedProviderEntry?.instanceId
     ).toBe(importedEntry.instanceId);
   });
 
@@ -564,7 +565,7 @@ describe("resolveComposerProviderSelection", () => {
         selectedProvider: selected.instanceId,
         threadProvider: thread.modelSelection.instanceId,
         providers: [selected.snapshot, sessionEntry.snapshot],
-      }),
+      })
     ).toBe(sessionEntry.driverKind);
   });
 
@@ -589,9 +590,9 @@ describe("resolveComposerProviderSelection", () => {
           candidateInstanceIds: [other.instanceId, imported.instanceId],
           lockedProvider,
           lockedInstanceId: imported.instanceId,
-        }).selectedProviderEntry,
+        }).selectedProviderEntry
       ).toBeUndefined();
-    },
+    }
   );
 
   it("keeps a signed-out selection instead of silently switching providers", () => {
@@ -609,7 +610,7 @@ describe("resolveComposerProviderSelection", () => {
 
     expect(selection.selectedProviderEntry?.instanceId).toBe(signedOutEntry.instanceId);
     expect(
-      getAntigravitySendBlockReason(selection.selectedProviderEntry?.snapshot, "gemini-pro"),
+      getAntigravitySendBlockReason(selection.selectedProviderEntry?.snapshot, "gemini-pro")
     ).toBe("Sign in to Antigravity in provider settings before sending.");
   });
 
@@ -620,7 +621,7 @@ describe("resolveComposerProviderSelection", () => {
     }).snapshot;
 
     expect(getAntigravitySendBlockReason(provider, "saved-model-not-in-current-catalog")).toBe(
-      "That Antigravity model is no longer available. Choose another model.",
+      "That Antigravity model is no longer available. Choose another model."
     );
     expect(getAntigravitySendBlockReason(provider, "gemini-pro")).toBeNull();
   });
@@ -632,7 +633,7 @@ describe("resolveComposerProviderSelection", () => {
     }).snapshot;
 
     expect(
-      getAntigravitySendBlockReason(provider, "saved-model-not-in-current-catalog"),
+      getAntigravitySendBlockReason(provider, "saved-model-not-in-current-catalog")
     ).toBeNull();
   });
 
@@ -678,7 +679,7 @@ describe("checkout Git memory", () => {
 describe("worktree setup visibility", () => {
   const stage = (
     id: "fetch" | "checkout" | "submodules" | "setup-script" | "agent",
-    status: "done" | "running" | "failed" | "pending",
+    status: "done" | "running" | "failed" | "pending"
   ) => ({
     id,
     status,
@@ -872,7 +873,7 @@ describe("waitForRevertedMessage", () => {
         },
         (error: Error) => {
           outcome = error.message;
-        },
+        }
       );
 
       try {
@@ -894,7 +895,7 @@ describe("waitForRevertedMessage", () => {
                 ? [oldProviderThread, completedProviderThread]
                 : [completedProviderThread],
             runs: bounded.runs.map((run) =>
-              run.id === latestRunId ? { ...run, status: "rolled_back" as const } : run,
+              run.id === latestRunId ? { ...run, status: "rolled_back" as const } : run
             ),
           }),
         });
@@ -905,7 +906,7 @@ describe("waitForRevertedMessage", () => {
         vi.clearAllTimers();
         vi.useRealTimers();
       }
-    },
+    }
   );
 
   it("waits for the requested target when another client finishes a shallower rewind", async () => {
@@ -918,7 +919,7 @@ describe("waitForRevertedMessage", () => {
       },
       (error: Error) => {
         outcome = error.message;
-      },
+      }
     );
 
     try {
@@ -934,7 +935,7 @@ describe("waitForRevertedMessage", () => {
           lastRunOrdinal: 3,
         })),
         runs: projection.runs.map((run) =>
-          run.ordinal > 3 ? { ...run, status: "rolled_back" as const } : run,
+          run.ordinal > 3 ? { ...run, status: "rolled_back" as const } : run
         ),
       };
       appAtomRegistry.set(state, { data: Option.some(shallowerRewind) });
@@ -949,7 +950,7 @@ describe("waitForRevertedMessage", () => {
             lastRunOrdinal: 1,
           })),
           runs: shallowerRewind.runs.map((run) =>
-            run.ordinal > 1 ? { ...run, status: "rolled_back" as const } : run,
+            run.ordinal > 1 ? { ...run, status: "rolled_back" as const } : run
           ),
         }),
       });
@@ -975,7 +976,7 @@ describe("waitForRevertedMessage", () => {
           lastRunOrdinal: 1,
         })),
         runs: projection.runs.map((run) =>
-          run.ordinal > 1 ? { ...run, status: "rolled_back" as const } : run,
+          run.ordinal > 1 ? { ...run, status: "rolled_back" as const } : run
         ),
       }),
     });
@@ -987,7 +988,7 @@ describe("waitForRevertedMessage", () => {
       },
       () => {
         outcome = "rejected";
-      },
+      }
     );
 
     try {
@@ -1066,7 +1067,7 @@ describe("snapshotComposerSend", () => {
 
     expect(snapshot.terminalContexts).toEqual([live]);
     expect(snapshot.messageText).toBe(
-      ensureInlineContextReferences("run", [terminalContextReference(live)]).trim(),
+      ensureInlineContextReferences("run", [terminalContextReference(live)]).trim()
     );
   });
 });
@@ -1108,7 +1109,7 @@ describe("planComposerTurn", () => {
       shouldQueueBehindActiveRun: true,
     });
     expect(
-      planComposerTurn({ ...base, resumeCompactionTokens: 120_000, messageText: "/COMPACT" }),
+      planComposerTurn({ ...base, resumeCompactionTokens: 120000, messageText: "/COMPACT" })
     ).toMatchObject({ compactBeforeSend: false, turnDispatchMode: "auto" });
   });
 
@@ -1120,7 +1121,7 @@ describe("planComposerTurn", () => {
       phase: "running" as const,
     };
     expect(planComposerTurn({ ...running, dispatchMode: "queue" }).shouldQueueBehindActiveRun).toBe(
-      true,
+      true
     );
     expect(planComposerTurn({ ...running, dispatchMode: "steer" })).toMatchObject({
       shouldQueueBehindActiveRun: false,
@@ -1136,7 +1137,7 @@ describe("withMessageContext", () => {
 
   it("sends the context inline when the server supports it", () => {
     expect(withMessageContext({ text: "hi", context, supportsInlineMessageContext: true })).toEqual(
-      { text: "hi", context },
+      { text: "hi", context }
     );
   });
 
@@ -1148,7 +1149,7 @@ describe("withMessageContext", () => {
 
   it("sends the text alone without context", () => {
     expect(
-      withMessageContext({ text: "hi", context: undefined, supportsInlineMessageContext: false }),
+      withMessageContext({ text: "hi", context: undefined, supportsInlineMessageContext: false })
     ).toEqual({ text: "hi" });
   });
 });
@@ -1156,7 +1157,7 @@ describe("withMessageContext", () => {
 describe("boundAttachmentIds", () => {
   it("prefers the uploaded id and falls back to the local one", () => {
     expect(
-      boundAttachmentIds([{ id: "upload-1" }, {}], [{ id: "local-1" }, { id: "local-2" }]),
+      boundAttachmentIds([{ id: "upload-1" }, {}], [{ id: "local-1" }, { id: "local-2" }])
     ).toEqual(["upload-1", "local-2"]);
   });
 });
@@ -1165,7 +1166,7 @@ describe("deriveAvailableRevertTurnCounts", () => {
   const providerThreadId = ProviderThreadId.make("provider-thread");
   const otherProviderThreadId = ProviderThreadId.make("other-provider-thread");
 
-  function projection(input: { readonly providerSessionId: ProviderSessionId | null }) {
+  function projection(input: { readonly providerSessionId: ProviderSessionId | null; }) {
     const base = makeThreadProjectionFixture();
     const run = (ordinal: number) => ({
       id: RunId.make(`run-${ordinal}`),
@@ -1203,7 +1204,7 @@ describe("deriveAvailableRevertTurnCounts", () => {
 
   it("offers the thread start and runs whose latest turn is on the active provider thread", () => {
     const available = deriveAvailableRevertTurnCounts(
-      projection({ providerSessionId: ProviderSessionId.make("session") }),
+      projection({ providerSessionId: ProviderSessionId.make("session") })
     );
     expect([...available].toSorted()).toEqual([0, 1, 3]);
   });
@@ -1228,14 +1229,31 @@ describe("deriveWorkspaceMutationId", () => {
           item("reply", "assistant_message", "completed"),
           item("command", "command_execution", "running"),
         ],
-        "2026-01-01T00:00:00.000Z",
-      ),
+        "2026-01-01T00:00:00.000Z"
+      )
     ).toBe(JSON.stringify(["edit", "2026-01-01T00:00:00.000Z"]));
   });
 
   it("is null before anything could have touched the workspace", () => {
     expect(deriveWorkspaceMutationId([item("reply", "assistant_message", "completed")], null)).toBe(
-      null,
+      null
     );
   });
 });
+
+it("keeps an opening menu focused when the window regains focus", () => {
+    const trigger = {
+      tagName: "BUTTON",
+      closest: () => null,
+      isContentEditable: false,
+      getAttribute: (name: string) =>
+        name === "aria-haspopup" ? "menu" : name === "aria-expanded" ? "true" : null,
+    };
+    expect(shouldRefocusComposerOnWindowFocus(trigger)).toBe(false);
+    expect(
+      shouldRefocusComposerOnWindowFocus({
+        ...trigger,
+        getAttribute: (name: string) => (name === "aria-haspopup" ? "menu" : null),
+      }),
+    ).toBe(false);
+  });

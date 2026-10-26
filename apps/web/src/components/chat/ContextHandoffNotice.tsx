@@ -1,3 +1,4 @@
+import type { ThreadStructure } from "@t3tools/client-runtime/state/shell";
 import { uiText } from "~/i18n";
 import { latestContextUsage } from "./contextUsage";
 import type { EnvironmentId, OrchestrationV2ThreadProjection } from "@t3tools/contracts";
@@ -69,7 +70,7 @@ export function ContextHandoffNotice({
 }: {
   environmentId: EnvironmentId;
   thread: EnvironmentThreadShell;
-  projection: OrchestrationV2ThreadProjection;
+  projection: ThreadStructure;
   cwd: string;
   enabled: boolean;
   disabled: boolean;
@@ -528,7 +529,7 @@ export function ContextHandoffNotice({
           ) : null}
           {showThroughput && open ? (
             <div className="border-t border-border pt-3">
-              <TurnThroughput projection={projection} disconnected={disconnected} />
+              <TurnThroughput projection={projection} environmentId={environmentId} threadId={thread.id} disconnected={disconnected} />
             </div>
           ) : null}
         </div>

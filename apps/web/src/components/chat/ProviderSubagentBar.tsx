@@ -26,7 +26,7 @@ export function ProviderSubagentBar(props: {
     props.effortLabel === null ? props.modelLabel : `${props.modelLabel}, ${props.effortLabel}`;
   const announcement = formatProviderSubagentStatus(
     status === null ? null : { ...status, startedAt: null },
-    0,
+    0
   );
 
   // The label is written from an effect, and live bars tick through DOM
@@ -78,12 +78,11 @@ export function ProviderSubagentBar(props: {
         {uiText("{0} subagent: {1}", {"0": modelDescription, "1": announcement})}
       </span>
       <span className="shrink-0 text-muted-foreground @max-[640px]/composer-surface:sr-only">
-        Runs on its own
-      </span>
+        {uiText("Runs on its own")}</span>
       {props.onOpenParent ? (
         <Button size="sm" variant="ghost" onClick={props.onOpenParent}>
           <ArrowUpLeftIcon />
-          <span className="@max-[320px]/composer-surface:sr-only">Open parent</span>
+          <span className="@max-[320px]/composer-surface:sr-only">{uiText("Open parent")}</span>
         </Button>
       ) : null}
     </div>

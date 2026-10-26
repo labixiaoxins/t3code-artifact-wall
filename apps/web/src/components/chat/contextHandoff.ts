@@ -1,3 +1,4 @@
+import type { ThreadStructure } from "@t3tools/client-runtime/state/shell";
 import type {
   OrchestrationV2ThreadProjection,
   OrchestrationV2ThreadShell,
@@ -9,7 +10,7 @@ import type {
  * Older servers report this error without a machine-readable code.
  */
 export function hasHandoffBudgetFailure(
-  projection: Pick<OrchestrationV2ThreadProjection, "runs" | "turnItems">,
+  projection: Pick<ThreadStructure, "runs" | "turnItems">,
 ): boolean {
   const latest = projection.runs.reduce<(typeof projection.runs)[number] | undefined>(
     (previous, run) => (!previous || run.ordinal > previous.ordinal ? run : previous),

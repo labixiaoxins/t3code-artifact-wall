@@ -29,16 +29,12 @@ it.effect("drops planner statistics a database already has", () => {
 
     yield* Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
-      const stats = yield* sql<{
-        readonly count: number;
-      }>`
+      const stats = yield* sql<{ readonly count: number; }>`
         SELECT COUNT(*) AS count FROM sqlite_stat1
       `;
       assert.equal(stats[0]?.count, 0);
       // A connection still using the old stats scans the table at each step.
-      const plan = yield* sql<{
-        readonly detail: string;
-      }>`
+      const plan = yield* sql<{ readonly detail: string; }>`
         EXPLAIN QUERY PLAN
         WITH RECURSIVE retained(node_id) AS (
           SELECT 'node-2'
@@ -50,10 +46,33 @@ it.effect("drops planner statistics a database already has", () => {
       `;
       assert.include(
         plan.map((row) => row.detail),
-        "SEARCH parent USING INDEX sqlite_autoindex_walk_probe_1 (node_id=?)",
+        "SEARCH parent USING INDEX sqlite_autoindex_walk_probe_1 (node_id=?)"
       );
     }).pipe(Effect.provide(persistence()));
   }).pipe(
-    Effect.ensuring(Effect.sync(() => NodeFS.rmSync(tempDir, { recursive: true, force: true }))),
+    Effect.ensuring(Effect.sync(() => NodeFS.rmSync(tempDir, { recursive: true, force: true })))
   );
 });
+
+it.effect.skipIf(HostProcess.Platform.defaultValue() === "win32")(
+  "creates a database readable only by its owner",
+  () => {
+    const directory = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-sqlite-private-"));
+    const dbPath = NodePath.join(directory, "state.sqlite");
+    return Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      yield* sql`CREATE TABLE privacy_probe(id INTEGER PRIMARY KEY)`;
+      assert.equal(NodeFS.statSync(dbPath).mode & 0o777, 0o600);
+      for (const suffix of ["-wal", "-shm"]) {
+        assert.equal(NodeFS.statSync(`${dbPath}${suffix}`).mode & 0o777, 0o600);
+      }
+    }).pipe(
+      Effect.provide(
+        SqlitePersistence.layerFromPath(dbPath).pipe(Layer.provide(NodeServices.layer)),
+      ),
+      Effect.ensuring(
+        Effect.sync(() => NodeFS.rmSync(directory, { recursive: true, force: true })),
+      ),
+    );
+  },
+);

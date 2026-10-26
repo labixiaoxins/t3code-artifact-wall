@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { WorkLogBlock } from "./WorkLog";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { useAtomValue } from "@effect/atom-react";
@@ -94,7 +95,7 @@ export function V2EventTimelineRow({ row }: { row: Extract<TimelineRow, { kind: 
           ) : null}
           {visibility !== "local" ? (
             <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-3xs text-muted-foreground">
-              {visibility === "inherited" ? "Inherited" : "Synthetic"}
+              {visibility === "inherited" ? uiText("Inherited") : uiText("Synthetic")}
             </span>
           ) : null}
           <ChevronDownIcon className="size-3 shrink-0 text-muted-foreground/60 transition-transform group-open:rotate-180" />
@@ -113,7 +114,7 @@ export function V2EventTimelineRow({ row }: { row: Extract<TimelineRow, { kind: 
           ) : null}
           {visibility === "inherited" ? (
             <p className="mt-1 font-mono text-3xs text-muted-foreground/65">
-              From {sourceThreadId}
+              {uiText("From")}{sourceThreadId}
             </p>
           ) : null}
           <div className={presentation.detail ? "mt-2" : undefined}>
@@ -171,7 +172,7 @@ export function V2EventTimelineRow({ row }: { row: Extract<TimelineRow, { kind: 
             ) : null}
             {visibility !== "local" ? (
               <span className="rounded-full bg-muted px-1.5 py-0.5 text-3xs text-muted-foreground">
-                {visibility === "inherited" ? "Inherited" : "Synthetic"}
+                {visibility === "inherited" ? uiText("Inherited") : uiText("Synthetic")}
               </span>
             ) : null}
           </div>
@@ -188,7 +189,7 @@ export function V2EventTimelineRow({ row }: { row: Extract<TimelineRow, { kind: 
           ) : null}
           {visibility === "inherited" ? (
             <p className="mt-1 font-mono text-3xs text-muted-foreground/65">
-              From {sourceThreadId}
+              {uiText("From")}{sourceThreadId}
             </p>
           ) : null}
           <div className="mt-2">

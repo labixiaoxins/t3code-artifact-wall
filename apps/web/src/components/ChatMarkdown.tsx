@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { buildFileLinkParentSuffixByPath, fileLinkLabel } from "@t3tools/shared/fileLinks";
 import {
   isWindowsDrivePathHref,
@@ -224,7 +225,7 @@ interface ChatMarkdownProps {
   threadRef?: ScopedThreadRef | undefined;
   pullRequestPanelRef?: ScopedThreadRef | undefined;
   environmentId?: EnvironmentId | undefined;
-  onTaskListChange?: ((input: { markerOffset: number; checked: boolean }) => void) | undefined;
+  onTaskListChange?: ((input: { markerOffset: number; checked: boolean; }) => void) | undefined;
   isStreaming?: boolean;
   skills?: ReadonlyArray<Pick<ServerProviderSkill, "name" | "displayName">>;
   className?: string;
@@ -237,8 +238,8 @@ interface ChatMarkdownProps {
   onImageExpand?: ((preview: ExpandedImagePreview) => void) | undefined;
   extraRemarkPlugins?: NonNullable<ReactMarkdownOptions["remarkPlugins"]>;
   renderContextReference?: ((reference: ChatMarkdownContextReference) => ReactNode) | undefined;
-  /** Loads GitHub-hosted media through `cwd`'s GitHub credential, which a private repository's
-        uploads need; without it those images and videos load unauthenticated and 404. */
+    /** Loads GitHub-hosted media through `cwd`'s GitHub credential, which a private repository's
+          uploads need; without it those images and videos load unauthenticated and 404. */
   githubMedia?: boolean | undefined;
   headingLevelOffset?: number | undefined;
 }
@@ -274,49 +275,39 @@ function CodexArtifactTemplateCard(props: {
 
   return (
     <div
-      role={"group"}
-      aria-label={uiText("{0} template", {"0": props.template.displayName})}
+      role="group"
+      aria-label={ uiText("{0} template", { "0": props.template.displayName
+    })}
       data-chat-markdown-artifact-template
-      className={
-        "my-[0.65rem] flex w-full min-w-0 items-center gap-3 rounded-xl border border-border/70 bg-card/60 px-3 py-2.5 text-foreground shadow-xs"
-      }
+      className="my-[0.65rem] flex w-full min-w-0 items-center gap-3 rounded-xl border border-border/70 bg-card/60 px-3 py-2.5 text-foreground shadow-xs"
       data-artifact-kind={props.template.artifactKind}
       data-markdown-copy={`${props.template.displayName} (${presentationLabel})\n\n`}
       data-skill-name={props.template.skillName}
     >
-      <div className={"flex min-w-0 flex-1 items-center gap-3"}>
-        <span
-          className={
-            "relative flex size-9 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-background text-muted-foreground shadow-xs"
-          }
-        >
-          <Icon aria-hidden className={"size-5"} />
-          <span
-            className={
-              "absolute -right-1 -bottom-1 flex size-4 items-center justify-center rounded-full border border-background bg-primary text-primary-foreground shadow-xs"
-            }
-          >
-            <SparklesIcon aria-hidden className={"size-2.5"} />
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <span className="relative flex size-9 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-background text-muted-foreground shadow-xs">
+          <Icon aria-hidden className="size-5" />
+          <span className="absolute -right-1 -bottom-1 flex size-4 items-center justify-center rounded-full border border-background bg-primary text-primary-foreground shadow-xs">
+            <SparklesIcon aria-hidden className="size-2.5" />
           </span>
         </span>
-        <div className={"min-w-0"}>
-          <div className={"truncate text-sm font-medium text-foreground"}>
+        <div className="min-w-0">
+          <div className="truncate text-sm font-medium text-foreground">
             {props.template.displayName}
           </div>
-          <div className={"text-xs text-muted-foreground"}>{presentationLabel}</div>
+          <div className="text-xs text-muted-foreground">{presentationLabel}</div>
         </div>
       </div>
       {props.onUse ? (
         <Button
           data-thread-find-ignore
-          type={"button"}
-          size={"sm"}
-          variant={"outline"}
-          className={"shrink-0"}
+          type="button"
+          size="sm"
+          variant="outline"
+          className="shrink-0"
           onClick={() => props.onUse?.(props.template)}
         >
-          {uiText("Use template")}
-        </Button>
+          {uiText("Use template")}</Button>
       ) : null}
     </div>
   );
@@ -328,7 +319,7 @@ function findTaskListMarkerOffset(markdown: string, listItemStart: number): numb
   const firstLineEnd = markdown.indexOf("\n", listItemStart);
   const firstLine = markdown.slice(
     listItemStart,
-    firstLineEnd === -1 ? markdown.length : firstLineEnd,
+    firstLineEnd === -1 ? markdown.length : firstLineEnd
   );
   const match = firstLine.match(/^(?:\s*(?:[-+*]|\d+[.)])\s+)(\[[ xX]\])/);
   if (!match?.[1]) return null;
@@ -337,12 +328,8 @@ function findTaskListMarkerOffset(markdown: string, listItemStart: number): numb
 
 function orderedListGutterStyle(
   itemCount: number,
-  start: unknown,
-):
-  | {
-      "--list-gutter": string;
-    }
-  | undefined {
+  start: unknown
+): { "--list-gutter": string; } | undefined {
   const parsedStart = Number.parseInt(String(start ?? 1), 10);
   const firstNumber = Number.isNaN(parsedStart) ? 1 : parsedStart;
   const lastNumber = firstNumber + Math.max(itemCount - 1, 0);
@@ -353,12 +340,7 @@ function orderedListGutterStyle(
 
 const GITHUB_ALERT_PRESENTATIONS: Record<
   string,
-  {
-    label: string;
-    Icon: typeof InfoIcon;
-    borderClassName: string;
-    titleClassName: string;
-  }
+  { label: string; Icon: typeof InfoIcon; borderClassName: string; titleClassName: string; }
 > = {
   note: {
     label: uiText("Note"),
@@ -432,7 +414,7 @@ function markdownServerConfigFields(config: ServerConfig | null) {
 
 function markdownServerConfigFieldsEqual(
   previous: MarkdownServerConfigFields,
-  next: MarkdownServerConfigFields,
+  next: MarkdownServerConfigFields
 ): boolean {
   return (
     previous.pullRequestsEnabled === next.pullRequestsEnabled &&
@@ -450,7 +432,7 @@ const markdownServerConfigFieldsAtom = Atom.family((environmentId: EnvironmentId
     const next = markdownServerConfigFields(get(serverEnvironment.configValueAtom(environmentId)));
     const previous = Option.getOrNull(get.self<MarkdownServerConfigFields>());
     return previous !== null && markdownServerConfigFieldsEqual(previous, next) ? previous : next;
-  }).pipe(Atom.withLabel("markdown-server-config-fields")),
+  }).pipe(Atom.withLabel("markdown-server-config-fields"))
 );
 
 function useChatMarkdownState({
@@ -506,7 +488,7 @@ function useChatMarkdownState({
       mediaRequestId.current += 1;
     },
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Leaving the scope invalidates media requests still loading for it.
-    [mediaScopeKey],
+    [mediaScopeKey]
   );
   const createAssetUrl = useAtomQueryRunner(assetEnvironment.createUrl, {
     reportFailure: false,
@@ -533,7 +515,7 @@ function useChatMarkdownState({
   const openMarkdownMedia = (
     source: string,
     resolvedFilePath?: string,
-    clickedImage?: HTMLImageElement | null,
+    clickedImage?: HTMLImageElement | null
   ) => {
     const requestId = ++mediaRequestId.current;
     void resolveMarkdownMediaPreview({
@@ -556,7 +538,7 @@ function useChatMarkdownState({
           expandMedia(
             selected && selected.type !== "video" && markdownRef.current
               ? markdownImageGallery(clickedImage ?? markdownRef.current, selected)
-              : preview,
+              : preview
           );
         }
       },
@@ -590,13 +572,13 @@ function useChatMarkdownState({
             type: "error",
             title: uiText("Media unavailable"),
             description,
-          }),
+          })
         );
-      },
+      }
     );
   };
   const { pullRequestsEnabled, availableEditors, revealInFileManagerLabel } = useAtomValue(
-    markdownServerConfigFieldsAtom(environmentId),
+    markdownServerConfigFieldsAtom(environmentId)
   );
   const projects = useProjects();
   const [preferredEditor] = usePreferredEditor(availableEditors);
@@ -609,15 +591,15 @@ function useChatMarkdownState({
     if (environmentId === null) {
       return Promise.resolve(
         AsyncResult.failure<void, PreferredEditorEnvironmentRequiredError>(
-          Cause.fail(new PreferredEditorEnvironmentRequiredError({ targetPath: filePath })),
-        ),
+          Cause.fail(new PreferredEditorEnvironmentRequiredError({ targetPath: filePath }))
+        )
       );
     }
     if (!readEnvironmentScope(environmentId, AuthOrchestrationOperateScope)) {
       return Promise.resolve(
         AsyncResult.failure<void, Error>(
-          Cause.fail(new Error("This connection cannot reveal files on this environment.")),
-        ),
+          Cause.fail(new Error("This connection cannot reveal files on this environment."))
+        )
       );
     }
     return openInEditor({
@@ -679,7 +661,7 @@ function useChatMarkdownState({
       "text/html",
       fragment
         ? encodeComposerContextClipboardHtml(payload.text, fragment, payload.html)
-        : payload.html,
+        : payload.html
     );
   };
   const openChangeRequestLink = useOpenChangeRequestLink(threadRef, pullRequestPanelRef);
@@ -690,12 +672,8 @@ function useChatMarkdownState({
   const linkTargetPreference = useClientSettings((settings) => settings.browserLinkTarget);
   const mathEnabled = useClientSettings((settings) => settings.mathRenderingEnabled);
   const resolveThreadPullRequest = (
-    href: string,
-  ):
-    | (ThreadPullRequestKey & {
-        readonly url: string;
-      })
-    | null => {
+    href: string
+  ): (ThreadPullRequestKey & { readonly url: string; }) | null => {
     if (
       threadRef === undefined ||
       readThreadShell(threadRef) === null ||
@@ -723,9 +701,9 @@ function useChatMarkdownState({
           Cause.fail(
             new BrowserPreviewUnavailableError({
               message: "Preview access is unavailable for this client.",
-            }),
-          ),
-        ),
+            })
+          )
+        )
       );
     }
     return openUrlInPreview({ threadRef, url, openPreview }).then((result) => {
@@ -738,7 +716,7 @@ function useChatMarkdownState({
               type: "error",
               title: uiText("Unable to open link in browser"),
               description: error.message,
-            }),
+            })
           );
         }
       }
@@ -753,9 +731,9 @@ function useChatMarkdownState({
           Cause.fail(
             new BrowserPreviewUnavailableError({
               message: "Environment is not connected.",
-            }),
-          ),
-        ),
+            })
+          )
+        )
       );
     }
     return openFileInPreview({
@@ -830,7 +808,7 @@ function useChatMarkdownState({
   const fileLinkChip = (
     fileLinkMeta: MarkdownFileLinkMeta,
     copyMarkdown: string,
-    mediaSource?: string,
+    mediaSource?: string
   ) => {
     const resolveHostPath = () =>
       resolveMarkdownFileHostPath({
@@ -841,7 +819,7 @@ function useChatMarkdownState({
     const mediaPath = mediaSource ?? fileLinkMeta.filePath;
     const canPreviewMedia =
       mediaMimeTypeFromExtension(
-        fileLinkMeta.basename.slice(fileLinkMeta.basename.lastIndexOf(".")),
+        fileLinkMeta.basename.slice(fileLinkMeta.basename.lastIndexOf("."))
       ) !== null;
     const panelPath =
       fileLinkMeta.workspaceRelativePath ??
@@ -862,7 +840,7 @@ function useChatMarkdownState({
             ...(fileLinkMeta.line !== undefined ? { line: fileLinkMeta.line } : {}),
             ...(fileLinkMeta.column !== undefined ? { column: fileLinkMeta.column } : {}),
           },
-          fileLinkParentSuffixByPath,
+          fileLinkParentSuffixByPath
         )}
         copyMarkdown={copyMarkdown}
         theme={resolvedTheme}
@@ -871,7 +849,7 @@ function useChatMarkdownState({
           canUseShellActions
             ? async () =>
                 openInPreferredEditor(
-                  markdownFileEditorTarget(fileLinkMeta, await resolveHostPath()),
+                  markdownFileEditorTarget(fileLinkMeta, await resolveHostPath())
                 )
             : undefined
         }
@@ -1007,10 +985,10 @@ const CHAT_MARKDOWN_COMPONENTS = {
         className={cn("my-1 border-s-2 ps-3", alert.borderClassName)}
       >
         <p
-          data-thread-find-ignore={"true"}
+          data-thread-find-ignore="true"
           className={cn("flex items-center gap-1.5 font-medium", alert.titleClassName)}
         >
-          <alert.Icon aria-hidden className={"size-3.5 shrink-0"} />
+          <alert.Icon aria-hidden className="size-3.5 shrink-0" />
           {alert.label}
         </p>
         {children}
@@ -1055,8 +1033,8 @@ const CHAT_MARKDOWN_COMPONENTS = {
     return (
       <input
         {...props}
-        type={"checkbox"}
-        name={"markdown-task"}
+        type="checkbox"
+        name="markdown-task"
         aria-label={uiText("Toggle task")}
         checked={checked}
         onChange={(event) => {
@@ -1121,7 +1099,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
       const faviconHost = resolveExternalWebLinkHost(href);
       const hasText = hastHasText(node);
       const pullRequestAutolink = String(
-        (props as Record<string, unknown>)["data-pull-request-autolink"] ?? "",
+        (props as Record<string, unknown>)["data-pull-request-autolink"] ?? ""
       );
       const pullRequestCopy =
         pullRequestAutolink === "commit"
@@ -1178,7 +1156,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
                 undefined,
                 event.target instanceof HTMLImageElement
                   ? event.target
-                  : event.currentTarget.querySelector("img"),
+                  : event.currentTarget.querySelector("img")
               );
               return;
             }
@@ -1208,8 +1186,8 @@ const CHAT_MARKDOWN_COMPONENTS = {
                   .catch((cause) =>
                     reportMarkdownActionFailure(
                       { operation: "open-link-external", target: href },
-                      cause,
-                    ),
+                      cause
+                    )
                   );
               }
               return;
@@ -1220,7 +1198,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
               if (result._tag === "Success" || isAtomCommandInterrupted(result)) return;
               reportMarkdownActionFailure(
                 { operation: "open-link-in-preview", target: href },
-                result.cause,
+                result.cause
               );
               if (squashAtomCommandFailure(result) instanceof BrowserSettingsReadError) return;
               void readLocalApi()?.shell.openExternal(href);
@@ -1250,7 +1228,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
                 if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
                   reportMarkdownActionFailure(
                     { operation: "open-link-in-preview", target },
-                    result.cause,
+                    result.cause
                   );
                 }
               },
@@ -1271,7 +1249,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
                           ? "Unable to link pull request"
                           : "Unable to unlink pull request",
                       description: cause instanceof Error ? cause.message : "The request failed.",
-                    }),
+                    })
                   );
                 }
               },
@@ -1307,7 +1285,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
                 },
                 targetUrl,
                 undefined,
-                environmentId ?? undefined,
+                environmentId ?? undefined
               )
             }
             onOpenFallback={openDeferredMarkdownLink}
@@ -1317,7 +1295,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
       return (
         <Tooltip>
           <TooltipTrigger render={link} />
-          <TooltipPopup side={"top"}>{href}</TooltipPopup>
+          <TooltipPopup side="top">{href}</TooltipPopup>
         </Tooltip>
       );
     }
@@ -1361,7 +1339,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
         return fileLinkChip(
           fileLinkMeta,
           `\`${codeText}\``,
-          inlineCodeFilePathCandidate(codeText) ?? codeText.trim(),
+          inlineCodeFilePathCandidate(codeText) ?? codeText.trim()
         );
       }
     }
@@ -1538,7 +1516,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
       >
         <Suspense
           fallback={
-            <pre {...props} className={"invisible"} aria-hidden>
+            <pre {...props} className="invisible" aria-hidden>
               {children}
             </pre>
           }
@@ -1624,7 +1602,7 @@ function ChatMarkdown({
         "chat-markdown w-full min-w-0 [overflow-wrap:anywhere] [word-break:break-word]",
         !inline &&
           "text-sm leading-relaxed text-foreground/[calc(80%+var(--appearance-contrast-boost)/5)]",
-        className,
+        className
       )}
       data-streaming={componentState.isStreaming ? "" : undefined}
       onCopy={handleCopy}

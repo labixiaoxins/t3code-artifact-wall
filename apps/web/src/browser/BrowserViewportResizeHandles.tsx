@@ -1,7 +1,4 @@
-"use client";
 import { uiText } from "~/i18n";
-
-
 import type {
   CSSProperties,
   KeyboardEvent as ReactKeyboardEvent,
@@ -21,11 +18,11 @@ interface Props {
   readonly activeDirection: BrowserViewportResizeDirection | null;
   readonly onPointerDown: (
     direction: BrowserViewportResizeDirection,
-    event: ReactPointerEvent<HTMLButtonElement>,
+    event: ReactPointerEvent<HTMLButtonElement>
   ) => void;
   readonly onKeyDown: (
     direction: BrowserViewportResizeDirection,
-    event: ReactKeyboardEvent<HTMLButtonElement>,
+    event: ReactKeyboardEvent<HTMLButtonElement>
   ) => void;
 }
 
@@ -73,7 +70,7 @@ function ResizeHandle(props: {
           kind === "vertical" && "h-8 w-1.5",
           kind === "horizontal" && "h-1.5 w-8",
           kind === "corner" && "size-3",
-          active && "text-foreground",
+          active && "text-foreground"
         )}
       >
         {kind === "vertical" ? (

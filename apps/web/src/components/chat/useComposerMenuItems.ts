@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { matchComposerThreadItems } from "@t3tools/client-runtime/composerThreadItems";
 import type {
   EnvironmentId,
@@ -181,7 +182,7 @@ export function useComposerMenuItems({
           type: "slash-command",
           command: "model",
           label: "/model",
-          description: "Switch response model for this thread",
+          description: uiText("Switch response model for this thread"),
         },
         ...(planModeUiEnabled
           ? ([
@@ -190,14 +191,14 @@ export function useComposerMenuItems({
                 type: "slash-command",
                 command: "plan",
                 label: "/plan",
-                description: "Switch this thread into plan mode",
+                description: uiText("Switch this thread into plan mode"),
               },
               {
                 id: "slash:default",
                 type: "slash-command",
                 command: "default",
                 label: "/default",
-                description: "Switch this thread back to normal build mode",
+                description: uiText("Switch this thread back to normal build mode"),
               },
             ] as const)
           : []),

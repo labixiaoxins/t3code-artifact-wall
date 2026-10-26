@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type { RefObject } from "react";
 import type { ChatComposerProps } from "./ChatComposer";
 import {
@@ -143,8 +144,8 @@ export function useComposerContextImport(input: {
     const fail = (reason: string) => {
       toastManager.add({
         type: "error",
-        title: `Couldn't bring ${record.name} into this message`,
-        description: `${reason} Remove the chip or attach the file again.`,
+        title: uiText("Couldn't bring {0} into this message", {"0": record.name}),
+        description: uiText("{0} Remove the chip or attach the file again.", {"0": reason}),
       });
     };
     let file = copiedComposerAttachmentFile(sourceEnvironmentId, record.attachmentId);

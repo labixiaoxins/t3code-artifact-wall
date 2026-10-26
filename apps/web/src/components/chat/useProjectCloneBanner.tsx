@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useStableCallback } from "../../hooks/useStableCallback";
 import {
   isAtomCommandInterrupted,
@@ -42,7 +43,7 @@ export function useProjectCloneBanner(activeProjectRef: ScopedProjectRef | null)
         stackedThreadToast({
           type: "error",
           title,
-          description: error instanceof Error ? error.message : "An error occurred.",
+          description: error instanceof Error ? error.message : uiText("An error occurred."),
         }),
       );
     }
@@ -79,7 +80,7 @@ export function useProjectCloneBanner(activeProjectRef: ScopedProjectRef | null)
         variant: "info",
         priority: "activity",
         icon: <DownloadIcon />,
-        title: `Cloning ${name}`,
+        title: uiText("Cloning {0}", {"0": name}),
         description: projectCloneProgressSummary(activeProjectClone),
         actions: (
           <Button
@@ -91,8 +92,7 @@ export function useProjectCloneBanner(activeProjectRef: ScopedProjectRef | null)
               )
             }
           >
-            Cancel
-          </Button>
+            {uiText("Cancel")}</Button>
         ),
       };
     }
@@ -110,8 +110,7 @@ export function useProjectCloneBanner(activeProjectRef: ScopedProjectRef | null)
             variant="ghost"
             onClick={() => void removeClonedProject({ environmentId, projectId })}
           >
-            Remove project
-          </Button>
+            {uiText("Remove project")}</Button>
           <Button
             size="xs"
             variant="ghost"
@@ -121,8 +120,7 @@ export function useProjectCloneBanner(activeProjectRef: ScopedProjectRef | null)
               )
             }
           >
-            Retry
-          </Button>
+            {uiText("Retry")}</Button>
         </>
       ),
     };

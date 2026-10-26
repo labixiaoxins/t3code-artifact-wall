@@ -150,7 +150,7 @@ const RENDER_TABLE_STORAGE_KEY = "t3code.renderTable";
 type FilePostRender = <LAnnotation>(
   fileContainer: HTMLElement,
   instance: FileInstance<LAnnotation, undefined>,
-  phase: PostRenderPhase,
+  phase: PostRenderPhase
 ) => void;
 
 function WorkspaceImagePreview(props: {
@@ -187,23 +187,18 @@ function WorkspaceImagePreview(props: {
   if (assetUrl._tag === "Failure" || (imageUrl !== null && failedUrl === imageUrl)) {
     return (
       <MediaActions source={actionsSource}>
-        <div
-          className={
-            "flex min-h-0 flex-1 items-center justify-center px-6 text-center text-xs leading-relaxed text-destructive"
-          }
-        >
-          {uiText("Unable to load workspace image.")}
-        </div>
+        <div className="flex min-h-0 flex-1 items-center justify-center px-6 text-center text-xs leading-relaxed text-destructive">
+          {uiText("Unable to load workspace image.")}</div>
       </MediaActions>
     );
   }
 
   return assetUrl._tag === "Success" && imageUrl !== null ? (
     // oxlint-disable-next-line t3code/require-centered-scroll-gutter -- The image is capped at max-h-full max-w-full, so this never scrolls.
-    <div className={"flex min-h-0 flex-1 items-center justify-center overflow-auto p-4"}>
+    <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-4">
       <MediaActions source={actionsSource}>
         <img
-          className={"max-h-full max-w-full object-contain"}
+          className="max-h-full max-w-full object-contain"
           src={imageUrl}
           alt={props.alt}
           onError={() => setFailedUrl(imageUrl)}
@@ -211,8 +206,8 @@ function WorkspaceImagePreview(props: {
       </MediaActions>
     </div>
   ) : (
-    <div className={"flex min-h-0 flex-1 items-center justify-center text-muted-foreground"}>
-      <Spinner size={"lg"} />
+    <div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground">
+      <Spinner size="lg" />
     </div>
   );
 }
@@ -247,19 +242,14 @@ function WorkspaceBrowserPreview(props: {
 
   if (assetUrl._tag === "Failure") {
     return (
-      <div
-        className={
-          "flex min-h-0 flex-1 items-center justify-center px-6 text-center text-xs leading-relaxed text-destructive"
-        }
-      >
-        {uiText("Unable to load file preview.")}
-      </div>
+      <div className="flex min-h-0 flex-1 items-center justify-center px-6 text-center text-xs leading-relaxed text-destructive">
+        {uiText("Unable to load file preview.")}</div>
     );
   }
   if (assetUrl._tag !== "Success") {
     return (
-      <div className={"flex min-h-0 flex-1 items-center justify-center text-muted-foreground"}>
-        <Spinner size={"lg"} />
+      <div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground">
+        <Spinner size="lg" />
       </div>
     );
   }
@@ -306,11 +296,11 @@ function WorkspaceVideoPreview(props: {
   const revisionSuffix =
     revision === null
       ? ""
-      : `${assetUrl._tag === "Success" && assetUrl.url.includes("?") ? "&" : "?"}${fileRevision !== undefined ? "file" : "workspace"}-revision=${encodeURIComponent(revision)}`;
+      : `${assetUrl._tag === "Success" && assetUrl.url.includes("?") ? "&" : "?"}${fileRevision !== undefined ? uiText("file") : "workspace"}-revision=${encodeURIComponent(revision)}`;
   const latestUrl = assetUrl._tag === "Success" ? `${assetUrl.url}${revisionSuffix}` : null;
 
   return (
-    <div className={"flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4"}>
+    <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4">
       <MediaVideoPlayer
         src={latestUrl}
         sourceFailed={assetUrl._tag === "Failure"}
@@ -362,12 +352,12 @@ function WorkspaceAudioPreview(props: {
   const revisionSuffix =
     revision === null
       ? ""
-      : `${assetUrl._tag === "Success" && assetUrl.url.includes("?") ? "&" : "?"}${fileRevision !== undefined ? "file" : "workspace"}-revision=${encodeURIComponent(revision)}`;
+      : `${assetUrl._tag === "Success" && assetUrl.url.includes("?") ? "&" : "?"}${fileRevision !== undefined ? uiText("file") : "workspace"}-revision=${encodeURIComponent(revision)}`;
   const url = assetUrl._tag === "Success" ? `${assetUrl.url}${revisionSuffix}` : null;
   if (assetUrl._tag === "Failure" || (url !== null && failedUrl === url)) {
     return (
       <FileSurfaceFailure
-        message={"Unable to load audio."}
+        message="Unable to load audio."
         onRetry={() => {
           setFailedUrl(null);
           void refreshAssetUrl().catch(() => undefined);
@@ -434,7 +424,7 @@ interface FileRevealState {
 function useFileLineReveal(
   relativePath: string | null,
   revealLine: number | null,
-  revealRequestId: number,
+  revealRequestId: number
 ): FilePostRender {
   const [revealStatesByPath] = useState(() => new Map<string, FileRevealState>());
 
@@ -596,14 +586,14 @@ function useFileLineReveal(
 const createFileEditor: EditorFactory<FileCommentAnnotationGroup, undefined> = (
   editorType,
   options,
-  editStateKey,
+  editStateKey
 ) => new Editor(editorType, options, editStateKey);
 
 function editableFileContents(
   environmentId: EnvironmentId,
   cwd: string,
   relativePath: string,
-  contents: string,
+  contents: string
 ): FileContents {
   return {
     name: relativePath,
@@ -701,7 +691,7 @@ function EditableFileSurface({
   // The editor owns the draft, so its own edits echoing back through the file
   // query keep the file identity. Only a change from elsewhere replaces it.
   const [externalFile, setExternalFile] = useState(() =>
-    editableFileContents(environmentId, cwd, relativePath, contents),
+    editableFileContents(environmentId, cwd, relativePath, contents)
   );
   const [editedContents, setEditedContents] = useState<string | null>(null);
   if (contents !== (editedContents ?? externalFile.contents)) {
@@ -744,7 +734,7 @@ function EditableFileSurface({
             endLine: entry.endLine,
             text: entry.text,
             contents: file.contents,
-          }),
+          })
         );
       }
     }
@@ -776,7 +766,7 @@ function EditableFileSurface({
           endLine: entry.endLine,
           text,
           contents,
-        }),
+        })
       );
     }
     setLineAnnotations((current) =>
@@ -786,10 +776,10 @@ function EditableFileSurface({
           entries: annotation.metadata.entries.map((annotationEntry) =>
             annotationEntry.id === entryId
               ? { ...annotationEntry, kind: "comment", text }
-              : annotationEntry,
+              : annotationEntry
           ),
         },
-      })),
+      }))
     );
   };
 
@@ -810,7 +800,7 @@ function EditableFileSurface({
         return entries.length > 0 ? [{ ...annotation, metadata: { entries } }] : [];
       });
       const existingIndex = withoutDraft.findIndex(
-        (annotation) => annotation.lineNumber === endLine,
+        (annotation) => annotation.lineNumber === endLine
       );
       if (existingIndex < 0) {
         return [
@@ -827,12 +817,12 @@ function EditableFileSurface({
               ...annotation,
               metadata: { entries: [...annotation.metadata.entries, draftEntry] },
             }
-          : annotation,
+          : annotation
       );
     });
   };
   const hasOpenCommentForm = lineAnnotations.some((annotation) =>
-    annotation.metadata.entries.some((entry) => entry.kind === "draft"),
+    annotation.metadata.entries.some((entry) => entry.kind === "draft")
   );
   useEffect(() => {
     const root = surfaceRef.current;
@@ -870,9 +860,9 @@ function EditableFileSurface({
 
   return (
     <EditProvider createEditor={createFileEditor}>
-      <div ref={surfaceRef} className={"flex min-h-0 flex-1"}>
+      <div ref={surfaceRef} className="flex min-h-0 flex-1">
         <Virtualizer
-          className={"file-preview-virtualizer min-h-0 flex-1 overflow-auto"}
+          className="file-preview-virtualizer min-h-0 flex-1 overflow-auto"
           config={{
             overscrollSize: 600,
             intersectionObserverMargin: 1200,
@@ -900,7 +890,7 @@ function EditableFileSurface({
             selectedLines={selectedRange}
             lineAnnotations={lineAnnotations}
             renderAnnotation={(annotation) => (
-              <div className={"py-1"}>
+              <div className="py-1">
                 {annotation.metadata.entries.map((entry) => (
                   <DiffCommentAnnotation
                     key={entry.id}
@@ -914,7 +904,7 @@ function EditableFileSurface({
                 ))}
               </div>
             )}
-            className={"min-h-full"}
+            className="min-h-full"
           />
         </Virtualizer>
       </div>
@@ -932,8 +922,7 @@ function RenderedMarkdownSurface({
   readOnly,
   onPendingChange,
 }: Omit<
-  EditableFileSurfaceProps,
-  | "resolvedTheme"
+  EditableFileSurfaceProps, "resolvedTheme"
   | "composerDraftTarget"
   | "revealLine"
   | "revealRequestId"
@@ -952,7 +941,7 @@ function RenderedMarkdownSurface({
   });
 
   return (
-    <ScrollArea className={"min-h-0 flex-1"}>
+    <ScrollArea className="min-h-0 flex-1">
       <FileMarkdownPreview
         text={contents}
         cwd={cwd}
@@ -1044,7 +1033,7 @@ export default function FilePreviewPanel({
     environmentId,
     cwd,
     relativePath,
-    attachment === undefined && relativePath !== null,
+    attachment === undefined && relativePath !== null
   );
   const attemptedPath = file.readError?.resolvedPath ?? file.readError?.operationPath;
   // A chat link cannot tell a folder from a file, so a folder arrives here as
@@ -1083,25 +1072,24 @@ export default function FilePreviewPanel({
   const [renderMarkdownPreferred, setRenderMarkdownPreferred] = useLocalStorage(
     RENDER_MARKDOWN_STORAGE_KEY,
     false,
-    Schema.Boolean,
+    Schema.Boolean
   );
   const [renderBrowserFilePreferred, setRenderBrowserFilePreferred] = useLocalStorage(
     RENDER_BROWSER_FILE_STORAGE_KEY,
     true,
-    Schema.Boolean,
+    Schema.Boolean
   );
   const [renderTablePreferred, setRenderTablePreferred] = useLocalStorage(
     RENDER_TABLE_STORAGE_KEY,
     true,
-    Schema.Boolean,
+    Schema.Boolean
   );
   // Paired with the path on purpose: each file surface counts its reveals from
   // one, so a bare id would let a dismissed reveal on one file swallow the first
   // reveal on the next.
-  const [handledReveal, setHandledReveal] = useState<{
-    path: string;
-    requestId: number;
-  } | null>(null);
+  const [handledReveal, setHandledReveal] = useState<{ path: string; requestId: number; } | null>(
+    null
+  );
   const breadcrumbRef = useRef<HTMLDivElement>(null);
   const isMarkdown = previewPath ? isMarkdownPreviewFile(previewPath) : false;
   const tableDelimiter =
@@ -1211,8 +1199,8 @@ export default function FilePreviewPanel({
         stackedThreadToast({
           type: "error",
           title: uiText("Unable to open file in browser"),
-          description: error instanceof Error ? error.message : "An error occurred.",
-        }),
+          description: error instanceof Error ? error.message : uiText("An error occurred."),
+        })
       );
     })();
   };
@@ -1220,36 +1208,31 @@ export default function FilePreviewPanel({
   if (attachment === undefined && !canReadFiles) {
     if (fileAccess.isPending) {
       return (
-        <div
-          className={
-            "flex min-h-0 flex-1 items-center justify-center gap-2 text-sm text-muted-foreground"
-          }
-        >
-          <Spinner className={"size-4"} />
-          {uiText("Checking file access...")}
-        </div>
+        <div className="flex min-h-0 flex-1 items-center justify-center gap-2 text-sm text-muted-foreground">
+          <Spinner className="size-4" />
+          {uiText("Checking file access...")}</div>
       );
     }
     return (
-      <div className={"p-4 text-sm text-muted-foreground"}>
-        {fileAccess.error ?? uiText("This connection cannot read host files.")}
+      <div className="p-4 text-sm text-muted-foreground">
+        {fileAccess.error ?? "This connection cannot read host files."}
       </div>
     );
   }
 
   return (
-    <div className={"flex min-h-0 flex-1 flex-col overflow-hidden bg-background"}>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
       {breadcrumbPath !== null && breadcrumbTrail !== null ? (
         <div className={FILE_SURFACE_SUBHEADER_CLASS} data-surface-subheader>
           <ScrollArea
-            radius={"none"}
+            radius="none"
             ref={breadcrumbRef}
             hideScrollbars
             scrollFade
-            className={"min-w-0 flex-1"}
+            className="min-w-0 flex-1"
             data-file-breadcrumbs
           >
-            <div className={"flex h-full w-max min-w-full items-center text-xs"}>
+            <div className="flex h-full w-max min-w-full items-center text-xs">
               <FileBreadcrumbs
                 cwd={cwd}
                 environmentId={environmentId}
@@ -1285,12 +1268,12 @@ export default function FilePreviewPanel({
                 setHandledReveal(
                   pressed && relativePath !== null
                     ? { path: relativePath, requestId: revealRequestId }
-                    : null,
+                    : null
                 );
               }}
             >
               <MorphIcon
-                className={"size-3.5"}
+                className="size-3.5"
                 icon={rendered ? Code2 : renderedMode === "table" ? Table2 : Eye}
               />
             </FileSurfaceAction>
@@ -1301,12 +1284,12 @@ export default function FilePreviewPanel({
               pressed={wordWrap}
               onPress={() => updateClientSettings({ wordWrap: !wordWrap })}
             >
-              <WrapTextIcon className={"size-3.5"} />
+              <WrapTextIcon className="size-3.5" />
             </FileSurfaceAction>
           ) : null}
           {canOpenInBrowser ? (
             <FileSurfaceAction label={uiText("Open file in preview browser")} onPress={handleOpenInBrowser}>
-              <Globe2 className={"size-3.5"} />
+              <Globe2 className="size-3.5" />
             </FileSurfaceAction>
           ) : null}
           {!isHostFile && previewPath !== null ? (
@@ -1315,32 +1298,24 @@ export default function FilePreviewPanel({
               pressed={explorerOpen}
               onPress={toggleExplorer}
             >
-              <FolderTree className={"size-3.5"} />
+              <FolderTree className="size-3.5" />
             </FileSurfaceAction>
           ) : null}
         </div>
       ) : null}
       {relativePath && !attachment && !isHostFile && !canWriteFiles && !fileAccess.isPending ? (
-        <div className={"shrink-0 border-b px-3 py-1.5 text-2xs text-muted-foreground"}>
-          {uiText("Read-only connection. Unsaved edits are kept until write access returns.")}
-        </div>
+        <div className="shrink-0 border-b px-3 py-1.5 text-2xs text-muted-foreground">
+          {uiText("Read-only connection. Unsaved edits are kept until write access returns.")}</div>
       ) : null}
       {previewPath &&
       attachment === undefined &&
       !isMedia &&
       !renderBrowserFile &&
       file.data?.truncated ? (
-        <div
-          className={
-            "shrink-0 border-b border-warning/20 bg-warning-surface px-3 py-1.5 text-2xs text-warning-foreground"
-          }
-        >
-          {uiText("Preview limited to the first 1 MB of a")}
-          {file.data.byteLength.toLocaleString()}
-          {uiText("byte file.")}
-        </div>
+        <div className="shrink-0 border-b border-warning/20 bg-warning-surface px-3 py-1.5 text-2xs text-warning-foreground">
+          {uiText("Preview limited to the first 1 MB of a")}{file.data.byteLength.toLocaleString()} {uiText("byte file.")}</div>
       ) : null}
-      <div className={"flex min-h-0 flex-1 overflow-hidden"}>
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         <div
           className={cn("min-w-0 flex-1 flex-col overflow-hidden", previewPath ? "flex" : "hidden")}
         >
@@ -1400,29 +1375,23 @@ export default function FilePreviewPanel({
             />
           ) : relativePath && file.error && file.data === null ? (
             <div
-              role={"alert"}
-              className={"scrollbar-gutter-both flex min-h-0 flex-1 flex-col overflow-auto"}
+              role="alert"
+              className="scrollbar-gutter-both flex min-h-0 flex-1 flex-col overflow-auto"
             >
-              <div
-                className={
-                  "my-auto flex shrink-0 flex-col gap-3 px-6 py-6 text-center text-xs leading-relaxed"
-                }
-              >
-                <p className={"text-destructive"}>
+              <div className="my-auto flex shrink-0 flex-col gap-3 px-6 py-6 text-center text-xs leading-relaxed">
+                <p className="text-destructive">
                   {file.readError ? filePreviewReadErrorMessage(file.readError) : file.error}
                 </p>
                 {attemptedPath ? (
-                  <p className={"text-muted-foreground"}>
-                    {uiText("Attempted path")}
-                    <code className={"block break-all font-mono text-foreground select-all"}>
+                  <p className="text-muted-foreground">
+                    {uiText("Attempted path")}<code className="block break-all font-mono text-foreground select-all">
                       {attemptedPath}
                     </code>
                   </p>
                 ) : null}
                 {!isHostFile ? (
-                  <p className={"text-muted-foreground"}>
-                    {uiText("Workspace folder:")}
-                    <code className={"break-all font-mono select-all"}>
+                  <p className="text-muted-foreground">
+                    {uiText("Workspace folder:")}<code className="break-all font-mono select-all">
                       {file.readError?.cwd ?? cwd}
                     </code>
                     {". Check the link's path or locate the file in Files."}
@@ -1431,10 +1400,8 @@ export default function FilePreviewPanel({
               </div>
             </div>
           ) : relativePath && file.data === null ? (
-            <div
-              className={"flex min-h-0 flex-1 items-center justify-center text-muted-foreground"}
-            >
-              <Spinner size={"lg"} />
+            <div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground">
+              <Spinner size="lg" />
             </div>
           ) : relativePath && file.data ? (
             isMarkdown && renderMarkdown ? (
@@ -1488,7 +1455,7 @@ export default function FilePreviewPanel({
               "flex min-h-0 shrink-0 bg-background",
               previewPath
                 ? "w-[min(22rem,46%)] min-w-64 border-l border-border/60"
-                : "min-w-0 flex-1",
+                : "min-w-0 flex-1"
             )}
           >
             <FileBrowserPanel
