@@ -95,6 +95,7 @@ describe("DiskSpace service", () => {
           recursive: true,
         });
 
+        yield* fs.writeFileString(path.join(backups, "ARCHIVE-INDEX"), "offline index");
         const service = yield* DiskSpace.DiskSpace;
         const first = yield* service.report({});
         assert.isTrue(first.measuring);
@@ -108,7 +109,7 @@ describe("DiskSpace service", () => {
           [
             ["newest", false],
             ["middle", false],
-            ["oldest", true],
+            ["oldest", false],
           ],
         );
         assert.isAtLeast(backupCategory?.bytes ?? 0, 3 * 64 * 1024);

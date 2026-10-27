@@ -178,10 +178,9 @@ it("only creates starter presets from the live Codex model and supported reasoni
   expect(starters.map((preset) => preset.name)).toEqual([
     "Quick handling",
     "Important implementation",
-    "Three-way review",
   ]);
   expect(starters[0]?.selection.options).toEqual([]);
-  expect(starters[2]?.selection).toEqual({
+  expect(starters[1]?.selection).toEqual({
     instanceId: "codex_work",
     model: "gpt-6.1-sol",
     options: [{ id: "reasoningEffort", value: "high" }],

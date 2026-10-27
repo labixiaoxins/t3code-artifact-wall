@@ -1,3 +1,4 @@
+import { StorageManagementPanel } from "./StorageManagementPanel";
 import { uiText } from "~/i18n";
 import { useAtomRefresh, useAtomValue } from "@effect/atom-react";
 import type { DiskSpaceCategory, DiskSpaceReport, EnvironmentId } from "@t3tools/contracts";
@@ -5,19 +6,9 @@ import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Option from "effect/Option";
 import { useEffect, useRef } from "react";
 
-import { useCopyToClipboard } from "../../hooks/useCopyToClipboard";
 import { formatBytes } from "../../lib/formatBytes";
 import { serverEnvironment } from "../../state/server";
-import { Button } from "../ui/button";
-import {
-  DISK_SPACE_KINDS,
-  backupCopyCommand,
-  categoryFor,
-  daysSince,
-  overRetentionBackups,
-  overRetentionBytes,
-  summarizeGrowth,
-} from "./diskSpaceModel";
+import { DISK_SPACE_KINDS, categoryFor, daysSince, summarizeGrowth } from "./diskSpaceModel";
 
 const sizeLabel = (bytes: number | null) => (bytes === null ? "—" : formatBytes(bytes));
 
@@ -79,7 +70,13 @@ function DiskSpaceEnvironment({
             : uiText("Measuring disk usage. The first pass can take a minute.")}
         </p>
       ) : (
-        <DiskSpaceReportView report={report} />
+        <>
+          <StorageManagementPanel environmentId={environmentId} />
+          <p className="text-xs text-muted-foreground">
+            {uiText("Measurement time")}: {new Date(report.measuredAt).toLocaleString()}
+          </p>
+          <DiskSpaceReportView report={report} />
+        </>
       )}
     </section>
   );
@@ -177,26 +174,17 @@ function DiskSpaceReportView({ report }: { readonly report: DiskSpaceReport }) {
 
 function BackupRetention({
   category,
-  keep,
 }: {
   readonly category: DiskSpaceCategory | undefined;
   readonly keep: number;
 }) {
-  const { copyToClipboard, isCopied } = useCopyToClipboard({ target: "command" });
   if (category === undefined || category.items.length === 0) return null;
-  const surplus = overRetentionBackups(category);
   return (
     <div className="flex min-w-0 flex-col gap-3">
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="text-sm font-medium">{uiText("Upgrade backups")}</h3>
         <span className="text-xs text-muted-foreground">
-          {surplus.length === 0
-            ? uiText("Within the newest {keep}.", { keep })
-            : uiText("{count} beyond the newest {keep}, {size}.", {
-                count: surplus.length,
-                keep,
-                size: sizeLabel(overRetentionBytes(category)),
-              })}
+          {uiText("Recovery references must be checked before releasing backups.")}
         </span>
       </div>
       <ul className="flex flex-col">
@@ -219,29 +207,6 @@ function BackupRetention({
           </li>
         ))}
       </ul>
-      {surplus.length === 0 ? null : (
-        <div className="flex flex-col gap-2">
-          <p className="text-xs text-muted-foreground">
-            {uiText(
-              "This command only copies the older backups to an external drive. Check the copy, then delete the originals yourself.",
-            )}
-          </p>
-          <code className="block select-text whitespace-pre-wrap break-all rounded-md bg-muted px-3 py-2 text-xs">
-            {backupCopyCommand(surplus.map((item) => item.path))}
-          </code>
-          <div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                copyToClipboard(backupCopyCommand(surplus.map((item) => item.path)), undefined)
-              }
-            >
-              {isCopied ? uiText("Copied") : uiText("Copy command")}
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -84,6 +84,8 @@ export const RPC_REQUIRED_SCOPES = {
   [WS_METHODS.serverGetDatabaseStorage]: AuthOrchestrationReadScope,
   // Lists local paths and sizes, like the other diagnostics reads.
   [WS_METHODS.serverGetDiskSpace]: AuthDiagnosticsReadScope,
+  [WS_METHODS.serverInspectStorage]: AuthDiagnosticsReadScope,
+  [WS_METHODS.serverManageStorage]: AuthSettingsWriteScope,
   [WS_METHODS.serverGetSettings]: AuthOrchestrationReadScope,
   [WS_METHODS.serverUpdateSettings]: AuthSettingsWriteScope,
   [WS_METHODS.serverSearchAcpRegistry]: AuthOrchestrationReadScope,

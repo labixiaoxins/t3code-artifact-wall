@@ -160,8 +160,17 @@ const make = Effect.gen(function* () {
 
   const measureBackups = Effect.gen(function* () {
     const children = yield* measureChildren(backupsDir);
-    const items = flagBackupsOverRetention(children, BACKUPS_TO_KEEP);
-    return category("backups", backupsDir, sumKnown(items.map((item) => item.bytes)), items);
+    // Unknown directories are protected; helper files and indexes are not recovery generations.
+    const directories = yield* Effect.filter(children, (item) =>
+      fs.stat(item.path).pipe(
+        Effect.map((stat) => stat.type === "Directory"),
+        Effect.orElseSucceed(() => false),
+      ),
+    );
+    const items = directories
+      .toSorted((a, b) => Date.parse(b.modifiedAt ?? "") - Date.parse(a.modifiedAt ?? ""))
+      .map((item) => ({ ...item, overRetention: false }));
+    return category("backups", backupsDir, sumKnown(children.map((item) => item.bytes)), items);
   });
 
   const measureWorkspaces = Effect.gen(function* () {

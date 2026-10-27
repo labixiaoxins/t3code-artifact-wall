@@ -10,7 +10,7 @@ export const DISK_SPACE_KINDS: ReadonlyArray<{
   {
     kind: "backups",
     label: uiText("Upgrade backups"),
-    hint: uiText("Keep the newest few; move older ones to an external drive."),
+    hint: uiText("Keep required recovery versions; inspect references before archiving."),
     color: "#d97757",
   },
   {

@@ -17,7 +17,14 @@ export const zhCN: Readonly<Record<string, string>> = {
   "No subtasks reported": "未上报子任务",
   "Delegated task": "委派任务",
   "Native subtask": "原生子任务",
+  "Measurement time": "测量时间",
+  "Keep required recovery versions; inspect references before archiving.":
+    "保留必要回滚版本，核查恢复引用后再归档。",
+  "Recovery references must be checked before releasing backups.":
+    "释放备份前须核查恢复引用，时间早不等于可以删除。",
   "Work style": "工作方式",
+  "New task default model": "新任务默认模型",
+  "Model bookmarks": "模型书签",
   "Use existing defaults": "沿用原有默认值",
   "Manage presets": "管理预设",
   "Applies only when creating the next task. Current tasks stay unchanged.":

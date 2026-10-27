@@ -49,7 +49,7 @@ it("selecting a preset only initializes the next new task", async () => {
   await using screen = await render(
     <WorkPresetPicker environmentId={environmentId} currentSelection={selection} providers={[]} />,
   );
-  await screen.getByRole("combobox", { name: "Work style" }).selectOptions("review");
+  await screen.getByRole("combobox", { name: "New task default model" }).selectOptions("review");
   expect(readWorkbench().scopes[environmentId]?.selectedId).toBe("review");
   expect(store.getComposerDraft(oldDraft)?.activeProvider).toBeNull();
   const next = DraftId.make("next");
@@ -57,7 +57,7 @@ it("selecting a preset only initializes the next new task", async () => {
   expect(store.getComposerDraft(next)?.modelSelectionByProvider[selection.instanceId]).toEqual(
     selection,
   );
-  expect(screen.container.textContent).toContain("GPT-6.1-Sol · Gemini 3.8 Flash · Grok 4.7");
+  expect(screen.container.textContent).not.toContain("Review participants (manual)");
   expect(store.getComposerDraft(oldDraft)?.prompt).toBe("existing work");
 });
 
@@ -70,11 +70,11 @@ it("creates, renames, updates, deletes and restores only a preset through the UI
       <PresetChangeHistory />
     </>,
   );
-  await screen.getByRole("button", { name: "Manage presets" }).click();
+  await screen.getByRole("button", { name: "Model bookmarks" }).click();
   await screen.getByRole("textbox", { name: "Preset name" }).fill("Fast");
   await screen.getByRole("button", { name: "Create preset", exact: true }).click();
   const id = Object.keys(readWorkbench().scopes[environmentId]!.presets)[0]!;
-  await screen.getByRole("combobox", { name: "Work style" }).selectOptions(id);
+  await screen.getByRole("combobox", { name: "New task default model" }).selectOptions(id);
   await screen.getByRole("textbox", { name: "Preset name" }).fill("Important");
   await screen.getByRole("button", { name: "Rename", exact: true }).click();
   expect(readWorkbench().scopes[environmentId]!.presets[id]!.name).toBe("Important");

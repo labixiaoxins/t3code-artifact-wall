@@ -1,4 +1,11 @@
 import {
+  StorageActionInput,
+  StorageInspection,
+  StorageInspectInput,
+  StorageOperation,
+} from "@t3tools/contracts";
+import * as StorageManagement from "../../../storageManagement.ts";
+import {
   BackgroundActivityProfile,
   BackgroundActivityProfileSelection,
   ExecutionEnvironmentDescriptor,
@@ -31,6 +38,7 @@ const shared = {
   failureMode: "return" as const,
   dependencies: [
     McpInvocationContext.McpInvocationContext,
+    StorageManagement.StorageManagement,
     ThreadManagementService.ThreadManagementService,
     ServerEnvironment.ServerEnvironment,
     Settings.ServerSettingsService,
@@ -64,4 +72,25 @@ const EnvironmentPreferencesTool = Tool.make("t3_environment_preferences_update"
   }),
   success: Schema.Struct(PreferenceFields),
 }).annotate(Tool.Destructive, true);
-export const EnvironmentToolkit = Toolkit.make(EnvironmentReadTool, EnvironmentPreferencesTool);
+const StorageInspectTool = Tool.make("storage_inspect", {
+  ...shared,
+  parameters: StorageInspectInput,
+  success: StorageInspection,
+  description:
+    "Read-only storage inventory on this environment. Lists task directories, external volumes, offline archive index and actual operation stages. measureSizes walks this directory level only when explicitly requested. Never runs cleanup or changes settings.",
+})
+  .annotate(Tool.Readonly, true)
+  .annotate(Tool.Destructive, false);
+const StorageManageTool = Tool.make("storage_manage", {
+  ...shared,
+  parameters: Schema.Struct({ input: StorageActionInput }),
+  success: StorageOperation,
+  description:
+    "Prepare a concrete archive/restore plan using IDs from storage_inspect; execute a plan only after the user has authorized its exact scope. archive-only keeps source; archive-and-release requires a matching complete local audit record. Restore writes a new directory. Cancel requests stop subsequent steps, not reversal. Unknown/interrupted retirement is locked. This never accepts shell or arbitrary paths.",
+}).annotate(Tool.Destructive, true);
+export const EnvironmentToolkit = Toolkit.make(
+  EnvironmentReadTool,
+  EnvironmentPreferencesTool,
+  StorageInspectTool,
+  StorageManageTool,
+);

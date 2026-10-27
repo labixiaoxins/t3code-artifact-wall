@@ -1,3 +1,4 @@
+import * as StorageManagement from "./storageManagement.ts";
 import * as ProviderEventLoggers from "@t3tools/provider-core/server/ProviderEventLoggers";
 import * as ArtifactWallHttp from "./artifacts/http.ts";
 import type { RelayManagedEndpointRuntimeConfig } from "@t3tools/contracts/relay";
@@ -566,13 +567,16 @@ const layerProviderInstallationRefresh = Layer.effectDiscard(
   }),
 );
 
+const layerStorageCleanup = StorageCleanup.layer.pipe(Layer.provide(ProjectionStoreV2.layer));
+
 const layerRuntimeCoreDependenciesBase = Layer.mergeAll(
   AgentAwarenessRelay.layer,
   HeldHooksWaker.layer,
   layerThreadSettlementWorker,
   layerIdleCompactionWorker,
-  StorageCleanup.layer.pipe(Layer.provide(ProjectionStoreV2.layer)),
+  layerStorageCleanup,
   DiskSpace.layer.pipe(Layer.provide(ProcessRunner.layer)),
+  StorageManagement.layer.pipe(Layer.provide(layerStorageCleanup)),
   DatabaseStorage.layer.pipe(
     Layer.provide(ProjectionMaintenance.layer),
     Layer.provide(

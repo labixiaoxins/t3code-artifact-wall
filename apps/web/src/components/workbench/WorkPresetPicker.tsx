@@ -1,18 +1,12 @@
 import { randomUUID } from "../../lib/utils";
 import { accountAlias } from "../chat/runInspectorModel";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { EnvironmentId, ModelSelection, ServerProvider } from "@t3tools/contracts";
 import { uiText } from "~/i18n";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { useWorkPresets } from "./useWorkPresets";
-import {
-  changePreset,
-  EMPTY_PRESET_SCOPE,
-  REVIEW_PARTICIPANTS,
-  starterPresets,
-  writeWorkbench,
-} from "./workPresets";
+import { changePreset, EMPTY_PRESET_SCOPE, writeWorkbench } from "./workPresets";
 
 export function WorkPresetPicker({
   environmentId,
@@ -29,30 +23,6 @@ export function WorkPresetPicker({
   const [name, setName] = useState("");
   const [error, setError] = useState(false);
   const selected = scope.selectedId ? scope.presets[scope.selectedId] : null;
-  const starters = starterPresets(providers);
-  useEffect(() => {
-    if (scope.initialized || starters.length === 0) return;
-    try {
-      writeWorkbench((current) => {
-        if (current.scopes[environmentId]?.initialized) return current;
-        let next = current;
-        for (const preset of starters)
-          next = changePreset(next, environmentId, randomUUID(), preset, Date.now(), randomUUID());
-        return {
-          ...next,
-          scopes: {
-            ...next.scopes,
-            [environmentId]: {
-              ...(next.scopes[environmentId] ?? EMPTY_PRESET_SCOPE),
-              initialized: true,
-            },
-          },
-        };
-      });
-    } catch {
-      /* Explicit writes below report storage failures. */
-    }
-  }, [environmentId, scope.initialized, starters]);
   const mutate = (update: Parameters<typeof writeWorkbench>[0]) => {
     try {
       writeWorkbench(update);
@@ -79,9 +49,9 @@ export function WorkPresetPicker({
     <div className="mb-2 space-y-2 text-xs">
       <div className="flex flex-wrap items-center gap-2">
         <label>
-          {uiText("Work style")}{" "}
+          {uiText("New task default model")}{" "}
           <select
-            aria-label={uiText("Work style")}
+            aria-label={uiText("New task default model")}
             value={selected ? (scope.selectedId ?? "") : ""}
             onChange={(event) => {
               const id = event.target.value || null;
@@ -114,7 +84,7 @@ export function WorkPresetPicker({
             setName(selected?.name ?? "");
           }}
         >
-          {uiText("Manage presets")}
+          {uiText("Model bookmarks")}
         </Button>
       </div>
       {open || selected ? (
@@ -134,14 +104,10 @@ export function WorkPresetPicker({
             .join(" · ")}
         </p>
       ) : null}
-      {open || selected ? (
-        <p className="text-muted-foreground">
-          {uiText("Review participants (manual)")}: {REVIEW_PARTICIPANTS}
-        </p>
-      ) : null}
       {open ? (
         <div className="space-y-2 rounded-md border p-2">
           <Input
+            placeholder={uiText("Preset name")}
             aria-label={uiText("Preset name")}
             value={name}
             maxLength={80}

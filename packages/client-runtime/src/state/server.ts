@@ -1003,6 +1003,18 @@ export function createServerEnvironmentAtoms<R, E>(
     }),
     databaseStorage,
     databaseCompactionRecommendations,
+    inspectStorage: createEnvironmentRpcQueryAtomFamily(runtime, {
+      label: "environment-data:server:inspect-storage",
+      tag: WS_METHODS.serverInspectStorage,
+      staleTimeMs: 0,
+      idleTtlMs: 0,
+      execute: (input) => request(WS_METHODS.serverInspectStorage, input),
+    }),
+    manageStorage: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:server:manage-storage",
+      tag: WS_METHODS.serverManageStorage,
+      concurrency: { mode: "singleFlight", key: ({ environmentId }) => environmentId },
+    }),
     diskSpace: createEnvironmentRpcQueryAtomFamily(runtime, {
       label: "environment-data:server:disk-space",
       tag: WS_METHODS.serverGetDiskSpace,

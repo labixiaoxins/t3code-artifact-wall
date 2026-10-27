@@ -136,9 +136,5 @@ export function starterPresets(providers: readonly ServerProvider[]): readonly W
         : [];
     return { name, selection: { instanceId: provider.instanceId, model: model.slug, options } };
   };
-  return [
-    make(uiText("Quick handling"), "low"),
-    make(uiText("Important implementation"), "high"),
-    make(uiText("Three-way review"), "high"),
-  ];
+  return [make(uiText("Quick handling"), "low"), make(uiText("Important implementation"), "high")];
 }

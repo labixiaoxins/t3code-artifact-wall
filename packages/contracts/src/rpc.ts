@@ -1,4 +1,11 @@
 import {
+  StorageActionInput,
+  StorageInspection,
+  StorageInspectInput,
+  StorageOperation,
+  StorageManagementError,
+} from "./storageManagement.ts";
+import {
   OrchestrationV2SearchThreadError,
   OrchestrationV2SearchThreadInput,
   OrchestrationV2SearchThreadResult,
@@ -484,6 +491,8 @@ export const WS_METHODS = {
   serverGetStorageCleanupReport: "server.getStorageCleanupReport",
   serverGetDatabaseStorage: "server.getDatabaseStorage",
   serverGetDiskSpace: "server.getDiskSpace",
+  serverInspectStorage: "server.inspectStorage",
+  serverManageStorage: "server.manageStorage",
   serverGetSettings: "server.getSettings",
   serverUpdateSettings: "server.updateSettings",
   serverDiscoverSourceControl: "server.discoverSourceControl",
@@ -755,6 +764,17 @@ const WsServerGetDatabaseStorageRpc = Rpc.make(WS_METHODS.serverGetDatabaseStora
   success: Schema.NullOr(DatabaseStorageStatus),
   stream: true,
   error: EnvironmentAuthorizationError,
+});
+
+const WsServerInspectStorageRpc = Rpc.make(WS_METHODS.serverInspectStorage, {
+  payload: StorageInspectInput,
+  success: StorageInspection,
+  error: Schema.Union([StorageManagementError, EnvironmentAuthorizationError]),
+});
+const WsServerManageStorageRpc = Rpc.make(WS_METHODS.serverManageStorage, {
+  payload: StorageActionInput,
+  success: StorageOperation,
+  error: Schema.Union([StorageManagementError, EnvironmentAuthorizationError]),
 });
 
 const WsServerGetDiskSpaceRpc = Rpc.make(WS_METHODS.serverGetDiskSpace, {
@@ -1916,6 +1936,8 @@ export const WsRpcGroup = RpcGroup.make(
   WsServerGetStorageCleanupReportRpc,
   WsServerGetDatabaseStorageRpc,
   WsServerGetDiskSpaceRpc,
+  WsServerInspectStorageRpc,
+  WsServerManageStorageRpc,
   WsServerGetSettingsRpc,
   WsServerUpdateSettingsRpc,
   WsServerDiscoverSourceControlRpc,

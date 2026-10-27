@@ -1,3 +1,4 @@
+import { WorkPresetPicker } from "../workbench/WorkPresetPicker";
 import { uiText } from "~/i18n";
 import type {
   ModelSelection,
@@ -293,6 +294,15 @@ export function ComposerModelPicker({
   return (
     <ProviderModelPicker
       {...pickerProps}
+      footer={
+        pickerProps.environmentId ? (
+          <WorkPresetPicker
+            environmentId={pickerProps.environmentId}
+            currentSelection={selectedModelSelection}
+            providers={instanceEntries.flatMap((entry) => (entry.snapshot ? [entry.snapshot] : []))}
+          />
+        ) : null
+      }
       {...(multipleModelsEnabled
         ? {
             ...(multipleModelSelections !== null

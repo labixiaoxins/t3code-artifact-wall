@@ -1,4 +1,3 @@
-import { WorkPresetPicker } from "../workbench/WorkPresetPicker";
 import { uiText } from "~/i18n";
 import { useComposerTypingGuard } from "./useComposerTypingGuard";
 import { useContextControlsHost } from "./useContextControlsHost";
@@ -2552,6 +2551,18 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     : expandedControlsIconOnlyBlockCount;
   const composerControls = (
     <ComposerControlsBar
+      onCouncilRequest={() => {
+        editPromptFromTraitsStable((current) =>
+          [
+            current.trim() || "请审查本任务当前方案和改动。",
+            "请按 council 技能发起 GPT、Gemini Flash、Grok 三方独立会审。先核对实时模型、订阅额度、材料范围与权限；不自动付费或提高权限。冻结同一份必要材料，首轮互不读取意见，保留真实taskId和各方进度。缺席、失败、分歧如实列出，3/3返回不等于通过；不要复制依赖、App或聊天库。审查本身不授权实施。",
+          ].join("\n\n"),
+        );
+        window.setTimeout(() => submitComposerStable(), 0);
+      }}
+      councilDisabled={
+        isSendBusy || noProviderAvailable || phase === "running" || activePendingProgress !== null
+      }
       environmentId={environmentId}
       routeKind={routeKind}
       routeThreadRef={routeThreadRef}
@@ -3703,11 +3714,6 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                 isComposerResting && "py-2 sm:py-2",
               )}
             >
-              <WorkPresetPicker
-                environmentId={environmentId}
-                currentSelection={selectedModelSelection}
-                providers={providerStatuses}
-              />
               {isStashMenuOpen && !composerMenuOpen && (
                 <ComposerCommandMenuLayer anchor={composerMenuAnchor}>
                   <ComposerStashMenu

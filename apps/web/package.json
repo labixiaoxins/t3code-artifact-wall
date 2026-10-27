@@ -1,13 +1,13 @@
 {
   "name": "@t3tools/web",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "scripts": {
     "build:ghostty-wasm": "bash scripts/build-libghostty-wasm.sh",
     "dev": "vp dev",
     "dev:built": "vp build --watch",
-    "build": "vp build",
+    "build": "node ../../scripts/check-storage-budget.ts 0.5 && vp build",
     "preview": "vp preview",
     "test": "vp test run --passWithNoTests --project unit --project browser"
   },

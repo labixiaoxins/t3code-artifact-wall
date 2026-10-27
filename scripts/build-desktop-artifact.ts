@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { assertStorageBudget } from "../packages/shared/src/storageBudget.ts";
 // @effect-diagnostics nodeBuiltinImport:off - Node's typed junction API avoids Windows symlink privileges while keeping the probe isolated.
 
 import * as NodeFSP from "node:fs/promises";
@@ -3609,6 +3610,7 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
   options: ResolvedBuildOptions,
 ) {
   const repoRoot = yield* RepoRoot;
+  yield* Effect.try(() => assertStorageBudget(repoRoot, 2));
   const path = yield* Path.Path;
   const fs = yield* FileSystem.FileSystem;
   const hostPlatform = yield* HostProcess.Platform;
