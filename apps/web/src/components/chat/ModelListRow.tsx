@@ -65,7 +65,7 @@ export const ModelListRow = memo(function ModelListRow(props: {
     >
       <div className="min-w-0 flex-1 text-left">
         <div className="flex min-w-0 items-center gap-2">
-          <div className="min-w-0 truncate text-xs font-medium leading-snug">
+          <div className="min-w-0 truncate text-sm font-normal leading-snug">
             {props.useTriggerLabel
               ? getTriggerDisplayModelLabel(model)
               : getDisplayModelName(
@@ -97,7 +97,7 @@ export const ModelListRow = memo(function ModelListRow(props: {
               className="size-3"
               iconClassName="size-3"
             />
-            <span className="truncate text-xs font-normal leading-snug text-muted-foreground/70">
+            <span className="truncate text-xs font-normal leading-snug text-muted-foreground">
               {providerLabel}
             </span>
           </div>
@@ -105,9 +105,6 @@ export const ModelListRow = memo(function ModelListRow(props: {
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
-        {props.showSelection && props.isSelected ? (
-          <CheckIcon className="size-3.5" aria-hidden="true" />
-        ) : null}
         {props.jumpLabel ? <Kbd>{props.jumpLabel}</Kbd> : null}
         <Tooltip>
           <TooltipTrigger
@@ -131,7 +128,9 @@ export const ModelListRow = memo(function ModelListRow(props: {
                 <StarIcon
                   className={cn(
                     "size-3.5 sm:size-3",
-                    props.isFavorite && "fill-current text-warning",
+                    props.isFavorite
+                      ? "fill-current text-warning"
+                      : "opacity-0 group-hover:opacity-100 group-data-highlighted:opacity-100 in-focus-visible:opacity-100 pointer-coarse:opacity-100",
                   )}
                 />
               </Button>
@@ -141,6 +140,12 @@ export const ModelListRow = memo(function ModelListRow(props: {
             {props.isFavorite ? uiText("Remove from favorites") : uiText("Add to favorites")}
           </TooltipPopup>
         </Tooltip>
+        {props.showSelection ? (
+          <CheckIcon
+            className={cn("size-3.5", !props.isSelected && "invisible")}
+            aria-hidden="true"
+          />
+        ) : null}
       </div>
     </ComboboxItem>
   );
