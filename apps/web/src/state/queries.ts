@@ -52,7 +52,7 @@ const threadSearchResultsAtom = createThreadSearchResultsAtomFamily({
   getSearchAtom: (environmentId, query) =>
     orchestrationEnvironment.threadSearch({
       environmentId,
-      input: { query },
+      input: { query, searchMode: "spotlight" },
     }),
   labelPrefix: "web:thread-search",
 });
@@ -79,6 +79,7 @@ export function useThreadSearch(
   readonly matches: ReadonlyArray<EnvironmentThreadSearchMatch>;
   readonly query: string;
   readonly isPending: boolean;
+  readonly error: string | null;
 } {
   const normalizedQuery = query.trim();
   const debouncedQuery = useDebouncedValue(normalizedQuery, THREAD_SEARCH_DEBOUNCE_MS);
@@ -94,6 +95,10 @@ export function useThreadSearch(
     matches: isDebouncing ? EMPTY_THREAD_SEARCH_MATCHES : result.matches,
     query: settledQuery ?? "",
     isPending: canSearch && (isDebouncing || result.isLoading),
+    error:
+      canSearch && !isDebouncing && "error" in result && typeof result.error === "string"
+        ? result.error
+        : null,
   };
 }
 

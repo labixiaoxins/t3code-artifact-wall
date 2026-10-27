@@ -1,3 +1,4 @@
+import { requestSpotlightMatch } from "./chat/spotlightMatchBus";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { threadSearchMatchKey } from "@t3tools/client-runtime/state/thread-search";
 import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
@@ -20,7 +21,12 @@ import {
 import { useThreadSearch } from "../state/queries";
 import { primaryServerProvidersAtom } from "../state/server";
 import { buildThreadRouteParams } from "../threadRoutes";
-import { buildThreadActionItems, ITEM_ICON_CLASS } from "./CommandPalette.logic";
+import {
+  buildThreadActionItems,
+  ITEM_ICON_CLASS,
+  RECENT_THREAD_LIMIT,
+  type CommandPaletteActionItem,
+} from "./CommandPalette.logic";
 import { useEnvironmentLookups, useProjectLookups } from "./CommandPaletteLookups";
 import { ThreadCommandSubtitle } from "./ThreadCommandSubtitle";
 import {
@@ -146,5 +152,87 @@ export function useCommandPaletteThreadItems(input: {
     },
   });
 
-  return { threadItems, isSearchPending: threadSearch.isPending };
+  const spotlightItems: CommandPaletteActionItem[] = threadSearch.matches.map((match) => {
+    const local = threadItems.find((item) => item.value === `thread:${match.threadId}`);
+    const target = scopeThreadRef(match.environmentId, match.threadId);
+    const subtitle = [
+      projectTitleById.get(match.projectId),
+      match.archivedAt ? "已归档" : "",
+      match.isSubagent ? "子任务" : "",
+      match.matchedQuery && match.matchedQuery !== threadSearch.query ? "近似匹配" : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    return {
+      kind: "action",
+      value: `thread:${match.environmentId}:${match.threadId}`,
+      title: match.title ?? local?.title ?? match.threadId,
+      searchTerms: [threadSearch.query, match.title ?? "", match.snippet],
+      icon: <MessageSquareIcon className={ITEM_ICON_CLASS} />,
+      description: subtitle,
+      ...(match.score !== undefined ? { searchScore: match.score } : {}),
+      ...(match.familyKey
+        ? {
+            searchFamilyKey: `${match.environmentId}:${match.familyKey}`,
+            ...(match.familyTitle ? { searchFamilyTitle: match.familyTitle } : {}),
+          }
+        : {}),
+      ...(match.isSubagent !== undefined ? { searchSubagent: match.isSubagent } : {}),
+      searchRelatedItems: (match.familyThreads ?? []).map((member) => ({
+        kind: "action",
+        value: `thread:${match.environmentId}:${member.threadId}`,
+        title: member.title,
+        description: member.archivedAt ? "已归档" : "",
+        searchTerms: [member.title],
+        searchRecency: Date.parse(member.updatedAt),
+        icon: <MessageSquareIcon className={ITEM_ICON_CLASS} />,
+        run: async () => {
+          await navigate({
+            to: "/$environmentId/$threadId",
+            params: buildThreadRouteParams(scopeThreadRef(match.environmentId, member.threadId)),
+          });
+        },
+      })),
+      ...(local?.timestamp ? { timestamp: local.timestamp } : {}),
+      ...(match.messageId
+        ? {
+            threadContentMatch: {
+              source: match.source,
+              snippet: match.snippet,
+              query: match.matchedQuery ?? threadSearch.query,
+            },
+          }
+        : {}),
+      run: async () => {
+        if (match.messageId)
+          requestSpotlightMatch({
+            thread: target,
+            query: match.matchedQuery ?? threadSearch.query,
+            messageId: match.messageId,
+          });
+        await navigate({ to: "/$environmentId/$threadId", params: buildThreadRouteParams(target) });
+      },
+    };
+  });
+  const serverItemIds = new Set(threadSearch.matches.map((match) => `thread:${match.threadId}`));
+  const threadItemsForSearch = [
+    ...spotlightItems,
+    ...threadItems.filter((item) => !serverItemIds.has(item.value)),
+  ];
+  const mainThreadIds = new Set(
+    threads
+      .filter((thread) => thread.lineage.relationshipToParent !== "subagent")
+      .map((thread) => `thread:${thread.id}`),
+  );
+  const recentThreadItems = threadItems
+    .filter((item) => mainThreadIds.has(item.value))
+    .slice(0, RECENT_THREAD_LIMIT);
+
+  return {
+    threadItems,
+    threadItemsForSearch,
+    recentThreadItems,
+    isSearchPending: threadSearch.isPending,
+    searchError: threadSearch.error,
+  };
 }

@@ -1,3 +1,4 @@
+import { buildSpotlightGroups } from "./CommandPalette.spotlight";
 import { uiText } from "~/i18n";
 import { threadPullRequestSearchTerms } from "@t3tools/shared/threadPullRequests";
 import type { CommandPaletteLinkedThreads } from "../commandPaletteBus";
@@ -159,6 +160,11 @@ export interface CommandPaletteItem {
   readonly threadContentMatch?: CommandPaletteThreadContentMatch;
   readonly timestamp?: string;
   readonly searchRecency?: number;
+  readonly searchScore?: number;
+  readonly searchFamilyKey?: string;
+  readonly searchFamilyTitle?: string;
+  readonly searchSubagent?: boolean;
+  readonly searchRelatedItems?: readonly CommandPaletteActionItem[];
   readonly icon: ReactNode;
   readonly disabled?: boolean;
   readonly titleLeadingContent?: ReactNode;
@@ -487,6 +493,7 @@ function rankCommandPaletteItemMatch(
 
 export function filterCommandPaletteGroups(input: {
   activeGroups: ReadonlyArray<CommandPaletteGroup>;
+  spotlight?: boolean;
   query: string;
   isInSubmenu: boolean;
   projectSearchItems: ReadonlyArray<CommandPaletteActionItem>;
@@ -498,6 +505,14 @@ export function filterCommandPaletteGroups(input: {
   const isActionsFilter = input.query.startsWith(">");
   const searchQuery = isActionsFilter ? input.query.slice(1) : input.query;
   const normalizedQuery = normalizeSearchText(searchQuery);
+  if (input.spotlight && !input.isInSubmenu && !isActionsFilter) {
+    return buildSpotlightGroups({
+      activeGroups: input.activeGroups,
+      query: input.query,
+      projectItems: input.topProjectItems ?? input.projectSearchItems,
+      threadItems: input.threadSearchItems,
+    });
+  }
 
   if (normalizedQuery.length === 0) {
     if (isActionsFilter) {

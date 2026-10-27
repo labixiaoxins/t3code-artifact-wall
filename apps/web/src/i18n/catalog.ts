@@ -1843,7 +1843,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   "File picker": "文件选择器",
   "Search project contents": "搜索项目内容",
   "Search...": "搜索...",
-  "Search commands, projects, and threads...": "搜索命令、项目和任务...",
+  "Search commands, projects, and threads...": "搜索项目和会话，输入 > 查找操作…",
   "Enter project path (e.g. ~/projects/my-app)": "输入项目路径（例如 ~/projects/my-app）",
   "Enter path (e.g. ~/projects/my-app)": "输入路径（例如 ~/projects/my-app）",
   Navigate: "导航",

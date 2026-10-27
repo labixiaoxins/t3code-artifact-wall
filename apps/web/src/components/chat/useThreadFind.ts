@@ -1,3 +1,4 @@
+import { consumeSpotlightMatch, subscribeSpotlightMatch } from "./spotlightMatchBus";
 import { uiText } from "~/i18n";
 import type { InlineSkill } from "@t3tools/shared/inlineSkills";
 import type { OrchestrationV2SearchThreadResult, ScopedThreadRef } from "@t3tools/contracts";
@@ -95,6 +96,25 @@ export function useThreadFind({
   });
   const close = useStableCallback(() => setState(CLOSED_FIND));
   useEffect(() => subscribeThreadFindOpen(open), [open]);
+
+  const openSpotlightMatch = useStableCallback(() => {
+    if (!enabled || !thread || !threadKey) return;
+    const target = consumeSpotlightMatch(thread);
+    if (!target) return;
+    setState((previous) => ({
+      ...CLOSED_FIND,
+      threadKey,
+      query: target.query,
+      start: { entryId: target.messageId, occurrence: 0 },
+      focusRequestId: previous.focusRequestId + 1,
+      navigationId: previous.navigationId + 1,
+      requestId: previous.navigationId + 1,
+    }));
+  });
+  useEffect(() => {
+    openSpotlightMatch();
+    return subscribeSpotlightMatch(openSpotlightMatch);
+  }, [threadKey, enabled, openSpotlightMatch]);
 
   const remote = useServerResults(
     isOpen ? thread : null,

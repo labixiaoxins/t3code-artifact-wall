@@ -82,7 +82,6 @@ import {
 } from "lucide-react";
 import { requestThreadFindOpen } from "./chat/threadFindActionBus";
 import {
-  useDeferredValue,
   useEffect,
   useEffectEvent,
   useLayoutEffect,
@@ -186,7 +185,6 @@ import {
   getCommandPaletteInputPlaceholder,
   getCommandPaletteMode,
   ITEM_ICON_CLASS,
-  RECENT_THREAD_LIMIT,
   reduceCommandPaletteUiState,
   createCommandPaletteSearchState,
   type AddProjectCloneFlow,
@@ -507,7 +505,7 @@ function OpenCommandPaletteDialog(props: {
   const { query, views: viewStack } = searchState;
   const setQuery = (query: string) => dispatchSearch({ type: "query", query });
   const [linkedThreadSearch, setLinkedThreadSearch] = useState(initialSearch.linkedThreadSearch);
-  const deferredQuery = useDeferredValue(query);
+  const deferredQuery = query;
   const isActionsOnly = deferredQuery.startsWith(">");
   const [highlightedItemValue, setHighlightedItemValue] = useState<string | null>(null);
   const resultListRef = useRef<LegendListRef | null>(null);
@@ -1023,9 +1021,12 @@ function OpenCommandPaletteDialog(props: {
     ];
   })();
 
-  const { threadItems: allThreadItems, isSearchPending: isThreadSearchPending } =
-    useCommandPaletteThreadItems({ activeThreadId, threadSearchQuery });
-  const recentThreadItems = allThreadItems.slice(0, RECENT_THREAD_LIMIT);
+  const {
+    threadItemsForSearch,
+    recentThreadItems,
+    isSearchPending: isThreadSearchPending,
+    searchError,
+  } = useCommandPaletteThreadItems({ activeThreadId, threadSearchQuery });
 
   // Stable so the item builders that capture it during render never see the
   // highlight ref it writes.
@@ -1741,7 +1742,17 @@ function OpenCommandPaletteDialog(props: {
     });
   }
 
-  const rootGroups = buildRootGroups({ actionItems, recentThreadItems });
+  const rootGroups = [
+    {
+      value: "recent-projects",
+      label: "最近项目",
+      items: topProjectCandidates
+        .toSorted((a, b) => b.recency - a.recency)
+        .slice(0, 5)
+        .map((candidate) => candidate.item),
+    },
+    ...buildRootGroups({ actionItems, recentThreadItems }),
+  ];
   const settingsSearchItems: CommandPaletteActionItem[] = searchSettings(
     deferredQuery,
     availableSettingsSearchItems,
@@ -1780,6 +1791,7 @@ function OpenCommandPaletteDialog(props: {
 
   const filteredGroups = filterCommandPaletteGroups({
     activeGroups,
+    spotlight: true,
     query: deferredQuery,
     isInSubmenu: currentView !== null,
     projectSearchItems: projectSearchItems,
@@ -1798,7 +1810,7 @@ function OpenCommandPaletteDialog(props: {
               });
             },
           })
-        : allThreadItems,
+        : threadItemsForSearch,
   });
 
   const handleAddProjectForEnvironment = async (input: {
@@ -2835,6 +2847,7 @@ function OpenCommandPaletteDialog(props: {
             ? { startAddon: <FolderPlusIcon /> }
             : {}),
         onKeyDown: handleKeyDown,
+        onInput: (event) => handleQueryChange(event.currentTarget.value),
       }}
       mode="none"
       items={resultRows.itemValues}
@@ -2876,6 +2889,11 @@ function OpenCommandPaletteDialog(props: {
       ) : isBrowsePending && browseResult === null ? (
         <div role="status" className="px-4 py-3 text-sm text-muted-foreground">
           {uiText("Loading folders...")}
+        </div>
+      ) : null}
+      {searchError && !currentView && !isActionsOnly ? (
+        <div role="alert" className="px-4 py-2 text-sm text-muted-foreground">
+          {searchError}
         </div>
       ) : null}
       <CommandPaletteVirtualizedResults

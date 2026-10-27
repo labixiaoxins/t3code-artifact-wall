@@ -15,6 +15,7 @@ export interface EnvironmentThreadSearchMatch extends OrchestrationThreadSearchM
 export interface ThreadSearchResultsState {
   readonly matches: ReadonlyArray<EnvironmentThreadSearchMatch>;
   readonly isLoading: boolean;
+  readonly error?: string;
 }
 
 const ThreadSearchKey = Schema.fromJsonString(
@@ -59,10 +60,12 @@ export function createThreadSearchResultsAtomFamily<E>(options: {
       const [environmentIds, query] = parsedKey.value;
       const matches: EnvironmentThreadSearchMatch[] = [];
       let isLoading = false;
+      let error: string | undefined;
 
       for (const environmentId of environmentIds) {
         const result = get(options.getSearchAtom(environmentId, query));
         isLoading ||= result.waiting;
+        if (AsyncResult.isFailure(result)) error = "搜索暂不可用，请稍后重试。";
         const value = Option.getOrNull(AsyncResult.value(result));
         if (value !== null) {
           matches.push(
@@ -74,7 +77,7 @@ export function createThreadSearchResultsAtomFamily<E>(options: {
         }
       }
 
-      return { matches, isLoading };
+      return { matches, isLoading, ...(error ? { error } : {}) };
     }).pipe(Atom.withLabel(`${options.labelPrefix}:${key}`)),
   );
 }

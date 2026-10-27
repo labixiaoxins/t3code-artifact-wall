@@ -155,13 +155,12 @@ describe("command palette project search", () => {
       document.querySelector("[data-command-palette] [role=option]")?.textContent ?? "",
     ).not.toContain("批量设计工具");
     await act(async () => resolveGate(converter));
-    // The list lays out over a few frames when it goes from empty to populated.
-    const firstRow = () =>
-      document.querySelector("[data-command-palette] [role=option]")?.textContent ?? "";
-    for (let frame = 0; frame < 10 && !firstRow().includes("批量设计工具"); frame++) {
-      await settle();
-    }
-    expect(firstRow()).toContain("批量设计工具");
+    // Assert the eventual virtualized row rather than a fixed number of layout frames.
+    await vi.waitFor(() =>
+      expect(document.querySelector("[data-command-palette] [role=option]")?.textContent).toContain(
+        "批量设计工具",
+      ),
+    );
   });
 
   it("finds a Chinese project by pinyin initials, lists projects first, and Enter scopes and opens it", async () => {
@@ -174,9 +173,12 @@ describe("command palette project search", () => {
     await settle();
     await typeQuery("plsj");
     await settle();
-    const rows = [...document.querySelectorAll("[data-command-palette] [role=option]")];
-    expect(rows[0]?.textContent).toContain("批量设计工具");
-    expect(groupHeadings()[0]).toContain("Projects");
+    await vi.waitFor(() => {
+      expect(document.querySelector("[data-command-palette] [role=option]")?.textContent).toContain(
+        "批量设计工具",
+      );
+      expect(groupHeadings()[0]).toContain("Projects");
+    });
 
     await act(async () => {
       document.activeElement?.dispatchEvent(
@@ -195,12 +197,16 @@ describe("command palette project search", () => {
     await act(() => openCommandPalette());
     await settle();
     await typeQuery("piliang");
-    expect(document.querySelector("[data-command-palette] [role=option]")?.textContent).toContain(
-      "批量设计工具",
+    await vi.waitFor(() =>
+      expect(document.querySelector("[data-command-palette] [role=option]")?.textContent).toContain(
+        "批量设计工具",
+      ),
     );
     await typeQuery("design");
-    expect(document.querySelector("[data-command-palette] [role=option]")?.textContent).toContain(
-      "Design System",
+    await vi.waitFor(() =>
+      expect(document.querySelector("[data-command-palette] [role=option]")?.textContent).toContain(
+        "Design System",
+      ),
     );
   });
 });

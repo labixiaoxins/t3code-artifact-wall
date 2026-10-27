@@ -66,7 +66,7 @@ it("ignores invalid search keys", () => {
   }
 });
 
-it("merges successful environments and silently ignores failures", () => {
+it("merges successful environments and reports failed environments without losing matches", () => {
   const result: OrchestrationSearchThreadsResult = {
     matches: [
       {
@@ -95,6 +95,7 @@ it("merges successful environments and silently ignores failures", () => {
   expect(state).toEqual({
     matches: [{ ...result.matches[0], environmentId: envA }],
     isLoading: false,
+    error: "搜索暂不可用，请稍后重试。",
   });
   expect(threadSearchMatchKey(state.matches[0]!)).toBe('["env-a","thread-a"]');
 

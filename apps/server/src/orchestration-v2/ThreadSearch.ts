@@ -1,3 +1,5 @@
+import * as SpotlightSearch from "./SpotlightSearch.ts";
+import * as Option from "effect/Option";
 import {
   IsoDateTime,
   OrchestrationThreadSearchSource,
@@ -71,6 +73,9 @@ export class ThreadSearch extends Context.Service<
 /** @public Service construction is part of the canonical Effect module API. */
 export const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
+  const spotlight = Option.getOrUndefined(
+    yield* Effect.serviceOption(SpotlightSearch.SpotlightSearch),
+  );
 
   const searchRows = SqlSchema.findAll({
     Request: SearchRequest,
@@ -130,6 +135,11 @@ export const make = Effect.gen(function* () {
 
   const search: ThreadSearch["Service"]["search"] = Effect.fn("ThreadSearch.search")(
     function* (input) {
+      if (input.searchMode === "spotlight" && spotlight) {
+        return yield* spotlight
+          .search(input.query, input.limit ?? 50)
+          .pipe(Effect.mapError((cause) => new ThreadSearchError({ operation: "query", cause })));
+      }
       // The scan reads every message, so run it on the reader worker rather
       // than the event loop.
       const rows = yield* sql
