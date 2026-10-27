@@ -1,3 +1,4 @@
+import * as ClaudeUsageProtection from "../ClaudeUsageProtection.ts";
 import * as OtelEnvironment from "@t3tools/shared/otelEnvironment";
 import { DEFAULT_SIGNAL_EXPORT } from "@t3tools/shared/observability";
 import * as NodeServices from "@effect/platform-node/NodeServices";
@@ -194,6 +195,7 @@ export function runOrchestratorV2ProviderReplayScenario<
     readonly runEffectWorker?: boolean;
     readonly runContinuationWorker?: boolean;
     readonly recoverOnStartup?: boolean;
+    readonly usageProtection?: ClaudeUsageProtection.ClaudeUsageProtection["Service"];
     readonly continueThreadsAfterServerUpdate?: boolean;
   } = {},
 ): Effect.Effect<
@@ -236,6 +238,7 @@ export function layerProviderReplay<Transcript extends ProviderReplayTranscript,
     readonly runEffectWorker?: boolean;
     readonly runContinuationWorker?: boolean;
     readonly recoverOnStartup?: boolean;
+    readonly usageProtection?: ClaudeUsageProtection.ClaudeUsageProtection["Service"];
     readonly continueThreadsAfterServerUpdate?: boolean;
     readonly replayGate?: ProviderReplayGate;
   } = {},
@@ -269,6 +272,7 @@ export function layerWithRegistry<Error>(
     readonly runEffectWorker?: boolean;
     readonly runContinuationWorker?: boolean;
     readonly recoverOnStartup?: boolean;
+    readonly usageProtection?: ClaudeUsageProtection.ClaudeUsageProtection["Service"];
     readonly continueThreadsAfterServerUpdate?: boolean;
   } = {},
 ): Layer.Layer<
@@ -448,6 +452,11 @@ export function layerWithRegistry<Error>(
     }),
   );
   const layerOrchestratorProvided = Orchestrator.layer.pipe(
+    Layer.provide(
+      options.usageProtection
+        ? Layer.succeed(ClaudeUsageProtection.ClaudeUsageProtection, options.usageProtection)
+        : Layer.empty,
+    ),
     Layer.provide(
       Layer.mergeAll(
         layerCheckpointServiceProvided,

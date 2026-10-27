@@ -714,6 +714,13 @@ export const ClaudeSettings = makeProviderSettingsSchema(
         },
       }),
     ),
+    usageProtection: Schema.optionalKey(Schema.Boolean).pipe(
+      Schema.annotateKey({
+        title: "自动保护订阅额度",
+        description:
+          "独立任务按账号排队；80% 提醒保存进度，90% 请求收尾并暂停新任务。额度未知时等待核对。",
+      }),
+    ),
     autoCompactWindow: TrimmedString.check(
       Schema.isPattern(CLAUDE_AUTO_COMPACT_WINDOW_PATTERN),
     ).pipe(
