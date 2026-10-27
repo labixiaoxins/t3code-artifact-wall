@@ -924,7 +924,9 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
               <TooltipTrigger
                 render={
                   <span
-                    className={"min-w-0 flex-1 truncate text-sm"}
+                    className={
+                      "min-w-0 flex-1 truncate text-sm font-medium text-sidebar-foreground"
+                    }
                     data-testid={`thread-title-${thread.id}`}
                   >
                     {thread.archivedAt ? "[已归档] " : ""}
@@ -937,9 +939,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
           )}
           {providerChipLabel ? (
             <span
-              // Real 10px: text-3xs resolves to 8.75px against the 14px root font size.
-              // oxlint-disable-next-line shadcn/no-arbitrary-values
-              className={"shrink-0 text-[10px] text-muted-foreground"}
+              className={"shrink-0 text-xs text-secondary-label"}
               data-testid={`thread-provider-${thread.id}`}
             >
               {providerChipLabel}
@@ -1071,7 +1071,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                     >
                       <EnvironmentMachineIcon
                         kind={remoteMachine}
-                        className={"size-3 text-muted-foreground/40"}
+                        className={"size-3 text-secondary-label"}
                       />
                     </TooltipTrigger>
                     <TooltipPopup side={"top"}>{threadEnvironmentLabel}</TooltipPopup>
