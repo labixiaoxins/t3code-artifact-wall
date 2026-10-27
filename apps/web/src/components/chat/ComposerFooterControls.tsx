@@ -13,12 +13,7 @@ import { type ComponentProps, memo } from "react";
 import type { ContextWindowSnapshot } from "../../lib/contextWindow";
 import { Select, SelectItem, SelectPopup, SelectValue } from "../ui/select";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-import {
-  ComposerControl,
-  ComposerControlIcon,
-  ComposerControlSeparator,
-  ComposerSelectControl,
-} from "./ComposerControl";
+import { ComposerControl, ComposerControlIcon, ComposerSelectControl } from "./ComposerControl";
 import { useComposerMenuProps } from "./composerEventScope";
 import { ComposerPrimaryActions } from "./ComposerPrimaryActions";
 import { ContextWindowMeter, ContextWindowMeterPlaceholder } from "./ContextWindowMeter";
@@ -56,7 +51,6 @@ export const ComposerFooterModeControls = memo(function ComposerFooterModeContro
 
   const interactionModeToggle = props.showInteractionModeToggle ? (
     <>
-      <ComposerControlSeparator size={size} />
       <Tooltip>
         <TooltipTrigger
           render={
@@ -94,8 +88,6 @@ export const ComposerFooterModeControls = memo(function ComposerFooterModeContro
 
   return (
     <>
-      <ComposerControlSeparator size={size} />
-
       <Tooltip>
         <Select
           open={open}

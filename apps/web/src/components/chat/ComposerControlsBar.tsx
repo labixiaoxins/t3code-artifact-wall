@@ -6,7 +6,7 @@ import type { ProviderInstanceEntry } from "../../providerInstances";
 import { type AppModelOption } from "../../modelSelection";
 import { CircleAlertIcon } from "lucide-react";
 import { CompactComposerControlsMenu } from "./CompactComposerControlsMenu";
-import { ComposerControl, ComposerControlSeparator } from "./ComposerControl";
+import { ComposerControl } from "./ComposerControl";
 import {
   ComposerFooterModeControls,
   ComposerModelPicker,
@@ -59,7 +59,6 @@ export function ComposerControlsBar(props: {
   restingHiddenBlockCount: number;
   iconOnlyBlockCount: number;
   showInlineRestingControls: boolean;
-  showLeadingSeparator: boolean;
   showProviderUnavailable: boolean;
   providerSetupInstanceId: ProviderInstanceId | undefined;
   onOpenProviderSetup: ChatComposerProps["onOpenProviderSetup"];
@@ -108,7 +107,6 @@ export function ComposerControlsBar(props: {
     restingHiddenBlockCount,
     iconOnlyBlockCount,
     showInlineRestingControls,
-    showLeadingSeparator,
     showProviderUnavailable,
     providerSetupInstanceId,
     onOpenProviderSetup,
@@ -170,12 +168,7 @@ export function ComposerControlsBar(props: {
       ? [
           {
             id: "traits",
-            content: (
-              <>
-                <ComposerControlSeparator size={composerControlsCollapsed ? "xs" : "sm"} />
-                {restingProviderTraitsPicker}
-              </>
-            ),
+            content: restingProviderTraitsPicker,
           },
         ]
       : []),
@@ -282,13 +275,6 @@ export function ComposerControlsBar(props: {
     </ComposerControl>
   ) : (
     <>
-      {showLeadingSeparator ? (
-        <ComposerControlSeparator
-          size="xs"
-          className="@max-[400px]/composer-surface:hidden"
-          data-resting-controls-separator="true"
-        />
-      ) : null}
       {composerModelPicker}
 
       <>

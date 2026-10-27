@@ -900,9 +900,6 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
           : shouldRecede
             ? "text-sidebar-muted-foreground/75 hover:bg-sidebar-row-hover hover:text-sidebar-foreground"
             : "bg-transparent text-sidebar-foreground hover:bg-sidebar-row-hover",
-    shouldRecede &&
-      status === "working" &&
-      "opacity-70 transition-opacity hover:opacity-100 focus-within:opacity-100 motion-reduce:transition-none",
     isFileDragOver && "ring-1 ring-inset ring-primary/70",
     isFileDragOver && !props.isActive && !isSelected && "bg-sidebar-row-hover",
     props.sortable?.isDragging &&
@@ -966,29 +963,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
       <span
         aria-hidden
         className={cn(
-          "min-w-0 flex-1 text-start text-sm transition-opacity motion-reduce:transition-none",
-          shouldRecede ? "font-normal" : "font-medium",
-          variant === "card"
-            ? cn(
-                "truncate",
-                shouldRecede
-                  ? "text-secondary-label"
-                  : isUnread || isWoke || status === "input"
-                    ? "text-foreground"
-                    : status === "failed"
-                      ? "text-foreground/95"
-                      : "text-foreground/90",
-              )
-            : cn(
-                "truncate group-focus-within/sidebar-row:text-foreground group-hover/sidebar-row:text-foreground",
-                shouldRecede
-                  ? "text-secondary-label/70"
-                  : props.isActive || isWoke || status === "input"
-                    ? "text-foreground"
-                    : isUnread
-                      ? "text-muted-foreground"
-                      : "text-secondary-label/70",
-              ),
+          "min-w-0 flex-1 truncate text-start text-sm font-medium text-foreground transition-opacity motion-reduce:transition-none",
           isRegeneratingTitle && "opacity-55",
         )}
         dir={textDirection(thread.title)}
@@ -1442,7 +1417,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
               {thread.branch ? (
                 <>
                   <ThreadWorktreeIndicator thread={thread} />
-                  <span className="flex min-w-0 flex-1 text-muted-foreground/40">
+                  <span className="flex min-w-0 flex-1 text-secondary-label">
                     <MiddleTruncate value={thread.branch} showTitle={false} />
                   </span>
                 </>
@@ -1451,9 +1426,9 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                   <EnvironmentMachineIcon
                     aria-hidden
                     kind={props.environmentMachine}
-                    className="size-3 shrink-0 text-muted-foreground/40"
+                    className="size-3 shrink-0 text-secondary-label"
                   />
-                  <span className="min-w-0 flex-1 truncate text-muted-foreground/40">
+                  <span className="min-w-0 flex-1 truncate text-secondary-label">
                     {props.scratchMachineLabel}
                   </span>
                 </>
@@ -1632,9 +1607,7 @@ export const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props
               <span
                 className={cn(
                   "min-w-0 flex-1 truncate",
-                  props.isSettled
-                    ? "font-normal text-secondary-label/70 group-hover/sidebar-row:text-foreground"
-                    : "font-medium text-foreground",
+                  "font-medium text-foreground",
                   (props.isHighlighted || props.isRouteActive) && "text-foreground",
                   thread.titleRegeneration != null && "opacity-55",
                 )}

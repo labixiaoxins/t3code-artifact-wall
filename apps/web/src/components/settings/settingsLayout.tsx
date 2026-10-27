@@ -251,7 +251,7 @@ export function SettingsSection({
           className="flex min-h-7 items-start justify-between gap-4 px-3 sm:px-4"
         >
           <div className="flex min-w-0 items-center gap-1">
-            <h2 className="flex min-h-7 items-center gap-2 text-sm font-normal text-foreground/70">
+            <h2 className="flex min-h-7 items-center gap-2 text-sm font-semibold text-foreground">
               {icon}
               {title}
             </h2>
@@ -497,9 +497,7 @@ export function SettingsRow({
             </span>
           </div>
           {description ? (
-            <p className="max-w-xl text-xs leading-normal text-muted-foreground/80">
-              {description}
-            </p>
+            <p className="max-w-xl text-xs leading-normal text-muted-foreground">{description}</p>
           ) : null}
           {renderedStatus ? (
             <div className="pt-0.5 text-xs text-muted-foreground">{renderedStatus}</div>

@@ -104,7 +104,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --sidebar-control-gap: 0.5rem;
   --sidebar-icon-color: color-mix(
     in srgb,
-    var(--contrast-sidebar-muted-foreground) 60%,
+    var(--contrast-sidebar-muted-foreground) 85%,
     var(--sidebar)
   );
   --sidebar-row-content-inset: 0.625rem;
@@ -1101,17 +1101,17 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --toolbar-control-foreground: var(--foreground);
   --toolbar-control-hover: var(--accent);
   --surface-raised: color-mix(in srgb, var(--card) 20%, transparent);
-  --foreground: var(--color-zinc-800);
+  --foreground: var(--color-zinc-900);
   --card: var(--color-white);
-  --card-foreground: var(--color-zinc-800);
+  --card-foreground: var(--color-zinc-900);
   --popover: var(--color-white);
-  --popover-foreground: var(--color-zinc-800);
+  --popover-foreground: var(--color-zinc-900);
   --primary: oklch(0.488 0.217 264);
   --primary-foreground: var(--color-white);
   --secondary: var(--color-zinc-50);
   --secondary-foreground: var(--color-zinc-800);
   --muted: var(--color-zinc-50);
-  --muted-foreground: var(--color-zinc-500);
+  --muted-foreground: var(--color-zinc-600);
   --placeholder: var(--muted-foreground);
   --secondary-label: var(--muted-foreground);
   --icon-muted: var(--muted-foreground);
@@ -1174,7 +1174,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
     --secondary: --alpha(var(--color-white) / 3%);
     --secondary-foreground: var(--color-neutral-100);
     --muted: --alpha(var(--color-white) / 3%);
-    --muted-foreground: color-mix(in srgb, var(--color-neutral-500) 90%, var(--color-white));
+    --muted-foreground: var(--color-neutral-400);
     --accent: --alpha(var(--color-white) / 4%);
     --accent-foreground: var(--color-neutral-100);
     --error: color-mix(in srgb, var(--color-red-500) 90%, var(--color-white));
@@ -1205,18 +1205,18 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
    surfaces. */
 [data-app-sidebar] {
   --background: var(--color-zinc-25);
-  --foreground: var(--color-zinc-800);
+  --foreground: var(--color-zinc-900);
   --card: var(--color-white);
-  --card-foreground: var(--color-zinc-800);
+  --card-foreground: var(--color-zinc-900);
   --accent: var(--color-zinc-100);
   --accent-foreground: var(--color-zinc-900);
   --muted: var(--color-zinc-50);
-  --muted-foreground: var(--color-zinc-500);
+  --muted-foreground: var(--color-zinc-600);
   --border: var(--color-zinc-200);
   --input: var(--color-zinc-300);
   --sidebar: var(--color-zinc-50);
-  --sidebar-foreground: var(--color-zinc-800);
-  --sidebar-muted-foreground: var(--color-zinc-500);
+  --sidebar-foreground: var(--color-zinc-900);
+  --sidebar-muted-foreground: var(--color-zinc-600);
   --sidebar-control-surface: var(--color-zinc-100);
   --sidebar-row-hover: var(--color-zinc-25);
   --sidebar-row-active: var(--color-white);
@@ -1649,6 +1649,12 @@ body {
   font-family: var(--font-sans);
   margin: 0;
   padding: 0;
+}
+
+@layer base {
+  :where(svg.lucide[stroke-width="2"]) {
+    stroke-width: 1.75;
+  }
 }
 
 html,
