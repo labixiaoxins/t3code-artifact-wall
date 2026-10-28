@@ -102,10 +102,11 @@ it("keeps the account source in mixed search results and supports keyboard selec
   expect(test.onSelect).toHaveBeenCalledTimes(1);
 });
 
-it("keeps account labels for sibling accounts and favorites", async () => {
+it("labels duplicate favorite models while keeping a selected account concise", async () => {
   const test = setup([provider("a", "账户甲", "codex", 1), provider("b", "账户乙", "codex", 1)]);
   await using screen = await render(test.element());
-  await expect.element(screen.getByRole("option", { name: /账户甲/ })).toBeVisible();
+  await expect.element(screen.getByRole("option").first()).toBeVisible();
+  expect(screen.getByRole("option").first().element().textContent).not.toContain("账户甲");
   preferences.favorites = [
     { provider: test.entries[0]!.instanceId, model: "a-model-0" },
     { provider: test.entries[1]!.instanceId, model: "b-model-0" },
@@ -114,6 +115,36 @@ it("keeps account labels for sibling accounts and favorites", async () => {
   await screen.getByRole("button", { name: /Favorites|收藏/, exact: true }).click();
   await expect.element(screen.getByRole("option", { name: /账户甲/ })).toBeVisible();
   await expect.element(screen.getByRole("option", { name: /账户乙/ })).toBeVisible();
+});
+
+it("keeps distinct favorite models on one line without repeating their provider", async () => {
+  const test = setup([provider("codex", "Codex", "codex", 2)]);
+  preferences.favorites = test.entries[0]!.models.map((model) => ({
+    provider: test.entries[0]!.instanceId,
+    model: model.slug,
+  }));
+  await using screen = await render(test.element());
+  await screen.getByRole("button", { name: /Favorites|收藏/, exact: true }).click();
+  await expect.element(screen.getByRole("option").nth(1)).toBeVisible();
+  for (const option of screen.getByRole("option").elements()) {
+    expect(option.textContent).not.toContain("Codex");
+  }
+  await screen.getByRole("option").nth(1).click();
+  expect(test.onSelect).toHaveBeenCalledWith(test.entries[0]!.instanceId, "codex-model-1");
+});
+
+it("omits account labels in mixed search when the model names are distinct", async () => {
+  const first = provider("codex", "OpenAI 工作账号", "codex", 1);
+  const second = provider("claude", "Claude 工作账号", "claudeAgent", 1);
+  const test = setup([
+    first,
+    { ...second, models: second.models.map((model) => ({ ...model, name: "中文独立模型" })) },
+  ]);
+  await using screen = await render(test.element());
+  await screen.getByRole("combobox").fill("中文");
+  await expect.element(screen.getByRole("option").nth(1)).toBeVisible();
+  expect(screen.getByRole("option").first().element().textContent).not.toContain("OpenAI 工作账号");
+  expect(screen.getByRole("option").nth(1).element().textContent).not.toContain("Claude 工作账号");
 });
 
 it("fits a narrow viewport with larger interface type and keeps Chinese labels readable", async () => {

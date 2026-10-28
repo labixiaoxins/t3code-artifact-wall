@@ -963,7 +963,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
       <span
         aria-hidden
         className={cn(
-          "min-w-0 flex-1 truncate text-start text-sm font-medium text-foreground transition-opacity motion-reduce:transition-none",
+          "min-w-0 flex-1 truncate text-start text-sm font-normal text-sidebar-foreground/85 transition-opacity motion-reduce:transition-none",
           isRegeneratingTitle && "opacity-55",
         )}
         dir={textDirection(thread.title)}

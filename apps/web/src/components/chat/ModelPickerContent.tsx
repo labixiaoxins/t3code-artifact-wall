@@ -40,7 +40,7 @@ import {
   ComboboxItem,
   ComboboxListVirtualized,
 } from "../ui/combobox";
-import { ModelEsque } from "./providerIconUtils";
+import { getDisplayModelName, ModelEsque } from "./providerIconUtils";
 import { isCommandPaletteOpen } from "../../commandPaletteBus";
 import { primaryServerKeybindingsAtom } from "../../state/server";
 import {
@@ -590,22 +590,6 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
 
   const isLocked = lockedProvider !== null;
   const isSearching = searchQuery.trim().length > 0;
-  const hasSiblingAccount = (instanceId: ProviderInstanceId) => {
-    const entry = instanceEntries.find((candidate) => candidate.instanceId === instanceId);
-    return (
-      entry !== undefined &&
-      instanceEntries.some(
-        (candidate) =>
-          candidate.enabled &&
-          candidate.instanceId !== instanceId &&
-          candidate.driverKind === entry.driverKind,
-      )
-    );
-  };
-  const rowsMixProviders =
-    isSearching ||
-    selectedInstanceId === "favorites" ||
-    (selectedInstanceId !== "favorites" && hasSiblingAccount(selectedInstanceId));
   const tallestTabUnits = (() => {
     const unitsByTab = new Map<ProviderInstanceId | "favorites", number>();
     const addRow = (tab: ProviderInstanceId | "favorites", twoLine: boolean) => {
@@ -620,10 +604,9 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     for (const model of flatModels) {
       if (!matchesLockedProvider(model)) continue;
       const favorite = favoritesSet.has(providerModelKey(model.instanceId, model.slug));
-      if (favorite) addRow("favorites", true);
+      if (favorite) addRow("favorites", false);
       if (model.isLegacy && !favorite) tabsWithLegacyRow.add(model.instanceId);
-      else
-        addRow(model.instanceId, Boolean(model.subProvider) || hasSiblingAccount(model.instanceId));
+      else addRow(model.instanceId, false);
     }
     for (const instanceId of tabsWithLegacyRow) addRow(instanceId, true);
     return Math.max(0, ...unitsByTab.values());
@@ -727,6 +710,20 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     ];
   })();
 
+  // Only repeated visible model names need an account/source label.
+  const displayNameCounts = new Map<string, number>();
+  const displayNameKey = (model: ModelPickerItem) =>
+    getDisplayModelName(model, { preferShortName: !isLocked }).normalize("NFKC").toLowerCase();
+  for (const model of visibleModels) {
+    const name = displayNameKey(model);
+    displayNameCounts.set(name, (displayNameCounts.get(name) ?? 0) + 1);
+  }
+  const providerLabelModelKeys = new Set(
+    visibleModels
+      .filter((model) => (displayNameCounts.get(displayNameKey(model)) ?? 0) > 1)
+      .map((model) => modelPickerModelKey(model.instanceId, model.slug)),
+  );
+
   const selectedEntry =
     selectedInstanceId === "favorites" ? undefined : entryByInstanceId.get(selectedInstanceId);
   const providerSetupEntries =
@@ -788,7 +785,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     props.terminalOpen,
   );
   const modelListExtraData = {
-    rowsMixProviders,
+    providerLabelModelKeys,
     favoritesSet,
     modelJumpLabelByKey,
     activeModelKey,
@@ -1035,7 +1032,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
                         : modelKey === activeModelKey
                     }
                     showSelection
-                    showProvider={rowsMixProviders || Boolean(model.subProvider)}
+                    showProvider={providerLabelModelKeys.has(modelKey)}
                     preferShortName={!isLocked}
                     useTriggerLabel={false}
                     showNewBadge={model.badge === "new"}

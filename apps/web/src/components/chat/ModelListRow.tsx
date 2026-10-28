@@ -14,7 +14,6 @@ import { Kbd } from "../ui/kbd";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { cn } from "~/lib/utils";
 import { modelPickerModelKey } from "./modelPickerKeys";
-import { ProviderInstanceIcon } from "./ProviderInstanceIcon";
 
 // Rows take the model's fields rather than the picker's item object, and one shared toggle
 // handler, because the picker rebuilds its items on every search keystroke; that keeps memo
@@ -73,6 +72,11 @@ export const ModelListRow = memo(function ModelListRow(props: {
                   props.preferShortName ? { preferShortName: true } : undefined,
                 )}
           </div>
+          {props.showProvider ? (
+            <span className="min-w-0 max-w-[45%] truncate text-xs font-normal text-muted-foreground">
+              {providerLabel}
+            </span>
+          ) : null}
           {props.showNewBadge ? (
             <span
               className="shrink-0 rounded border border-update/35 bg-update/15 px-0.5 py-px text-3xs font-bold uppercase leading-none tracking-wide text-update-foreground"
@@ -87,21 +91,6 @@ export const ModelListRow = memo(function ModelListRow(props: {
             </Badge>
           ) : null}
         </div>
-        {props.showProvider && (
-          <div className="mt-1 flex items-center gap-1.5">
-            <ProviderInstanceIcon
-              driverKind={props.driverKind}
-              displayName={props.providerDisplayName}
-              acpRegistryAgentId={props.acpRegistryAgentId}
-              acpRegistryIconUrl={props.acpRegistryIconUrl}
-              className="size-3"
-              iconClassName="size-3"
-            />
-            <span className="truncate text-xs font-normal leading-snug text-muted-foreground">
-              {providerLabel}
-            </span>
-          </div>
-        )}
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
