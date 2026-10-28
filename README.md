@@ -1,142 +1,87 @@
-# T3 Code
+# T3 Code · 小新定制版 C23
 
-T3 Code is an "agent harness control surface". It enables control of the agents on your machine with a best-in-class mobile app ([iOS](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824), [Android](https://play.google.com/store/apps/details?id=com.t3tools.t3code)), [web app](https://app.t3.codes) and [Electron-based desktop app](https://t3.codes).
+[English](README.en.md) · [下载 C23](https://github.com/labixiaoxins/t3code-artifact-wall/releases/tag/xiaoxin-c23-20261028) · [安装与回退](docs/community/README.md) · [更新记录](docs/community/CHANGELOG.md) · [上游项目](https://github.com/pingdotgg/t3code)
 
-Works with your subscriptions on Claude Code, Codex, Cursor, Grok Build, OpenCode, and Google Antigravity. If they're set up on your computer, T3 Code can control them.
+基于 **官方 T3 Code 0.1.3 完整源码**的社区定制版，保留项目优先的中文工作台，重点改进长期任务、成果查看、空间管理和每天都会用到的输入与模型选择。
 
-## "Wait, what are you selling me?"
+**C23 是本分支的构建编号，不是官方版本号。** 本次下载供 Apple 芯片 Mac 使用；上游 MIT 许可与署名保留。社区临时签名，未经 Apple 公证，不附带账号、订阅、聊天、项目、私人配置或 API 密钥。
 
-Nothing. We built T3 Code because we wanted the best possible development experience with agents. We were inspired by existing solutions like the Codex desktop app, Conductor, Claude Desktop and Cursor Glass, but none met our bar.
+![C23 实际工作台，使用合成测试数据](assets/community/c23/01-workbench.png)
 
-We wanted something performant, remote-ready, and truly open. If we ever go the wrong direction, we want you to have everything you need to fork and build the editor that you want.
+*上图是 C23 在隔离合成数据环境中的实际截图，不含私人会话。下方六张是功能说明示意，使用虚构内容，不冒充实机验收截图。*
 
-## Installation
+## 从 C13 到 C23，重要变化
 
-> [!WARNING]
-> T3 Code currently supports Codex, Claude, Cursor, Grok Build, OpenCode, and Antigravity. Install and authenticate at least one provider before use:
->
-> - Codex: install [Codex CLI](https://developers.openai.com/codex/cli) and run `codex login`
-> - Claude: install [Claude Code](https://claude.com/product/claude-code) and run `claude auth login`
-> - Cursor: install [Cursor CLI](https://cursor.com/cli) and run `agent login`
-> - Grok Build: install [Grok Build CLI](https://x.ai/cli) and run `grok login`
-> - OpenCode: install [OpenCode](https://opencode.ai) and run `opencode auth login`
-> - Antigravity: enable it in Settings, then use **Install Antigravity** and **Sign in with Google**. No CLI is required.
+| 变化 | 现在能做什么 | 必须知道的边界 |
+| --- | --- | --- |
+| 完整官方 0.1.3 基线 | 纳入完整上游版本，同时保留已验证的适用后端回补 | 不宣称包含之后所有 nightly 更新 |
+| 更紧凑的模型菜单 | 唯一模型名保持一行，不重复显示提供方图标和名称 | 同名模型保留账号短标签，避免选错 |
+| 标题优先的侧栏 | 用紧凑提供方图标取代 Codex / Claude 等文字标签 | 项目分组、状态、分支与工作区入口保留 |
+| 三行半输入区 + A1 底栏 | 默认文字区 89px，长内容自动增高与滚动，控件统一轻量排列 | 原模型 logo 和 Gauge 推理图标保留，宽度不变 |
+| 能操作的空间页 | 检查下钻、预览计划、外盘归档、校验、受控释放、索引及恢复 | 未知引用继续保护；不承诺指定释放量 |
+| 明确的会审请求 | 从当前任务请求实际委派与汇总，模型书签收回模型菜单 | 点按钮不会仅凭预设名自动运行三方 |
+| 原有工作台能力保留 | 中文/拼音项目搜索、产物和文档/视频查看、续聊、用量工具 | 可用模型、账号和额度仍由使用者的提供方决定 |
 
-### Command line
+## 1. 三行半，够写也不占满
 
-```bash
-curl -fsSL https://t3.codes/install.sh | sh
-```
+默认输入区为 89px，底部控件统一为 30px 高、13px 文字；输入较长时自动增高至 208px 或视口限制，随后内部滚动。不再添加顶部拖动横条或手动高度记忆。
 
-On Windows, in PowerShell:
+模型 logo 仍是原品牌图形；推理强度沿用 Gauge 仪表图标。会审、模型、推理强度和访问模式共享轻量的行高、文字与间距，原有选项和权限含义不变。
 
-```powershell
-irm https://t3.codes/install.ps1 | iex
-```
+![输入区与底栏设计示意](assets/community/c23/02-composer.png)
 
-Then run `t3` to start the server and open the local web app. `t3 service install` keeps it running in the background, `t3 update` moves to a newer release, and `t3 --help` has the full reference.
+## 2. 侧栏让标题优先
 
-To try it once without installing, run `npx t3@latest` instead.
+提供方文字标签改为紧凑图标，为会话标题腾出横向位置。正文降低厚重感，选中态、项目分类和工作区操作保留。实际标题能显示多少仍取决于窗口宽度、字体与其他状态标记。
 
-### Desktop app
+![侧栏信息层级示意](assets/community/c23/03-sidebar.png)
 
-Install the latest version of the desktop app from [GitHub Releases](https://github.com/pingdotgg/t3code/releases), or from your favorite package registry:
+现有“设置 → 外观 → 字体排版”仍可调整全局界面字体与字号，主题与对比度选项仍可用；**本版没有增加独立的侧栏字体、字号或文字颜色选择器**。
 
-#### Windows (`winget`)
+## 3. 模型菜单减少重复
 
-```bash
-winget install T3Tools.T3Code
-```
+提供方已在左侧分类中表达，模型列表不再为每个唯一名称重复一行图标和 Codex / Claude 标签。收藏、搜索、快捷键和选择行为保留。遇到同名展示名称时，使用内联账号短标签区分。
 
-#### Windows (`scoop`)
+![模型选择简化示意](assets/community/c23/04-model-picker.png)
 
-```bash
-scoop install extras/t3code
-```
+## 4. 空间页形成操作闭环
 
-#### macOS (Homebrew)
+从“用量 → 磁盘空间”检查当前环境、测量时间与目录占用，可下钻定位、选择已挂载目标卷并预览具体归档计划。支持只归档、符合审查条件时的归档并释放、操作记录、本机索引及恢复到新目录。
 
-```bash
-brew install --cask t3-code
-```
+![空间归档与恢复流程示意](assets/community/c23/05-storage.png)
 
-#### Debian, Ubuntu (`.deb`)
+- “只归档”保留源目录，所以不会释放源占用。
+- 释放前要求内容、元数据、卷身份、源状态和恢复引用等检查通过。未知、变化、占用或校验失败继续保护原件。
+- 存储操作与既有清理共用维护锁；只读检查不会调用真实清理 sweep。
+- 部分构建、打包与更新入口增加容量预算预检；这不是全系统写盘拦截或后台自动删文件服务。
+- APFS 克隆和共享块会影响真实释放量。目录大小与压缩包大小都不能当成已释放容量。
 
-Download the `.deb` from [GitHub Releases](https://github.com/pingdotgg/t3code/releases), then:
+## 5. 内核升级与会审边界写清楚
 
-```bash
-sudo apt install ./T3-Code-*.deb
-```
+官方 0.1.3 提交 `d2c440312e5f39d59827ed466838a623516454d6` 是本版完整基线，不再只是选择性冒用版本号。此前适用的 Claude 工具/MCP 会话修复、Codex 退出恢复、路径与 GitHub 凭据校验等改动继续保留。官方文档/PDF 预览、索引搜索、数据库维护和恢复相关实现也随完整基线纳入。
 
-#### Arch Linux (AUR)
+![版本与功能关系示意](assets/community/c23/06-version-map.png)
 
-Stable:
+会审入口发送一个明确请求，由当前助手按真实可用的提供方完成实际委派。按钮或模型书签不等于三个模型已经运行；共识、分歧、缺席与失败必须依据实际返回内容说明。
 
-```bash
-yay -S t3code-bin
-```
+![会审请求的行为边界示意](assets/community/c23/07-review-request.png)
 
-Nightly:
+## 下载和升级
 
-```bash
-yay -S t3code-nightly-bin
-```
+前往 [C23 Release](https://github.com/labixiaoxins/t3code-artifact-wall/releases/tag/xiaoxin-c23-20261028)，下载 `T3-Code-Xiaoxin-C23-macOS-arm64.zip`；SHA256 在同页校验文件中。C13 / C11 历史发行保留。
 
-The AUR packaging is maintained in this repository under [`packaging/aur`](./packaging/aur).
+已有 T3 请先完成任务并正常退出，备份同一时点的应用、T3 home 与桌面持久状态，再替换应用；只运行一份。它沿用 T3 的应用身份和数据目录，不是自动隔离的第二套软件。**旧程序不应盲写新数据库；回退数据会丢失备份之后的新增内容，不要覆盖唯一现存资料。** 具体步骤见 [安装与回退](docs/community/README.md)。
 
-## Some notes
+## 验证到哪一步
 
-We are very very early in this project. Expect bugs.
+- C23 最终候选已在维护者本机安装，实际程序哈希、运行版本 0.1.3 与前端入口匹配；线程绑定、已有消息、项目、侧栏、配置及登录关键文件保护检查通过。
+- 本次输入区/底栏的 web 类型检查、目标 lint 和构建通过；2 个浏览器测试文件共 9 项通过，安装器安全检查 13 项通过；1280、900 和 390 宽度及长输入经过合成环境检查。
+- `check:changed` 的格式、lint、受影响包类型检查与相邻测试通过；全局 **knip 两阶段仍报未使用代码/依赖问题**。不声称全仓检查全绿。
+- 更早的空间归档/恢复流程在隔离 fixture 中完成过校验与往返；本次发布不以图示代替这些检查，也没有通过删生产资料制造空间收益。
+- 下载包另做签名、ZIP 完整性、逐文件内容与空数据目录启动检查；详情见发行清单。接收者登录、付费模型调用、所有提供方、远程与移动端未做全面验收。
 
-We are (mostly) not accepting contributions yet. Small fixes may be considered. Big features will not be.
+[离线图解](assets/community/c23/showcase.html) · [English documentation](README.en.md) · [上游说明](README.upstream.md)
 
-## Documentation
+代码与文档由 Codex / GPT-6.1-Sol 在 T3 Code 中辅助实现，产品取舍与最终使用反馈来自小新。独立模型评审不代替使用者验收。
 
-Full docs live in [docs/](./docs). There's no docs site yet.
-
-- [FAQ](./docs/user/faq.md)
-- [Install and first run](./docs/user/install.md)
-- [Permission modes](./docs/user/permission-modes.md)
-- [Keyboard shortcuts](./docs/user/keybindings.md)
-- [Project settings](./docs/user/project-settings.md)
-- [Appearance preferences](./docs/user/appearance.md)
-- [Remote access from a phone or another machine](./docs/user/remote-access.md)
-- [Connect Claude Code, Codex, ChatGPT and other agents over MCP](./docs/user/outside-agents.md)
-- [Keeping app and server in sync](./docs/user/updating.md)
-- [Source control integrations](./docs/user/source-control.md)
-- Multiple accounts: [Codex](./docs/user/providers-codex.md) · [Claude](./docs/user/providers-claude.md)
-- [Run T3 Code as a background service](./docs/user/background-service.md)
-
-Building from source? Start at [docs/internals/overview.md](./docs/internals/overview.md).
-
-## If you REALLY want to contribute still.... read this first
-
-### Install `vp`
-
-T3 Code uses Vite+ so you'll need to install the global `vp` command-line tool.
-
-#### macOS / Linux
-
-```bash
-curl -fsSL https://vite.plus | bash
-```
-
-#### Windows
-
-```bash
-irm https://vite.plus/ps1 | iex
-```
-
-Checkout their getting started guide for more information: https://viteplus.dev/guide/
-
-### Install dependencies
-
-```bash
-vp i
-```
-
-Read [CONTRIBUTING.md](./CONTRIBUTING.md) before reporting a bug or opening a PR.
-
-Have a feature request? Start an [Ideas discussion](https://github.com/pingdotgg/t3code/discussions/categories/ideas).
-
-Need support? Join the [Discord](https://discord.gg/jn4EGJjrvv).
+发布分支保留本 fork 既有 GitHub Actions 工作流，未更新 CI/自动发行配置；应用实现仍对应上述 C23 源码。
