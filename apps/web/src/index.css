@@ -103,6 +103,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
    * tooltip, and toolbar controls cannot quietly drift apart.
    */
   --control-radius: 0.5rem;
+  --composer-control-font-size: 0.8125rem;
   --sidebar-content-inset: 0.5rem;
   --sidebar-control-gap: 0.5rem;
   --sidebar-icon-color: color-mix(
@@ -178,8 +179,6 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
 
 @theme inline {
   --radius-composer-control: 0.4375rem;
-  --text-composer-control: 0.8125rem;
-  --text-composer-control--line-height: 1.25rem;
   /* Two steps below Tailwind's text-xs (12px) for dense UI: metadata rows,
      badges, counters, keyboard hints and diagnostics tables. 2xs is 11px,
      3xs is 10px. Provider icon overlays use 4xs (8px) and 5xs (7px) to fit
