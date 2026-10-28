@@ -2,13 +2,23 @@
 
 [简体中文](README.md) · [Download C23](https://github.com/labixiaoxins/t3code-artifact-wall/releases/tag/xiaoxin-c23-20261028) · [Install and recovery](docs/community/README.en.md) · [Changelog](docs/community/CHANGELOG.en.md) · [Upstream](https://github.com/pingdotgg/t3code)
 
+**Upgrading from the previous public release:** [Full C13 → C23 comparison](docs/community/C13-TO-C23.en.md), covering search, quota safeguards, run visibility and core changes, with new and retained features distinguished.
+
 A community edition based on the **full official T3 Code 0.1.3 source baseline**, retaining a project-first Chinese workbench and improving long-running work, artifact browsing, storage operations, and everyday composition and model selection.
 
 **C23 is this fork’s build label, not an official version number.** The downloadable application is for Apple silicon Macs. Upstream MIT notices are retained. It is ad-hoc signed and not Apple-notarized. Accounts, subscriptions, chats, projects, private settings and API keys are not included.
 
 ![Actual C23 workbench with synthetic test data](assets/community/c23/01-workbench.png)
 
-*The first image is an actual capture from an isolated synthetic-data environment. The six diagrams below explain behavior using fictional content; they are not runtime acceptance screenshots.*
+*The first image is an actual capture from an isolated synthetic-data environment. The diagrams below explain behavior using fictional content; they are not runtime acceptance screenshots.*
+
+## More than a UI refresh
+
+The public C13 used official **0.1.1**; this build integrates complete **0.1.3**. Local full-text search, optional Claude quota safeguards, the run inspector and safeguarded storage operations were added between them. Project grouping, artifacts, continuity and quota display are retained capabilities.
+
+![Cumulative C13 to C23 upgrade](assets/community/c23/08-c13-to-c23.png)
+
+See the [full C13 → C23 comparison](docs/community/C13-TO-C23.en.md). Quota safeguards require provider configuration and are not universally enabled. Local search is not macOS-wide Spotlight. The run inspector distinguishes actually reported execution from requested settings and does not invent missing results.
 
 ## Important changes since C13
 

@@ -2,6 +2,8 @@
 
 ## C23 · 2026-10-28
 
+Added a [full C13 → C23 comparison](C13-TO-C23.en.md), covering search, optional quota safeguards, run visibility, storage, upstream integration and retained capabilities.
+
 Cumulative changes since C13: the complete official 0.1.3 baseline with applicable backend backports and the Chinese workbench; actionable storage inspection, planning, verified archives, safeguarded release and restore-to-new-directory; a single-row model picker; compact provider icons and lighter sidebar text; model bookmarks instead of a misleading work-mode preset; explicit review requests; a 3.5-line composer and one light footer row retaining original brand and Gauge icons.
 
 C21 experimented with manual resizing; C22 removed it following feedback. The final C23 has no resize grip or manual height memory. Its last implementation change is renderer-only, with backend bytes unchanged from C22.
