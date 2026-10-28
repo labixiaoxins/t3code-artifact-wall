@@ -1,5 +1,3 @@
-import { SidebarInset } from "../ui/sidebar";
-import { isElectron } from "../../env";
 import { uiText } from "~/i18n";
 import { ChatGptUsageButton } from "../settings/ChatGptUsageButton";
 import { usesChatGptSharing } from "@t3tools/shared/usageLimits";
@@ -82,7 +80,7 @@ import {
   WorkspaceBreadcrumbText,
 } from "../WorkspaceBreadcrumb";
 import { WorkspacePageContainer } from "../WorkspacePageContainer";
-import { WorkspacePageHeader } from "../WorkspacePageHeader";
+import { AppRouteModal, AppRouteModalClose } from "../AppRouteModal";
 import { DiskSpaceSection } from "./DiskSpaceSection";
 import { UsageLimitsSection } from "./UsageLimits";
 import { UsagePriceOverrides } from "./UsagePriceOverrides";
@@ -496,11 +494,12 @@ export function UsagePage() {
     </div>
   );
   return (
-    <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none isolate">
+    <AppRouteModal label={uiText("Usage")}>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background text-foreground">
-        <WorkspacePageHeader electron={isElectron} showQuota={false}>
+        <header className="@container/usage-header flex min-h-12 shrink-0 items-center gap-1 border-b ps-5 pe-2">
           {topbarContent}
-        </WorkspacePageHeader>
+          <AppRouteModalClose />
+        </header>
         <ScrollArea className="min-h-0 flex-1">
           <WorkspacePageContainer width="wide">
             {selectedEnvironments.length === 0 ? (
@@ -593,7 +592,7 @@ export function UsagePage() {
           }}
         />
       ) : null}
-    </SidebarInset>
+    </AppRouteModal>
   );
 }
 function UsageOverview({
