@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { assertStorageBudget } from "../packages/shared/src/storageBudget.ts";
+import { assertStorageBudget } from "@t3tools/shared/storageBudget";
 // @effect-diagnostics nodeBuiltinImport:off - Node's typed junction API avoids Windows symlink privileges while keeping the probe isolated.
 
 import * as NodeFSP from "node:fs/promises";
@@ -3526,7 +3526,8 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
   options: ResolvedBuildOptions,
 ) {
   const repoRoot = yield* RepoRoot;
-  yield* Effect.try(() => assertStorageBudget(repoRoot, 2));
+  // Prebuilt bundles only add cache/index writes here; their staging volume is checked separately.
+  yield* Effect.try(() => assertStorageBudget(repoRoot, options.skipBuild ? 0.5 : 2));
   const path = yield* Path.Path;
   const fs = yield* FileSystem.FileSystem;
   const hostPlatform = yield* HostProcess.Platform;
@@ -3607,6 +3608,10 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
     prefix: `t3code-desktop-${options.platform}-stage-`,
   });
 
+  yield* Effect.tryPromise(async () => {
+    const [source, staging] = await Promise.all([NodeFSP.stat(repoRoot), NodeFSP.stat(stageRoot)]);
+    assertStorageBudget(stageRoot, 2, source.dev === staging.dev ? 40 : 20);
+  });
   const stageAppDir = path.join(stageRoot, "app");
   const stageResourcesDir = path.join(stageAppDir, "apps/desktop/resources");
   const distDirs = {

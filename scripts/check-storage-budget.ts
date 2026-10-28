@@ -1,4 +1,5 @@
-import { assertStorageBudget } from "../packages/shared/src/storageBudget.ts";
+// @effect-diagnostics globalConsole:off - standalone preflight reports rejection before starting the build runtime.
+import { assertStorageBudget } from "@t3tools/shared/storageBudget";
 const expected = Number(process.argv[2]);
 try {
   assertStorageBudget(process.cwd(), expected);
