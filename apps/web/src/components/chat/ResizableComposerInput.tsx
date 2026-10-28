@@ -52,6 +52,7 @@ export function ResizableComposerInput({
       },
     };
   });
+  if (!enabled) return children;
   return (
     <div
       className={cn(
