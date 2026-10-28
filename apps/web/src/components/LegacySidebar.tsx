@@ -30,6 +30,7 @@ import { useStickyProjectsStore } from "./sidebar/stickyProjectsStore";
 import { isProjectSticky } from "./sidebar/stickyProjects.logic";
 import { EnvironmentMachineIcon } from "./EnvironmentMachineIcon";
 import { ProjectFavicon } from "./ProjectFavicon";
+import { ProviderInstanceIcon } from "./chat/ProviderInstanceIcon";
 import { useAtomValue } from "@effect/atom-react";
 import { autoAnimate } from "@formkit/auto-animate";
 import React, {
@@ -65,6 +66,7 @@ import {
   type ContextMenuItem,
   type EnvironmentId,
   ProjectId,
+  ProviderDriverKind,
   type ScopedThreadRef,
   type ResolvedKeybindingsConfig,
   type SidebarProjectGroupingMode,
@@ -449,8 +451,15 @@ function checkTaskPermission(environmentId: EnvironmentId): boolean {
   );
   return false;
 }
-/** Thread key -> model label; only provided in the project-first view, where rows show a model chip. */
-const ThreadProviderLabelContext = createContext<ReadonlyMap<string, string> | null>(null);
+/** Project-first rows identify their provider in the trailing status group. */
+type ThreadProviderDisplay = {
+  readonly label: string;
+  readonly driverKind: ProviderDriverKind;
+  readonly displayName: string;
+};
+const ThreadProviderLabelContext = createContext<ReadonlyMap<string, ThreadProviderDisplay> | null>(
+  null,
+);
 const MORE_PROJECTS_EXPANSION_KEY = "project-first:more";
 const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowProps) {
   const {
@@ -937,16 +946,31 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
               <TooltipPopup side={"top"}>{thread.title}</TooltipPopup>
             </Tooltip>
           )}
-          {providerChipLabel ? (
-            <span
-              className={"shrink-0 text-xs text-secondary-label"}
-              data-testid={`thread-provider-${thread.id}`}
-            >
-              {providerChipLabel}
-            </span>
-          ) : null}
         </div>
         <div className={"ml-auto flex shrink-0 items-center gap-1.5"}>
+          {providerChipLabel ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <span
+                    role="img"
+                    aria-label={providerChipLabel.label}
+                    className="inline-flex size-3.5 shrink-0 items-center justify-center"
+                    data-testid={`thread-provider-${thread.id}`}
+                  />
+                }
+              >
+                <ProviderInstanceIcon
+                  driverKind={providerChipLabel.driverKind}
+                  displayName={providerChipLabel.displayName}
+                  size="compact"
+                  className="size-3.5"
+                  iconClassName="size-3.5"
+                />
+              </TooltipTrigger>
+              <TooltipPopup side="top">{providerChipLabel.label}</TooltipPopup>
+            </Tooltip>
+          ) : null}
           {canOperatePreview && discoveredPorts.length > 0 && (
             <Tooltip>
               <TooltipTrigger
@@ -4197,13 +4221,23 @@ export default function LegacySidebar(props: {
     : providerSortedProjects;
   const threadProviderLabels = projectSections
     ? new Map(
-        sidebarThreads.map(
-          (thread) =>
-            [
-              scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)),
-              threadProviderLabel(providerConfigs, thread),
-            ] as const,
-        ),
+        sidebarThreads.map((thread) => {
+          const instanceId = thread.modelSelection.instanceId;
+          const instance = providerConfigs.get(thread.environmentId)?.settings.providerInstances[
+            instanceId
+          ];
+          const label = threadProviderLabel(providerConfigs, thread);
+          return [
+            scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)),
+            {
+              label: [label, instance?.displayName, thread.modelSelection.model]
+                .filter((value, index, values) => value && values.indexOf(value) === index)
+                .join(" · "),
+              driverKind: instance?.driver ?? ProviderDriverKind.make(instanceId),
+              displayName: instance?.displayName ?? label,
+            },
+          ] as const;
+        }),
       )
     : null;
   const acknowledgedErrors = useWorkbenchInboxStore((state) => state.acknowledgedErrors);
