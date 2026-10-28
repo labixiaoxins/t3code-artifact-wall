@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useAtomValue } from "@effect/atom-react";
 import type { EnvironmentId, ProviderInstanceId } from "@t3tools/contracts";
 
@@ -56,18 +57,20 @@ export function ProviderWizardAuthenticationStep({
             />
           ) : (
             <SettingsRow
-              title="Account"
+              title={uiText("Account")}
               description={
                 isDiscovering
-                  ? "Discovering sign-in methods…"
+                  ? uiText("Discovering sign-in methods…")
                   : (query.error ??
                     auth?.message ??
-                    "No in-app sign-in advertised. Follow the provider's docs to finish setup.")
+                    uiText(
+                      "No in-app sign-in advertised. Follow the provider's docs to finish setup.",
+                    ))
               }
               control={
                 isDiscovering ? (
                   <Button disabled size="sm" variant="outline">
-                    Sign in
+                    {uiText("Sign in")}
                   </Button>
                 ) : provider?.setup?.documentationUrl ? (
                   <Button
@@ -77,7 +80,7 @@ export function ProviderWizardAuthenticationStep({
                       <a href={provider.setup.documentationUrl} target="_blank" rel="noreferrer" />
                     }
                   >
-                    Open docs
+                    {uiText("Open docs")}
                   </Button>
                 ) : undefined
               }
@@ -92,7 +95,7 @@ export function ProviderWizardAuthenticationStep({
           disabled={active}
           onClick={onFinish}
         >
-          {signedIn ? "Done" : "Skip for now"}
+          {signedIn ? uiText("Done") : uiText("Skip for now")}
         </Button>
       </WizardFooter>
     </>

@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { memo, useRef, useState, type ReactNode, type KeyboardEvent } from "react";
 import { flushSync } from "react-dom";
 import { ChevronLeftIcon, ChevronRightIcon, XIcon } from "lucide-react";
@@ -25,15 +26,12 @@ import { Atom } from "effect/reactivity";
 import { appAtomRegistry } from "~/rpc/atomRegistry";
 import { expandedImageKey } from "./ExpandedImagePreview";
 import { registerThreadOverlay } from "./threadOverlayRetention";
-
 interface ExpandedImageDialogProps {
   preview: ExpandedImagePreview;
   onClose: () => void;
 }
-
 const EXPANDED_MEDIA_STATE_CLASS_NAME =
   "flex aspect-auto h-48 min-h-0 w-[min(var(--media-width),32rem)] flex-col items-center justify-center gap-3 rounded-lg border border-border/70 bg-black p-6 text-center text-sm text-white shadow-2xl";
-
 function ExpandedMediaFailure({ children }: { children: ReactNode }) {
   return (
     <div role="alert" className={EXPANDED_MEDIA_STATE_CLASS_NAME}>
@@ -41,7 +39,6 @@ function ExpandedMediaFailure({ children }: { children: ReactNode }) {
     </div>
   );
 }
-
 function ExpandedVideo({ item }: { readonly item: ExpandedImageItem }) {
   const asset = item.actionsSource?.asset;
   const assetUrl = useAssetUrlState(asset?.environmentId ?? null, asset?.resource ?? null);
@@ -66,7 +63,6 @@ function ExpandedVideo({ item }: { readonly item: ExpandedImageItem }) {
     />
   );
 }
-
 export const ExpandedImageDialog = memo(function ExpandedImageDialog({
   preview,
   onClose,
@@ -105,11 +101,9 @@ export const ExpandedImageDialog = memo(function ExpandedImageDialog({
         },
       }
     : source;
-
   const navigateImage = (direction: -1 | 1) => {
     setImageOffset((current) => current + direction);
   };
-
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.defaultPrevented || isContextMenuOpen() || event.target instanceof HTMLVideoElement)
       return;
@@ -130,7 +124,6 @@ export const ExpandedImageDialog = memo(function ExpandedImageDialog({
     event.stopPropagation();
     navigateImage(1);
   };
-
   if (!item) return null;
   const mediaLabel = item.type === "video" ? "video" : "image";
   const openOriginalLink =
@@ -145,7 +138,6 @@ export const ExpandedImageDialog = memo(function ExpandedImageDialog({
     : accessibilityDetails?.format === "json"
       ? "Show accessibility JSON"
       : "Show extracted text";
-
   return (
     <Dialog
       open
@@ -172,7 +164,11 @@ export const ExpandedImageDialog = memo(function ExpandedImageDialog({
           if (event.target === event.currentTarget) close();
         }}
       >
-        <DialogTitle className="sr-only">Expanded {mediaLabel} preview</DialogTitle>
+        <DialogTitle className="sr-only">
+          {"Expanded "}
+          {mediaLabel}
+          {" preview"}
+        </DialogTitle>
         <Button
           type="button"
           ref={closeButtonRef}
@@ -180,7 +176,7 @@ export const ExpandedImageDialog = memo(function ExpandedImageDialog({
           variant="media-close"
           className="absolute right-0 top-0 z-20"
           onClick={close}
-          aria-label={`Close ${mediaLabel} preview`}
+          aria-label={uiText("Close {0} preview", { "0": mediaLabel })}
         >
           <XIcon />
         </Button>
@@ -190,7 +186,7 @@ export const ExpandedImageDialog = memo(function ExpandedImageDialog({
             size="icon"
             variant="media-navigation"
             className="left-0 top-auto bottom-0 translate-y-0 sm:top-1/2 sm:bottom-auto sm:-translate-y-1/2"
-            aria-label="Previous media"
+            aria-label={uiText("Previous media")}
             onClick={() => navigateImage(-1)}
           >
             <ChevronLeftIcon className="size-5" />
@@ -211,8 +207,8 @@ export const ExpandedImageDialog = memo(function ExpandedImageDialog({
               <ExpandedMediaFailure>
                 <p>
                   {openOriginalLink
-                    ? "This image could not be loaded."
-                    : "Image unavailable. The file may have been moved or deleted."}
+                    ? uiText("This image could not be loaded.")
+                    : uiText("Image unavailable. The file may have been moved or deleted.")}
                 </p>
                 {openOriginalLink}
               </ExpandedMediaFailure>
@@ -266,7 +262,7 @@ export const ExpandedImageDialog = memo(function ExpandedImageDialog({
             size="icon"
             variant="media-navigation"
             className="right-0 top-auto bottom-0 translate-y-0 sm:top-1/2 sm:bottom-auto sm:-translate-y-1/2"
-            aria-label="Next media"
+            aria-label={uiText("Next media")}
             onClick={() => navigateImage(1)}
           >
             <ChevronRightIcon className="size-5" />
@@ -276,44 +272,36 @@ export const ExpandedImageDialog = memo(function ExpandedImageDialog({
     </Dialog>
   );
 });
-
 // Keep preview state outside ChatView to isolate dialog renders.
 type ExpandedImagePreviewState = {
   readonly threadKey: string;
   readonly preview: ExpandedImagePreview;
 } | null;
-
 const expandedImagePreviewAtom = Atom.make<ExpandedImagePreviewState>(null).pipe(
   Atom.keepAlive,
   Atom.withLabel("chat:expanded-image-preview"),
 );
-
 function ownedSrc(state: ExpandedImagePreviewState): string | null {
   const item = state?.preview.images[state.preview.index];
   return item?.ownsSrc === true ? item.src : null;
 }
-
 // The preview owns a blob URL made for it, so whatever replaces it releases that URL.
 function setExpandedImagePreview(next: ExpandedImagePreviewState): void {
   const previous = ownedSrc(appAtomRegistry.get(expandedImagePreviewAtom));
   appAtomRegistry.set(expandedImagePreviewAtom, next);
   if (previous !== null && previous !== ownedSrc(next)) URL.revokeObjectURL(previous);
 }
-
 export function openExpandedImagePreview(threadKey: string, preview: ExpandedImagePreview): void {
   setExpandedImagePreview({ threadKey, preview });
 }
-
 function closeExpandedImagePreview(): void {
   setExpandedImagePreview(null);
 }
-
 // Leaving the thread's route (or the chat view) drops its preview.
 registerThreadOverlay((threadKey) => {
   const current = appAtomRegistry.get(expandedImagePreviewAtom);
   if (current !== null && current.threadKey !== threadKey) closeExpandedImagePreview();
 });
-
 export function ExpandedImageDialogHost({ threadKey }: { readonly threadKey: string }) {
   const state = useAtomValue(expandedImagePreviewAtom);
   const preview = state?.threadKey === threadKey ? state.preview : null;

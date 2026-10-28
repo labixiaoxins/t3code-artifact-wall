@@ -1,3 +1,6 @@
+import { SidebarInset } from "../ui/sidebar";
+import { isElectron } from "../../env";
+import { uiText } from "~/i18n";
 import { ChatGptUsageButton } from "../settings/ChatGptUsageButton";
 import { usesChatGptSharing } from "@t3tools/shared/usageLimits";
 import { RefreshIcon } from "~/components/ui/refresh-icon";
@@ -24,7 +27,6 @@ import {
   usageEnvironmentProgress,
   usageLoadingState,
 } from "@t3tools/client-runtime/state/usage-progress";
-
 import {
   isCompatibleUsageContractVersion,
   isModelCostUnknown,
@@ -32,7 +34,6 @@ import {
   type HourlyTotals,
   type MergedUsage,
 } from "@t3tools/shared/usageMerge";
-
 import { cn } from "../../lib/utils";
 import { usePrimarySettings } from "../../hooks/useSettings";
 import { resolveHour12 } from "../../timestampFormat";
@@ -69,7 +70,7 @@ import {
 } from "../ui/menu";
 import { ScrollArea } from "../ui/scroll-area";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
-import { AppRouteModal, AppRouteModalClose } from "../AppRouteModal";
+
 import { Skeleton } from "../ui/skeleton";
 import { Toggle, ToggleGroup } from "../ui/toggle-group";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -81,6 +82,8 @@ import {
   WorkspaceBreadcrumbText,
 } from "../WorkspaceBreadcrumb";
 import { WorkspacePageContainer } from "../WorkspacePageContainer";
+import { WorkspacePageHeader } from "../WorkspacePageHeader";
+import { DiskSpaceSection } from "./DiskSpaceSection";
 import { UsageLimitsSection } from "./UsageLimits";
 import { UsagePriceOverrides } from "./UsagePriceOverrides";
 import { UsageProviderChart } from "./UsageProviderChart";
@@ -105,17 +108,13 @@ import {
   saveUsagePagePreferences,
   type UsagePagePreferences,
 } from "./usagePagePreferences";
-
 function isUsageMetric(value: string | null | undefined): value is UsageMetric {
   return METRIC_OPTIONS.some((option) => option.value === value);
 }
-
 function isUsageWindowDays(value: number): value is UsagePagePreferences["windowDays"] {
   return WINDOW_OPTIONS.some((option) => option.days === value);
 }
-
 const providerLabel = (provider: UsageProviderKind) => PROVIDER_PRESENTATION[provider].label;
-
 function usageLoading(
   showingKept: boolean,
   selectedEnvironments: Parameters<typeof usageLoadingState>[0],
@@ -133,17 +132,14 @@ function usageLoading(
     providers,
   };
 }
-
 /** Keep dialog selection outside UsagePage so opening/closing rerenders only its host. */
 const selectedUsageModelKeyAtom = Atom.make<string | null>(null).pipe(
   Atom.keepAlive,
   Atom.withLabel("usage:selected-model-key"),
 );
-
 function selectUsageModel(key: string | null): void {
   appAtomRegistry.set(selectedUsageModelKeyAtom, key);
 }
-
 function UsageModelDialogHost({
   models,
   onSetPrice,
@@ -171,7 +167,6 @@ function UsageModelDialogHost({
     />
   );
 }
-
 export function UsagePage() {
   const [preferences, setPreferences] = useState(readUsagePagePreferences);
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
@@ -194,10 +189,14 @@ export function UsagePage() {
   }));
   const metric = preferences.metric;
   const showingLimits = metric === "limits";
+  const showingDisk = metric === "disk";
+  const [diskRefreshTick, setDiskRefreshTick] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [limitsNow, setLimitsNow] = useState(() => Date.now());
   const refreshingRef = useRef(false);
-  const [priceDialog, setPriceDialog] = useState<{ readonly model?: string } | null>(null);
+  const [priceDialog, setPriceDialog] = useState<{
+    readonly model?: string;
+  } | null>(null);
   const [selectedEnvironmentIds, setSelectedEnvironmentIds] =
     useState<ReadonlySet<EnvironmentId> | null>(null);
   const hiddenProviders = new Set(preferences.hiddenProviders);
@@ -226,11 +225,9 @@ export function UsagePage() {
   const refreshProviders = useAtomCommand(serverEnvironment.refreshProviders, {
     reportFailure: false,
   });
-
   const canReadDiagnostics = selectedEnvironments.some(
     (environment) => environment.canReadDiagnostics,
   );
-
   const updatePreferences = (patch: Partial<UsagePagePreferences>) => {
     const nextPreferences = { ...preferences, ...patch };
     setPreferences(nextPreferences);
@@ -277,26 +274,25 @@ export function UsagePage() {
       isModelPickerOpen()
     )
       return;
-
     const command = resolveUsageShortcut(event, keybindings);
     const metricOption = METRIC_OPTIONS.find((option) => option.command === command);
     const periodOption = WINDOW_OPTIONS.find((option) => option.command === command);
     if (!metricOption && !periodOption) return;
-
     event.preventDefault();
     event.stopPropagation();
     if (metricOption) selectMetric(metricOption.value);
     if (periodOption && !showingLimits) selectWindow(periodOption.days);
   });
-
   useEffect(() => {
     globalThis.window.addEventListener("keydown", onUsageKeyDown, true);
     return () => globalThis.window.removeEventListener("keydown", onUsageKeyDown, true);
   }, []);
-
   const refreshWindow = () => {
     if (refreshingRef.current) return;
-
+    if (showingDisk) {
+      setDiskRefreshTick((tick) => tick + 1);
+      return;
+    }
     if (showingLimits) {
       refreshingRef.current = true;
       setIsRefreshing(true);
@@ -338,7 +334,6 @@ export function UsagePage() {
   useEffect(() => {
     if (showingLimits && connectedLimitsEnvironments) autoRefreshLimits();
   }, [showingLimits, connectedLimitsEnvironments]);
-
   const days = enumerateDays(shownWindow.sinceDay, shownWindow.untilDay);
   const hours =
     shownWindow.sinceTime === undefined || shownWindow.untilTime === undefined
@@ -351,7 +346,6 @@ export function UsagePage() {
         (selectedEnvironmentIds === null || selectedEnvironmentIds.has(id)) &&
         (presentation.serverConfig?.providers ?? []).some(usesChatGptSharing),
     );
-
   const windowLabel =
     shownHourly && shownWindow.sinceTime !== undefined && shownWindow.untilTime !== undefined
       ? `${formatDateTimeShort(shownWindow.sinceTime, shownWindow.timeZone, hour12)} to ${formatDateTimeShort(shownWindow.untilTime, shownWindow.timeZone, hour12)}`
@@ -360,7 +354,7 @@ export function UsagePage() {
     <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 py-2 @4xl/usage-header:flex">
       <WorkspaceBreadcrumb ariaLabel="Usage breadcrumb" className="min-w-0">
         <WorkspaceBreadcrumbItem>
-          <h1>Usage</h1>
+          <h1>{uiText("Usage")}</h1>
         </WorkspaceBreadcrumbItem>
         <WorkspaceBreadcrumbSeparator />
         <WorkspaceBreadcrumbItem className="min-w-10 shrink">
@@ -369,7 +363,7 @@ export function UsagePage() {
             selectedEnvironments={selectedEnvironments}
             selectedEnvironmentIds={selectedEnvironmentIds}
             onSelectionChange={setSelectedEnvironmentIds}
-            showUsageStatus={!showingLimits}
+            showUsageStatus={!showingLimits && !showingDisk}
             refreshing={refreshingUsage}
             isPartial={isPartial}
             duplicateSources={merged.duplicateSources}
@@ -385,17 +379,17 @@ export function UsagePage() {
           />
         </WorkspaceBreadcrumbItem>
       </WorkspaceBreadcrumb>
-      {!showingLimits ? (
+      {!showingLimits && !showingDisk ? (
         <span className="hidden min-w-0 truncate text-xs text-muted-foreground @7xl/usage-header:block">
           {windowLabel}
         </span>
       ) : null}
       <div className="ms-auto hidden shrink-0 items-center justify-end gap-2 @4xl/usage-header:flex">
         <ToggleGroup
-          aria-label="Usage period"
+          aria-label={uiText("Usage period")}
           variant="segmented"
           value={[String(windowDays)]}
-          disabled={showingLimits}
+          disabled={showingLimits || showingDisk}
           // Limits are always current; the New design hides the period instead of greying it.
           // It sits before the metric tabs so hiding it never moves them.
           className={showingLimits ? "redesign:hidden" : undefined}
@@ -411,7 +405,7 @@ export function UsagePage() {
           ))}
         </ToggleGroup>
         <ToggleGroup
-          aria-label="Usage metric"
+          aria-label={uiText("Usage metric")}
           variant="segmented"
           value={[metric]}
           onValueChange={(next) => {
@@ -427,7 +421,7 @@ export function UsagePage() {
         </ToggleGroup>
         <Button
           onClick={refreshWindow}
-          aria-label={showingLimits ? "Refresh limits" : "Refresh usage"}
+          aria-label={showingLimits ? uiText("Refresh limits") : uiText("Refresh usage")}
           aria-busy={isRefreshing}
           disabled={isRefreshing || (!showingLimits && !canReadDiagnostics)}
           size="icon-sm"
@@ -439,11 +433,11 @@ export function UsagePage() {
       <div className="ms-auto flex shrink-0 items-center justify-end gap-1 @4xl/usage-header:hidden">
         <Select
           value={String(windowDays)}
-          disabled={showingLimits}
+          disabled={showingLimits || showingDisk}
           onValueChange={(value) => selectWindow(Number(value))}
         >
           <SelectTrigger
-            aria-label="Usage period"
+            aria-label={uiText("Usage period")}
             size="compact"
             variant="ghost"
             className={cn("w-auto min-w-0", showingLimits && "redesign:hidden")}
@@ -471,7 +465,7 @@ export function UsagePage() {
           }}
         >
           <SelectTrigger
-            aria-label="Usage metric"
+            aria-label={uiText("Usage metric")}
             size="compact"
             variant="ghost"
             className="w-auto min-w-0"
@@ -490,7 +484,7 @@ export function UsagePage() {
         </Select>
         <Button
           onClick={refreshWindow}
-          aria-label={showingLimits ? "Refresh limits" : "Refresh usage"}
+          aria-label={showingLimits ? uiText("Refresh limits") : uiText("Refresh usage")}
           aria-busy={isRefreshing}
           disabled={isRefreshing || (!showingLimits && !canReadDiagnostics)}
           size="icon-sm"
@@ -501,22 +495,23 @@ export function UsagePage() {
       </div>
     </div>
   );
-
   return (
-    <AppRouteModal label="Usage">
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="@container/usage-header flex min-h-12 shrink-0 items-center gap-1 border-b ps-5 pe-2">
+    <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none isolate">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background text-foreground">
+        <WorkspacePageHeader electron={isElectron} showQuota={false}>
           {topbarContent}
-          <AppRouteModalClose />
-        </header>
-
+        </WorkspacePageHeader>
         <ScrollArea className="min-h-0 flex-1">
           <WorkspacePageContainer width="wide">
             {selectedEnvironments.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 {environments.length === 0
-                  ? `Connect an environment to see ${showingLimits ? "limits" : "usage"}.`
-                  : `Select an environment to see ${showingLimits ? "limits" : "usage"}.`}
+                  ? uiText("Connect an environment to see {0}.", {
+                      "0": showingLimits ? "limits" : "usage",
+                    })
+                  : uiText("Select an environment to see {0}.", {
+                      "0": showingLimits ? "limits" : "usage",
+                    })}
               </p>
             ) : showingLimits ? (
               <UsageLimitsSection
@@ -535,6 +530,8 @@ export function UsagePage() {
                   ) : null
                 }
               />
+            ) : showingDisk ? (
+              <DiskSpaceSection environments={selectedEnvironments} refreshTick={diskRefreshTick} />
             ) : shown === null ? (
               <UsageSkeleton />
             ) : !canReadDiagnostics ? (
@@ -570,7 +567,7 @@ export function UsagePage() {
           </WorkspacePageContainer>
         </ScrollArea>
       </div>
-      {showingLimits ? null : (
+      {showingLimits || showingDisk ? null : (
         <UsageModelDialogHost
           models={merged.models}
           environments={selectedEnvironments}
@@ -596,10 +593,9 @@ export function UsagePage() {
           }}
         />
       ) : null}
-    </AppRouteModal>
+    </SidebarInset>
   );
 }
-
 function UsageOverview({
   merged,
   shownWindow,
@@ -680,8 +676,14 @@ function UsageOverview({
   const cursorInsertAt =
     Math.max(activeProviders.indexOf("codex"), activeProviders.indexOf("claude")) + 1;
   const summaryRows: ReadonlyArray<
-    | { readonly kind: "usage"; readonly provider: UsageProviderKind }
-    | { readonly kind: "enable"; readonly environment: EnvironmentUsageStatus }
+    | {
+        readonly kind: "usage";
+        readonly provider: UsageProviderKind;
+      }
+    | {
+        readonly kind: "enable";
+        readonly environment: EnvironmentUsageStatus;
+      }
   > = [
     ...activeProviders
       .slice(0, cursorInsertAt)
@@ -691,7 +693,6 @@ function UsageOverview({
       .slice(cursorInsertAt)
       .map((provider) => ({ kind: "usage" as const, provider })),
   ];
-
   return (
     <div aria-busy={loadingPartial} className="flex flex-col gap-6">
       {sourceMessages.map((message) => (
@@ -708,40 +709,42 @@ function UsageOverview({
                 figureClass(loadingPartial),
               )}
             >
-              {metric === "cost" ? formatUsd(merged.costUsd) : formatTokens(merged.totalTokens)}
+              {metric === uiText("cost")
+                ? formatUsd(merged.costUsd)
+                : formatTokens(merged.totalTokens)}
             </span>
             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
               <span>
                 <span className={figureClass(loadingPartial)}>
-                  {formatCount(merged.sessions)} sessions
+                  {formatCount(merged.sessions)}
+                  {uiText("sessions")}
                 </span>
-                {metric === "cost" && " · API estimate"}
+                {metric === uiText("cost") && uiText("· API estimate")}
               </span>
-              {metric === "cost" && merged.costQuality.unpricedShare > 0 && (
+              {metric === uiText("cost") && merged.costQuality.unpricedShare > 0 && (
                 <Popover>
                   <PopoverTrigger
                     openOnHover
                     render={<InlineButton tone="muted" />}
-                    aria-label="Unpriced usage details"
+                    aria-label={uiText("Unpriced usage details")}
                   >
                     <InfoIcon className="size-3" aria-hidden />
                   </PopoverTrigger>
                   <PopoverPopup side="top" tooltipStyle>
-                    API estimate excludes {formatPercent(merged.costQuality.unpricedShare)} unpriced
-                    records.
+                    {uiText("API estimate excludes")}
+                    {formatPercent(merged.costQuality.unpricedShare)}
+                    {uiText("unpriced records.")}
                   </PopoverPopup>
                 </Popover>
               )}
             </span>
           </div>
-
           {showChatGptSharing ? (
             <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-              <span>ChatGPT shared usage</span>
+              <span>{uiText("ChatGPT shared usage")}</span>
               <ChatGptUsageButton size="xs" />
             </div>
           ) : null}
-
           {summaryRows.map((row) => {
             if (row.kind === "enable") {
               return (
@@ -758,9 +761,7 @@ function UsageOverview({
             const totals = merged.providers.find((entry) => entry.provider === provider);
             const share = metric === "cost" ? (totals?.costShare ?? 0) : (totals?.tokenShare ?? 0);
             const providerSessions = totals?.sessions ?? 0;
-            const sessionLabel = `${formatCount(providerSessions)} ${
-              providerSessions === 1 ? "session" : "sessions"
-            }`;
+            const sessionLabel = `${formatCount(providerSessions)} ${providerSessions === 1 ? "session" : "sessions"}`;
             const providerLoading = loadingProviders.has(provider);
             const awaitingData = providerLoading && !providersWithData.has(provider);
             return (
@@ -796,7 +797,7 @@ function UsageOverview({
                   >
                     {awaitingData
                       ? "-"
-                      : metric === "cost"
+                      : metric === uiText("cost")
                         ? formatUsd(totals?.costUsd ?? 0)
                         : formatTokens(totals?.totalTokens ?? 0)}
                   </span>
@@ -808,18 +809,24 @@ function UsageOverview({
                     awaitingData && "invisible",
                   )}
                 >
-                  {metric === "cost"
-                    ? `${formatPercent(share)} of cost · ${formatTokens(totals?.totalTokens ?? 0)} tokens`
-                    : `${formatPercent(share)} of tokens · ${formatUsd(totals?.costUsd ?? 0)}`}
+                  {metric === uiText("cost")
+                    ? uiText("{0} of cost · {1} tokens", {
+                        "0": formatPercent(share),
+                        "1": formatTokens(totals?.totalTokens ?? 0),
+                      })
+                    : uiText("{0} of tokens · {1}", {
+                        "0": formatPercent(share),
+                        "1": formatUsd(totals?.costUsd ?? 0),
+                      })}
                 </span>
               </div>
             );
           })}
         </div>
-
         <div className="flex min-w-0 flex-col gap-3">
           <h2 className="text-sm font-medium text-foreground">
-            {shownHourly ? "Hourly" : "Daily"} {metric === "tokens" ? "processed tokens" : "cost"}
+            {shownHourly ? uiText("Hourly") : uiText("Daily")}{" "}
+            {metric === "tokens" ? uiText("processed tokens") : uiText("cost")}
           </h2>
           <UsageProviderChart
             providers={activeProviders}
@@ -836,58 +843,56 @@ function UsageOverview({
           />
         </div>
       </section>
-
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium text-foreground">Totals</h2>
+        <h2 className="text-sm font-medium text-foreground">{uiText("Totals")}</h2>
         <div className="grid grid-cols-2 gap-x-6 gap-y-4 py-1 md:grid-cols-5">
           <Metric
             loading={loadingPartial}
-            label="Processed tokens"
+            label={uiText("Processed tokens")}
             value={formatTokens(merged.totalTokens)}
           />
           <Metric
             loading={loadingPartial}
-            label="Cached input"
+            label={uiText("Cached input")}
             value={formatTokens(merged.cachedInputTokens)}
           />
           <Metric
             loading={loadingPartial}
-            label="Uncached input"
+            label={uiText("Uncached input")}
             value={formatTokens(merged.uncachedInputTokens)}
           />
           <Metric
             loading={loadingPartial}
-            label="Output"
+            label={uiText("Output")}
             value={formatTokens(merged.outputTokens)}
           />
           <Metric
             loading={loadingPartial}
-            label="Cache savings"
+            label={uiText("Cache savings")}
             value={formatUsd(merged.costQuality.cacheSavingsUsd)}
           />
         </div>
       </section>
-
       {merged.totalTokens > 0 ? (
         <section
           className={cn("grid gap-x-12 gap-y-8 lg:grid-cols-2", figureClass(loadingPartial))}
         >
           {metric === "tokens" ? (
             <UsageShareBar
-              label="Tokens by type"
+              label={uiText("Tokens by type")}
               segments={tokenTypeSegments(merged)}
               format={formatTokens}
             />
           ) : (
             <>
               <UsageShareBar
-                label="Cost by type"
+                label={uiText("Cost by type")}
                 segments={costTypeSegments(merged.categoryCost)}
                 format={formatUsd}
               />
               {merged.speedCost.fast + merged.speedCost.ultrafast > 0 ? (
                 <UsageShareBar
-                  label="Cost by speed"
+                  label={uiText("Cost by speed")}
                   segments={speedCostSegments(merged.speedCost)}
                   format={formatUsd}
                   aside={<SpeedPremium premiumUsd={merged.speedCost.premium} />}
@@ -897,12 +902,11 @@ function UsageOverview({
           )}
         </section>
       ) : null}
-
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-medium text-foreground">Breakdown</h2>
+          <h2 className="text-sm font-medium text-foreground">{uiText("Breakdown")}</h2>
           <ToggleGroup
-            aria-label="Usage breakdown"
+            aria-label={uiText("Usage breakdown")}
             variant="segmented"
             value={[breakdown]}
             onValueChange={(next) => {
@@ -912,7 +916,7 @@ function UsageOverview({
           >
             {(
               [
-                { value: "model", label: "Model" },
+                { value: "model", label: uiText("Model") },
                 { value: "time", label: shownHourly ? "Hour" : "Day" },
               ] as const
             ).map((option) => (
@@ -922,23 +926,22 @@ function UsageOverview({
             ))}
           </ToggleGroup>
         </div>
-
         {breakdown === "model" ? (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-right text-xs text-muted-foreground">
-                <th className="py-2 pr-3 text-left font-normal">#</th>
-                <th className="w-full py-2 text-left font-normal">Model</th>
-                <th className="py-2 pl-6 font-normal">Cost</th>
-                <th className="hidden py-2 pl-6 font-normal sm:table-cell">Share</th>
-                <th className="py-2 pl-6 font-normal">Tokens</th>
+                <th className="py-2 pr-3 text-left font-normal">{"#"}</th>
+                <th className="w-full py-2 text-left font-normal">{uiText("Model")}</th>
+                <th className="py-2 pl-6 font-normal">{uiText("Cost")}</th>
+                <th className="hidden py-2 pl-6 font-normal sm:table-cell">{uiText("Share")}</th>
+                <th className="py-2 pl-6 font-normal">{uiText("Tokens")}</th>
               </tr>
             </thead>
             <tbody>
               {breakdownModels.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-6 text-center text-muted-foreground">
-                    No activity in this window.
+                    {uiText("No activity in this window.")}
                   </td>
                 </tr>
               ) : (
@@ -980,7 +983,7 @@ function UsageOverview({
                       </td>
                       <td className={cn("py-2.5 pl-6 text-foreground", rowFigures)}>
                         {isModelCostUnknown(model) ? (
-                          <span className="text-muted-foreground">Unpriced</span>
+                          <span className="text-muted-foreground">{uiText("Unpriced")}</span>
                         ) : (
                           formatUsd(model.costUsd)
                         )}
@@ -1010,14 +1013,16 @@ function UsageOverview({
               </colgroup>
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                  <th className="py-2 font-normal">{shownHourly ? "Hour" : "Day"}</th>
+                  <th className="py-2 font-normal">
+                    {shownHourly ? uiText("Hour") : uiText("Day")}
+                  </th>
                   {activeProviders.map((provider) => (
                     <th key={provider} className="py-2 pl-4 text-right font-normal">
                       {PROVIDER_PRESENTATION[provider].label}
                     </th>
                   ))}
-                  <th className="py-2 pl-4 text-right font-normal">Total</th>
-                  <th className="py-2 pl-4 text-right font-normal">Tokens</th>
+                  <th className="py-2 pl-4 text-right font-normal">{uiText("Total")}</th>
+                  <th className="py-2 pl-4 text-right font-normal">{uiText("Tokens")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1027,7 +1032,7 @@ function UsageOverview({
                       colSpan={activeProviders.length + 3}
                       className="py-6 text-center text-muted-foreground"
                     >
-                      No activity in this window.
+                      {uiText("No activity in this window.")}
                     </td>
                   </tr>
                 ) : (
@@ -1079,9 +1084,7 @@ function UsageOverview({
     </div>
   );
 }
-
 const CURSOR_KEYCHAIN_COPY = "Requires access to your Cursor login in macOS Keychain.";
-
 function CursorEnableButton({
   environmentId,
   label,
@@ -1096,7 +1099,7 @@ function CursorEnableButton({
   readonly buttonText?: string;
 }) {
   const updateSettings = useAtomCommand(serverEnvironment.updateSettings, {
-    label: "enable Cursor account usage",
+    label: uiText("enable Cursor account usage"),
   });
   const [pending, setPending] = useState(false);
   const enable = async () => {
@@ -1112,7 +1115,7 @@ function CursorEnableButton({
     <InlineButton
       disabled={pending}
       aria-busy={pending}
-      aria-label={`Enable Cursor usage from ${label}`}
+      aria-label={uiText("Enable Cursor usage from {0}", { "0": label })}
       onClick={() => void enable()}
     >
       {buttonText}
@@ -1123,7 +1126,7 @@ function CursorEnableButton({
       variant="outline"
       disabled={pending}
       aria-busy={pending}
-      aria-label={`Enable Cursor usage from ${label}`}
+      aria-label={uiText("Enable Cursor usage from {0}", { "0": label })}
       onClick={() => void enable()}
     >
       {buttonText}
@@ -1137,7 +1140,6 @@ function CursorEnableButton({
     </Tooltip>
   );
 }
-
 function CursorEnableRow({
   environmentId,
   label,
@@ -1158,7 +1160,10 @@ function CursorEnableRow({
           style={{ backgroundColor: PROVIDER_PRESENTATION.cursor.color }}
         />
         <ProviderMark provider="cursor" className="size-4" />
-        <span className="truncate">Cursor{showEnvironment ? ` · ${label}` : ""}</span>
+        <span className="truncate">
+          {"Cursor"}
+          {showEnvironment ? ` · ${label}` : ""}
+        </span>
       </span>
       <CursorEnableButton
         environmentId={environmentId}
@@ -1169,7 +1174,6 @@ function CursorEnableRow({
     </div>
   );
 }
-
 function CursorEnableLimits({
   environments,
   onEnabled,
@@ -1187,7 +1191,7 @@ function CursorEnableLimits({
           className="size-5"
           iconClassName="size-4 text-foreground/80"
         />
-        Cursor
+        {"Cursor"}
       </h2>
       <div className="flex flex-col items-start gap-3 rounded-lg border border-border/60 p-4">
         <p className="text-xs text-muted-foreground">{CURSOR_KEYCHAIN_COPY}</p>
@@ -1207,7 +1211,6 @@ function CursorEnableLimits({
     </section>
   );
 }
-
 function ProviderMark({
   provider,
   className,
@@ -1224,11 +1227,9 @@ function ProviderMark({
     />
   );
 }
-
 function figureClass(loading: boolean) {
   return cn("transition-opacity", loading && "opacity-40 delay-150");
 }
-
 function Metric({
   label,
   value,
@@ -1249,7 +1250,6 @@ function Metric({
     </div>
   );
 }
-
 function UsageCoverageNotice({
   environments,
   duplicateSources,
@@ -1270,12 +1270,13 @@ function UsageCoverageNotice({
   if (failed.length === 0 && incompatible.length === 0 && duplicateSources.length === 0) {
     return null;
   }
-
   return (
     <div className="flex flex-col gap-1 border-t border-border px-2 py-2 text-xs text-muted-foreground">
       {failed.map((environment) => (
         <span key={environment.label}>
-          {environment.label}: {environment.error}
+          {environment.label}
+          {": "}
+          {environment.error}
         </span>
       ))}
       {incompatible.map(({ environment, mismatch }) => (
@@ -1285,14 +1286,13 @@ function UsageCoverageNotice({
       ))}
       {duplicateSources.length > 0 ? (
         <span>
-          Counted once across environments sharing a transcript directory:{" "}
+          {uiText("Counted once across environments sharing a transcript directory:")}
           {duplicateSources.join(", ")}
         </span>
       ) : null}
     </div>
   );
 }
-
 function UsageEnvironmentFilter({
   environments,
   selectedEnvironments,
@@ -1325,7 +1325,6 @@ function UsageEnvironmentFilter({
   const hasIssue =
     selectedEnvironments.some((environment) => environment.error !== null) ||
     contractMismatches.length > 0;
-
   return (
     <Menu>
       <MenuTrigger render={<InlineButton />} className="group/usage-environment min-w-0 max-w-full">
@@ -1334,7 +1333,7 @@ function UsageEnvironmentFilter({
           {showUsageStatus && hasIssue ? (
             <CircleAlertIcon
               className="size-3.5 text-warning-foreground"
-              aria-label="Some environments could not report usage"
+              aria-label={uiText("Some environments could not report usage")}
             />
           ) : (
             <ChevronDownIcon
@@ -1350,7 +1349,7 @@ function UsageEnvironmentFilter({
           closeOnClick={false}
           onCheckedChange={(checked) => onSelectionChange(checked ? null : new Set())}
         >
-          All environments
+          {uiText("All environments")}
         </MenuCheckboxItem>
         <MenuSeparator />
         {environments.map((environment) => {
@@ -1368,11 +1367,11 @@ function UsageEnvironmentFilter({
                   )
                 ? "Update required"
                 : !environment.isConnected
-                  ? "Connecting…"
+                  ? "Connecting\u2026"
                   : progress.phase === "loading"
-                    ? "Scanning…"
+                    ? "Scanning\u2026"
                     : progress.phase === "stale"
-                      ? "Refreshing…"
+                      ? "Refreshing\u2026"
                       : progress.phase === "partway"
                         ? updatingProvidersLabel(progress.providers, providerLabel)
                         : "Ready";
@@ -1405,11 +1404,13 @@ function UsageEnvironmentFilter({
           );
         })}
         {environments.length === 0 ? (
-          <p className="px-2 py-2 text-xs text-muted-foreground">No environments connected.</p>
+          <p className="px-2 py-2 text-xs text-muted-foreground">
+            {uiText("No environments connected.")}
+          </p>
         ) : null}
         {showUsageStatus && isPartial ? (
           <p className="px-2 py-2 text-xs text-muted-foreground">
-            Totals are partial while selected environments scan.
+            {uiText("Totals are partial while selected environments scan.")}
           </p>
         ) : null}
         {showUsageStatus ? (
@@ -1422,13 +1423,12 @@ function UsageEnvironmentFilter({
         <MenuSeparator />
         <MenuItem onClick={onOpenModelPrices}>
           <SlidersHorizontalIcon aria-hidden />
-          Model prices
+          {uiText("Model prices")}
         </MenuItem>
       </MenuPopup>
     </Menu>
   );
 }
-
 function UsageProviderFilter({
   hiddenProviders,
   onChange,
@@ -1445,7 +1445,6 @@ function UsageProviderFilter({
         : visible.length === 1
           ? PROVIDER_PRESENTATION[visible[0]!].label
           : `${visible.length} providers`;
-
   return (
     <Menu>
       <MenuTrigger render={<InlineButton />} className="group/usage-provider min-w-0 max-w-full">
@@ -1461,7 +1460,7 @@ function UsageProviderFilter({
           closeOnClick={false}
           onCheckedChange={(checked) => onChange(checked ? [] : PROVIDER_ORDER)}
         >
-          All providers
+          {uiText("All providers")}
         </MenuCheckboxItem>
         <MenuSeparator />
         {PROVIDER_ORDER.map((provider) => (
@@ -1487,7 +1486,6 @@ function UsageProviderFilter({
     </Menu>
   );
 }
-
 function UsageSkeleton() {
   return (
     <>
@@ -1511,7 +1509,6 @@ function UsageSkeleton() {
             </div>
           ))}
         </div>
-
         <div className="flex flex-col gap-3">
           <Skeleton className="h-5 w-24" />
           <div className="flex flex-col gap-1">
@@ -1520,14 +1517,12 @@ function UsageSkeleton() {
           </div>
         </div>
       </section>
-
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium text-foreground">Totals</h2>
+        <h2 className="text-sm font-medium text-foreground">{uiText("Totals")}</h2>
         <MetricSkeletons
           labels={["Processed tokens", "Cached input", "Uncached input", "Output", "Cache savings"]}
         />
       </section>
-
       <section className="grid gap-x-12 gap-y-8 lg:grid-cols-2">
         <div className="flex flex-col gap-2.5">
           <Skeleton className="h-5 w-28" />
@@ -1535,10 +1530,9 @@ function UsageSkeleton() {
           <Skeleton className="h-4 w-72" />
         </div>
       </section>
-
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-medium text-foreground">Breakdown</h2>
+          <h2 className="text-sm font-medium text-foreground">{uiText("Breakdown")}</h2>
           <Skeleton shape="card" className="h-7 w-28" />
         </div>
         <Skeleton className="h-44" />
@@ -1546,7 +1540,6 @@ function UsageSkeleton() {
     </>
   );
 }
-
 function MetricSkeletons({ labels }: { readonly labels: readonly string[] }) {
   return (
     <div className="grid grid-cols-2 gap-x-6 gap-y-4 py-1 md:grid-cols-5">

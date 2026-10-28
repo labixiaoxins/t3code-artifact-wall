@@ -11,6 +11,7 @@ import {
   getCodexTurnAccumulator,
   accumulateCodexTurnTokenUsage,
   completeCodexTurnTokenUsage,
+  snapshotCodexTurnTokenUsage,
   type CodexTurnTokenUsageState,
 } from "../../provider/CodexTurnTokenUsage.ts";
 import type { ManagedServerProvider } from "@t3tools/provider-core/server/snapshot";
@@ -96,7 +97,6 @@ import * as Scope from "effect/Scope";
 import * as Semaphore from "effect/Semaphore";
 import * as Stream from "effect/Stream";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
-
 import { resolveAttachmentPath, resolveAttachmentPathById } from "../../attachmentStore.ts";
 import { getCodexServiceTierOptionValue } from "../../codexModelOptions.ts";
 import { ServerConfig } from "../../config.ts";
@@ -150,15 +150,12 @@ import {
 } from "@t3tools/provider-core/server/subagentProjection";
 import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
 import * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
-
 const CODEX_PROVIDER = ProviderDriverKind.make("codex");
 export const CODEX_DRIVER_KIND = CODEX_PROVIDER;
 export const CODEX_DEFAULT_INSTANCE_ID = defaultInstanceIdForDriver(CODEX_DRIVER_KIND);
-
 type CodexFileChangeKinds = Readonly<
   Record<string, CodexSchema.V2ItemStartedNotification__PatchChangeKind>
 >;
-
 function codexFileChangeApprovalPrompt(input: {
   readonly reason?: string | null;
   readonly grantRoot?: string | null;
@@ -179,7 +176,6 @@ function codexFileChangeApprovalPrompt(input: {
   }
   return input.grantRoot?.trim() || undefined;
 }
-
 // Reasoning-effort changes preserve the tokenizer and context window; other changes need fresh telemetry.
 export function canReuseCodexContextUsage(previous: ModelSelection, next: ModelSelection): boolean {
   return modelSelectionsEqual(
@@ -190,7 +186,6 @@ export function canReuseCodexContextUsage(previous: ModelSelection, next: ModelS
     { ...next, options: (next.options ?? []).filter((option) => option.id !== "reasoningEffort") },
   );
 }
-
 export function codexProviderTurnTokenUsage(
   tokenUsage: CodexSchema.V2ThreadTokenUsageUpdatedNotification["tokenUsage"],
   updatedAt: string,
@@ -232,7 +227,6 @@ const CODEX_CLIENT_CAPABILITIES = {
   optOutNotificationMethods: ["turn/diff/updated"],
   extensions: { [MCP_APP_EXTENSION_ID]: { mimeTypes: [MCP_APP_MIME_TYPE] } },
 } as const;
-
 export const CodexProviderCapabilitiesV2 = {
   sessions: {
     supportsMultipleProviderThreadsPerSession: true,
@@ -326,7 +320,6 @@ export const CodexProviderCapabilitiesV2 = {
     enforcement: "native",
   },
 } satisfies OrchestrationV2ProviderCapabilities;
-
 function toProtocolError(
   detail: string,
   payload?: unknown,
@@ -337,17 +330,14 @@ function toProtocolError(
     ...(payload === undefined ? {} : { payload }),
   });
 }
-
 function normalizeCodexCause(error: unknown): unknown {
   return error;
 }
-
 function codexTimestamp(seconds: number | null | undefined): DateTime.Utc {
   return seconds === null || seconds === undefined
     ? DateTime.nowUnsafe()
     : DateTime.makeUnsafe(seconds * 1000);
 }
-
 function codexUserMessageText(
   content: ReadonlyArray<CodexSchema.V2ItemCompletedNotification__UserInput>,
 ): string {
@@ -356,7 +346,6 @@ function codexUserMessageText(
     .join("\n")
     .trim();
 }
-
 function mapCodexTurnStatus(
   status: CodexSchema.V2TurnCompletedNotification__TurnStatus,
 ): OrchestrationV2ProviderTurn["status"] {
@@ -371,10 +360,12 @@ function mapCodexTurnStatus(
       return "running";
   }
 }
-
-function providerTurnStatusToTerminal(
-  status: OrchestrationV2ProviderTurn["status"],
-): Extract<ProviderAdapter.ProviderAdapterV2Event, { type: "turn.terminal" }>["status"] {
+function providerTurnStatusToTerminal(status: OrchestrationV2ProviderTurn["status"]): Extract<
+  ProviderAdapter.ProviderAdapterV2Event,
+  {
+    type: "turn.terminal";
+  }
+>["status"] {
   switch (status) {
     case "completed":
       return "completed";
@@ -389,7 +380,6 @@ function providerTurnStatusToTerminal(
       return "failed";
   }
 }
-
 function codexItemStatus(status: "inProgress" | "completed" | "failed" | "declined"): {
   readonly node: OrchestrationV2ExecutionNode["status"];
   readonly turnItem: OrchestrationV2TurnItem["status"];
@@ -414,7 +404,6 @@ function codexItemStatus(status: "inProgress" | "completed" | "failed" | "declin
       };
   }
 }
-
 /**
  * The composers let a skill be typed with any currency sigil (`€review`), but
  * Codex only parses `$name` as a skill mention.
@@ -422,10 +411,8 @@ function codexItemStatus(status: "inProgress" | "completed" | "failed" | "declin
 function codexSkillMentionText(text: string): string {
   return text.replace(SKILL_MENTION_PATTERN, "$1$$$2");
 }
-
 const BACKGROUND_COMMAND_DETAIL_COMMAND_MAX_LENGTH = 200;
-const BACKGROUND_COMMAND_DETAIL_OUTPUT_TAIL_MAX_LENGTH = 1_000;
-
+const BACKGROUND_COMMAND_DETAIL_OUTPUT_TAIL_MAX_LENGTH = 1000;
 function codexBackgroundCommandDetail(item: {
   readonly command: string;
   readonly exitCode?: number | null | undefined;
@@ -445,19 +432,16 @@ function codexBackgroundCommandDetail(item: {
   const header = `Background command completed${exit}: ${command}`;
   return outputTail.length === 0 ? header : `${header}\n\nOutput tail:\n${outputTail}`;
 }
-
 // Codex spawns can omit the prompt, which registers as an empty string.
 function codexNativeSubagentLabel(task: OrchestrationV2Subagent): string | undefined {
   return task.title?.trim() || task.prompt.trim() || undefined;
 }
-
 function codexNativeSubagentDetail(task: OrchestrationV2Subagent): string {
   const header = `Subagent ${task.status}: ${codexNativeSubagentLabel(task) ?? task.id}`;
   return task.result == null || task.result.length === 0
     ? header
     : `${header}\n\nResult:\n${task.result}`;
 }
-
 export interface CodexDynamicToolProjection extends McpToolPresentation {
   readonly toolName: string;
   readonly title?: string;
@@ -465,9 +449,13 @@ export interface CodexDynamicToolProjection extends McpToolPresentation {
   readonly output?: unknown;
   readonly status: OrchestrationV2TurnItem["status"];
 }
-
 function codexMcpToolOutput(
-  item: Extract<CodexDynamicToolItem, { readonly type: "mcpToolCall" }>,
+  item: Extract<
+    CodexDynamicToolItem,
+    {
+      readonly type: "mcpToolCall";
+    }
+  >,
 ): unknown | undefined {
   const resultOutput =
     item.result === null || item.result === undefined
@@ -475,7 +463,6 @@ function codexMcpToolOutput(
       : item.result.structuredContent !== null && item.result.structuredContent !== undefined
         ? item.result.structuredContent
         : item.result.content;
-
   if (item.error === null || item.error === undefined) {
     return resultOutput;
   }
@@ -483,25 +470,26 @@ function codexMcpToolOutput(
     ? { error: item.error.message }
     : { error: item.error.message, result: resultOutput };
 }
-
 // A hung MCP resource read must not hold run ingestion open.
 const MCP_APP_CAPTURE_TIMEOUT = "20 seconds";
-
 function codexMcpAppResourceUri(item: CodexDynamicToolItem): string | undefined {
   if (item.type !== "mcpToolCall") return undefined;
   const uri = item.mcpAppUi?.resourceUri ?? item.mcpAppResourceUri ?? item.appContext?.resourceUri;
   return typeof uri === "string" && uri.startsWith(MCP_APP_RESOURCE_SCHEME) ? uri : undefined;
 }
-
 function codexDynamicToolOutput(
-  item: Extract<CodexDynamicToolItem, { readonly type: "dynamicToolCall" }>,
+  item: Extract<
+    CodexDynamicToolItem,
+    {
+      readonly type: "dynamicToolCall";
+    }
+  >,
 ): unknown | undefined {
   if (item.contentItems !== null && item.contentItems !== undefined) {
     return item.contentItems;
   }
   return item.success === false ? { success: false } : undefined;
 }
-
 const projectCodexDynamicToolItem = Effect.fn("CodexAdapterV2.projectDynamicToolItem")(function* (
   item: CodexDynamicToolItem,
 ): Effect.fn.Return<CodexDynamicToolProjection, never, Crypto.Crypto> {
@@ -531,7 +519,6 @@ const projectCodexDynamicToolItem = Effect.fn("CodexAdapterV2.projectDynamicTool
   };
   return output === undefined ? projection : { ...projection, output };
 });
-
 function codexNativeItemRef(nativeItemId: string) {
   return {
     driver: CODEX_PROVIDER,
@@ -539,16 +526,13 @@ function codexNativeItemRef(nativeItemId: string) {
     strength: "strong" as const,
   };
 }
-
 function trimText(value: string | null | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed && trimmed.length > 0 ? trimmed : undefined;
 }
-
 function nonEmptyText(value: string | null | undefined, fallback: string): string {
   return trimText(value) ?? fallback;
 }
-
 function codexPlanStepStatus(
   status: CodexSchema.V2TurnPlanUpdatedNotification__TurnPlanStepStatus,
 ): OrchestrationV2PlanStep["status"] {
@@ -561,7 +545,6 @@ function codexPlanStepStatus(
       return "pending";
   }
 }
-
 function approvalDecisionToLegacyReviewDecision(
   decision: ProviderApprovalDecision,
 ): CodexSchema.ExecCommandApprovalResponse__ReviewDecision {
@@ -577,7 +560,6 @@ function approvalDecisionToLegacyReviewDecision(
       return "abort";
   }
 }
-
 function providerRequestKindFromPermissions(
   permissions: CodexSchema.PermissionsRequestApprovalParams["permissions"],
 ): ProviderRequestKind {
@@ -589,7 +571,6 @@ function providerRequestKindFromPermissions(
   }
   return "command";
 }
-
 function permissionsResponseFromDecision(input: {
   readonly decision: ProviderApprovalDecision;
   readonly permissions: CodexSchema.PermissionsRequestApprovalParams["permissions"];
@@ -597,13 +578,11 @@ function permissionsResponseFromDecision(input: {
   if (input.decision !== "accept" && input.decision !== "acceptForSession") {
     return { permissions: {}, scope: "turn" };
   }
-
   return {
     permissions: input.permissions,
     scope: input.decision === "acceptForSession" ? "session" : "turn",
   };
 }
-
 function answerValueToStrings(value: unknown): ReadonlyArray<string> {
   if (Array.isArray(value)) {
     return value.map((item) => String(item));
@@ -619,7 +598,6 @@ function answerValueToStrings(value: unknown): ReadonlyArray<string> {
   }
   return [JSON.stringify(value)];
 }
-
 function toCodexUserInputAnswers(
   answers: ProviderUserInputAnswers,
   allowedQuestionIds: ReadonlySet<string>,
@@ -632,19 +610,16 @@ function toCodexUserInputAnswers(
     ),
   );
 }
-
 function compactStrings(values: ReadonlyArray<string | null | undefined>): ReadonlyArray<string> {
   return values.flatMap((value) => {
     const trimmed = trimText(value);
     return trimmed === undefined ? [] : [trimmed];
   });
 }
-
 function webSearchPatterns(item: CodexWebSearchItem): ReadonlyArray<string> {
   if (item.action === null || item.action === undefined) {
     return compactStrings([item.query]);
   }
-
   switch (item.action.type) {
     case "search":
       return compactStrings([...(item.action.queries ?? []), item.action.query, item.query]);
@@ -656,7 +631,6 @@ function webSearchPatterns(item: CodexWebSearchItem): ReadonlyArray<string> {
       return compactStrings([item.query]);
   }
 }
-
 const decodeTurnApprovalPolicy = Schema.decodeUnknownEffect(
   Schema.Union([CodexSchema.V2TurnStartParams__AskForApproval, Schema.Null]),
 );
@@ -666,7 +640,6 @@ const decodeTurnSandboxPolicy = Schema.decodeUnknownEffect(
 const decodeTurnReasoningEffort = Schema.decodeUnknownEffect(
   Schema.Union([CodexSchema.V2TurnStartParams__ReasoningEffort, Schema.Null]),
 );
-
 const CodexTurnStartParamsWithCollaborationMode = CodexSchema.V2TurnStartParams.pipe(
   Schema.fieldsAssign({
     collaborationMode: Schema.optionalKey(CodexSchema.ClientRequest__CollaborationMode),
@@ -683,7 +656,6 @@ const decodeCodexTurnStartParamsWithCollaborationMode = Schema.decodeUnknownEffe
 const isProviderAdapterRuntimeRequestResponseError = Schema.is(
   ProviderAdapter.ProviderAdapterRuntimeRequestResponseError,
 );
-
 function codexRuntimeModeTurnDefaults(runtimeMode: RuntimeMode): {
   readonly approvalPolicy: CodexSchema.V2TurnStartParams__AskForApproval;
   readonly approvalsReviewer: CodexSchema.V2TurnStartParams__ApprovalsReviewer;
@@ -724,7 +696,6 @@ function codexRuntimeModeTurnDefaults(runtimeMode: RuntimeMode): {
       };
   }
 }
-
 export const buildCodexTurnStartParams = Effect.fn("CodexAdapterV2.buildCodexTurnStartParams")(
   function* (input: {
     readonly nativeThreadId: string;
@@ -802,7 +773,6 @@ export const buildCodexTurnStartParams = Effect.fn("CodexAdapterV2.buildCodexTur
     });
   },
 );
-
 function providerSession(input: {
   readonly providerSessionId: OrchestrationV2ProviderSession["id"];
   readonly providerInstanceId: ProviderInstanceId;
@@ -823,7 +793,6 @@ function providerSession(input: {
     lastError: null,
   };
 }
-
 const getNativeThreadId = Effect.fn("CodexAdapterV2.getNativeThreadId")(function* (
   providerThread: OrchestrationV2ProviderThread,
 ) {
@@ -835,7 +804,6 @@ const getNativeThreadId = Effect.fn("CodexAdapterV2.getNativeThreadId")(function
   }
   return nativeThreadId;
 });
-
 function providerThreadFromCodexThread(input: {
   readonly appThreadId: ThreadId | null;
   readonly idAllocator: IdAllocator.IdAllocatorV2["Service"];
@@ -875,7 +843,6 @@ function providerThreadFromCodexThread(input: {
     updatedAt: codexTimestamp(input.thread.updatedAt),
   };
 }
-
 // /goal control turns never reach Codex and must not count toward native rollback.
 const isTerminalProviderTurn = (turn: OrchestrationV2ProviderTurn): boolean =>
   turn.nativeTurnRef !== null &&
@@ -883,9 +850,7 @@ const isTerminalProviderTurn = (turn: OrchestrationV2ProviderTurn): boolean =>
     turn.status === "interrupted" ||
     turn.status === "failed" ||
     turn.status === "cancelled");
-
 type CodexThreadGoal = CodexSchema.V2ThreadGoalUpdatedNotification["goal"];
-
 const CODEX_GOAL_STATUSES = {
   active: "active",
   paused: "paused",
@@ -894,7 +859,6 @@ const CODEX_GOAL_STATUSES = {
   budgetLimited: "budget_limited",
   complete: "complete",
 } as const satisfies Record<CodexThreadGoal["status"], OrchestrationV2ProviderGoal["status"]>;
-
 function providerGoalFromCodex(goal: CodexThreadGoal): OrchestrationV2ProviderGoal | null {
   const objective = goal.objective.trim();
   if (objective.length === 0) return null;
@@ -906,22 +870,17 @@ function providerGoalFromCodex(goal: CodexThreadGoal): OrchestrationV2ProviderGo
     timeUsedSeconds: Math.max(0, goal.timeUsedSeconds),
   };
 }
-
 const providerGoalsEqual = Schema.toEquivalence(Schema.NullOr(OrchestrationV2ProviderGoal));
-
 function describeCodexGoal(goal: OrchestrationV2ProviderGoal): string {
   return `Goal ${goal.status.replace("_", " ")}: ${goal.objective}`;
 }
-
 // Codex starts the next goal turn milliseconds after the last one completes.
 const CODEX_GOAL_CONTINUATION_GRACE = "5 seconds";
-
 const providerTurnsForThread = (
   providerTurns: ReadonlyArray<OrchestrationV2ProviderTurn>,
   providerThread: OrchestrationV2ProviderThread,
 ): ReadonlyArray<OrchestrationV2ProviderTurn> =>
   providerTurns.filter((turn) => turn.providerThreadId === providerThread.id);
-
 const countTerminalTurnsAfterBoundary = (
   providerTurns: ReadonlyArray<OrchestrationV2ProviderTurn>,
   providerTurnId: ProviderTurnId,
@@ -930,18 +889,15 @@ const countTerminalTurnsAfterBoundary = (
   if (boundaryTurn === undefined) {
     return null;
   }
-
   return providerTurns.filter(
     (turn) => turn.ordinal > boundaryTurn.ordinal && isTerminalProviderTurn(turn),
   ).length;
 };
-
 const resolveCodexForkRollbackTurnCount = Effect.fn("CodexAdapterV2.resolveForkRollbackTurnCount")(
   function* (input: ProviderAdapter.ProviderAdapterV2ForkThreadInput) {
     if (input.providerTurnId === undefined || input.sourceProviderTurns === undefined) {
       return 0;
     }
-
     const rollbackTurnCount = countTerminalTurnsAfterBoundary(
       providerTurnsForThread(input.sourceProviderTurns, input.sourceProviderThread),
       input.providerTurnId,
@@ -953,11 +909,9 @@ const resolveCodexForkRollbackTurnCount = Effect.fn("CodexAdapterV2.resolveForkR
         cause: `Cannot fork Codex thread from provider turn ${input.providerTurnId}: source turn was not found in provider thread ${input.sourceProviderThread.id}.`,
       });
     }
-
     return rollbackTurnCount;
   },
 );
-
 /** Codex lastTurnId is inclusive, atomically omitting later turns even in paginated threads. */
 export const resolveCodexForkBoundary = Effect.fn("CodexAdapterV2.resolveForkBoundary")(function* (
   input: ProviderAdapter.ProviderAdapterV2ForkThreadInput,
@@ -966,7 +920,6 @@ export const resolveCodexForkBoundary = Effect.fn("CodexAdapterV2.resolveForkBou
   if (input.providerTurnId === undefined || input.sourceProviderTurns === undefined) {
     return { lastTurnId: undefined, rollbackTurnCount };
   }
-
   const boundaryTurn = providerTurnsForThread(
     input.sourceProviderTurns,
     input.sourceProviderThread,
@@ -975,10 +928,8 @@ export const resolveCodexForkBoundary = Effect.fn("CodexAdapterV2.resolveForkBou
   if (nativeTurnId === null || nativeTurnId === undefined) {
     return { lastTurnId: undefined, rollbackTurnCount };
   }
-
   return { lastTurnId: nativeTurnId, rollbackTurnCount: 0 };
 });
-
 /** Generated thread/read schemas omit historyMode; probe through the raw request channel. */
 const CodexThreadHistoryMetadata = Schema.Struct({
   thread: Schema.Struct({
@@ -987,7 +938,6 @@ const CodexThreadHistoryMetadata = Schema.Struct({
   }),
 });
 const decodeCodexThreadHistoryMetadata = Schema.decodeUnknownEffect(CodexThreadHistoryMetadata);
-
 const readCodexThreadHistoryMetadata = Effect.fn("CodexAdapterV2.readThreadHistoryMetadata")(
   function* (
     raw: Pick<CodexClient.CodexAppServerClient["Service"]["raw"], "request">,
@@ -1009,7 +959,6 @@ const readCodexThreadHistoryMetadata = Effect.fn("CodexAdapterV2.readThreadHisto
     };
   },
 );
-
 export const resolveCodexRollbackTurnCount = Effect.fn("CodexAdapterV2.resolveRollbackTurnCount")(
   function* (input: ProviderAdapter.ProviderAdapterV2RollbackThreadInput) {
     const providerTurns = input.providerThreadTurns;
@@ -1024,7 +973,6 @@ export const resolveCodexRollbackTurnCount = Effect.fn("CodexAdapterV2.resolveRo
             cause: `Cannot roll back Codex thread ${input.providerThread.id} to provider turn ${input.target.providerTurn.id}: target turn belongs to provider thread ${input.target.providerTurn.providerThreadId}.`,
           });
         }
-
         const rollbackTurnCount = countTerminalTurnsAfterBoundary(
           providerTurns,
           input.target.providerTurn.id,
@@ -1036,13 +984,11 @@ export const resolveCodexRollbackTurnCount = Effect.fn("CodexAdapterV2.resolveRo
             cause: `Cannot roll back Codex thread ${input.providerThread.id} to provider turn ${input.target.providerTurn.id}: target turn was not found in durable provider turn history.`,
           });
         }
-
         return rollbackTurnCount;
       }
     }
   },
 );
-
 function parseCodexRetryProgress(
   message: string,
 ): Pick<OrchestrationV2ProviderRetry, "attempt" | "maxAttempts"> | null {
@@ -1057,7 +1003,6 @@ function parseCodexRetryProgress(
   }
   return { attempt, maxAttempts };
 }
-
 function codexErrorInfoCode(value: unknown): string | null {
   if (typeof value === "string") {
     return value;
@@ -1067,9 +1012,7 @@ function codexErrorInfoCode(value: unknown): string | null {
   }
   return Object.keys(value)[0] ?? null;
 }
-
 type CodexErrorInfo = CodexSchema.ServerNotification__CodexErrorInfo;
-
 /**
  * Retry exhaustion only says why it failed through the last attempt's HTTP
  * status. Exhaustion on 429 is a usage or rate limit, so it keeps the Limited
@@ -1082,7 +1025,6 @@ function codexExhaustionHttpStatus(errorInfo: CodexErrorInfo | null | undefined)
     ? (errorInfo.responseTooManyFailedAttempts.httpStatusCode ?? null)
     : null;
 }
-
 function codexUsageLimitError(
   code: string | null,
   errorInfo: CodexErrorInfo | null | undefined,
@@ -1093,7 +1035,6 @@ function codexUsageLimitError(
     codexExhaustionHttpStatus(errorInfo) === 429
   );
 }
-
 /**
  * ChatGPT sharing reports its own reason inside Codex's generic turn error, so
  * the code it names replaces Codex's, and clients pick a recovery from it.
@@ -1107,7 +1048,6 @@ function withCodexManagedFailure(
     ? failure
     : { ...failure, message: managed.message, code: managed.code };
 }
-
 interface ActiveCodexTurnContext {
   closedCommandItemIds?: ReadonlySet<string>;
   latestProviderFailure?: {
@@ -1136,10 +1076,12 @@ interface ActiveCodexTurnContext {
   readonly fileChangeKindsByItem: Map<string, CodexFileChangeKinds>;
   readonly itemPositions: Map<
     string,
-    { readonly ordinal: number; readonly startedAt: DateTime.Utc }
+    {
+      readonly ordinal: number;
+      readonly startedAt: DateTime.Utc;
+    }
   >;
 }
-
 interface ActiveCodexProviderRetry {
   readonly nativeMessage: string;
   readonly nativeCode: string | null;
@@ -1148,14 +1090,12 @@ interface ActiveCodexProviderRetry {
   readonly startedAt: DateTime.Utc;
   readonly itemOrdinal: number;
 }
-
 interface TrackedRunningCommandItem {
   readonly id: string;
   readonly command: string;
   readonly aggregatedOutput?: string;
   readonly processId?: string;
 }
-
 function isPersistentCodexDynamicTool(item: CodexDynamicToolItem): boolean {
   const input = item.arguments;
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
@@ -1163,24 +1103,27 @@ function isPersistentCodexDynamicTool(item: CodexDynamicToolItem): boolean {
   }
   return Reflect.get(input, "persistent") === true;
 }
-
 type CodexRootTerminalEvent = Extract<
   ProviderAdapter.ProviderAdapterV2Event,
-  { readonly type: "turn.terminal" }
+  {
+    readonly type: "turn.terminal";
+  }
 >;
-
 interface CodexGoalHold {
   readonly context: ActiveCodexTurnContext;
-  readonly event: Extract<CodexRootTerminalEvent, { readonly failure: null }>;
+  readonly event: Extract<
+    CodexRootTerminalEvent,
+    {
+      readonly failure: null;
+    }
+  >;
   readonly completedTurn: OrchestrationV2ProviderTurn;
   readonly next: Deferred.Deferred<ActiveCodexTurnContext | undefined>;
 }
-
 interface DeferredCodexRootTerminal {
   readonly context: ActiveCodexTurnContext;
   readonly event: CodexRootTerminalEvent;
 }
-
 interface CodexSubagentThreadContext {
   parentContext: ActiveCodexTurnContext;
   readonly providerThread: OrchestrationV2ProviderThread;
@@ -1196,7 +1139,6 @@ interface CodexSubagentThreadContext {
   readonly turnItemOrdinal: number;
   task: OrchestrationV2Subagent;
 }
-
 const approvalOwnerCodexTurn = (
   context: ActiveCodexTurnContext,
 ): {
@@ -1211,7 +1153,6 @@ const approvalOwnerCodexTurn = (
   }
   return { owner, subagent };
 };
-
 const isDescendantCodexTurn = (
   candidate: ActiveCodexTurnContext,
   ancestor: ActiveCodexTurnContext,
@@ -1225,12 +1166,10 @@ const isDescendantCodexTurn = (
   }
   return false;
 };
-
 interface PendingCodexSubagentTurnStarted {
   readonly nativeTurnId: string;
   readonly startedAt: DateTime.Utc;
 }
-
 type PendingCodexRuntimeRequest =
   | {
       readonly type: "approval";
@@ -1243,7 +1182,6 @@ type PendingCodexRuntimeRequest =
       readonly requestId: RuntimeRequestId;
       readonly answers: Deferred.Deferred<ProviderUserInputAnswers, never>;
     };
-
 type CodexWebSearchItem = {
   readonly id: string;
   readonly type: "webSearch";
@@ -1253,24 +1191,26 @@ type CodexWebSearchItem = {
     | CodexSchema.V2ItemCompletedNotification__WebSearchAction
     | null;
 };
-
 export type CodexDynamicToolItem = Extract<
   | CodexSchema.V2ItemStartedNotification__ThreadItem
   | CodexSchema.V2ItemCompletedNotification__ThreadItem,
-  { readonly type: "mcpToolCall" | "dynamicToolCall" }
+  {
+    readonly type: "mcpToolCall" | "dynamicToolCall";
+  }
 >;
-
 type CodexCollabAgentToolCallItem = Extract<
   CodexSchema.V2ItemCompletedNotification__ThreadItem,
-  { readonly type: "collabAgentToolCall" }
+  {
+    readonly type: "collabAgentToolCall";
+  }
 >;
-
 type CodexSubAgentActivityItem = Extract<
   | CodexSchema.V2ItemStartedNotification__ThreadItem
   | CodexSchema.V2ItemCompletedNotification__ThreadItem,
-  { readonly type: "subAgentActivity" }
+  {
+    readonly type: "subAgentActivity";
+  }
 >;
-
 export interface CodexAppServerClientFactoryShape {
   readonly open: (input: {
     readonly instanceId: ProviderInstanceId;
@@ -1285,24 +1225,22 @@ export interface CodexAppServerClientFactoryShape {
     Scope.Scope
   >;
 }
-
 export class CodexAppServerClientFactory extends Context.Service<
   CodexAppServerClientFactory,
   CodexAppServerClientFactoryShape
 >()("t3/orchestration-v2/Adapters/CodexAdapterV2/CodexAppServerClientFactory") {}
-
 /** MCP startup grace in milliseconds; the 1 s default excludes cold npx/uvx servers from the first model request. */
 export const CODEX_THREAD_CONFIG = {
   "tools.update_plan.enabled": true,
-  mcp_optional_startup_grace_ms: 10_000,
+  mcp_optional_startup_grace_ms: 10000,
 } as const;
-
 // T3 waits can block for an hour; keep Codex's MCP timeout above that.
 const CODEX_T3_MCP_TOOL_TIMEOUT_SEC = 65 * 60;
-
 function codexThreadRuntimeParams(input: {
   readonly mcpSession: McpProviderSession.McpProviderSessionConfig | undefined;
-  readonly modelSelection?: { readonly model: string };
+  readonly modelSelection?: {
+    readonly model: string;
+  };
   readonly runtimePolicy?: ProviderAdapter.ProviderAdapterV2RuntimePolicy;
 }): {
   readonly cwd?: string;
@@ -1330,11 +1268,9 @@ function codexThreadRuntimeParams(input: {
     },
   };
 }
-
 const decodeCodexResumeMetadata = Schema.decodeUnknownEffect(
   Schema.Struct({ thread: Schema.Struct({ id: Schema.String, updatedAt: Schema.Number }) }),
 );
-
 const CodexChildSelection = Schema.Struct({
   thread: Schema.Struct({ id: Schema.String }),
   model: Schema.NullOr(Schema.String),
@@ -1342,7 +1278,6 @@ const CodexChildSelection = Schema.Struct({
   serviceTier: Schema.optional(Schema.NullOr(Schema.String)),
 });
 const decodeCodexChildModel = Schema.decodeUnknownEffect(CodexChildSelection);
-
 const decodeCodexChildThread = Schema.decodeUnknownEffect(
   Schema.Struct({
     thread: Schema.Struct({
@@ -1352,7 +1287,6 @@ const decodeCodexChildThread = Schema.decodeUnknownEffect(
     }),
   }),
 );
-
 export const makeCodexAppServerSpawnCommand = Effect.fn(
   "CodexAdapterV2.makeCodexAppServerSpawnCommand",
 )(function* (input: {
@@ -1382,7 +1316,6 @@ export const makeCodexAppServerSpawnCommand = Effect.fn(
     shell: spawnCommand.shell,
   });
 });
-
 export function makeCodexAppServerProtocolLogger(input: {
   readonly nativeEventLogger: ProviderEventLoggers.EventNdjsonLogger | undefined;
   readonly threadId: ThreadId;
@@ -1392,7 +1325,6 @@ export function makeCodexAppServerProtocolLogger(input: {
   if (nativeEventLogger === undefined) {
     return undefined;
   }
-
   return (event) => {
     if (!shouldPersistProviderEvent("native", event)) return Effect.void;
     return nativeEventLogger
@@ -1409,7 +1341,6 @@ export function makeCodexAppServerProtocolLogger(input: {
       .pipe(Effect.ignore);
   };
 }
-
 function redactCodexProtocolValue(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map(redactCodexProtocolValue);
@@ -1445,7 +1376,6 @@ function redactCodexProtocolValue(value: unknown): unknown {
     ]),
   );
 }
-
 function isSensitiveCodexProtocolKey(key: string): boolean {
   const normalized = key.replace(/[^a-z0-9]/gi, "").toLowerCase();
   return (
@@ -1456,7 +1386,6 @@ function isSensitiveCodexProtocolKey(key: string): boolean {
     normalized.endsWith("secret")
   );
 }
-
 export const layerAppServerClientFactory: Layer.Layer<
   CodexAppServerClientFactory,
   never,
@@ -1467,7 +1396,6 @@ export const layerAppServerClientFactory: Layer.Layer<
     const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
     const { native: nativeEventLogger } = yield* ProviderEventLoggers.ProviderEventLoggers;
     const agentScope = yield* AgentScope;
-
     return CodexAppServerClientFactory.of({
       open: Effect.fn("CodexAdapterV2.open")(function* (input) {
         const scope = yield* Scope.Scope;
@@ -1515,7 +1443,6 @@ export const layerAppServerClientFactory: Layer.Layer<
     });
   }),
 );
-
 export type CodexAdapterV2DriverEnv =
   | CodexAppServerClientFactory
   | Crypto.Crypto
@@ -1524,7 +1451,6 @@ export type CodexAdapterV2DriverEnv =
   | McpProviderSessions.McpProviderSessions
   | Path.Path
   | ServerConfig;
-
 export const createCodexAdapterV2 = Effect.fn("CodexAdapterV2.createCodexAdapterV2")(function* (
   { instanceId, environment, enabled, config }: ProviderAdapterDriverCreateInput<CodexSettings>,
   hooks: Pick<CodexAdapterV2Options, "onUsageLimits" | "resolveRuntime"> = {},
@@ -1537,7 +1463,6 @@ export const createCodexAdapterV2 = Effect.fn("CodexAdapterV2.createCodexAdapter
   const idAllocator = yield* IdAllocator.IdAllocatorV2;
   const serverConfig = yield* ServerConfig;
   const homeLayout = yield* resolveCodexHomeLayout(config);
-
   yield* materializeCodexShadowHome(homeLayout).pipe(
     Effect.mapError(
       (cause) =>
@@ -1549,14 +1474,12 @@ export const createCodexAdapterV2 = Effect.fn("CodexAdapterV2.createCodexAdapter
         }),
     ),
   );
-
   const settings = {
     ...config,
     enabled,
     binaryPath: expandHomePath(config.binaryPath, yield* HostProcess.HomeDirectory),
     homePath: homeLayout.effectiveHomePath ?? "",
   } satisfies CodexSettings;
-
   return yield* makeCodexAdapterV2({
     instanceId,
     settings,
@@ -1570,14 +1493,12 @@ export const createCodexAdapterV2 = Effect.fn("CodexAdapterV2.createCodexAdapter
     ...hooks,
   });
 });
-
 export const CodexAdapterV2Driver: ProviderAdapterDriver<CodexSettings, CodexAdapterV2DriverEnv> = {
   driverKind: CODEX_DRIVER_KIND,
   configSchema: CodexSettings,
   defaultConfig: (): CodexSettings => DEFAULT_CODEX_SETTINGS,
   create: createCodexAdapterV2,
 };
-
 export interface CodexAdapterV2Options {
   readonly instanceId: ProviderInstanceId;
   readonly settings: CodexSettings;
@@ -1596,7 +1517,6 @@ export interface CodexAdapterV2Options {
     ) => Effect.Effect<void>;
   };
 }
-
 export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
   adapterOptions: CodexAdapterV2Options,
 ) {
@@ -1606,7 +1526,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
     threadId === null ? Effect.succeed(undefined) : mcpSessions.read(threadId);
   const { clientFactory, crypto, fileSystem, idAllocator, serverConfig } = adapterOptions;
   const continuationRequests = adapterOptions.continuationRequests;
-
   return ProviderAdapter.ProviderAdapterV2.of({
     instanceId: adapterOptions.instanceId,
     driver: CODEX_PROVIDER,
@@ -1690,7 +1609,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             if (alreadyInitialized) {
               return;
             }
-
             yield* client
               .request("initialize", {
                 clientInfo: buildCodexInitializeParams().clientInfo,
@@ -1717,10 +1635,35 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           model: input.modelSelection.model,
           now,
         });
-        const events = yield* Queue.unbounded<ProviderAdapter.ProviderAdapterV2Event>();
+        const events = yield* Queue.unbounded<
+          ProviderAdapter.ProviderAdapterV2Event,
+          ProviderAdapter.ProviderAdapterEventStreamError
+        >();
+        // Buffered final notifications drain before the session manager retires this process.
+        yield* client.awaitTermination.pipe(
+          Effect.catch((cause) =>
+            Queue.fail(
+              events,
+              new ProviderAdapter.ProviderAdapterEventStreamError({
+                driver: CODEX_PROVIDER,
+                providerSessionId: input.providerSessionId,
+                cause,
+              }),
+            ),
+          ),
+          Effect.forkScoped,
+        );
         const rateLimitSnapshot = yield* Ref.make<CodexRateLimitSnapshot | undefined>(undefined);
         const limitedTurnItems = yield* Ref.make(
-          new Map<ProviderThreadId, Extract<OrchestrationV2TurnItem, { type: "error" }>>(),
+          new Map<
+            ProviderThreadId,
+            Extract<
+              OrchestrationV2TurnItem,
+              {
+                type: "error";
+              }
+            >
+          >(),
         );
         const activeTurns = yield* Ref.make(new Map<string, ActiveCodexTurnContext>());
         const turnTokenUsageByThread = new Map<string, CodexTurnTokenUsageState>();
@@ -1770,7 +1713,10 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
         /** Codex acceptForSession covers only the exact command or patch, not future commands. */
         const sessionApprovals = new Map<
           string,
-          { readonly runtimeMode: RuntimeMode; readonly kinds: Set<ProviderRequestKind> }
+          {
+            readonly runtimeMode: RuntimeMode;
+            readonly kinds: Set<ProviderRequestKind>;
+          }
         >();
         /** Bind answers to the request's approval set so mode changes invalidate late answers. */
         const endSessionApprovalsOnModeChange = (context: ActiveCodexTurnContext) => {
@@ -1816,15 +1762,18 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
         const rootProviderThreads = new Map<string, OrchestrationV2ProviderThread>();
         const goalHolds = new Map<string, CodexGoalHold>();
         const goalRuns = new Map<ProviderTurnId, Array<ActiveCodexTurnContext>>();
-        const goalActivations = new Map<string, { stopped: boolean }>();
+        const goalActivations = new Map<
+          string,
+          {
+            stopped: boolean;
+          }
+        >();
         // Held runs must not complete while Stop resolves its target.
         const goalStops = new Map<string, number>();
         const latestGoalTurnId = (providerTurnId: ProviderTurnId) =>
           goalRuns.get(providerTurnId)?.at(-1)?.providerTurnId ?? providerTurnId;
-
         const emitProviderEvent = (event: ProviderAdapter.ProviderAdapterV2Event) =>
           Queue.offer(events, event).pipe(Effect.asVoid);
-
         // Setting a goal passes through cleared and paused states; publish only the result.
         const goalUpdatesHeld = new Set<string>();
         const emitGoalUpdate = Effect.fnUntraced(function* (nativeThreadId: string) {
@@ -1846,7 +1795,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             providerThread: updated,
           });
         });
-
         const rememberRootProviderThread = Effect.fnUntraced(function* (
           providerThread: OrchestrationV2ProviderThread,
         ) {
@@ -1855,13 +1803,11 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           rootProviderThreads.set(nativeThreadId, providerThread);
           yield* emitGoalUpdate(nativeThreadId);
         });
-
         const releaseGoalUpdates = (nativeThreadId: string) =>
           Effect.suspend(() => {
             goalUpdatesHeld.delete(nativeThreadId);
             return emitGoalUpdate(nativeThreadId);
           });
-
         // Only new model output proves recovery; local item/completed can arrive during upstream retries.
         const completeProviderRetry = Effect.fn("CodexAdapterV2.completeProviderRetry")(function* (
           context: ActiveCodexTurnContext,
@@ -1898,7 +1844,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             }),
           });
         });
-
         const registerRootTurn = Effect.fn("CodexAdapterV2.registerRootTurn")(function* (input: {
           readonly turnInput: ProviderAdapter.ProviderAdapterV2TurnInput;
           readonly nativeTurnId: string;
@@ -1969,7 +1914,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           yield* rememberRootProviderThread(input.turnInput.providerThread);
           return context;
         });
-
         const findActiveTurnByNativeThreadId =
           /* Provider events include streaming deltas; avoid a span for each update. */
           Effect.fnUntraced(function* (nativeThreadId: string) {
@@ -1978,11 +1922,10 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               (context) => context.providerThread.nativeThreadRef?.nativeId === nativeThreadId,
             );
           });
-
         // Streaming updates repeatedly await this context, including retries before registration.
         const awaitActiveTurn = Effect.fnUntraced(function* (
           nativeTurnId: string,
-          attemptsRemaining = 1_000,
+          attemptsRemaining = 1000,
         ): Effect.fn.Return<ActiveCodexTurnContext | undefined> {
           const context = (yield* Ref.get(activeTurns)).get(nativeTurnId);
           if (context !== undefined || attemptsRemaining <= 0) {
@@ -1991,7 +1934,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           yield* Effect.yieldNow;
           return yield* awaitActiveTurn(nativeTurnId, attemptsRemaining - 1);
         });
-
         const resolveItemEventContext =
           /* Provider events include streaming deltas; avoid a span for each update. */
           Effect.fnUntraced(function* (nativeTurnId: string) {
@@ -2002,7 +1944,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             const context = yield* awaitActiveTurn(nativeTurnId);
             return context === undefined ? undefined : ({ context, settled: false } as const);
           });
-
         const trackRunningCommandItem = (nativeTurnId: string, item: TrackedRunningCommandItem) =>
           Ref.update(runningCommandItemsByTurn, (current) => {
             const updated = new Map(current);
@@ -2011,7 +1952,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             updated.set(nativeTurnId, items);
             return updated;
           });
-
         const clearRunningCommandItem = (nativeTurnId: string, nativeItemId: string) =>
           Ref.modify(runningCommandItemsByTurn, (current) => {
             const items = current.get(nativeTurnId);
@@ -2028,9 +1968,13 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             }
             return [remaining.size === 0, updated] as const;
           });
-
         interface PendingMcpAppCapture {
-          readonly item: Extract<CodexDynamicToolItem, { readonly type: "mcpToolCall" }>;
+          readonly item: Extract<
+            CodexDynamicToolItem,
+            {
+              readonly type: "mcpToolCall";
+            }
+          >;
           readonly fiber: Fiber.Fiber<void>;
         }
         const pendingMcpAppCaptures = yield* Ref.make(
@@ -2049,7 +1993,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             else updated.set(nativeTurnId, remaining);
             return [true, updated] as const;
           });
-
         const trackRunningDynamicTool = (nativeTurnId: string, item: CodexDynamicToolItem) =>
           Ref.update(runningDynamicToolsByTurn, (current) => {
             const updated = new Map(current);
@@ -2058,7 +2001,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             updated.set(nativeTurnId, items);
             return updated;
           });
-
         const clearRunningDynamicTool = (nativeTurnId: string, nativeItemId: string) =>
           Ref.update(runningDynamicToolsByTurn, (current) => {
             const items = current.get(nativeTurnId);
@@ -2075,7 +2017,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             }
             return updated;
           });
-
         const turnHasRetainedBackgroundWork =
           /* Provider events include streaming deltas; avoid a span for each update. */
           Effect.fnUntraced(function* (nativeTurnId: string) {
@@ -2097,7 +2038,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             }
             return false;
           });
-
         const releaseSettledTurnIfIdle =
           /* Provider events include streaming deltas; avoid a span for each update. */
           Effect.fnUntraced(function* (nativeTurnId: string) {
@@ -2137,7 +2077,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               return updated;
             });
           });
-
         /**
          * When a turn is interrupted or failed, Codex often leaves commandExecution
          * items mid-flight (no item/completed). Emit terminal turn items before
@@ -2215,7 +2154,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             });
           }
         });
-
         const terminateBackgroundTerminal = Effect.fn("CodexAdapterV2.terminateBackgroundTerminal")(
           function* (nativeThreadId: string, processId: string) {
             const response = yield* client.raw
@@ -2258,7 +2196,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           },
           Effect.timeout("10 seconds"),
         );
-
         /**
          * Yielded exec cells can start MCP / dynamic tools that never receive
          * item/completed when functions.wait terminates the cell. Persistent tools
@@ -2321,7 +2258,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             return updated;
           });
         });
-
         const resolveItemPosition =
           /* Provider events include streaming deltas; avoid a span for each update. */
           Effect.fnUntraced(function* (
@@ -2342,12 +2278,10 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             context.itemPositions.set(nativeItemId, position);
             return position;
           });
-
         const resolveItemOrdinal = (context: ActiveCodexTurnContext, nativeItemId: string) =>
           resolveItemPosition(context, nativeItemId).pipe(
             Effect.map((position) => position.ordinal),
           );
-
         const nextProviderTurnOrdinal = (
           providerThreadId: OrchestrationV2ProviderThread["id"],
           minimum: number,
@@ -2359,7 +2293,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             updated.set(String(providerThreadId), next);
             return [next, updated];
           });
-
         const emitSubagentTaskUpdate =
           /* Provider events include streaming deltas; avoid a span for each update. */
           Effect.fnUntraced(function* (input: {
@@ -2395,7 +2328,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             } satisfies OrchestrationV2Subagent;
             input.subagent.task = task;
             if (input.startedAt !== undefined) input.subagent.startedAt = input.startedAt;
-
             yield* emitProviderEvent({
               type: "subagent.updated",
               driver: CODEX_PROVIDER,
@@ -2430,7 +2362,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               },
             });
           });
-
         const emitSubagentProviderTurnStarted =
           /* Provider events include streaming deltas; avoid a span for each update. */
           Effect.fnUntraced(function* (
@@ -2578,7 +2509,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               },
             });
           });
-
         const rememberSubagentTurnStarted =
           /* Provider events include streaming deltas; avoid a span for each update. */
           Effect.fnUntraced(function* (input: {
@@ -2600,7 +2530,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               return updated;
             });
           });
-
         const updateSubagentSelection = Effect.fnUntraced(function* (
           nativeThreadId: string,
           value: string | null,
@@ -2652,7 +2581,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             subagent: subagent.task,
           });
         });
-
         const registerSubagentThread =
           /* Provider events include streaming deltas; avoid a span for each update. */
           Effect.fnUntraced(function* (input: {
@@ -2678,7 +2606,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                 input.reasoningEffort,
               );
             }
-
             const now = yield* DateTime.now;
             const subagentNodeId = idAllocator.derive.nodeFromProviderItem({
               driver: CODEX_PROVIDER,
@@ -2786,7 +2713,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               turnItemOrdinal,
               task,
             } satisfies CodexSubagentThreadContext;
-
             yield* Ref.update(subagentThreads, (current) => {
               const updated = new Map(current);
               updated.set(input.nativeThreadId, subagent);
@@ -2881,7 +2807,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               subagent,
               status: "running",
             });
-
             const pendingTurns = yield* Ref.modify(pendingSubagentTurns, (current) => {
               const pending = current.get(input.nativeThreadId) ?? [];
               const updated = new Map(current);
@@ -2933,7 +2858,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                 );
             }
           });
-
         const registerSubagentThreads =
           /* Provider events include streaming deltas; avoid a span for each update. */
           Effect.fnUntraced(function* (input: {
@@ -2943,7 +2867,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             if (input.item.tool !== "spawnAgent" || input.item.receiverThreadIds.length === 0) {
               return;
             }
-
             for (const [index, nativeThreadId] of input.item.receiverThreadIds.entries()) {
               const model =
                 typeof input.item.model === "string" && input.item.model.length > 0
@@ -2963,7 +2886,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               });
             }
           });
-
         const registerSubagentActivity =
           /* Provider events include streaming deltas; avoid a span for each update. */
           Effect.fnUntraced(function* (input: {
@@ -2991,12 +2913,10 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               });
               return;
             }
-
             const subagent = (yield* Ref.get(subagentThreads)).get(input.item.agentThreadId);
             if (subagent === undefined) {
               return;
             }
-
             if (input.item.kind === "interrupted" || input.item.kind === "completed") {
               yield* emitSubagentTaskUpdate({
                 subagent,
@@ -3004,7 +2924,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               });
             }
           });
-
         const updateSubagentStates =
           /* Provider events include streaming deltas; avoid a span for each update. */
           Effect.fnUntraced(function* (input: { readonly item: CodexCollabAgentToolCallItem }) {
@@ -3034,7 +2953,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               });
             }
           });
-
         const resolvePlanId =
           /* Provider events include streaming deltas; avoid a span for each update. */
           Effect.fnUntraced(function* (context: ActiveCodexTurnContext, planKey: string) {
@@ -3054,7 +2972,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             });
             return planId;
           });
-
         const resolveCodexAttachment = Effect.fn("CodexAdapterV2.resolveCodexAttachment")(
           function* (attachment: ChatAttachment) {
             const attachmentPath = resolveAttachmentPath({
@@ -3081,7 +2998,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             } satisfies CodexSchema.V2TurnStartParams__UserInput;
           },
         );
-
         const toCodexInput = Effect.fn("CodexAdapterV2.toCodexInput")(function* (
           turnInput: Pick<
             | ProviderAdapter.ProviderAdapterV2TurnInput
@@ -3117,11 +3033,13 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           }
           return inputItems;
         });
-
         // Reasoning and assistant-text coalescers build these artifacts on every streamed update.
         const buildAgentMessageArtifacts = Effect.fnUntraced(function* (
           context: ActiveCodexTurnContext,
-          item: { readonly id: string; readonly text: string },
+          item: {
+            readonly id: string;
+            readonly text: string;
+          },
           completed: boolean,
         ) {
           const updatedAt = yield* DateTime.now;
@@ -3192,11 +3110,15 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           };
           return { node, message, turnItem };
         });
-
         // Coalesce token bursts to avoid a database write per token.
         const reasoningParts = new Map<
           string,
-          { turnId: string; nativeItemId: string; stream: "summary" | "content"; index: number }
+          {
+            turnId: string;
+            nativeItemId: string;
+            stream: "summary" | "content";
+            index: number;
+          }
         >();
         const reasoningDeltas = yield* makeProviderTextDeltaCoalescer({
           flushIntervalMs: CODEX_ASSISTANT_DELTA_FLUSH_INTERVAL_MS,
@@ -3250,7 +3172,11 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           return key;
         };
         const appendReasoning = Effect.fn("CodexAdapterV2.appendReasoning")(function* (
-          payload: { turnId: string; itemId: string; delta: string },
+          payload: {
+            turnId: string;
+            itemId: string;
+            delta: string;
+          },
           stream: "summary" | "content",
           index: number,
         ) {
@@ -3264,7 +3190,11 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
         });
         const completeReasoning = Effect.fn("CodexAdapterV2.completeReasoning")(function* (
           turnId: string,
-          item: { id: string; summary?: ReadonlyArray<string>; content?: ReadonlyArray<string> },
+          item: {
+            id: string;
+            summary?: ReadonlyArray<string>;
+            content?: ReadonlyArray<string>;
+          },
         ) {
           for (const stream of ["summary", "content"] as const) {
             for (const [index] of (item[stream] ?? []).entries()) {
@@ -3283,7 +3213,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             reasoningParts.delete(key);
           }
         });
-
         const agentMessageDeltas = yield* makeProviderTextDeltaCoalescer({
           flushIntervalMs: CODEX_ASSISTANT_DELTA_FLUSH_INTERVAL_MS,
           emit:
@@ -3348,7 +3277,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               }
             }),
         });
-
         const emitSubagentUserMessage =
           /* Provider events include streaming deltas; avoid a span for each update. */
           Effect.fnUntraced(function* (
@@ -3356,7 +3284,9 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             item: Extract<
               | CodexSchema.V2ItemStartedNotification__ThreadItem
               | CodexSchema.V2ItemCompletedNotification__ThreadItem,
-              { type: "userMessage" }
+              {
+                type: "userMessage";
+              }
             >,
             nativeStartedAt?: DateTime.Utc,
           ) {
@@ -3404,7 +3334,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             });
             return true;
           });
-
         const buildCommandExecutionArtifacts = Effect.fn(
           "CodexAdapterV2.buildCommandExecutionArtifacts",
         )(function* (
@@ -3412,7 +3341,9 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           item: Extract<
             | CodexSchema.V2ItemStartedNotification__ThreadItem
             | CodexSchema.V2ItemCompletedNotification__ThreadItem,
-            { type: "commandExecution" }
+            {
+              type: "commandExecution";
+            }
           >,
         ) {
           const updatedAt = yield* DateTime.now;
@@ -3470,20 +3401,20 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           };
           return { node, turnItem };
         });
-
         const buildFileChangeArtifacts = Effect.fn("CodexAdapterV2.buildFileChangeArtifacts")(
           function* (
             context: ActiveCodexTurnContext,
             item: Extract<
               CodexSchema.V2ItemCompletedNotification__ThreadItem,
-              { type: "fileChange" }
+              {
+                type: "fileChange";
+              }
             >,
           ) {
             const firstChange = item.changes[0];
             if (firstChange === undefined) {
               return null;
             }
-
             const updatedAt = yield* DateTime.now;
             const status = codexItemStatus(item.status);
             const completedAt = status.completed ? updatedAt : null;
@@ -3541,7 +3472,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             return { node, turnItem };
           },
         );
-
         const buildWebSearchArtifacts = Effect.fn("CodexAdapterV2.buildWebSearchArtifacts")(
           function* (input: {
             readonly context: ActiveCodexTurnContext;
@@ -3599,7 +3529,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             return { node, turnItem };
           },
         );
-
         const buildDynamicToolArtifacts = Effect.fn("CodexAdapterV2.buildDynamicToolArtifacts")(
           function* (context: ActiveCodexTurnContext, item: CodexDynamicToolItem) {
             const updatedAt = yield* DateTime.now;
@@ -3654,7 +3583,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             return { node, turnItem };
           },
         );
-
         /**
          * The item stays running until then, which keeps the run's event
          * ingestion open past turn/completed; it runs off the notification
@@ -3663,7 +3591,12 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
         const captureMcpApp = Effect.fn("CodexAdapterV2.captureMcpApp")(function* (
           context: ActiveCodexTurnContext,
           nativeTurnId: string,
-          item: Extract<CodexDynamicToolItem, { readonly type: "mcpToolCall" }>,
+          item: Extract<
+            CodexDynamicToolItem,
+            {
+              readonly type: "mcpToolCall";
+            }
+          >,
           resourceUri: string,
         ) {
           // Registered before it can run, so a turn ending right away sees it.
@@ -3682,11 +3615,15 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           });
           yield* Deferred.succeed(started, undefined);
         });
-
         const captureMcpAppItem = (
           context: ActiveCodexTurnContext,
           nativeTurnId: string,
-          item: Extract<CodexDynamicToolItem, { readonly type: "mcpToolCall" }>,
+          item: Extract<
+            CodexDynamicToolItem,
+            {
+              readonly type: "mcpToolCall";
+            }
+          >,
           resourceUri: string,
         ) =>
           // Only reads and storage are cancellable; remove partial writes. Once stored, attach the app or delete it if the item settled.
@@ -3764,7 +3701,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               }
             }),
           );
-
         const terminalizeMcpAppCaptures = Effect.fn("CodexAdapterV2.terminalizeMcpAppCaptures")(
           function* (context: ActiveCodexTurnContext, nativeTurnId: string) {
             const captures = (yield* Ref.get(pendingMcpAppCaptures)).get(nativeTurnId);
@@ -3786,7 +3722,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             }
           },
         );
-
         // The plan coalescer builds these artifacts on every streamed update.
         const buildProposedPlanArtifacts = Effect.fnUntraced(function* (input: {
           readonly context: ActiveCodexTurnContext;
@@ -3858,7 +3793,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           };
           return { node, plan, turnItem };
         });
-
         const planDeltas = yield* makeProviderTextDeltaCoalescer({
           flushIntervalMs: CODEX_PLAN_DELTA_FLUSH_INTERVAL_MS,
           emit:
@@ -3894,7 +3828,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               });
             }, Effect.orDie),
         });
-
         const buildTodoListArtifacts = Effect.fn("CodexAdapterV2.buildTodoListArtifacts")(
           function* (input: {
             readonly context: ActiveCodexTurnContext;
@@ -3969,7 +3902,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             return { node, plan, turnItem };
           },
         );
-
         const buildApprovalRequestArtifacts = Effect.fn(
           "CodexAdapterV2.buildApprovalRequestArtifacts",
         )(function* (input: {
@@ -4066,7 +3998,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           };
           return { node, request, turnItem };
         });
-
         const buildUserInputRequestArtifacts = Effect.fn(
           "CodexAdapterV2.buildUserInputRequestArtifacts",
         )(function* (input: {
@@ -4164,7 +4095,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           };
           return { node, request, turnItem };
         });
-
         yield* client.handleServerNotification("item/agentMessage/delta", (payload) =>
           Effect.gen(function* () {
             const context = (yield* Ref.get(activeTurns)).get(payload.turnId);
@@ -4178,7 +4108,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             });
           }),
         );
-
         yield* client.handleServerNotification("item/commandExecution/outputDelta", (payload) =>
           Effect.gen(function* () {
             // Background commands emit deltas after settlement; item/started already registered their turn.
@@ -4198,14 +4127,12 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             });
           }),
         );
-
         yield* client.handleServerNotification("item/reasoning/summaryTextDelta", (payload) =>
           appendReasoning(payload, "summary", payload.summaryIndex),
         );
         yield* client.handleServerNotification("item/reasoning/textDelta", (payload) =>
           appendReasoning(payload, "content", payload.contentIndex),
         );
-
         yield* client.handleServerNotification("item/plan/delta", (payload) =>
           Effect.gen(function* () {
             const context = yield* awaitActiveTurn(payload.turnId);
@@ -4220,7 +4147,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             });
           }).pipe(Effect.orDie),
         );
-
         yield* client.handleServerNotification("turn/plan/updated", (payload) =>
           Effect.gen(function* () {
             const context = yield* awaitActiveTurn(payload.turnId);
@@ -4258,7 +4184,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             });
           }).pipe(Effect.orDie),
         );
-
         yield* client.handleServerNotification("account/rateLimits/updated", (payload) =>
           Effect.gen(function* () {
             yield* Ref.update(rateLimitSnapshot, (previous) =>
@@ -4288,7 +4213,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             }
           }).pipe(Effect.orDie),
         );
-
         yield* client.handleServerNotification("thread/tokenUsage/updated", (payload) =>
           Effect.gen(function* () {
             accumulateCodexTurnTokenUsage(
@@ -4319,6 +4243,10 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                 status: "running",
                 startedAt: context.startedAt,
                 completedAt: null,
+                turnTokenUsage: snapshotCodexTurnTokenUsage(
+                  usageStateForThread(payload.threadId),
+                  payload.turnId,
+                ),
                 tokenUsage: codexProviderTurnTokenUsage(
                   payload.tokenUsage,
                   DateTime.formatIso(now),
@@ -4327,7 +4255,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             });
           }).pipe(Effect.orDie),
         );
-
         yield* client.handleServerNotification("thread/settings/updated", (payload) =>
           updateSubagentSelection(
             payload.threadId,
@@ -4339,7 +4266,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
         yield* client.handleServerNotification("model/rerouted", (payload) =>
           updateSubagentSelection(payload.threadId, payload.toModel),
         );
-
         yield* client.handleServerNotification("turn/started", (payload) =>
           Effect.gen(function* () {
             const context = (yield* Ref.get(activeTurns)).get(payload.turn.id);
@@ -4423,7 +4349,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             });
           }).pipe(Effect.orDie, turnTerminalizationPermit.withPermits(1)),
         );
-
         yield* client.handleServerNotification("thread/goal/updated", (payload) =>
           Effect.gen(function* () {
             goalsByNativeThread.set(payload.threadId, providerGoalFromCodex(payload.goal));
@@ -4438,7 +4363,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             yield* releaseGoalHold(payload.threadId);
           }).pipe(turnTerminalizationPermit.withPermits(1)),
         );
-
         yield* client.handleServerNotification("error", (payload) =>
           Effect.gen(function* () {
             const context = yield* awaitActiveTurn(payload.turnId);
@@ -4525,7 +4449,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             });
           }).pipe(Effect.orDie),
         );
-
         const emitCompactionItem = Effect.fn("CodexAdapterV2.emitCompactionItem")(function* (
           context: ActiveCodexTurnContext,
           nativeItemId: string,
@@ -4572,7 +4495,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             },
           });
         });
-
         // Unloading an idle thread kills its terminals without completing
         // their command items, while the shared provider session stays alive.
         yield* client.handleServerNotification("thread/closed", (payload) =>
@@ -4601,14 +4523,12 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             }
           }).pipe(Effect.orDie, turnTerminalizationPermit.withPermits(1)),
         );
-
         yield* client.handleServerNotification("item/started", (payload) =>
           Effect.gen(function* () {
             const context = yield* awaitActiveTurn(payload.turnId);
             if (context === undefined) {
               return;
             }
-
             if (payload.item.type === "contextCompaction") {
               yield* emitCompactionItem(
                 context,
@@ -4618,7 +4538,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               );
               return;
             }
-
             if (payload.item.type === "userMessage") {
               yield* emitSubagentUserMessage(
                 context,
@@ -4627,7 +4546,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               );
               return;
             }
-
             if (payload.item.type === "subAgentActivity") {
               markSubagentUsage(context);
               yield* registerSubagentActivity({
@@ -4636,7 +4554,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               });
               return;
             }
-
             yield* completeProviderRetry(context, yield* DateTime.now);
             if (payload.item.type !== "reasoning") {
               yield* resolveItemPosition(
@@ -4645,7 +4562,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                 DateTime.makeUnsafe(payload.startedAtMs),
               );
             }
-
             if (payload.item.type === "fileChange") {
               context.fileChangeKindsByItem.set(
                 payload.item.id,
@@ -4653,7 +4569,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               );
               return;
             }
-
             if (payload.item.type === "agentMessage") {
               if (payload.item.phase !== "commentary") {
                 yield* Ref.update(finalAnswerItemIdsByTurn, (current) => {
@@ -4666,7 +4581,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               }
               return;
             }
-
             if (payload.item.type === "commandExecution") {
               if (!codexItemStatus(payload.item.status).completed) {
                 yield* trackRunningCommandItem(payload.turnId, {
@@ -4694,7 +4608,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               });
               return;
             }
-
             if (payload.item.type === "mcpToolCall" || payload.item.type === "dynamicToolCall") {
               if (!codexItemStatus(payload.item.status).completed) {
                 yield* trackRunningDynamicTool(payload.turnId, payload.item);
@@ -4712,11 +4625,9 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               });
               return;
             }
-
             if (payload.item.type !== "webSearch") {
               return;
             }
-
             const artifacts = yield* buildWebSearchArtifacts({
               context,
               item: payload.item,
@@ -4734,7 +4645,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             });
           }).pipe(Effect.orDie, turnTerminalizationPermit.withPermits(1)),
         );
-
         yield* client.handleServerNotification("item/completed", (payload) =>
           Effect.gen(function* () {
             if (payload.item.type === "contextCompaction")
@@ -4762,12 +4672,10 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               return;
             }
             const { context, settled } = resolved;
-
             if (payload.item.type === "reasoning") {
               yield* completeReasoning(payload.turnId, payload.item);
               return;
             }
-
             if (payload.item.type === "contextCompaction") {
               yield* emitCompactionItem(
                 context,
@@ -4777,13 +4685,11 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               );
               return;
             }
-
             if (payload.item.type === "userMessage") {
               if (yield* emitSubagentUserMessage(context, payload.item)) {
                 return;
               }
             }
-
             if (payload.item.type === "commandExecution") {
               // Other tools can retain the context after thread closure.
               if (context.closedCommandItemIds?.has(payload.item.id)) return;
@@ -4850,7 +4756,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               }
               return;
             }
-
             if (payload.item.type === "mcpToolCall" || payload.item.type === "dynamicToolCall") {
               yield* clearRunningDynamicTool(payload.turnId, payload.item.id);
               const appResourceUri = codexMcpAppResourceUri(payload.item);
@@ -4874,7 +4779,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               }
               return;
             }
-
             if (payload.item.type === "fileChange") {
               context.fileChangeKindsByItem.delete(payload.item.id);
               const artifacts = yield* buildFileChangeArtifacts(context, payload.item);
@@ -4893,7 +4797,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               });
               return;
             }
-
             if (payload.item.type === "webSearch") {
               const artifacts = yield* buildWebSearchArtifacts({
                 context,
@@ -4912,7 +4815,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               });
               return;
             }
-
             if (payload.item.type === "plan") {
               yield* planDeltas.complete({
                 turnId: payload.turnId,
@@ -4921,7 +4823,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               });
               return;
             }
-
             if (payload.item.type === "collabAgentToolCall") {
               if (payload.item.tool === "spawnAgent") markSubagentUsage(context);
               yield* registerSubagentThreads({
@@ -4933,7 +4834,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               });
               return;
             }
-
             if (payload.item.type === "subAgentActivity") {
               markSubagentUsage(context);
               yield* registerSubagentActivity({
@@ -4942,11 +4842,9 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               });
               return;
             }
-
             if (payload.item.type !== "agentMessage") {
               return;
             }
-
             if (payload.item.delivery === "async" && payload.item.questions?.length) {
               const artifacts = yield* buildUserInputRequestArtifacts({
                 context,
@@ -4988,7 +4886,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               });
               return;
             }
-
             const finalAnswer = payload.item.phase !== "commentary";
             if (finalAnswer) {
               yield* Ref.update(finalAnswerItemIdsByTurn, (current) => {
@@ -5035,7 +4932,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             }
           }).pipe(Effect.orDie, turnTerminalizationPermit.withPermits(1)),
         );
-
         yield* client.handleServerRequest("item/commandExecution/requestApproval", (payload) =>
           Effect.gen(function* () {
             const context = yield* awaitActiveTurn(payload.turnId);
@@ -5051,7 +4947,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                 decision: "acceptForSession",
               } satisfies CodexSchema.CommandExecutionRequestApprovalResponse;
             }
-
             const nativeRequestId = payload.approvalId ?? payload.itemId;
             const artifacts = yield* buildApprovalRequestArtifacts({
               context,
@@ -5089,7 +4984,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               threadId: artifacts.node.threadId,
               runtimeRequest: artifacts.request,
             });
-
             const resolved = yield* Deferred.await(decision).pipe(
               Effect.ensuring(
                 Ref.update(pendingRuntimeRequests, (current) => {
@@ -5107,7 +5001,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             } satisfies CodexSchema.CommandExecutionRequestApprovalResponse;
           }).pipe(Effect.orDie),
         );
-
         yield* client.handleServerRequest("item/fileChange/requestApproval", (payload) =>
           Effect.gen(function* () {
             const context = yield* awaitActiveTurn(payload.turnId);
@@ -5123,7 +5016,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                 decision: "acceptForSession",
               } satisfies CodexSchema.FileChangeRequestApprovalResponse;
             }
-
             const artifacts = yield* buildApprovalRequestArtifacts({
               context,
               nativeItemId: payload.itemId,
@@ -5162,7 +5054,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               threadId: artifacts.node.threadId,
               runtimeRequest: artifacts.request,
             });
-
             const resolved = yield* Deferred.await(decision).pipe(
               Effect.ensuring(
                 Ref.update(pendingRuntimeRequests, (current) => {
@@ -5180,7 +5071,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             } satisfies CodexSchema.FileChangeRequestApprovalResponse;
           }).pipe(Effect.orDie),
         );
-
         yield* client.handleServerRequest("item/permissions/requestApproval", (payload) =>
           Effect.gen(function* () {
             const context = yield* awaitActiveTurn(payload.turnId);
@@ -5190,7 +5080,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                 payload,
               );
             }
-
             const requestKind = providerRequestKindFromPermissions(payload.permissions);
             const artifacts = yield* buildApprovalRequestArtifacts({
               context,
@@ -5226,7 +5115,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               threadId: artifacts.node.threadId,
               runtimeRequest: artifacts.request,
             });
-
             const resolved = yield* Deferred.await(decision).pipe(
               Effect.ensuring(
                 Ref.update(pendingRuntimeRequests, (current) => {
@@ -5242,7 +5130,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             });
           }).pipe(Effect.orDie),
         );
-
         yield* client.handleServerRequest("mcpServer/elicitation/request", (payload) =>
           Effect.gen(function* () {
             if (toMcpElicitationResponse(payload, "accept").action !== "accept") {
@@ -5267,7 +5154,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                 action: "decline",
               } satisfies CodexSchema.McpServerElicitationRequestResponse;
             }
-
             const nativeRequestId =
               payload.mode === "url"
                 ? payload.elicitationId
@@ -5309,7 +5195,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               threadId: artifacts.node.threadId,
               runtimeRequest: artifacts.request,
             });
-
             const resolved = yield* Deferred.await(decision).pipe(
               Effect.ensuring(
                 Ref.update(pendingRuntimeRequests, (current) => {
@@ -5322,7 +5207,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             return toMcpElicitationResponse(payload, resolved);
           }).pipe(Effect.orDie),
         );
-
         yield* client.handleServerRequest("execCommandApproval", (payload) =>
           Effect.gen(function* () {
             const context = yield* findActiveTurnByNativeThreadId(payload.conversationId);
@@ -5338,7 +5222,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                 decision: "approved_for_session",
               } satisfies CodexSchema.ExecCommandApprovalResponse;
             }
-
             const nativeRequestId = payload.approvalId ?? payload.callId;
             const artifacts = yield* buildApprovalRequestArtifacts({
               context,
@@ -5374,7 +5257,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               threadId: artifacts.node.threadId,
               runtimeRequest: artifacts.request,
             });
-
             const resolved = yield* Deferred.await(decision).pipe(
               Effect.ensuring(
                 Ref.update(pendingRuntimeRequests, (current) => {
@@ -5392,7 +5274,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             } satisfies CodexSchema.ExecCommandApprovalResponse;
           }).pipe(Effect.orDie),
         );
-
         yield* client.handleServerRequest("applyPatchApproval", (payload) =>
           Effect.gen(function* () {
             const context = yield* findActiveTurnByNativeThreadId(payload.conversationId);
@@ -5408,7 +5289,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                 decision: "approved_for_session",
               } satisfies CodexSchema.ApplyPatchApprovalResponse;
             }
-
             const artifacts = yield* buildApprovalRequestArtifacts({
               context,
               nativeItemId: payload.callId,
@@ -5443,7 +5323,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               threadId: artifacts.node.threadId,
               runtimeRequest: artifacts.request,
             });
-
             const resolved = yield* Deferred.await(decision).pipe(
               Effect.ensuring(
                 Ref.update(pendingRuntimeRequests, (current) => {
@@ -5461,7 +5340,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             } satisfies CodexSchema.ApplyPatchApprovalResponse;
           }).pipe(Effect.orDie),
         );
-
         yield* client.handleServerRequest("item/tool/requestUserInput", (payload) =>
           Effect.gen(function* () {
             const context = yield* awaitActiveTurn(payload.turnId);
@@ -5471,7 +5349,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                 payload,
               );
             }
-
             const artifacts = yield* buildUserInputRequestArtifacts({
               context,
               nativeItemId: payload.itemId,
@@ -5504,7 +5381,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               threadId: artifacts.node.threadId,
               runtimeRequest: artifacts.request,
             });
-
             const resolved = yield* Deferred.await(answers).pipe(
               Effect.ensuring(
                 Ref.update(pendingRuntimeRequests, (current) => {
@@ -5522,7 +5398,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             } satisfies CodexSchema.ToolRequestUserInputResponse;
           }).pipe(Effect.orDie),
         );
-
         const makeRootTerminalEvent = Effect.fn("CodexAdapterV2.makeRootTerminalEvent")(
           function* (input: {
             readonly context: ActiveCodexTurnContext;
@@ -5599,7 +5474,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             };
           },
         );
-
         const emitRootTerminal = Effect.fnUntraced(function* (
           context: ActiveCodexTurnContext,
           event: CodexRootTerminalEvent,
@@ -5643,7 +5517,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             );
           }
         });
-
         const emitOrDeferRootTerminal = Effect.fn("CodexAdapterV2.emitOrDeferRootTerminal")(
           function* (input: {
             readonly context: ActiveCodexTurnContext;
@@ -5697,7 +5570,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             yield* emitRootTerminal(input.context, event);
           },
         );
-
         // A goal must not read as active once its run ends. Claiming the hold first
         // makes a turn Codex starts during the pause an orphan, which is stopped.
         const pauseUncontinuedGoal = Effect.fnUntraced(function* (
@@ -5742,7 +5614,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               ),
             );
         });
-
         /** Hold the terminalization permit and remove the goalHolds entry before calling. */
         const settleGoalHold = Effect.fnUntraced(function* (
           hold: CodexGoalHold,
@@ -5757,7 +5628,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           yield* emitRootTerminal(hold.context, { ...hold.event, status });
           yield* Deferred.succeed(hold.next, undefined);
         });
-
         const releaseGoalHold = Effect.fnUntraced(function* (
           nativeThreadId: string,
           expected?: CodexRootTerminalEvent,
@@ -5768,7 +5638,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           goalHolds.delete(nativeThreadId);
           yield* settleGoalHold(hold, "completed");
         });
-
         const flushReadyRootTerminals = Effect.fn("CodexAdapterV2.flushReadyRootTerminals")(
           function* () {
             const activeTurnContexts = Array.from((yield* Ref.get(activeTurns)).values());
@@ -5795,7 +5664,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             }
           },
         );
-
         const finalizeCodexTurn = (input: {
           readonly context: ActiveCodexTurnContext;
           readonly nativeTurnId: string;
@@ -6091,7 +5959,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               return true;
             }),
           );
-
         yield* client.handleServerNotification("turn/completed", (payload) =>
           Effect.gen(function* () {
             const context = (yield* Ref.get(activeTurns)).get(payload.turn.id);
@@ -6120,7 +5987,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             });
           }),
         );
-
         /** Settles a /goal turn that never reaches Codex. State changes reply through the goal row. */
         const completeGoalCommandTurn = Effect.fnUntraced(function* (
           turnInput: ProviderAdapter.ProviderAdapterV2TurnInput,
@@ -6208,7 +6074,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             threadDisposition: "reusable",
           });
         });
-
         const heldGoalTurn = (
           providerThread: OrchestrationV2ProviderThread,
           providerTurnId: ProviderTurnId,
@@ -6219,7 +6084,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             ? { nativeThreadId, hold }
             : undefined;
         };
-
         /** Resolve Stop after pausing; Codex can settle or continue to a newer turn while pause is in flight. */
         const resolveGoalStopTarget = Effect.fnUntraced(function* (
           turnInput: ProviderAdapter.ProviderAdapterV2InterruptInput,
@@ -6287,7 +6151,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             ),
           );
         });
-
         const startNativeTurn = Effect.fn("CodexAdapterV2.startNativeTurn")(
           function* (
             turnInput: ProviderAdapter.ProviderAdapterV2TurnInput,
@@ -6339,7 +6202,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               ),
             ),
         );
-
         /**
          * Setting or resuming a goal starts the first goal turn with this run's
          * turn configuration (approvals, sandbox, model, plan mode), since a
@@ -6461,7 +6323,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               ),
             ),
         );
-
         const mcpAppsError = (detail: string) => (cause: unknown) =>
           new ProviderAdapter.ProviderAdapterProtocolError({
             driver: CODEX_PROVIDER,
@@ -6527,7 +6388,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             Effect.mapError(mcpAppsError("Codex MCP resource read failed.")),
           ),
         };
-
         const runtime: ProviderAdapter.ProviderAdapterV2SessionRuntime = {
           instanceId: adapterOptions.instanceId,
           driver: CODEX_PROVIDER,
@@ -6778,7 +6638,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                   `Provider turn ${turnInput.providerTurnId} is not active and cannot be steered.`,
                 );
               }
-
               const codexInput = yield* toCodexInput(turnInput);
               yield* client.request("turn/steer", {
                 expectedTurnId: activeTurn.nativeTurnId,
@@ -6894,7 +6753,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                   yield* Deferred.succeed(target.completion, undefined);
                 }
               }
-
               const cleanupInterruptState = Effect.gen(function* () {
                 yield* Ref.update(turnWaiters, (current) => {
                   const updated = new Map(current);
@@ -6919,7 +6777,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                   return updated;
                 });
               });
-
               const trackedInterruptNativeTurnIds = new Set(
                 interruptTargets.map((target) => target.context.nativeTurnId),
               );
@@ -7000,7 +6857,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                   }
                 }
               });
-
               const interruptLateDescendants = Effect.gen(function* () {
                 const activeLineage = yield* turnTerminalizationPermit.withPermits(1)(
                   Effect.gen(function* () {
@@ -7049,7 +6905,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                   );
                 }
               });
-
               yield* Effect.gen(function* () {
                 for (const target of interruptTargets) {
                   const context = target.context;
@@ -7078,7 +6933,10 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                   function* (targets: typeof interruptTargets) {
                     const trackedTerminals = new Map<
                       string,
-                      { readonly nativeThreadId: string; readonly processId: string }
+                      {
+                        readonly nativeThreadId: string;
+                        readonly processId: string;
+                      }
                     >();
                     const runningItems = yield* Ref.get(runningCommandItemsByTurn);
                     for (const target of targets) {
@@ -7122,7 +6980,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                       ),
                   );
                 });
-
                 const [, completed] = yield* Effect.all(
                   [
                     terminateTrackedTerminals(interruptTargets),
@@ -7148,10 +7005,8 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                     });
                   }
                 }
-
                 yield* interruptLateDescendants;
                 yield* finalizeRemainingInterruptLineage;
-
                 const terminationResults = yield* terminateTrackedTerminals(interruptTargets);
                 const failedTermination = terminationResults.find((result) => !result.success);
                 if (failedTermination !== undefined && !failedTermination.success) {

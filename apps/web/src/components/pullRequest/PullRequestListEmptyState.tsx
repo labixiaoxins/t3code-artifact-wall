@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { RefreshIcon } from "~/components/ui/refresh-icon";
 import { PlusIcon, SearchIcon } from "lucide-react";
 
@@ -73,15 +74,15 @@ export function PullRequestListEmptyState({
       <Empty>
         <BranchMark joined={false} />
         <EmptyHeader>
-          <EmptyTitle>No projects in this workspace</EmptyTitle>
+          <EmptyTitle>{uiText("No projects in this workspace")}</EmptyTitle>
           <EmptyDescription>
-            Add a project, and the pull requests from its repository appear here.
+            {uiText("Add a project, and the pull requests from its repository appear here.")}
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
           <Button size="sm" onClick={() => openCommandPalette({ open: "add-project" })}>
             <PlusIcon className="size-3.5" />
-            Add project
+            {uiText("Add project") + " "}
           </Button>
         </EmptyContent>
       </Empty>
@@ -103,20 +104,23 @@ export function PullRequestListEmptyState({
         <BranchMark joined={false} />
         <EmptyHeader>
           <EmptyTitle>
-            Nothing matches “{query.length > 48 ? `${query.slice(0, 48)}…` : query}”
+            {uiText("Nothing matches “")}
+            {query.length > 48 ? `${query.slice(0, 48)}…` : query}”
           </EmptyTitle>
           <EmptyDescription>
-            The hosts were searched for it. Try fewer words, or search by number, author or branch.
+            {uiText(
+              "The hosts were searched for it. Try fewer words, or search by number, author or branch.",
+            )}
           </EmptyDescription>
         </EmptyHeader>
         <div className="flex flex-wrap justify-center gap-2">
           <Button size="sm" variant="outline" onClick={onClearQuery}>
             <SearchIcon className="size-3.5" />
-            Clear search
+            {uiText("Clear search") + " "}
           </Button>
           <Button size="sm" variant="outline" disabled={refreshing} onClick={onRefresh}>
             <RefreshIcon size="sm" refreshing={refreshing} />
-            {refreshing ? "Checking..." : "Check again"}
+            {refreshing ? uiText("Checking...") : uiText("Check again")}
           </Button>
         </div>
       </Empty>
@@ -127,22 +131,24 @@ export function PullRequestListEmptyState({
     <Empty>
       <BranchMark joined={false} />
       <EmptyHeader>
-        <EmptyTitle>{filtered ? "Nothing under these filters" : "No pull requests"}</EmptyTitle>
+        <EmptyTitle>
+          {filtered ? uiText("Nothing under these filters") : uiText("No pull requests")}
+        </EmptyTitle>
         <EmptyDescription>
           {filtered
-            ? "Widen the state, involvement or project filter to see more."
-            : "Pull requests from every project in this workspace appear here."}
+            ? uiText("Widen the state, involvement or project filter to see more.")
+            : uiText("Pull requests from every project in this workspace appear here.")}
         </EmptyDescription>
       </EmptyHeader>
       <div className="flex flex-wrap justify-center gap-2">
         {canLoadMore ? (
           <Button size="sm" variant="outline" disabled={loadingMore} onClick={onLoadMore}>
-            {loadingMore ? "Loading..." : "Load more pull requests"}
+            {loadingMore ? uiText("Loading...") : uiText("Load more pull requests")}
           </Button>
         ) : null}
         <Button size="sm" variant="outline" disabled={refreshing} onClick={onRefresh}>
           <RefreshIcon size="sm" refreshing={refreshing} />
-          {refreshing ? "Checking..." : "Check again"}
+          {refreshing ? uiText("Checking...") : uiText("Check again")}
         </Button>
       </div>
     </Empty>

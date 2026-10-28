@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { deriveThreadQueueWorkflowState } from "@t3tools/client-runtime/state/thread-workflows";
 import { assistantCitationsToPlainText } from "@t3tools/shared/assistantCitations";
@@ -19,7 +20,6 @@ import {
   XIcon,
 } from "lucide-react";
 import { useId, useImperativeHandle, useRef, useState, type Ref } from "react";
-
 import { useAssetUrls } from "../../assets/assetUrls";
 import { threadEnvironment } from "../../state/threads";
 import { useThreadProjection } from "../../state/entities";
@@ -28,31 +28,25 @@ import { isImageAttachment, type ChatMessage } from "../../types";
 import { cn } from "~/lib/utils";
 import { Button, InlineButton } from "../ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-
 export interface EditQueuedRunRequest {
   readonly runId: RunId;
   readonly messageId: MessageId;
   readonly text: string;
   readonly attachments: ReadonlyArray<ContractChatAttachment>;
 }
-
 interface QueuedRowThumbnail {
   readonly key: string;
   readonly name: string;
   readonly url: string | null;
 }
-
 const QUEUED_RUN_DRAG_TYPE = "application/x-t3code-queued-run";
 // A longer queue shows its first messages and a button that shows the rest.
 const QUEUE_VISIBLE_ROWS = 3;
-
 export interface QueuedRunsControlHandle {
   steerNext: (repeat: boolean) => boolean;
   editLatest: (repeat: boolean) => boolean;
 }
-
 type ThreadQueueProjection = Parameters<typeof deriveThreadQueueWorkflowState>[0];
-
 function queuedImageResources(projection: ThreadQueueProjection | undefined) {
   if (!projection) return [];
   return deriveThreadQueueWorkflowState(projection).queuedRuns.flatMap(({ attachments }) =>
@@ -63,7 +57,6 @@ function queuedImageResources(projection: ThreadQueueProjection | undefined) {
     ),
   );
 }
-
 export function QueuedRunsControl({
   ref,
   ...props
@@ -159,7 +152,6 @@ export function QueuedRunsControl({
       pending: true,
     })),
   ];
-
   const move = async (runId: RunId, beforeRunId: RunId | null) => {
     setBusyRunId(runId);
     await reorder({
@@ -168,7 +160,6 @@ export function QueuedRunsControl({
     });
     setBusyRunId(null);
   };
-
   const completeDrag = (runId: RunId, insertIndex: number | null) => {
     setDragState(null);
     dragArmedRunIdRef.current = null;
@@ -178,7 +169,6 @@ export function QueuedRunsControl({
     if (insertIndex === draggedIndex || insertIndex === draggedIndex + 1) return;
     void move(runId, queued[insertIndex]?.run.id ?? null);
   };
-
   const sendQueuedMessage = async (queuedRunId: RunId) => {
     if (!canSend || steerInFlightRef.current) return;
     steerInFlightRef.current = true;
@@ -197,7 +187,6 @@ export function QueuedRunsControl({
     steerInFlightRef.current = false;
     setBusyRunId(null);
   };
-
   useImperativeHandle(ref, () => ({
     steerNext(repeat) {
       const next = queued[0];
@@ -229,9 +218,7 @@ export function QueuedRunsControl({
       return true;
     },
   }));
-
   if (items.length === 0) return null;
-
   const remove = async (runId: RunId) => {
     setBusyRunId(runId);
     await cancel({
@@ -240,10 +227,8 @@ export function QueuedRunsControl({
     });
     setBusyRunId(null);
   };
-
   const collapsible = items.length > QUEUE_VISIBLE_ROWS;
   const visibleItems = collapsible && !showAll ? items.slice(0, QUEUE_VISIBLE_ROWS - 1) : items;
-
   return (
     <section
       aria-label={`Up next: ${items.length} queued message${items.length === 1 ? "" : "s"}`}
@@ -252,9 +237,11 @@ export function QueuedRunsControl({
     >
       <h3 className="flex min-h-5 items-center gap-1.5 px-1 text-xs font-normal text-muted-foreground [&_svg]:size-3.5">
         <ListOrderedIcon aria-hidden />
-        Up next
+        {"Up next"}
         <span className="tabular-nums" aria-live="polite">
-          · {items.length} queued
+          {"\u00B7 "}
+          {items.length}
+          {" queued"}
         </span>
       </h3>
       <ol className="flex flex-col items-end gap-3" id={queueListId}>
@@ -405,19 +392,19 @@ export function QueuedRunsControl({
                 {item.pending ? (
                   <span className="flex items-center gap-1 px-1">
                     <Clock3Icon aria-hidden className="size-3" />
-                    Saving
+                    {"Saving"}
                   </span>
                 ) : null}
                 {isEditing ? (
                   <>
-                    <span className="px-1 text-foreground">Editing in the composer</span>
+                    <span className="px-1 text-foreground">{"Editing in the composer"}</span>
                     <Button
                       size="xs"
                       variant="ghost"
-                      aria-label="Cancel editing queued message"
+                      aria-label={uiText("Cancel editing queued message")}
                       onClick={props.onCancelEdit}
                     >
-                      Cancel
+                      {uiText("Cancel")}
                     </Button>
                   </>
                 ) : (
@@ -428,7 +415,7 @@ export function QueuedRunsControl({
                         <Button
                           size="icon-xs"
                           variant="ghost-muted"
-                          aria-label="Edit queued message"
+                          aria-label={uiText("Edit queued message")}
                           disabled={
                             item.runId === null ||
                             !item.editable ||
@@ -467,12 +454,10 @@ export function QueuedRunsControl({
                           }}
                         >
                           <CornerUpRightIcon />
-                          {workflow?.canSendNow ? "Send now" : "Steer"}
+                          {workflow?.canSendNow ? "Send now" : uiText("Steer")}
                         </Button>
                       </TooltipTrigger>
-                      <TooltipPopup>
-                        {`${workflow?.canSendNow ? "Start a turn with this message" : "Send as a steer instead"}${item.serverIndex === 0 && props.steerShortcutLabel ? ` (${props.steerShortcutLabel})` : ""}`}
-                      </TooltipPopup>
+                      <TooltipPopup>{`${workflow?.canSendNow ? "Start a turn with this message" : "Send as a steer instead"}${item.serverIndex === 0 && props.steerShortcutLabel ? ` (${props.steerShortcutLabel})` : ""}`}</TooltipPopup>
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger
@@ -480,7 +465,7 @@ export function QueuedRunsControl({
                           <Button
                             size="icon-xs"
                             variant="ghost-muted"
-                            aria-label="Remove queued message"
+                            aria-label={uiText("Remove queued message")}
                             disabled={item.runId === null || busyRunId !== null}
                             onClick={() => {
                               if (item.runId !== null) void remove(item.runId);
@@ -490,7 +475,7 @@ export function QueuedRunsControl({
                       >
                         <XIcon />
                       </TooltipTrigger>
-                      <TooltipPopup>Remove from queue</TooltipPopup>
+                      <TooltipPopup>{uiText("Remove from queue")}</TooltipPopup>
                     </Tooltip>
                   </>
                 )}

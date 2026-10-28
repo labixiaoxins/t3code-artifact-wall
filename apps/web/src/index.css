@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./liquidGlass.css";
 
 @custom-variant dark (&:is(.dark, .dark *));
 @custom-variant light (&:not(.dark, .dark *));
@@ -1140,7 +1141,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --secondary: var(--color-zinc-50);
   --secondary-foreground: var(--color-zinc-800);
   --muted: var(--color-zinc-50);
-  --muted-foreground: var(--color-zinc-500);
+  --muted-foreground: var(--color-zinc-600);
   --placeholder: var(--muted-foreground);
   --secondary-label: var(--muted-foreground);
   --icon-muted: var(--muted-foreground);
@@ -1247,12 +1248,12 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --accent: var(--color-zinc-100);
   --accent-foreground: var(--color-zinc-900);
   --muted: var(--color-zinc-50);
-  --muted-foreground: var(--color-zinc-500);
+  --muted-foreground: var(--color-zinc-600);
   --border: var(--color-zinc-200);
   --input: var(--color-zinc-300);
   --sidebar: var(--color-zinc-50);
   --sidebar-foreground: var(--color-zinc-900);
-  --sidebar-muted-foreground: var(--color-zinc-500);
+  --sidebar-muted-foreground: var(--color-zinc-600);
   --sidebar-control-surface: var(--color-zinc-100);
   --sidebar-row-hover: var(--color-zinc-25);
   --sidebar-row-active: var(--color-white);
@@ -2596,5 +2597,61 @@ code {
         3rem + var(--chat-lane-inset-end, 0px) - var(--chat-timeline-gutter, 0px)
       );
     }
+  }
+}
+
+/*
+ * Phone touch targets: only on touch screens (a narrow desktop window keeps its density),
+ * inside a layer with zero-specificity selectors so explicit Tailwind sizes still win.
+ * Switches keep their track shape and inline chips stay inline with the text.
+ */
+@layer components {
+  @media (max-width: 767px) and (pointer: coarse) {
+    :where(
+      button,
+      [role="button"],
+      [role="combobox"],
+      [role="tab"],
+      [data-slot="sidebar-menu-button"]
+    ):not(:where([role="switch"], [data-slot="switch"], [data-slot^="context-chip"])) {
+      min-height: 40px;
+      min-width: 40px;
+    }
+  }
+}
+
+/* Menu items set their own min-height utility, so this one rule must sit outside the layer. */
+@media (max-width: 767px) and (pointer: coarse) {
+  [data-slot="menu-item"] {
+    min-height: 40px;
+  }
+}
+
+/* The web phone surface reuses the existing md sidebar breakpoint. */
+@media (max-width: 767px) {
+  [data-context-handoff] {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  [data-context-handoff] > span {
+    flex-basis: 100%;
+  }
+  /* Full-screen details cover workspace controls but stay below dialogs. */
+  body:has([data-thread-details-panel="mobile"]) [data-workspace-titlebar-controls],
+  body:has([data-thread-details-panel="mobile"]) [data-sidebar-control] {
+    z-index: 45;
+  }
+  [data-thread-details-panel="mobile"] {
+    min-width: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  [data-thread-details-panel="mobile"] pre {
+    overflow-wrap: anywhere;
+  }
+  [data-artifact-id] .opacity-0 {
+    opacity: 1;
+  }
+  [data-artifact-wall] [data-artifact-scroll] {
+    max-height: 45dvh;
   }
 }

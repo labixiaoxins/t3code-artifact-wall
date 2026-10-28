@@ -1,4 +1,5 @@
 import * as React from "react";
+import { manualClipboard } from "../manualClipboard";
 import * as Schema from "effect/Schema";
 import {
   COMPOSER_CONTEXT_CLIPBOARD_MIME,
@@ -88,7 +89,11 @@ function writeTextWithExecCommand(
   } finally {
     textarea.removeEventListener("copy", copy);
     textarea.remove();
-    const restoreFocus = (previouslyFocused as { focus?: unknown } | null)?.focus;
+    const restoreFocus = (
+      previouslyFocused as {
+        focus?: unknown;
+      } | null
+    )?.focus;
     if (typeof restoreFocus === "function") {
       restoreFocus.call(previouslyFocused);
     }
@@ -125,6 +130,7 @@ export async function writeTextToClipboard(
 
   if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
     if (writeTextWithExecCommand(value, extraFlavors)) return true;
+    manualClipboard.reveal(value);
     throw new ClipboardApiUnavailableError({
       target,
     });
@@ -164,6 +170,8 @@ export async function writeTextToClipboard(
     await navigator.clipboard.writeText(value);
     return true;
   } catch (cause) {
+    if (writeTextWithExecCommand(value, extraFlavors)) return true;
+    manualClipboard.reveal(value);
     throw new ClipboardWriteError({
       target,
       cause,
@@ -204,7 +212,10 @@ export function useCopyToClipboard<TContext = void>({
   onCopy?: (ctx: TContext) => void;
   onError?: (error: Error, ctx: TContext) => void;
   extraFlavors?: Readonly<Record<string, string>>;
-} = {}): { copyToClipboard: (value: string, ctx: TContext) => void; isCopied: boolean } {
+} = {}): {
+  copyToClipboard: (value: string, ctx: TContext) => void;
+  isCopied: boolean;
+} {
   const [isCopied, setIsCopied] = React.useState(false);
   const timeoutIdRef = React.useRef<NodeJS.Timeout | null>(null);
   const copyToClipboard = useStableCallback((value: string, ctx: TContext): void => {

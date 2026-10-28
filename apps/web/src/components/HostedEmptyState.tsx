@@ -1,9 +1,9 @@
+import { uiText } from "~/i18n";
 import { useAuth } from "@clerk/react";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { Link } from "@tanstack/react-router";
 import { CheckIcon } from "lucide-react";
 import { type ReactNode, useState } from "react";
-
 import { APP_DISPLAY_NAME, DESKTOP_DOWNLOAD_URL } from "~/branding";
 import { hasCloudPublicConfig } from "~/cloud/publicConfig";
 import { isElectron } from "../env";
@@ -16,12 +16,10 @@ import { Button } from "./ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "./ui/empty";
 import { SidebarInset } from "./ui/sidebar";
 import { WorkspacePageHeader } from "./WorkspacePageHeader";
-
 /** Home screen for the hosted app before any computer is added. */
 export function HostedEmptyState() {
   const cloudEnabled = hasCloudPublicConfig();
   const localEnvironmentOff = isLocalEnvironmentDisabled();
-
   return (
     <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden bg-background">
@@ -32,7 +30,6 @@ export function HostedEmptyState() {
             </span>
           </div>
         </WorkspacePageHeader>
-
         <Empty className="flex-1">
           <EmptyHeader>
             <EmptyTitle>
@@ -49,7 +46,7 @@ export function HostedEmptyState() {
           <EmptyContent>
             {localEnvironmentOff ? (
               <Button render={<Link to="/settings/connections" />} size="sm">
-                Open Environments
+                {"Open Environments"}
               </Button>
             ) : (
               <ol className="w-full space-y-4 text-left">
@@ -62,7 +59,6 @@ export function HostedEmptyState() {
     </SidebarInset>
   );
 }
-
 function T3ConnectSteps() {
   const { isLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
   const { openAuthPrompt } = useT3ConnectAuthPrompt();
@@ -79,11 +75,11 @@ function T3ConnectSteps() {
         {isSignedIn ? (
           <p className="flex items-center gap-1.5 text-muted-foreground">
             <CheckIcon className="size-4" />
-            Signed in
+            {uiText("Signed in")}
           </p>
         ) : (
           <Button size="sm" disabled={!isLoaded} onClick={openAuthPrompt}>
-            Sign in
+            {uiText("Sign in")}
           </Button>
         )}
       </SetupStep>
@@ -106,7 +102,9 @@ function T3ConnectSteps() {
                     return next;
                   }),
               }}
-              empty={<p className="text-xs text-muted-foreground">Waiting for your computer…</p>}
+              empty={
+                <p className="text-xs text-muted-foreground">{"Waiting for your computer\u2026"}</p>
+              }
             />
           </div>
         ) : null}
@@ -114,7 +112,6 @@ function T3ConnectSteps() {
     </>
   );
 }
-
 function PairingSteps() {
   return (
     <>
@@ -123,13 +120,12 @@ function PairingSteps() {
       </SetupStep>
       <SetupStep number={2}>
         <Button render={<Link to="/settings/connections" />} size="sm">
-          Add pairing link
+          {"Add pairing link"}
         </Button>
       </SetupStep>
     </>
   );
 }
-
 function SetupStep({
   number,
   children,
@@ -144,11 +140,10 @@ function SetupStep({
     </li>
   );
 }
-
 function RunOnComputer({ command }: { readonly command: string }) {
   return (
     <>
-      <p>Run on your computer:</p>
+      <p>{"Run on your computer:"}</p>
       <CommandBlock command={command} className="mt-2" />
       <a
         className="mt-2 inline-block text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
@@ -156,7 +151,7 @@ function RunOnComputer({ command }: { readonly command: string }) {
         target="_blank"
         rel="noreferrer noopener"
       >
-        Or download the desktop app
+        {"Or download the desktop app"}
       </a>
     </>
   );

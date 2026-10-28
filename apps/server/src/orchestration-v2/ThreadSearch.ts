@@ -15,6 +15,7 @@ import {
   ThreadId,
 } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
+import * as SpotlightSearch from "./SpotlightSearch.ts";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -35,7 +36,6 @@ import {
 import { threadSearchPullRequests } from "@t3tools/shared/threadPullRequests";
 import { indexedMessageCondition } from "./messageSearchIndex.ts";
 import { loadOlderSettledThreadsPage } from "./ShellStream.ts";
-
 // When the user last wrote in the thread aliased `threads`, as the clients
 // rank recency; agent notices in the user role do not count.
 const latestUserMessageAt = (sql: SqlClient.SqlClient) => sql`(
@@ -47,7 +47,6 @@ const latestUserMessageAt = (sql: SqlClient.SqlClient) => sql`(
   ORDER BY messages.updated_at DESC, messages.message_id DESC
   LIMIT 1
 )`;
-
 export class ThreadSearchError extends Schema.TaggedError<ThreadSearchError>()(
   "ThreadSearchError",
   {
@@ -59,7 +58,6 @@ export class ThreadSearchError extends Schema.TaggedError<ThreadSearchError>()(
     return `Thread search ${this.operation} failed.`;
   }
 }
-
 // Token lists bind as JSON arrays, so any number of them is one parameter.
 const TokenList = Schema.fromJsonString(Schema.Array(Schema.String));
 const SearchRequest = Schema.Struct({
@@ -80,7 +78,6 @@ const SearchRow = Schema.Struct({
   text: Schema.String,
   messageCreatedAt: Schema.NullOr(IsoDateTime),
 });
-
 const ThreadOpensRow = Schema.Struct({
   threadId: ThreadId,
   opens: Schema.NullOr(Schema.String),
@@ -89,17 +86,15 @@ const ThreadOpensRow = Schema.Struct({
 const decodeThreadOpens = Schema.decodeUnknownOption(
   Schema.fromJsonString(OrchestrationV2ThreadOpens),
 );
-
 const SNIPPET_LENGTH = 240;
 // The newest hits read per query. A common word stops here instead of reading
 // every message, so time stays flat as history grows.
 const MESSAGE_HIT_LIMIT = 2000;
 // How many of the newest index hits the filters may pass over to fill that
 // limit: a rare short word or hidden threads would otherwise read every hit.
-const MESSAGE_CANDIDATE_LIMIT = 10_000;
+const MESSAGE_CANDIDATE_LIMIT = 10000;
 // Without the index, how many of the newest messages a search scans.
-const MESSAGE_SCAN_LIMIT = 20_000;
-
+const MESSAGE_SCAN_LIMIT = 20000;
 /**
  * The SQL inputs for a message search, or null when the query has no token
  * long enough to search. Tokens of three or more characters go to the
@@ -119,16 +114,12 @@ function buildMessageSearch(
     substrings: indexed ? short : [...long, ...short],
   };
 }
-
 // A thread shows a link as its text, so in-thread find cannot reach a match
 // in the address; messages are matched as they read.
 const MARKDOWN_LINK = /!?\[([^\]\n]*)\]\([^)\s]*\)/g;
-
 // Result rows show one line, so the match must sit near the start to be seen.
 const SNIPPET_LEAD = 24;
-
 const isLowSurrogate = (code: number) => code >= 0xdc00 && code <= 0xdfff;
-
 /**
  * Up to 240 characters starting a few words before the match at `matchStart`,
  * whitespace collapsed, with ellipses where the text was cut. The client finds
@@ -151,9 +142,8 @@ export function buildSearchSnippet(text: string, matchStart: number): string {
   let end = Math.min(shown.length, SNIPPET_LENGTH - 2);
   if (isLowSurrogate(shown.charCodeAt(end))) end--;
   const cut = end < shown.length || rawEnd < text.length;
-  return `${start > 0 ? "…" : ""}${shown.slice(0, end)}${cut ? "…" : ""}`;
+  return `${start > 0 ? "\u2026" : ""}${shown.slice(0, end)}${cut ? "\u2026" : ""}`;
 }
-
 // Hidden subagent threads must be filtered before the hit limit so visible matches aren't lost.
 // Word starts and ranking follow the title rules in JS.
 // Without FTS5 trigrams, or for two-character CJK words, scan the same eligible messages.
@@ -228,13 +218,11 @@ export const messageHitsQuery = (
     ORDER BY "messageRowid" DESC
     LIMIT ${MESSAGE_HIT_LIMIT}
   `;
-
 const TitleCandidateRow = Schema.Struct({
   thread: Schema.fromJsonString(OrchestrationV2AppThreadJson),
   projectTitle: Schema.String,
   latestUserMessageAt: Schema.NullOr(IsoDateTime),
 });
-
 export interface ThreadSearchHit {
   readonly threadId: ThreadId;
   readonly projectId: ProjectId;
@@ -243,7 +231,6 @@ export interface ThreadSearchHit {
   readonly snippet?: string;
   readonly messageCreatedAt?: string | null;
 }
-
 export class ThreadSearch extends Context.Service<
   ThreadSearch,
   {
@@ -256,8 +243,15 @@ export class ThreadSearch extends Context.Service<
      * palette ranks them, then message matches for the remaining threads.
      */
     readonly searchThreads: (
-      input: OrchestrationSearchThreadsInput & { readonly projectId?: ProjectId | undefined },
-    ) => Effect.Effect<{ readonly matches: ReadonlyArray<ThreadSearchHit> }, ThreadSearchError>;
+      input: OrchestrationSearchThreadsInput & {
+        readonly projectId?: ProjectId | undefined;
+      },
+    ) => Effect.Effect<
+      {
+        readonly matches: ReadonlyArray<ThreadSearchHit>;
+      },
+      ThreadSearchError
+    >;
     /**
      * The settled threads before `before` that clients omitting older settled threads should
      * receive for a query: the best title, branch, pull request and project matches, ranked as
@@ -273,11 +267,9 @@ export class ThreadSearch extends Context.Service<
     }) => Effect.Effect<ReadonlyArray<ThreadId>, ThreadSearchError>;
   }
 >()("t3/orchestration-v2/ThreadSearch") {}
-
 // Rows a client gets per search: enough for the shown results without sending every match.
 const OLDER_SETTLED_TITLE_ROWS = 15;
 const OLDER_SETTLED_MESSAGE_ROWS = 5;
-
 // Only the fields the palette scorer reads, so an interactive search does not decode payloads.
 const OlderSettledTitleRow = Schema.Struct({
   id: ThreadId,
@@ -291,17 +283,17 @@ const OlderSettledTitleRow = Schema.Struct({
   projectTitle: Schema.String,
   latestUserMessageAt: Schema.NullOr(IsoDateTime),
 });
-
 /** @public */
 export const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
-
+  const spotlight = Option.getOrUndefined(
+    yield* Effect.serviceOption(SpotlightSearch.SpotlightSearch),
+  );
   const searchRows = SqlSchema.findAll({
     Request: SearchRequest,
     Result: SearchRow,
     execute: (request) => messageHitsQuery(sql, request),
   });
-
   const threadOpens = SqlSchema.findAll({
     Request: Schema.Struct({ threadIds: TokenList }),
     Result: ThreadOpensRow,
@@ -314,7 +306,6 @@ export const make = Effect.gen(function* () {
       WHERE threads.thread_id IN (SELECT value FROM json_each(${threadIds}))
     `,
   });
-
   const titleCandidates = SqlSchema.findAll({
     Request: Schema.Struct({ projectId: Schema.NullOr(ProjectId) }),
     Result: TitleCandidateRow,
@@ -334,7 +325,6 @@ export const make = Effect.gen(function* () {
         AND (${projectId} IS NULL OR threads.project_id = ${projectId})
     `,
   });
-
   const olderSettledTitleCandidates = SqlSchema.findAll({
     Request: Schema.Struct({
       before: Schema.String,
@@ -367,7 +357,6 @@ export const make = Effect.gen(function* () {
           OR threads.project_id IN (SELECT value FROM json_each(${projectIds})))
     `,
   });
-
   const olderSettledIds = SqlSchema.findAll({
     Request: Schema.Struct({
       before: Schema.String,
@@ -389,7 +378,6 @@ export const make = Effect.gen(function* () {
           OR threads.project_id IN (SELECT value FROM json_each(${projectIds})))
     `,
   });
-
   const read = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
     sql.withTransaction(effect).pipe(
       NodeSqliteClient.readOnly,
@@ -401,7 +389,6 @@ export const make = Effect.gen(function* () {
           }),
       ),
     );
-
   // A project scope applies before ranking, so other projects' stronger hits
   // cannot use up the limit.
   const searchMessages = Effect.fn("ThreadSearch.search")(function* (
@@ -504,10 +491,12 @@ export const make = Effect.gen(function* () {
       })),
     };
   });
-
   const search: ThreadSearch["Service"]["search"] = (input) =>
-    searchMessages({ ...input, projectId: null });
-
+    input.searchMode === "spotlight" && spotlight
+      ? spotlight
+          .search(input.query, input.limit ?? 50)
+          .pipe(Effect.mapError((cause) => new ThreadSearchError({ operation: "query", cause })))
+      : searchMessages({ ...input, projectId: null });
   const searchThreads: ThreadSearch["Service"]["searchThreads"] = Effect.fn(
     "ThreadSearch.searchThreads",
   )(function* (input) {
@@ -569,7 +558,6 @@ export const make = Effect.gen(function* () {
       matches: [...titleHits.slice(0, limit - messageSlots), ...messageHits].slice(0, limit),
     };
   });
-
   const searchOlderSettled: ThreadSearch["Service"]["searchOlderSettled"] = Effect.fn(
     "ThreadSearch.searchOlderSettled",
   )(function* ({ query, before, projectIds, environmentLabel, messageThreadIds }) {
@@ -618,12 +606,9 @@ export const make = Effect.gen(function* () {
       ...messageCandidates.filter((id) => older.has(id)).slice(0, OLDER_SETTLED_MESSAGE_ROWS),
     ];
   });
-
   return ThreadSearch.of({ search, searchThreads, searchOlderSettled });
 });
-
 export const layer = Layer.effect(ThreadSearch, make);
-
 /**
  * The client search: message hits, and with `olderSettledBefore`, the rows of the best older
  * settled matches, which shells that omit them do not hold.

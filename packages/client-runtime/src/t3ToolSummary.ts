@@ -82,7 +82,10 @@ function quantity(count: number, noun: string, plural = `${noun}s`): string {
 export function summarizeT3ToolCalls(
   action: T3McpToolSummaryAction,
   calls: ReadonlyArray<T3ToolSummaryCall>,
-): { label: string; failedCount: number } {
+): {
+  label: string;
+  failedCount: number;
+} {
   const results = calls.map((call) => {
     const result = readResult(call.output);
     return {
@@ -439,6 +442,12 @@ export function summarizeT3ToolCalls(
       break;
     case "html-render":
       label = phrase("Rendered", "render", quantity(selected.length, "HTML page"));
+      break;
+    case "artifact-list":
+      label = phrase("Listed", "list", `deliverable files ${times}`);
+      break;
+    case "artifact-check":
+      label = phrase("Recorded", "record", quantity(selected.length, "deliverable check"));
       break;
     case "capabilities":
       label = phrase("Checked", "check", `orchestration capabilities ${times}`);

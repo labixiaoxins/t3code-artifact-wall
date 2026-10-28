@@ -1,6 +1,8 @@
+import { uiText } from "~/i18n";
 import { ThreadHoverCardPopup } from "../ThreadHoverCard";
 import { AgentElapsed } from "./AgentElapsed";
 import { projectedSubagentsToRuntime } from "@t3tools/client-runtime/state/subagentRuntime";
+import { contextCompactionLabel } from "@t3tools/client-runtime/work-log/presentation";
 import type { ReactNode } from "react";
 import { useThreadShell, useProject } from "../../state/entities";
 import { SubagentTooltipContent } from "./SubagentTooltipContent";
@@ -40,7 +42,6 @@ import {
   MinusIcon,
   XIcon,
 } from "lucide-react";
-
 import { Tooltip, TooltipTrigger, TooltipPopup } from "../ui/tooltip";
 import {
   applyProviderInstanceSettings,
@@ -56,7 +57,6 @@ import { TimelineSystemDivider } from "./TimelineSystemDivider";
 import { subagentResumedSince } from "./V2LifecycleRow.logic";
 import { Button, InlineButton } from "../ui/button";
 import { T3Wordmark } from "../T3Wordmark";
-
 const LIFECYCLE_TYPES = new Set<OrchestrationV2TurnItem["type"]>([
   "run_interrupt_request",
   "run_interrupt_result",
@@ -66,13 +66,10 @@ const LIFECYCLE_TYPES = new Set<OrchestrationV2TurnItem["type"]>([
   "subagent",
   "thread_created",
 ]);
-
 export function isV2LifecycleItem(item: OrchestrationV2TurnItem): boolean {
   return LIFECYCLE_TYPES.has(item.type);
 }
-
 export type { HandoffTimelineRun } from "@t3tools/client-runtime/handoff";
-
 export function V2LifecycleRow(props: {
   readonly item: OrchestrationV2TurnItem;
   readonly environmentId: EnvironmentId;
@@ -88,11 +85,11 @@ export function V2LifecycleRow(props: {
       <div className="flex justify-end px-1 py-1" data-v2-item-type={item.type}>
         <div className="flex max-w-[80%] items-center gap-2 text-xs text-destructive">
           <span aria-hidden="true" className="font-mono">
-            ■
+            {"\u25A0"}
           </span>
-          <span className="font-medium">Interrupt requested</span>
+          <span className="font-medium">{uiText("Interrupt requested")}</span>
           <span aria-hidden="true" className="opacity-50">
-            ·
+            {"\u00B7"}
           </span>
           <span className="font-medium">{item.message}</span>
           <span className="text-3xs text-muted-foreground">
@@ -105,7 +102,7 @@ export function V2LifecycleRow(props: {
   if (item.type === "run_interrupt_result") {
     return (
       <TimelineSystemDivider
-        label="Run interrupted"
+        label={uiText("Run interrupted")}
         detail={item.message}
         tone="danger"
         icon={XIcon}
@@ -117,14 +114,10 @@ export function V2LifecycleRow(props: {
       item.beforeTokenCount === undefined && item.afterTokenCount === undefined
         ? null
         : `${item.beforeTokenCount ?? "?"} → ${item.afterTokenCount ?? "?"} tokens`;
-    const label =
-      item.status === "failed"
-        ? "Context compaction failed"
-        : item.status === "cancelled" || item.status === "interrupted"
-          ? "Context compaction stopped"
-          : item.status === "pending" || item.status === "running" || item.status === "waiting"
-            ? "Compacting context"
-            : "Context compacted";
+    const label = contextCompactionLabel({
+      status: item.status,
+      completionConfirmed: item.completionConfirmed,
+    });
     return (
       <TimelineSystemDivider label={label} detail={item.summary ?? tokenDetail} icon={MinusIcon} />
     );
@@ -142,7 +135,11 @@ export function V2LifecycleRow(props: {
     const relatedThreadId = item.source.type === "run" ? item.source.threadId : item.targetThreadId;
     return (
       <TimelineSystemDivider
-        label={item.source.type === "run" ? "Forked from conversation" : "Conversation fork"}
+        label={
+          item.source.type === "run"
+            ? uiText("Forked from conversation")
+            : uiText("Conversation fork")
+        }
         icon={GitForkIcon}
         actionLabel={item.source.type === "run" ? "Open source conversation" : "Open fork"}
         onAction={() => props.onOpenThread(relatedThreadId)}
@@ -160,15 +157,15 @@ export function V2LifecycleRow(props: {
             <MessageSquareIcon className="size-4 text-secondary-label" aria-hidden />
           </span>
           <span className="min-w-0 flex-1 truncate text-sm font-medium">
-            {item.title ?? "Created thread"}
+            {item.title ?? uiText("Created thread")}
           </span>
           <Button
             size="xs"
             variant="outline"
-            aria-label={`Open ${item.title ?? "created thread"}`}
+            aria-label={uiText("Open {0}", { "0": item.title ?? "created thread" })}
             onClick={() => props.onOpenThread(item.targetThreadId)}
           >
-            Open chat
+            {uiText("Open chat")}
           </Button>
         </div>
       );
@@ -177,13 +174,18 @@ export function V2LifecycleRow(props: {
       <WorkLogRow
         data-v2-item-type={item.type}
         icon={<T3Wordmark className="size-4 text-icon-muted" aria-hidden />}
-        label={<>Created thread{item.title ? ` · ${item.title}` : ""}</>}
+        label={
+          <>
+            {uiText("Created thread")}
+            {item.title ? ` · ${item.title}` : ""}
+          </>
+        }
         trailing={
           <InlineButton
-            aria-label={`Open ${item.title ?? "created thread"}`}
+            aria-label={uiText("Open {0}", { "0": item.title ?? "created thread" })}
             onClick={() => props.onOpenThread(item.targetThreadId)}
           >
-            Open chat
+            {uiText("Open chat")}
           </InlineButton>
         }
       />
@@ -210,34 +212,32 @@ export function V2LifecycleRow(props: {
   }
   return null;
 }
-
 const STATUS_VISUALS: Record<
   OrchestrationV2TurnItem["status"],
-  { dotClass: string; label: string }
+  {
+    dotClass: string;
+    label: string;
+  }
 > = {
-  pending: { dotClass: "bg-info", label: "Queued" },
-  running: { dotClass: "bg-info", label: "Running" },
-  waiting: { dotClass: "bg-info", label: "Waiting" },
-  idle: { dotClass: "bg-muted-foreground/50", label: "Idle · resumable" },
-  completed: { dotClass: "bg-success", label: "Completed" },
-  failed: { dotClass: "bg-destructive", label: "Failed" },
-  cancelled: { dotClass: "bg-muted-foreground/60", label: "Stopped" },
-  interrupted: { dotClass: "bg-muted-foreground/60", label: "Stopped" },
+  pending: { dotClass: "bg-info", label: uiText("Queued") },
+  running: { dotClass: "bg-info", label: uiText("Running") },
+  waiting: { dotClass: "bg-info", label: uiText("Waiting") },
+  idle: { dotClass: "bg-muted-foreground/50", label: uiText("Idle · resumable") },
+  completed: { dotClass: "bg-success", label: uiText("Completed") },
+  failed: { dotClass: "bg-destructive", label: uiText("Failed") },
+  cancelled: { dotClass: "bg-muted-foreground/60", label: uiText("Stopped") },
+  interrupted: { dotClass: "bg-muted-foreground/60", label: uiText("Stopped") },
 };
-
 function subagentStatusVisual(status: OrchestrationV2TurnItem["status"]) {
   return STATUS_VISUALS[status];
 }
-
 const SETTLED_SUBAGENT_STATUSES = new Set<OrchestrationV2TurnItem["status"]>([
   "completed",
   "failed",
   "cancelled",
   "interrupted",
 ]);
-
 const GENERIC_CHILD_END = /^Child task ended with status\b/i;
-
 function plainDetail(text: string): string {
   return text
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
@@ -246,15 +246,12 @@ function plainDetail(text: string): string {
     .replace(/\s+/g, " ")
     .trim();
 }
-
 function isoOrNull(value: DateTime.Utc | null | undefined): string | null {
   return value ? DateTime.formatIso(value) : null;
 }
-
 export function SubagentElapsed({ agent }: { agent: Parameters<typeof AgentElapsed>[0]["agent"] }) {
   return <AgentElapsed agent={agent} />;
 }
-
 function SubagentAvatar({
   driver,
   displayName,
@@ -298,7 +295,6 @@ function SubagentAvatar({
     </span>
   );
 }
-
 // Select strings; status pushes replace providers even when avatar fields are unchanged.
 export function EnvironmentSubagentAvatar({
   environmentId,
@@ -323,7 +319,6 @@ export function EnvironmentSubagentAvatar({
   );
   return <SubagentAvatar {...props} displayName={displayName} iconUrl={iconUrl} />;
 }
-
 const NOTIFICATION_OUTCOME_STATUS: Record<
   OrchestrationV2Notification["outcome"],
   OrchestrationV2TurnItem["status"] | null
@@ -334,7 +329,6 @@ const NOTIFICATION_OUTCOME_STATUS: Record<
   updated: null,
   unknown: null,
 };
-
 const NOTIFICATION_OUTCOME_LABEL: Record<OrchestrationV2Notification["outcome"], string> = {
   completed: "Finished",
   failed: "Failed",
@@ -342,7 +336,6 @@ const NOTIFICATION_OUTCOME_LABEL: Record<OrchestrationV2Notification["outcome"],
   updated: "Updated",
   unknown: "Finished",
 };
-
 export function SubagentNotificationLink(props: {
   readonly parentRef: ScopedThreadRef;
   readonly childThreadId: ThreadId;
@@ -389,7 +382,6 @@ export function SubagentNotificationLink(props: {
     />
   );
 }
-
 function SubagentTimelineLink(props: {
   readonly parentRef: ScopedThreadRef;
   readonly subagentId: NodeId;
@@ -488,7 +480,7 @@ function SubagentTimelineLink(props: {
             <button
               type="button"
               data-v2-item-type="subagent"
-              aria-label={`Open ${props.title}`}
+              aria-label={uiText("Open {0}", { "0": props.title })}
               aria-description={statusLabel}
               onClick={() => props.onOpenThread(threadId)}
               className={cn(
@@ -515,7 +507,6 @@ function SubagentTimelineLink(props: {
     </Tooltip>
   );
 }
-
 function SubagentTimelineTooltip(
   props: Parameters<typeof SubagentTimelineLink>[0] & {
     model: string | null;
@@ -556,7 +547,6 @@ function SubagentTimelineTooltip(
     />
   );
 }
-
 function EnvironmentHandoffRow({
   environmentId,
   ...props
@@ -569,7 +559,6 @@ function EnvironmentHandoffRow({
     useAtomValue(serverEnvironment.providersValueAtom(environmentId)) ?? EMPTY_SERVER_PROVIDERS;
   return <HandoffRow {...props} environmentId={environmentId} providers={providers} />;
 }
-
 export function HandoffRow(props: {
   readonly environmentId: EnvironmentId;
   readonly endpoints: HandoffEndpoints;
@@ -583,7 +572,7 @@ export function HandoffRow(props: {
   const entries = settings ? applyProviderInstanceSettings(derived, settings, null) : derived;
   return (
     <TimelineSystemDivider
-      label={props.pending ? "Context handoff pending" : "Context handoff"}
+      label={props.pending ? uiText("Context handoff pending") : uiText("Context handoff")}
       icon={ArrowRightLeftIcon}
       showDetailSeparator={false}
       tone={props.failed ? "danger" : "neutral"}
@@ -601,7 +590,7 @@ export function HandoffRow(props: {
               />
               {index < fromEndpoints.length - 1 ? (
                 <span aria-hidden="true" className="ml-0.5">
-                  ,
+                  {","}
                 </span>
               ) : null}
             </span>
@@ -615,7 +604,6 @@ export function HandoffRow(props: {
     />
   );
 }
-
 function HandoffEndpoint(props: {
   readonly entries: ReadonlyArray<ProviderInstanceEntry>;
   readonly instanceId: ProviderInstanceId;
@@ -666,7 +654,9 @@ function HandoffEndpoint(props: {
         }
       />
       <TooltipPopup>
-        {entry?.displayName ?? props.instanceId} · {label}
+        {entry?.displayName ?? props.instanceId}
+        {" \u00B7 "}
+        {label}
       </TooltipPopup>
     </Tooltip>
   );

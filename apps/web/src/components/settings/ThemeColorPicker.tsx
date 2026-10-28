@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { memo, useEffect, useState } from "react";
 import { isThemeColor, themeColorToHex, type ThemeColorRole } from "../../themePalette";
 import { cn } from "../../lib/utils";
@@ -27,22 +28,18 @@ export function getThemeRoleLabel(role: ThemeColorRole): string {
   if (label) return label;
   return role.replace(/([A-Z])/g, " $1").replace(/^./, (character) => character.toUpperCase());
 }
-
 function themePickerAlphaSuffix(value: string): string {
   const normalized = themeColorToHex(value) ?? "";
   const alpha = normalized.length === 9 ? normalized.slice(7) : "";
   return alpha === "ff" ? "" : alpha;
 }
-
 function normalizeThemePickerColor(value: string): string {
   return (themeColorToHex(value) ?? "#000000").slice(0, 7);
 }
-
 function themeHexToRgb(hex: string) {
   const numeric = Number.parseInt(normalizeThemePickerColor(hex).slice(1), 16);
   return [numeric >> 16, (numeric >> 8) & 255, numeric & 255] as const;
 }
-
 function themeRgbToHex(value: string): string | null {
   const normalized = value
     .trim()
@@ -58,20 +55,20 @@ function themeRgbToHex(value: string): string | null {
   ) {
     return null;
   }
-
   return `#${channels.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
 }
-
 function themeRgbValue(hex: string) {
   return themeHexToRgb(hex).join(", ");
 }
-
 // Local state updates immediately for a smooth thumb; the parent commit
 // (which can regenerate a whole guided palette) is batched to one call per
 // animation frame. The popover flushes it on close, the drag surfaces on
 // release, and the picker on unmount, so the final frame is never lost.
 function createFrameCommitter() {
-  let pending: { readonly color: string; readonly commit: (color: string) => void } | null = null;
+  let pending: {
+    readonly color: string;
+    readonly commit: (color: string) => void;
+  } | null = null;
   let frame: number | null = null;
   const flush = () => {
     if (frame !== null) {
@@ -94,9 +91,7 @@ function createFrameCommitter() {
     flush,
   };
 }
-
 type FrameCommitter = ReturnType<typeof createFrameCommitter>;
-
 function ThemeColorPickerPanel({
   label,
   value,
@@ -117,7 +112,6 @@ function ThemeColorPickerPanel({
   const [syncedValue, setSyncedValue] = useState(normalizedValue);
   const currentColor = hsvToHex(hsv.h, hsv.s, hsv.v);
   const currentRgb = themeRgbValue(currentColor);
-
   if (syncedValue !== normalizedValue) {
     setSyncedValue(normalizedValue);
     // Ignore readability-adjusted echoes while typing so drafts keep keystrokes; hsv still updates the
@@ -129,7 +123,6 @@ function ThemeColorPickerPanel({
     // Preserve hue/saturation for echoed changes; hex-to-HSV loses them for greys, white, and black.
     if (currentColor !== normalizedValue) setHsv(hexToHsv(normalizedValue));
   }
-
   const commitHsv = (nextHsv: HsvColor) => {
     setHsv(nextHsv);
     const nextColor = hsvToHex(nextHsv.h, nextHsv.s, nextHsv.v);
@@ -137,7 +130,6 @@ function ThemeColorPickerPanel({
     setRgbDraft(themeRgbValue(nextColor));
     committer.schedule(nextColor + alphaSuffix, onChange);
   };
-
   const handleHexChange = (nextValue: string) => {
     setHexDraft(nextValue);
     if (!/^#[0-9a-f]{6}$/i.test(nextValue)) return;
@@ -146,7 +138,6 @@ function ThemeColorPickerPanel({
     setRgbDraft(themeRgbValue(nextValue));
     onChange(nextValue.toLowerCase());
   };
-
   const handleRgbChange = (nextValue: string) => {
     setRgbDraft(nextValue);
     const nextColor = themeRgbToHex(nextValue);
@@ -155,13 +146,12 @@ function ThemeColorPickerPanel({
     setHexDraft(nextColor);
     onChange(nextColor + alphaSuffix);
   };
-
   return (
     <div className="w-72 bg-popover">
       <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
         <div className="min-w-0">
           <p className="truncate text-xs font-semibold text-foreground">{label}</p>
-          <p className="text-2xs text-muted-foreground">Choose a color</p>
+          <p className="text-2xs text-muted-foreground">{uiText("Choose a color")}</p>
         </div>
         <span
           className="size-7 shrink-0 rounded-full shadow-sm"
@@ -176,7 +166,7 @@ function ThemeColorPickerPanel({
           onInteractionEnd={committer.flush}
         />
         <ColorHueSlider
-          label={`${label} hue`}
+          label={uiText("{0} hue", { "0": label })}
           value={hsv.h}
           onChange={(h) => commitHsv({ ...hsv, h })}
           onInteractionEnd={committer.flush}
@@ -184,7 +174,7 @@ function ThemeColorPickerPanel({
         <div className="grid grid-cols-[1fr_1.2fr] gap-2">
           <label className="grid min-w-0 gap-1">
             <span className="px-1 text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
-              HEX
+              {"HEX"}
             </span>
             <span className="flex min-w-0 items-center gap-2 rounded-lg border border-input bg-background px-2 focus-within:border-ring">
               <span
@@ -192,7 +182,7 @@ function ThemeColorPickerPanel({
                 style={{ backgroundColor: currentColor }}
               />
               <input
-                aria-label={`${label} picker hex value`}
+                aria-label={uiText("{0} picker hex value", { "0": label })}
                 className="h-8 min-w-0 flex-1 bg-transparent font-mono text-xs text-foreground outline-none"
                 onBlur={() => {
                   setIsEditingText(false);
@@ -210,11 +200,11 @@ function ThemeColorPickerPanel({
           </label>
           <label className="grid min-w-0 gap-1">
             <span className="px-1 text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
-              RGB
+              {"RGB"}
             </span>
             <span className="flex min-w-0 items-center rounded-lg border border-input bg-background px-2 focus-within:border-ring">
               <input
-                aria-label={`${label} picker RGB value`}
+                aria-label={uiText("{0} picker RGB value", { "0": label })}
                 className="h-8 min-w-0 flex-1 bg-transparent font-mono text-xs text-foreground outline-none"
                 onBlur={() => {
                   setIsEditingText(false);
@@ -235,7 +225,6 @@ function ThemeColorPickerPanel({
     </div>
   );
 }
-
 function ThemeColorPicker({
   label,
   value,
@@ -262,7 +251,7 @@ function ThemeColorPicker({
             <PopoverTrigger
               render={
                 <button
-                  aria-label={`Choose ${label} color`}
+                  aria-label={uiText("Choose {0} color", { "0": label })}
                   className="relative flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border border-foreground/30 transition-transform hover:scale-105 focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-ring"
                   onFocus={onInteract}
                   onPointerDown={onInteract}
@@ -277,7 +266,7 @@ function ThemeColorPicker({
             />
           }
         />
-        <TooltipPopup side="top">{`Choose ${label} color`}</TooltipPopup>
+        <TooltipPopup side="top">{uiText("Choose {0} color", { "0": label })}</TooltipPopup>
       </Tooltip>
       <PopoverPopup
         align="end"
@@ -296,7 +285,6 @@ function ThemeColorPicker({
     </Popover>
   );
 }
-
 export const ThemeColorField = memo(function ThemeColorField({
   role,
   value,
@@ -320,7 +308,6 @@ export const ThemeColorField = memo(function ThemeColorField({
   const editorValue = value.trim().toLowerCase().startsWith("oklch(")
     ? (themeColorToHex(value) ?? value)
     : value;
-
   return (
     <div
       className={cn(
@@ -333,7 +320,7 @@ export const ThemeColorField = memo(function ThemeColorField({
         <TooltipTrigger
           render={
             <button
-              aria-label={`${selected ? "Hide" : "Show"} ${label} usage`}
+              aria-label={uiText("{0} {1} usage", { "0": selected ? "Hide" : "Show", "1": label })}
               aria-pressed={selected}
               className="flex min-w-0 flex-1 cursor-pointer items-center rounded-md text-left text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
               onClick={() => onToggleSelected?.(role)}
@@ -343,7 +330,9 @@ export const ThemeColorField = memo(function ThemeColorField({
             </button>
           }
         />
-        <TooltipPopup side="top">{`${selected ? "Hide" : "Show"} where ${label} is used`}</TooltipPopup>
+        <TooltipPopup side="top">
+          {uiText("{0} where {1} is used", { "0": selected ? "Hide" : "Show", "1": label })}
+        </TooltipPopup>
       </Tooltip>
       <div className="ml-auto flex shrink-0 items-center gap-2">
         <ThemeColorPicker
@@ -354,7 +343,7 @@ export const ThemeColorField = memo(function ThemeColorField({
         />
         <Input
           aria-invalid={!isColorValue}
-          aria-label={`${label} hex value`}
+          aria-label={uiText("{0} hex value", { "0": label })}
           className="w-28 shrink-0"
           font="mono"
           id={`${role}-hex`}

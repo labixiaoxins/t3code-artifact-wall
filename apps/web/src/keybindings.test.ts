@@ -423,6 +423,40 @@ describe("chat/editor shortcuts", () => {
       );
     }
   });
+  it("opens and closes the thread details panel with mod+alt+i", () => {
+    for (const platform of ["MacIntel", "Win32"]) {
+      const input = event({
+        key: "i",
+        ...(platform === "MacIntel" ? { metaKey: true } : { ctrlKey: true }),
+        altKey: true,
+      });
+      assert.strictEqual(
+        resolveShortcutCommand(input, DEFAULT_RESOLVED_KEYBINDINGS, {
+          platform,
+          context: { terminalFocus: false },
+        }),
+        "threadPanel.toggle",
+      );
+    }
+    // On macOS, Option+I types "ˆ"; the physical key still matches.
+    assert.strictEqual(
+      resolveShortcutCommand(
+        event({ key: "ˆ", code: "KeyI", metaKey: true, altKey: true }),
+        DEFAULT_RESOLVED_KEYBINDINGS,
+        { platform: "MacIntel", context: { terminalFocus: false } },
+      ),
+      "threadPanel.toggle",
+    );
+    // mod+shift+i stays the inbox shortcut; the new chord does not shadow it.
+    assert.strictEqual(
+      resolveShortcutCommand(
+        event({ key: "i", metaKey: true, shiftKey: true }),
+        DEFAULT_RESOLVED_KEYBINDINGS,
+        { platform: "MacIntel", context: { terminalFocus: false } },
+      ),
+      "inbox.next",
+    );
+  });
 
   it("preserves a user-configured thread panel shortcut instead of its default", () => {
     const bindings = mergeWithDefaultKeybindings(
@@ -892,5 +926,70 @@ describe("Usage shortcuts", () => {
         platform: "Linux",
       }),
     );
+  });
+});
+describe("inbox.next", () => {
+  it("uses mod+shift+i on macOS and Windows and preserves terminal.toggle on mod+j", () => {
+    for (const [platform, modifier] of [
+      ["MacIntel", { metaKey: true }],
+      ["Win32", { ctrlKey: true }],
+    ] as const) {
+      for (const context of [{}, { editableFocus: true }]) {
+        assert.strictEqual(
+          resolveShortcutCommand(
+            event({ key: "i", shiftKey: true, ...modifier }),
+            DEFAULT_RESOLVED_KEYBINDINGS,
+            { platform, context },
+          ),
+          "inbox.next",
+        );
+      }
+      assert.isNull(
+        resolveShortcutCommand(event({ key: "i", ...modifier }), DEFAULT_RESOLVED_KEYBINDINGS, {
+          platform,
+        }),
+      );
+      assert.strictEqual(
+        resolveShortcutCommand(event({ key: "j", ...modifier }), DEFAULT_RESOLVED_KEYBINDINGS, {
+          platform,
+        }),
+        "terminal.toggle",
+      );
+    }
+    assert.strictEqual(
+      shortcutLabelForCommand(DEFAULT_RESOLVED_KEYBINDINGS, "inbox.next", "MacIntel"),
+      "⇧⌘I",
+    );
+  });
+  it("yields mod+shift+i to terminal focus, including an editable terminal target", () => {
+    for (const context of [{ terminalFocus: true }, { terminalFocus: true, editableFocus: true }]) {
+      assert.isNull(
+        resolveShortcutCommand(
+          event({ key: "i", metaKey: true, shiftKey: true }),
+          DEFAULT_RESOLVED_KEYBINDINGS,
+          { platform: "MacIntel", context },
+        ),
+      );
+    }
+  });
+  it("honors a user override and removes the former default shortcut", () => {
+    const bindings = mergeWithDefaultKeybindings(
+      compileResolvedKeybindingsConfig([
+        { key: "mod+alt+i", command: "inbox.next", when: "!terminalFocus" },
+      ]),
+    );
+    assert.strictEqual(
+      resolveShortcutCommand(event({ key: "i", metaKey: true, altKey: true }), bindings, {
+        platform: "MacIntel",
+        context: { editableFocus: true },
+      }),
+      "inbox.next",
+    );
+    assert.isNull(
+      resolveShortcutCommand(event({ key: "i", metaKey: true, shiftKey: true }), bindings, {
+        platform: "MacIntel",
+      }),
+    );
+    assert.strictEqual(shortcutLabelForCommand(bindings, "inbox.next", "MacIntel"), "⌥⌘I");
   });
 });

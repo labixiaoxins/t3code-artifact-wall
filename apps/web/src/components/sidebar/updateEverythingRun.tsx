@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useAtomValue } from "@effect/atom-react";
 import { EnvironmentId } from "@t3tools/contracts";
 import * as Option from "effect/Option";
@@ -326,8 +327,11 @@ export function startDesktopUpdateLaunchNotice(): () => void {
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: "Update did not apply",
-          description: `T3 Code is still on ${APP_VERSION}. Install ${notAppliedVersion} again from the update button.`,
+        title: uiText("Update did not apply"),
+        description: uiText("T3 Code is still on {0}. Install {1} again from the update button.", {
+          "0": APP_VERSION,
+          "1": notAppliedVersion,
+        }),
         }),
       );
     },

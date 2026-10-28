@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
@@ -158,47 +159,47 @@ export function ProviderAuthenticationSection({
 
   return (
     <SettingsRow
-      title="Account"
+      title={uiText("Account")}
       description={
         signedIn && !active && provider.auth.email?.trim() ? (
           <span>
-            Signed in as{" "}
+            {uiText("Signed in as")}
             <RedactedSensitiveText
               key={provider.auth.email}
               value={provider.auth.email}
-              ariaLabel="Toggle account email visibility"
-              revealTooltip="Click to reveal email"
-              hideTooltip="Click to hide email"
-              className="max-w-full truncate"
+              ariaLabel={"Toggle account email visibility"}
+              revealTooltip={"Click to reveal email"}
+              hideTooltip={"Click to hide email"}
+              className={"max-w-full truncate"}
             />
           </span>
         ) : (
-          <span role="status">{accountDescription}</span>
+          <span role={"status"}>{accountDescription}</span>
         )
       }
       status={
         statusMessage ? (
-          <p role="status" className="[overflow-wrap:anywhere]">
+          <p role={"status"} className={"[overflow-wrap:anywhere]"}>
             {statusMessage}
           </p>
         ) : undefined
       }
       control={
-        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+        <div className={"flex min-w-0 flex-wrap items-center gap-1.5"}>
           {!active && (auth?.methods?.length ?? 0) > 1 ? (
             <Select
               value={auth?.methods?.some((method) => method.id === methodId) ? methodId : ""}
               disabled={disabled}
               onValueChange={(value) => setMethodId(value ?? "")}
             >
-              <SelectTrigger size="sm" aria-label="Sign-in method" className="w-44">
+              <SelectTrigger size={"sm"} aria-label={uiText("Sign-in method")} className={"w-44"}>
                 <SelectValue>
                   {auth?.methods?.find((method) => method.id === methodId)?.name ??
-                    "Provider default"}
+                    uiText("Provider default")}
                 </SelectValue>
               </SelectTrigger>
               <SelectPopup>
-                <SelectItem value="">Provider default</SelectItem>
+                <SelectItem value={""}>{uiText("Provider default")}</SelectItem>
                 {auth?.methods?.map((method) => (
                   <SelectItem key={method.id} value={method.id}>
                     {method.name}
@@ -210,20 +211,20 @@ export function ProviderAuthenticationSection({
           {url ? (
             <>
               <Button
-                size="sm"
-                variant="outline"
+                size={"sm"}
+                variant={"outline"}
                 disabled={disabled}
                 onClick={() => void openBrowser()}
               >
-                Open browser
+                {uiText("Open browser")}
               </Button>
               <Tooltip>
                 <TooltipTrigger
                   render={
                     <Button
-                      aria-label="Copy sign-in link"
-                      size="icon-sm"
-                      variant="ghost-muted"
+                      aria-label={uiText("Copy sign-in link")}
+                      size={"icon-sm"}
+                      variant={"ghost-muted"}
                       disabled={disabled}
                       onClick={() => {
                         // Copy during the click to retain clipboard activation; consent must still be
@@ -240,26 +241,26 @@ export function ProviderAuthenticationSection({
                     </Button>
                   }
                 />
-                <TooltipPopup>Copy sign-in link</TooltipPopup>
+                <TooltipPopup>{uiText("Copy sign-in link")}</TooltipPopup>
               </Tooltip>
             </>
           ) : null}
           <>
             {needsExternalSetup && provider.setup?.documentationUrl ? (
               <Button
-                size="sm"
-                variant="outline"
+                size={"sm"}
+                variant={"outline"}
                 render={
-                  <a href={provider.setup.documentationUrl} target="_blank" rel="noreferrer" />
+                  <a href={provider.setup.documentationUrl} target={"_blank"} rel={"noreferrer"} />
                 }
               >
-                Open docs
+                {uiText("Open docs")}
               </Button>
             ) : active && auth?.flowId ? (
               <Button
-                size="sm"
-                variant="ghost-muted"
-                aria-label="Cancel sign-in"
+                size={"sm"}
+                variant={"ghost-muted"}
+                aria-label={uiText("Cancel sign-in")}
                 disabled={disabled}
                 onClick={() =>
                   void run(() =>
@@ -267,12 +268,12 @@ export function ProviderAuthenticationSection({
                   )
                 }
               >
-                Cancel
+                {uiText("Cancel")}
               </Button>
             ) : !active && !needsExternalSetup && provider.setup?.canAuthenticate !== false ? (
               <Button
-                size="sm"
-                variant="outline"
+                size={"sm"}
+                variant={"outline"}
                 disabled={disabled || !provider.enabled || !provider.installed || !auth}
                 onClick={() =>
                   void run(() =>
@@ -289,16 +290,16 @@ export function ProviderAuthenticationSection({
                 }
               >
                 {signedIn
-                  ? "Change account"
+                  ? uiText("Change account")
                   : auth?.phase === "failed" || auth?.phase === "cancelled"
-                    ? "Retry sign-in"
-                    : "Sign in"}
+                    ? uiText("Retry sign-in")
+                    : uiText("Sign in")}
               </Button>
             ) : null}
             {!active && signedIn && (provider.auth.canLogout ?? provider.setup?.canAuthenticate) ? (
               <Button
-                size="sm"
-                variant="ghost"
+                size={"sm"}
+                variant={"ghost"}
                 disabled={disabled || !auth}
                 onClick={() => {
                   void ensureLocalApi()
@@ -310,7 +311,7 @@ export function ProviderAuthenticationSection({
                     });
                 }}
               >
-                Sign out
+                {uiText("Sign out")}
               </Button>
             ) : null}
           </>
@@ -325,17 +326,19 @@ export function ProviderAuthenticationSection({
       query.error ? (
         <>
           {interaction?.type === "deviceCode" ? (
-            <p className="py-2 text-sm text-muted-foreground">
-              Enter code{" "}
-              <code className="select-all font-mono text-foreground">{interaction.userCode}</code>{" "}
-              in your browser.
+            <p className={"py-2 text-sm text-muted-foreground"}>
+              {uiText("Enter code")}
+              <code className={"select-all font-mono text-foreground"}>{interaction.userCode}</code>
+              {uiText("in your browser.")}
             </p>
           ) : null}
           {interaction?.type === "terminal" ? (
-            <div className="py-2">
+            <div className={"py-2"}>
               <Suspense
                 fallback={
-                  <p className="text-xs text-muted-foreground">Loading sign-in terminal…</p>
+                  <p className={"text-xs text-muted-foreground"}>
+                    {uiText("Loading sign-in terminal…")}
+                  </p>
                 }
               >
                 <ProviderAuthTerminal
@@ -347,7 +350,7 @@ export function ProviderAuthenticationSection({
                     for (
                       let offset = 0;
                       offset < Math.max(1, response.data.length);
-                      offset += 4_096
+                      offset += 4096
                     ) {
                       terminalQueue.current.push({
                         instanceId,
@@ -355,7 +358,7 @@ export function ProviderAuthenticationSection({
                         interactionId: interaction.id,
                         response: {
                           ...response,
-                          data: response.data.slice(offset, offset + 4_096),
+                          data: response.data.slice(offset, offset + 4096),
                         },
                       });
                     }
@@ -387,7 +390,7 @@ export function ProviderAuthenticationSection({
           ) : null}
           {interaction?.type === "credentials" ? (
             <form
-              className="grid gap-2 py-2 text-sm leading-normal"
+              className={"grid gap-2 py-2 text-sm leading-normal"}
               onSubmit={(event) => {
                 event.preventDefault();
                 void send({ type: "credentials", values }).then((sent) => {
@@ -396,33 +399,33 @@ export function ProviderAuthenticationSection({
               }}
             >
               {interaction.fields.map((field) => (
-                <label key={field.name} className="grid gap-1">
+                <label key={field.name} className={"grid gap-1"}>
                   {field.label}
                   <Input
-                    size="sm"
+                    size={"sm"}
                     type={field.secret ? "password" : "text"}
-                    autoComplete="off"
+                    autoComplete={"off"}
                     value={values[field.name] ?? ""}
                     disabled={disabled}
-                    maxLength={16_384}
+                    maxLength={16384}
                     onChange={(event) => updateDraft(field.name, event.target.value)}
                   />
                 </label>
               ))}
               <Button
-                type="submit"
-                size="sm"
-                variant="outline"
-                className="w-fit"
+                type={"submit"}
+                size={"sm"}
+                variant={"outline"}
+                className={"w-fit"}
                 disabled={disabled}
               >
-                Connect
+                {uiText("Connect")}
               </Button>
             </form>
           ) : null}
           {url && (interaction?.type === "browser" ? interaction.acceptsCallback : !interaction) ? (
             <form
-              className="grid gap-2 py-2 text-sm leading-normal"
+              className={"grid gap-2 py-2 text-sm leading-normal"}
               onSubmit={(event) => {
                 event.preventDefault();
                 if (!auth?.flowId || !values.callback?.trim()) return;
@@ -436,32 +439,32 @@ export function ProviderAuthenticationSection({
                 });
               }}
             >
-              <label className="grid gap-1">
-                If the final localhost page does not load, paste its full URL here.
+              <label className={"grid gap-1"}>
+                {uiText("If the final localhost page does not load, paste its full URL here.")}
                 <Input
-                  size="sm"
+                  size={"sm"}
                   id={`provider-callback-${instanceId}`}
-                  type="url"
-                  autoComplete="off"
+                  type={"url"}
+                  autoComplete={"off"}
                   value={values.callback ?? ""}
                   disabled={disabled}
-                  maxLength={16_384}
+                  maxLength={16384}
                   onChange={(event) => updateDraft("callback", event.target.value)}
                 />
               </label>
               <Button
-                type="submit"
-                size="sm"
-                variant="outline"
-                className="w-fit"
+                type={"submit"}
+                size={"sm"}
+                variant={"outline"}
+                className={"w-fit"}
                 disabled={disabled || !values.callback?.trim()}
               >
-                Continue
+                {uiText("Continue")}
               </Button>
             </form>
           ) : null}
           {error || query.error ? (
-            <p role="alert" className="py-2 text-xs text-destructive">
+            <p role={"alert"} className={"py-2 text-xs text-destructive"}>
               {error ?? query.error}
             </p>
           ) : null}

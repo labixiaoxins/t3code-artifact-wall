@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   buildTraitsTriggerDisplay,
   getDescriptorStringValue,
@@ -24,7 +25,7 @@ import {
   normalizeModelSlug,
 } from "@t3tools/shared/model";
 import { memo } from "react";
-import { BrainIcon, GaugeIcon } from "lucide-react";
+import { GaugeIcon } from "lucide-react";
 import {
   Menu,
   MenuGroup,
@@ -47,34 +48,28 @@ import {
 } from "./ComposerControl";
 import { useComposerMenuProps } from "./composerEventScope";
 import { useComposerMenuState } from "./useComposerMenuState";
-
 type ProviderOptions = ReadonlyArray<ProviderOptionSelection>;
-
 /**
  * All the picker reads from the prompt while rendering. Passing this instead of
  * the prompt keeps the picker from re-rendering on every keystroke.
  */
 export type PromptUltrathink = "none" | "prefix" | "body";
-
 export function readPromptUltrathink(prompt: string): PromptUltrathink {
   if (!isClaudeUltrathinkPrompt(prompt)) return "none";
   return isClaudeUltrathinkPrompt(prompt.replace(/^Ultrathink:\s*/i, "")) ? "body" : "prefix";
 }
-
 const SAVED_OPTION_LABELS: Readonly<Record<string, string>> = {
-  agent: "Agent",
-  effort: "Effort",
-  reasoningEffort: "Reasoning effort",
-  variant: "Reasoning",
+  agent: uiText("Agent"),
+  effort: uiText("Effort"),
+  reasoningEffort: uiText("Reasoning effort"),
+  variant: uiText("Reasoning"),
 };
-
 function savedOptionLabel(id: string): string {
   return (
     SAVED_OPTION_LABELS[id] ??
     id.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/^./, (character) => character.toUpperCase())
   );
 }
-
 function buildUnavailableModelOptionDescriptors(
   selections: ProviderOptions | null | undefined,
 ): ReadonlyArray<ProviderOptionDescriptor> {
@@ -95,7 +90,6 @@ function buildUnavailableModelOptionDescriptors(
         },
   );
 }
-
 type TraitsPersistence =
   | {
       threadRef?: ScopedThreadRef;
@@ -106,15 +100,13 @@ type TraitsPersistence =
       threadRef?: undefined;
       onModelOptionsChange: (nextOptions: ProviderOptions | undefined) => void;
     };
-
 function DefaultBadge() {
   return (
     <Badge variant="outline" size="sm" className="min-w-0">
-      Default
+      {uiText("Default")}
     </Badge>
   );
 }
-
 function getSelectedTraits(
   provider: ProviderDriverKind,
   models: ReadonlyArray<ServerProviderModel>,
@@ -139,12 +131,24 @@ function getSelectedTraits(
         selections: modelOptions,
       });
   const selectDescriptors = descriptors.filter(
-    (descriptor): descriptor is Extract<ProviderOptionDescriptor, { type: "select" }> =>
-      descriptor.type === "select",
+    (
+      descriptor,
+    ): descriptor is Extract<
+      ProviderOptionDescriptor,
+      {
+        type: "select";
+      }
+    > => descriptor.type === "select",
   );
   const booleanDescriptors = descriptors.filter(
-    (descriptor): descriptor is Extract<ProviderOptionDescriptor, { type: "boolean" }> =>
-      descriptor.type === "boolean",
+    (
+      descriptor,
+    ): descriptor is Extract<
+      ProviderOptionDescriptor,
+      {
+        type: "boolean";
+      }
+    > => descriptor.type === "boolean",
   );
   const primarySelectDescriptor = selectDescriptors[0] ?? null;
   const contextWindowDescriptor =
@@ -154,7 +158,6 @@ function getSelectedTraits(
     booleanDescriptors.find((descriptor) => descriptor.id === "fastMode") ?? null;
   const thinkingDescriptor =
     booleanDescriptors.find((descriptor) => descriptor.id === "thinking") ?? null;
-
   const ultrathinkPromptControlled =
     allowPromptInjectedEffort &&
     (primarySelectDescriptor?.promptInjectedValues?.length ?? 0) > 0 &&
@@ -171,7 +174,6 @@ function getSelectedTraits(
   const selectedAgentLabel = agentDescriptor
     ? getProviderOptionCurrentLabel(agentDescriptor)
     : null;
-
   return {
     caps,
     descriptors,
@@ -192,7 +194,6 @@ function getSelectedTraits(
     modelIsUnavailable,
   };
 }
-
 function getTraitsSectionVisibility(input: {
   provider: ProviderDriverKind;
   models: ReadonlyArray<ServerProviderModel>;
@@ -211,13 +212,11 @@ function getTraitsSectionVisibility(input: {
     input.allowPromptInjectedEffort ?? true,
     input.planModeEnabled,
   );
-
   const showEffort = selected.primarySelectDescriptor !== null;
   const showThinking = selected.thinkingDescriptor !== null;
   const showFastMode = selected.fastModeDescriptor !== null;
   const showContextWindow = selected.contextWindowDescriptor !== null;
   const showAgent = selected.agentDescriptor !== null;
-
   return {
     ...selected,
     showEffort,
@@ -234,7 +233,6 @@ function getTraitsSectionVisibility(input: {
       (selected.modelIsUnavailable && selected.descriptors.length > 0),
   };
 }
-
 /**
  * `modelOptions` must already carry the composer's implicit defaults (see
  * `withImplicitFastModeDefault`) so the persisted selection matches what the
@@ -295,7 +293,6 @@ export function getReasoningTraitStep(input: {
   }
   return null;
 }
-
 export function shouldRenderTraitsControls(input: {
   provider: ProviderDriverKind;
   models: ReadonlyArray<ServerProviderModel>;
@@ -307,7 +304,6 @@ export function shouldRenderTraitsControls(input: {
 }): boolean {
   return getTraitsSectionVisibility(input).hasAnyControls;
 }
-
 export interface TraitsMenuContentProps {
   provider: ProviderDriverKind;
   instanceId?: ProviderInstanceId;
@@ -323,7 +319,6 @@ export interface TraitsMenuContentProps {
   triggerClassName?: string;
   isComposerOwned?: boolean;
 }
-
 export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
   provider,
   instanceId,
@@ -377,9 +372,13 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
   const updateDescriptors = (nextDescriptors: ReadonlyArray<ProviderOptionDescriptor>) => {
     updateModelOptions(buildProviderOptionSelectionsFromDescriptors(nextDescriptors));
   };
-
   const handleSelectChange = (
-    descriptor: Extract<ProviderOptionDescriptor, { type: "select" }>,
+    descriptor: Extract<
+      ProviderOptionDescriptor,
+      {
+        type: "select";
+      }
+    >,
     value: string,
   ) => {
     // Whether a pick applies, and the options it writes, do not depend on the prompt text.
@@ -390,11 +389,9 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
     );
     if ("modelOptions" in change) updateModelOptions(change.modelOptions);
   };
-
   if (!hasAnyControls) {
     return null;
   }
-
   if (modelIsUnavailable) {
     return (
       <>
@@ -420,7 +417,6 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
       </>
     );
   }
-
   return (
     <>
       {selectDescriptors.map((descriptor, index) => {
@@ -428,7 +424,6 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
           ultrathinkPromptControlled && descriptor.id === primarySelectDescriptor?.id
             ? "ultrathink"
             : (getDescriptorStringValue(descriptor, modelSelection, reportedModelSelection) ?? "");
-
         return (
           <div key={descriptor.id}>
             {index > 0 ? <MenuDivider /> : null}
@@ -438,8 +433,9 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
               </div>
               {ultrathinkInBodyText && descriptor.id === primarySelectDescriptor?.id ? (
                 <div className="px-2 pb-1.5 text-muted-foreground/80 text-xs">
-                  Your prompt contains &quot;ultrathink&quot; in the text. Remove it to change this
-                  option.
+                  {uiText(
+                    "Your prompt contains &quot;ultrathink&quot; in the text. Remove it to change this option.",
+                  )}
                 </div>
               ) : null}
               <MenuRadioGroup
@@ -474,7 +470,6 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
       })}
       {booleanDescriptors.map((descriptor, index) => {
         const selectedValue = descriptor.currentValue === true ? "on" : "off";
-
         return (
           <div key={descriptor.id}>
             {index > 0 || selectDescriptors.length > 0 ? <MenuDivider /> : null}
@@ -493,7 +488,7 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
                 {(["on", "off"] as const).map((value) => (
                   <MenuRadioItem key={value} value={value} hideIndicator closeOnClick>
                     <span className="flex w-full min-w-0 items-center justify-between gap-3">
-                      <span>{value === "on" ? "On" : "Off"}</span>
+                      <span>{value === "on" ? uiText("On") : uiText("Off")}</span>
                     </span>
                   </MenuRadioItem>
                 ))}
@@ -505,7 +500,6 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
     </>
   );
 });
-
 export const TraitsPicker = memo(function TraitsPicker({
   provider,
   instanceId,
@@ -554,7 +548,6 @@ export const TraitsPicker = memo(function TraitsPicker({
   ) {
     return null;
   }
-
   const { label: triggerLabel } = buildTraitsTriggerDisplay({
     provider,
     descriptors,
@@ -564,7 +557,6 @@ export const TraitsPicker = memo(function TraitsPicker({
     reportedModelSelection,
   });
   const isCodexStyle = provider === "codex";
-
   return (
     <Menu
       open={isMenuOpen}
@@ -600,8 +592,7 @@ export const TraitsPicker = memo(function TraitsPicker({
                 size === "xs" ? "gap-1" : "gap-1.5",
               )}
             >
-              <ComposerControlIcon icon={BrainIcon} size={size} className="redesign:hidden" />
-              <ComposerControlIcon icon={GaugeIcon} size={size} className="hidden redesign:block" />
+              <ComposerControlIcon icon={GaugeIcon} size={size} />
               <span data-composer-control-label className="min-w-0 truncate">
                 {triggerLabel}
               </span>
@@ -609,8 +600,7 @@ export const TraitsPicker = memo(function TraitsPicker({
             </span>
           ) : (
             <>
-              <ComposerControlIcon icon={BrainIcon} size={size} className="redesign:hidden" />
-              <ComposerControlIcon icon={GaugeIcon} size={size} className="hidden redesign:block" />
+              <ComposerControlIcon icon={GaugeIcon} size={size} />
               <span data-composer-control-label>{triggerLabel}</span>
               <ComposerControlChevron size={size} />
             </>

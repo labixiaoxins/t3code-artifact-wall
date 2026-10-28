@@ -370,3 +370,20 @@ describe("server model preferences", () => {
     expect(decodeServerSettingsPatch(input)).toEqual(input);
   });
 });
+
+it("defaults to the legacy sidebar this fork builds on", () => {
+  expect(decodeClientSettings({}).legacySidebarEnabled).toBe(true);
+});
+
+describe("ServerSettings keepAwake", () => {
+  it("keeps the screen awake while working by default", () => {
+    expect(decodeServerSettings({}).keepAwake).toBe("display");
+  });
+  it("accepts each mode and rejects unknown ones", () => {
+    for (const mode of ["off", "system", "display"] as const) {
+      expect(decodeServerSettings({ keepAwake: mode }).keepAwake).toBe(mode);
+      expect(decodeServerSettingsPatch({ keepAwake: mode })).toEqual({ keepAwake: mode });
+    }
+    expect(() => decodeServerSettingsPatch({ keepAwake: "always" })).toThrow();
+  });
+});

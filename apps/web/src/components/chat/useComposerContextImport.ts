@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   ConnectionBlockedError,
   ConnectionTransientError,
@@ -55,20 +56,17 @@ import { useAtomCommand } from "../../state/use-atom-command";
 import { useAtomQueryRunner } from "~/state/use-atom-query-runner";
 import { useStableCallback } from "../../hooks/useStableCallback";
 import { countPreparingComposerImages } from "./preparingComposerImages";
-
 const isUnreachable = Schema.is(
   Schema.Union([ConnectionTransientError, ConnectionBlockedError, EnvironmentRpcUnavailableError]),
 );
-
 async function downloadAttachmentBlob(url: string): Promise<Blob | null> {
   try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(60_000) });
+    const response = await fetch(url, { signal: AbortSignal.timeout(60000) });
     return response.ok ? await response.blob() : null;
   } catch {
     return null;
   }
 }
-
 /**
  * Imports copied composer context (terminal output, review comments, annotations, threads,
  * images and files) into the open draft, and counts the attachment slots already spoken for.
@@ -145,7 +143,12 @@ export function useComposerContextImport(input: {
   };
   const countReservedAttachmentsStable = useStableCallback(countReservedAttachments);
   const runAttachmentImport = async (
-    record: Extract<ComposerContextRecord, { kind: "image" | "file" }>,
+    record: Extract<
+      ComposerContextRecord,
+      {
+        kind: "image" | "file";
+      }
+    >,
     localId: string,
     sourceEnvironmentId: EnvironmentId,
     importTargetKey: string,
@@ -153,8 +156,8 @@ export function useComposerContextImport(input: {
     const fail = (reason: string) => {
       toastManager.add({
         type: "error",
-        title: `Couldn't bring ${record.name} into this message`,
-        description: `${reason} Remove the chip or attach the file again.`,
+        title: uiText("Couldn't bring {0} into this message", { "0": record.name }),
+        description: uiText("{0} Remove the chip or attach the file again.", { "0": reason }),
       });
     };
     let file = copiedComposerAttachmentFile(sourceEnvironmentId, record.attachmentId);
@@ -249,7 +252,12 @@ export function useComposerContextImport(input: {
     }
   };
   const importAttachmentRecord = async (
-    record: Extract<ComposerContextRecord, { kind: "image" | "file" }>,
+    record: Extract<
+      ComposerContextRecord,
+      {
+        kind: "image" | "file";
+      }
+    >,
     localId: string,
     sourceEnvironmentId: EnvironmentId,
   ) => {
@@ -401,7 +409,6 @@ export function useComposerContextImport(input: {
   ): ReadonlyMap<string, string> =>
     importContextRecords(fragment.records, fragment.source.environmentId);
   const importContextFragmentStable = useStableCallback(importContextFragment);
-
   return {
     loadThreadTranscript,
     countReservedAttachments,

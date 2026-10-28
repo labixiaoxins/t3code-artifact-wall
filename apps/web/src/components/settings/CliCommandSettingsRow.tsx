@@ -1,5 +1,5 @@
+import { uiText } from "~/i18n";
 import { useState } from "react";
-
 import {
   desktopCliCommandStateAtom,
   getDesktopCliCommandBridge,
@@ -10,13 +10,11 @@ import { Button } from "../ui/button";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 import { SettingsRow } from "./settingsLayout";
 import { searchableSetting } from "./settingsSearch";
-
 export function CliCommandSettingsRow() {
   const bridge = getDesktopCliCommandBridge();
   const query = useEnvironmentQuery(bridge ? desktopCliCommandStateAtom : null);
   const state = query.data;
   const [pending, setPending] = useState(false);
-
   const change = (action: "install" | "uninstall") => {
     if (!bridge || pending) return;
     setPending(true);
@@ -33,7 +31,6 @@ export function CliCommandSettingsRow() {
       })
       .finally(() => setPending(false));
   };
-
   if (!bridge || !state?.supported) return null;
   const installed = state.installedPath !== null;
   const description = state.shadowedBy
@@ -43,7 +40,6 @@ export function CliCommandSettingsRow() {
       : state.onPath
         ? `Installed at ${state.installedPath}. Open a new terminal to use it.`
         : `Installed at ${state.installedPath}, which is not on your PATH yet. Add its folder to your PATH to run \`t3\`.`;
-
   return (
     <SettingsRow
       {...searchableSetting("cli-command")}
@@ -55,7 +51,7 @@ export function CliCommandSettingsRow() {
           disabled={pending || query.isPending}
           onClick={() => change(installed ? "uninstall" : "install")}
         >
-          {installed ? "Remove" : "Install"}
+          {installed ? uiText("Remove") : uiText("Install")}
         </Button>
       }
     />

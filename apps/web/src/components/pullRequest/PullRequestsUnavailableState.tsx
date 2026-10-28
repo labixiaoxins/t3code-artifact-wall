@@ -1,10 +1,9 @@
+import { uiText } from "~/i18n";
 import { RefreshIcon } from "~/components/ui/refresh-icon";
 import { ExternalLinkIcon } from "lucide-react";
-
 import { Button } from "../ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "../ui/empty";
 import { PullRequestGlyph } from "./pullRequestIcons";
-
 export function PullRequestsUnavailableState({
   title = "Could not load pull requests",
   error,
@@ -16,7 +15,10 @@ export function PullRequestsUnavailableState({
   error: string;
   onRetry?: () => void;
   refreshing?: boolean;
-  host?: { readonly url: string; readonly openLabel: string };
+  host?: {
+    readonly url: string;
+    readonly openLabel: string;
+  };
 }) {
   return (
     <Empty className="scrollbar-gutter-both min-h-0 justify-center-safe overflow-y-auto [&>*]:shrink-0">
@@ -38,7 +40,7 @@ export function PullRequestsUnavailableState({
               aria-busy={refreshing}
             >
               <RefreshIcon size="sm" refreshing={refreshing} />
-              Retry
+              {uiText("Retry")}
             </Button>
           ) : null}
           {host ? (

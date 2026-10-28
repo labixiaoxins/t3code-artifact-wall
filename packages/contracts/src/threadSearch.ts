@@ -1,5 +1,4 @@
 import * as Schema from "effect/Schema";
-
 import {
   IsoDateTime,
   MessageId,
@@ -8,16 +7,14 @@ import {
   TrimmedNonEmptyString,
   TrimmedString,
 } from "./baseSchemas.ts";
-
 export const OrchestrationThreadSearchSource = Schema.Literals(["user", "assistant"]);
 export type OrchestrationThreadSearchSource = typeof OrchestrationThreadSearchSource.Type;
-
 /** Longer queries are cut to this before they are sent. */
 export const THREAD_SEARCH_QUERY_MAX_LENGTH = 200;
-
 // The server's SQLite client is synchronous and single-connection. Bound both
 // scan input and response size so a search cannot monopolize that connection.
 export const OrchestrationSearchThreadsInput = Schema.Struct({
+  searchMode: Schema.optionalKey(Schema.Literal("spotlight")),
   query: TrimmedString.check(
     Schema.isMinLength(2),
     Schema.isMaxLength(THREAD_SEARCH_QUERY_MAX_LENGTH),
@@ -25,7 +22,6 @@ export const OrchestrationSearchThreadsInput = Schema.Struct({
   limit: Schema.optionalKey(Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 50 }))),
 });
 export type OrchestrationSearchThreadsInput = typeof OrchestrationSearchThreadsInput.Type;
-
 export const OrchestrationThreadSearchMatch = Schema.Struct({
   threadId: ThreadId,
   projectId: ProjectId,
@@ -43,14 +39,29 @@ export const OrchestrationThreadSearchMatch = Schema.Struct({
   hits: Schema.optionalKey(Schema.Int),
   /** The message the snippet is from. Older servers omit it. */
   messageId: Schema.optionalKey(MessageId),
+  title: Schema.optionalKey(Schema.String),
+  archivedAt: Schema.optionalKey(Schema.NullOr(IsoDateTime)),
+  score: Schema.optionalKey(Schema.Number),
+  matchedQuery: Schema.optionalKey(Schema.String),
+  familyKey: Schema.optionalKey(Schema.String),
+  familyTitle: Schema.optionalKey(Schema.String),
+  familyThreads: Schema.optionalKey(
+    Schema.Array(
+      Schema.Struct({
+        threadId: ThreadId,
+        title: Schema.String,
+        updatedAt: IsoDateTime,
+        archivedAt: Schema.NullOr(IsoDateTime),
+      }),
+    ),
+  ),
+  isSubagent: Schema.optionalKey(Schema.Boolean),
 });
 export type OrchestrationThreadSearchMatch = typeof OrchestrationThreadSearchMatch.Type;
-
 export const OrchestrationSearchThreadsResult = Schema.Struct({
   matches: Schema.Array(OrchestrationThreadSearchMatch),
 });
 export type OrchestrationSearchThreadsResult = typeof OrchestrationSearchThreadsResult.Type;
-
 export class OrchestrationSearchThreadsError extends Schema.TaggedError<OrchestrationSearchThreadsError>()(
   "OrchestrationSearchThreadsError",
   {

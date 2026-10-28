@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { formatProviderSkillDisplayName } from "@t3tools/shared/inlineSkills";
 import type { ComposerPathSearchTarget } from "@t3tools/client-runtime/state/threads";
 import {
@@ -103,7 +104,7 @@ export const ComposerCommandMenu = memo(function ComposerCommandMenu(props: {
   return (
     <Command
       autoHighlight={false}
-      mode="none"
+      mode={"none"}
       onItemHighlighted={(highlightedValue) => {
         props.onHighlightedItemChange(
           typeof highlightedValue === "string" ? highlightedValue : null,
@@ -112,14 +113,16 @@ export const ComposerCommandMenu = memo(function ComposerCommandMenu(props: {
     >
       <ComposerBanner.Surface
         ref={listRef}
-        className="flex min-h-0 w-full flex-col overflow-hidden pb-(--chat-composer-attachment-overlap) **:data-[slot=command-item]:rounded-lg **:data-[slot=scroll-area-scrollbar]:data-[orientation=vertical]:my-4"
-        data-composer-command-drawer="true"
+        className={
+          "flex min-h-0 w-full flex-col overflow-hidden pb-(--chat-composer-attachment-overlap) **:data-[slot=command-item]:rounded-lg **:data-[slot=scroll-area-scrollbar]:data-[orientation=vertical]:my-4"
+        }
+        data-composer-command-drawer={"true"}
       >
         {props.items.length > 0 ? (
           <CommandList
             id={props.listId}
             aria-label={props.triggerKind ? LISTBOX_LABEL_BY_TRIGGER[props.triggerKind] : undefined}
-            className="max-h-72 min-h-0 scroll-pb-6"
+            className={"max-h-72 min-h-0 scroll-pb-6"}
           >
             <CommandGroup>
               {props.items.map((item) => (
@@ -137,20 +140,20 @@ export const ComposerCommandMenu = memo(function ComposerCommandMenu(props: {
             </CommandGroup>
           </CommandList>
         ) : (
-          <div className="px-5 pt-3.5 pb-7">
-            <p className="text-secondary-label text-xs">
+          <div className={"px-5 pt-3.5 pb-7"}>
+            <p className={"text-secondary-label text-xs"}>
               {props.isLoading
                 ? props.triggerKind === "skill"
-                  ? "Searching workspace skills..."
+                  ? uiText("Searching workspace skills...")
                   : props.triggerKind === "pull-request"
-                    ? "Finding pull request..."
-                    : "Searching workspace files..."
+                    ? uiText("Finding pull request...")
+                    : uiText("Searching workspace files...")
                 : (props.emptyStateText ??
                   (props.triggerKind === "skill"
-                    ? "No skills found. Try / to browse provider commands."
+                    ? uiText("No skills found. Try / to browse provider commands.")
                     : props.triggerKind === "path"
-                      ? "No matching files or folders."
-                      : "No matching command."))}
+                      ? uiText("No matching files or folders.")
+                      : uiText("No matching command.")))}
             </p>
           </div>
         )}
@@ -200,27 +203,30 @@ const ComposerCommandMenuItem = memo(function ComposerCommandMenuItem(props: {
         />
       ) : null}
       {props.item.type === "thread" ? (
-        <MessagesSquareIcon aria-hidden="true" className="size-4 shrink-0 text-secondary-label" />
+        <MessagesSquareIcon
+          aria-hidden={"true"}
+          className={"size-4 shrink-0 text-secondary-label"}
+        />
       ) : null}
       {pullRequestPresentation ? (
         <pullRequestPresentation.Icon
-          role="img"
+          role={"img"}
           aria-label={pullRequestPresentation.label}
           className={cn("size-4 shrink-0", pullRequestPresentation.toneClassName)}
         />
       ) : null}
-      <span className="flex min-w-0 flex-1 items-center gap-2">
-        <span className="min-w-0 max-w-[45%] shrink-0 truncate font-sans text-xs font-medium">
+      <span className={"flex min-w-0 flex-1 items-center gap-2"}>
+        <span className={"min-w-0 max-w-[45%] shrink-0 truncate font-sans text-xs font-medium"}>
           {isSlashSkill ? (
             <>
-              <span className="text-secondary-label">/skill:</span>
+              <span className={"text-secondary-label"}>{"/skill:"}</span>
               {formatProviderSkillDisplayName(isSlashSkill)}
             </>
           ) : (
             props.item.label
           )}
         </span>
-        <span className="min-w-0 flex-1 truncate text-left text-secondary-label text-xs">
+        <span className={"min-w-0 flex-1 truncate text-left text-secondary-label text-xs"}>
           {props.item.description}
         </span>
         {skillSourceKind ? (
@@ -267,10 +273,10 @@ const SKILL_SOURCE_LABEL_BY_KIND: Record<ProviderSkillSourceKind, string> = {
 function SkillSourceBadge(props: { kind: ProviderSkillSourceKind; showSkillSuffix: boolean }) {
   const Icon = SKILL_SOURCE_ICON_BY_KIND[props.kind];
   return (
-    <Badge className="ms-auto" variant="secondary">
-      <Icon aria-hidden="true" className="text-current" />
+    <Badge className={"ms-auto"} variant={"secondary"}>
+      <Icon aria-hidden={"true"} className={"text-current"} />
       {SKILL_SOURCE_LABEL_BY_KIND[props.kind]}
-      {props.showSkillSuffix ? " Skill" : null}
+      {props.showSkillSuffix ? uiText("Skill") : null}
     </Badge>
   );
 }

@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   type DesktopPendingSnapShot,
   type DesktopSnapShotEvent,
@@ -350,8 +351,8 @@ export function SnapShotCoordinator() {
               "missing-project",
               stackedThreadToast({
                 type: "error",
-                title: "Snapshot taken, but no project is available",
-                description: "Add a project, then capture the window again.",
+                title: uiText("Snapshot taken, but no project is available"),
+                description: uiText("Add a project, then capture the window again."),
               }),
             );
             continue;
@@ -374,10 +375,11 @@ export function SnapShotCoordinator() {
               "delivery",
               stackedThreadToast({
                 type: "error",
-                title: "Snapshot failed",
-                description: `Capture ${item.id}: ${
-                  error instanceof Error ? error.message : "Try the capture again."
-                }`,
+                title: uiText("Snapshot failed"),
+                description: uiText("Capture {0}: {1}", {
+                  "0": item.id,
+                  "1": error instanceof Error ? error.message : "Try the capture again.",
+                }),
               }),
             );
           }
@@ -390,7 +392,7 @@ export function SnapShotCoordinator() {
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Snapshot failed",
+            title: uiText("Snapshot failed"),
             description: error instanceof Error ? error.message : "Try the capture again.",
           }),
         );
@@ -458,7 +460,7 @@ export function SnapShotCoordinator() {
             toastManager.add(
               stackedThreadToast({
                 type: "error",
-                title: "Snapshot failed",
+                title: uiText("Snapshot failed"),
                 description: state.message ?? "Try the capture again.",
               }),
             );

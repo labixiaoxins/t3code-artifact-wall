@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useAtomValue } from "@effect/atom-react";
 import { resolveEnvironmentMachineKind } from "@t3tools/contracts";
 import {
@@ -6,7 +7,6 @@ import {
   type PullRequestRoutingPermission,
 } from "@t3tools/client-runtime/connection";
 import { useState } from "react";
-
 import { environmentCatalog } from "~/connection/catalog";
 import type { EnvironmentPresentation } from "~/state/environments";
 import { useAtomCommand } from "~/state/use-atom-command";
@@ -15,15 +15,15 @@ import { toastManager } from "../ui/toast";
 import { EnvironmentRow, environmentTransportLabel } from "./EnvironmentRow";
 import { FoldedSettingsSection } from "./FoldedSettingsSection";
 import { searchableSetting } from "./settingsSearch";
-
-const options: ReadonlyArray<{ value: PullRequestRoutingPermission; label: string }> = [
-  { value: "off", label: "Off" },
-  { value: "read", label: "Read PRs" },
-  { value: "read-write", label: "Read and act" },
+const options: ReadonlyArray<{
+  value: PullRequestRoutingPermission;
+  label: string;
+}> = [
+  { value: "off", label: uiText("Off") },
+  { value: "read", label: uiText("Read PRs") },
+  { value: "read-write", label: uiText("Read and act") },
 ];
-
 const summaryLabels = { "read-write": "read and act", read: "read PRs" } as const;
-
 function summarizePullRequestRouting(
   entries: ReadonlyArray<{
     readonly label: string;
@@ -36,9 +36,8 @@ function summarizePullRequestRouting(
       ? []
       : [`${labels.map((entry) => entry.label).join(", ")} ${summaryLabels[permission]}`];
   });
-  return groups.length === 0 ? null : groups.join(" · ");
+  return groups.length === 0 ? null : groups.join(" \u00B7 ");
 }
-
 export function PullRequestRoutingSettings({
   environments,
 }: {
@@ -48,9 +47,7 @@ export function PullRequestRoutingSettings({
   const catalog = useAtomValue(environmentCatalog.catalogValueAtom);
   const update = useAtomCommand(environmentCatalog.setPullRequestRoutingPermission);
   const [saving, setSaving] = useState(false);
-
   if (environments.length < 2) return null;
-
   const { id, title } = searchableSetting("pull-request-routing");
   return (
     <FoldedSettingsSection
@@ -66,9 +63,9 @@ export function PullRequestRoutingSettings({
       }
     >
       <p className="px-3 py-2.5 text-xs text-muted-foreground sm:px-4">
-        Machines you trust here can read PR data through each other's source control access. Enable
-        both machines. Read and act may use broader permissions than the machine that owns them.
-        This applies only to this device.
+        {
+          "Machines you trust here can read PR data through each other's source control access. Enable both machines. Read and act may use broader permissions than the machine that owns them. This applies only to this device."
+        }
       </p>
       {environments.map((environment) => (
         <EnvironmentRow

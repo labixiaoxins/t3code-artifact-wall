@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import * as DateTime from "effect/DateTime";
 
 import { resolveDesktopPairingUrl, resolveHostedPairingUrl } from "./pairingUrls";
@@ -80,7 +81,7 @@ export function isWslSettingsRowVisible(input: {
  * including retryable failures. Rechecks retain downloaded-update labels; `state` is null outside desktop.
  */
 export function resolveLocalVersionStatusLabel(state: DesktopUpdateState | null): string {
-  if (!state) return "Up to date";
+  if (!state) return uiText("Up to date");
   if (state.status === "downloading") {
     return state.availableVersion
       ? `Downloading update ${state.availableVersion}`
@@ -100,7 +101,7 @@ export function resolveLocalVersionStatusLabel(state: DesktopUpdateState | null)
       ? `Update ${state.availableVersion} available`
       : "Update available";
   }
-  return "Up to date";
+  return uiText("Up to date");
 }
 
 export type QrEndpointOption = {

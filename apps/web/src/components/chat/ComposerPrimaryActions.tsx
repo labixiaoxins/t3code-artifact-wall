@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { memo, type MouseEventHandler, type PointerEventHandler } from "react";
 import { CheckIcon, ChevronDownIcon, ChevronLeftIcon, Minimize2Icon, PlayIcon } from "lucide-react";
 import { CornerUpRight, ListPlus } from "lucide";
@@ -16,7 +17,6 @@ import {
   alternateComposerDispatchAction,
   resolveComposerDispatchMode,
 } from "@t3tools/client-runtime/state/composer-dispatch";
-
 interface PendingActionState {
   questionIndex: number;
   isLastQuestion: boolean;
@@ -24,7 +24,6 @@ interface PendingActionState {
   isResponding: boolean;
   isComplete: boolean;
 }
-
 interface ComposerPrimaryActionsProps {
   compact: boolean;
   canOperateThread: boolean;
@@ -54,7 +53,6 @@ interface ComposerPrimaryActionsProps {
   keepFullHistory?: boolean;
   onToggleKeepFullHistory?: () => void;
 }
-
 const formatPendingPrimaryActionLabel = (input: {
   compact: boolean;
   isLastQuestion: boolean;
@@ -72,14 +70,11 @@ const formatPendingPrimaryActionLabel = (input: {
   }
   return input.questionIndex > 0 ? "Submit answers" : "Submit answer";
 };
-
 const messageActionPillClassName =
   "inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-message-action font-medium text-base text-message-action-foreground shadow-xs shadow-message-action/24 outline-none hover:bg-message-action-hover focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-64 disabled:shadow-none sm:text-sm";
-
 const preventPointerFocus: PointerEventHandler<HTMLElement> = (event) => {
   event.preventDefault();
 };
-
 export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
   compact,
   canOperateThread,
@@ -128,7 +123,6 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
   const stageBackdropVariant = useSidebarStageBackdropVariant(
     environmentIdentificationMode === "artwork",
   );
-
   const renderStopGenerationButton = (insidePendingAction: boolean) => (
     <Tooltip key="interrupt">
       <TooltipTrigger
@@ -144,7 +138,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
             onClick={() => {
               if (canOperateThread) onInterrupt();
             }}
-            aria-label="Stop generation"
+            aria-label={uiText("Stop generation")}
           />
         }
       >
@@ -152,10 +146,9 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
           <rect x="2" y="2" width="8" height="8" rx="1.5" />
         </svg>
       </TooltipTrigger>
-      <TooltipPopup>Interrupt</TooltipPopup>
+      <TooltipPopup>{uiText("Interrupt")}</TooltipPopup>
     </Tooltip>
   );
-
   if (pendingAction) {
     return (
       <div className={cn("flex items-center justify-end", compact ? "gap-1.5" : "gap-2")}>
@@ -168,7 +161,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
               {...pointerFocusProps}
               onClick={onPreviousPendingQuestion}
               disabled={pendingAction.isResponding}
-              aria-label="Previous question"
+              aria-label={uiText("Previous question")}
             >
               <ChevronLeftIcon className="size-3.5" />
             </Button>
@@ -180,7 +173,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
               onClick={onPreviousPendingQuestion}
               disabled={pendingAction.isResponding}
             >
-              Previous
+              {uiText("Previous")}
             </Button>
           )
         ) : null}
@@ -205,7 +198,6 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
       </div>
     );
   }
-
   if (showPlanFollowUpPrompt && (promptHasText || !canResume)) {
     if (promptHasText) {
       return (
@@ -215,11 +207,10 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
           {...pointerFocusProps}
           disabled={isSendBusy || isSendDisabled || isConnecting || isEnvironmentUnavailable}
         >
-          {isConnecting || isSendBusy ? "Sending..." : "Refine"}
+          {isConnecting || isSendBusy ? uiText("Sending...") : uiText("Refine")}
         </button>
       );
     }
-
     return (
       <div data-chat-composer-implement-actions="true" className="flex items-center justify-end">
         <button
@@ -228,7 +219,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
           {...pointerFocusProps}
           disabled={isSendBusy || isSendDisabled || isConnecting || isEnvironmentUnavailable}
         >
-          {isConnecting || isSendBusy ? "Sending..." : "Implement"}
+          {isConnecting || isSendBusy ? uiText("Sending...") : uiText("Implement")}
         </button>
         <Menu>
           <MenuTrigger
@@ -239,7 +230,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
                   messageActionPillClassName,
                   "h-9 rounded-l-none border-l border-message-action-foreground/20 px-2 sm:h-8",
                 )}
-                aria-label="Implementation actions"
+                aria-label={uiText("Implementation actions")}
                 onMouseDown={
                   preserveComposerFocusOnPointerDown ? (event) => event.preventDefault() : undefined
                 }
@@ -256,26 +247,22 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
                 if (canOperateThread) onImplementPlanInNewThread();
               }}
             >
-              Implement in a new thread
+              {uiText("Implement in a new thread")}
             </MenuItem>
           </MenuPopup>
         </Menu>
       </div>
     );
   }
-
   if (canInterrupt && !hasSendableContent && !isEditingQueuedMessage) {
     return renderStopGenerationButton(false);
   }
-
   const showResume = canResume && !hasSendableContent && !isEditingQueuedMessage;
-
   const compactTokens =
     compactBeforeSendTokens !== null && !showResume && !isEditingQueuedMessage
       ? formatContextWindowTokens(compactBeforeSendTokens)
       : null;
   const compactsBeforeSend = compactTokens !== null && !keepFullHistory;
-
   const submitLabel = showResume
     ? "Resume thread"
     : isEditingQueuedMessage
@@ -306,7 +293,6 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
       : isRunning && !isEditingQueuedMessage && canSteer
         ? `Click to ${followUpBehavior}, Ctrl/⌘-click${alternateShortcutLabel ? ` or ${alternateShortcutLabel}` : ""} to ${alternateAction}`
         : submitLabel);
-
   const sendButton = (
     <button
       type={showResume ? "button" : "submit"}
@@ -353,7 +339,6 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
       )}
     </button>
   );
-
   const submit = (
     <Tooltip key="submit">
       <TooltipTrigger render={<span className="inline-flex" />}>{sendButton}</TooltipTrigger>
@@ -361,7 +346,6 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
     </Tooltip>
   );
   if (compactTokens === null) return submit;
-
   return (
     <div data-chat-composer-compact-send="true" className="flex items-center gap-2">
       <Tooltip>
@@ -381,7 +365,9 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
               }
               {...pointerFocusProps}
               aria-pressed={!keepFullHistory}
-              aria-label={`Compact ${compactTokens} tokens of history before sending`}
+              aria-label={uiText("Compact {0} tokens of history before sending", {
+                "0": compactTokens,
+              })}
               disabled={!canOperateThread}
               onClick={onToggleKeepFullHistory}
             />
@@ -397,7 +383,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
             )
           ) : (
             <>
-              {keepFullHistory ? "Full" : "Compact"}
+              {keepFullHistory ? uiText("Full") : uiText("Compact")}
               <span>{compactTokens}</span>
             </>
           )}

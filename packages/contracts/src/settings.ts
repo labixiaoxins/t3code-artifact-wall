@@ -48,23 +48,18 @@ import {
   ProviderDriverKind,
 } from "./providerInstance.ts";
 import { PullRequestMergeMethod } from "./pullRequest.ts";
-
 export const TimestampFormat = Schema.Literals(["locale", "12-hour", "24-hour"]);
 export type TimestampFormat = typeof TimestampFormat.Type;
 const DEFAULT_TIMESTAMP_FORMAT: TimestampFormat = "locale";
-
 export const DiffLayout = Schema.Literals(["stacked", "split"]);
 export type DiffLayout = typeof DiffLayout.Type;
 const DEFAULT_DIFF_LAYOUT: DiffLayout = "stacked";
-
 export const SidebarProjectSortOrder = Schema.Literals(["updated_at", "created_at", "manual"]);
 export type SidebarProjectSortOrder = typeof SidebarProjectSortOrder.Type;
 export const DEFAULT_SIDEBAR_PROJECT_SORT_ORDER: SidebarProjectSortOrder = "updated_at";
-
 export const SidebarThreadSortOrder = Schema.Literals(["updated_at", "created_at"]);
 export type SidebarThreadSortOrder = typeof SidebarThreadSortOrder.Type;
 const DEFAULT_SIDEBAR_THREAD_SORT_ORDER: SidebarThreadSortOrder = "updated_at";
-
 export const SidebarProjectGroupingMode = Schema.Literals([
   "repository",
   "repository_path",
@@ -102,7 +97,6 @@ export const GlassOpacity = Schema.Int.check(
 );
 export type GlassOpacity = typeof GlassOpacity.Type;
 const DEFAULT_GLASS_OPACITY: GlassOpacity = 80;
-
 export const MIN_APPEARANCE_CONTRAST = 50;
 export const MAX_APPEARANCE_CONTRAST = 200;
 export const AppearanceContrast = Schema.Int.check(
@@ -120,7 +114,6 @@ export const PanelAnimationDurationMs = Schema.Int.check(
 );
 export type PanelAnimationDurationMs = typeof PanelAnimationDurationMs.Type;
 const DEFAULT_PANEL_ANIMATION_DURATION_MS: PanelAnimationDurationMs = 0;
-
 export const MIN_INTERFACE_FONT_SIZE = 12;
 export const MAX_INTERFACE_FONT_SIZE = 20;
 export const InterfaceFontSize = Schema.Int.check(
@@ -128,7 +121,6 @@ export const InterfaceFontSize = Schema.Int.check(
 );
 export type InterfaceFontSize = typeof InterfaceFontSize.Type;
 export const DEFAULT_INTERFACE_FONT_SIZE: InterfaceFontSize = 16;
-
 export const MIN_PROMPT_FONT_SIZE = 12;
 export const MAX_PROMPT_FONT_SIZE = 20;
 export const PromptFontSize = Schema.Int.check(
@@ -136,7 +128,6 @@ export const PromptFontSize = Schema.Int.check(
 );
 export type PromptFontSize = typeof PromptFontSize.Type;
 export const DEFAULT_PROMPT_FONT_SIZE: PromptFontSize = 14;
-
 export const MIN_CODE_FONT_SIZE = 10;
 export const MAX_CODE_FONT_SIZE = 18;
 export const CodeFontSize = Schema.Int.check(
@@ -144,7 +135,6 @@ export const CodeFontSize = Schema.Int.check(
 );
 export type CodeFontSize = typeof CodeFontSize.Type;
 export const DEFAULT_CODE_FONT_SIZE: CodeFontSize = 13;
-
 export const MIN_TERMINAL_FONT_SIZE = 8;
 export const MAX_TERMINAL_FONT_SIZE = 20;
 export const TerminalFontSize = Schema.Int.check(
@@ -152,11 +142,9 @@ export const TerminalFontSize = Schema.Int.check(
 );
 export type TerminalFontSize = typeof TerminalFontSize.Type;
 const DEFAULT_TERMINAL_FONT_SIZE: TerminalFontSize = 12;
-
 export const EnvironmentIdentificationMode = Schema.Literals(["artwork", "pill", "none"]);
 export type EnvironmentIdentificationMode = typeof EnvironmentIdentificationMode.Type;
 export const DEFAULT_ENVIRONMENT_IDENTIFICATION_MODE: EnvironmentIdentificationMode = "artwork";
-
 export const SnapShotKeyChord = KeybindingShortcut.check(
   Schema.makeFilter(
     (shortcut) =>
@@ -181,21 +169,22 @@ export type SnapShotShortcut = typeof SnapShotShortcut.Type;
 export const SnapShotSound = Schema.Literals(["soft-pop", "camera-shutter"]);
 export type SnapShotSound = typeof SnapShotSound.Type;
 const DEFAULT_SNAP_SHOT_SOUND: SnapShotSound = "soft-pop";
-
-export type SnapShotModifierPairShortcut = Extract<SnapShotShortcut, { readonly kind: string }>;
-
+export type SnapShotModifierPairShortcut = Extract<
+  SnapShotShortcut,
+  {
+    readonly kind: string;
+  }
+>;
 export function isModifierPairShortcut(
   shortcut: SnapShotShortcut,
 ): shortcut is SnapShotModifierPairShortcut {
   return "kind" in shortcut;
 }
-
 export function snapShotShortcutModifierPair(
   shortcut: SnapShotModifierPairShortcut,
 ): SnapShotModifier {
   return shortcut.kind === "both-shift-keys" ? "shift" : shortcut.modifier;
 }
-
 const APPLE_MODIFIER_LABELS: Record<SnapShotModifier, string> = {
   shift: "Shift",
   meta: "Command",
@@ -208,7 +197,6 @@ const OTHER_MODIFIER_LABELS: Record<SnapShotModifier, string> = {
   control: "Ctrl",
   alt: "Alt",
 };
-
 export function snapShotModifierPairLabel(modifier: SnapShotModifier, apple: boolean): string {
   const label = (apple ? APPLE_MODIFIER_LABELS : OTHER_MODIFIER_LABELS)[modifier];
   return `${label} + ${label}`;
@@ -216,7 +204,6 @@ export function snapShotModifierPairLabel(modifier: SnapShotModifier, apple: boo
 const DEFAULT_SNAP_SHOT_SHORTCUT: SnapShotShortcut = {
   kind: "both-shift-keys",
 };
-
 export const NotificationMode = Schema.Literals([
   "off",
   "notifications",
@@ -224,11 +211,9 @@ export const NotificationMode = Schema.Literals([
   "notifications-and-sound",
 ]);
 export type NotificationMode = typeof NotificationMode.Type;
-
 export const QuitConfirmationMode = Schema.Literals(["direct", "hold", "double-click"]);
 export type QuitConfirmationMode = typeof QuitConfirmationMode.Type;
 const DEFAULT_QUIT_CONFIRMATION_MODE: QuitConfirmationMode = "hold";
-
 const LegacyConfirmQuit = Schema.Boolean.pipe(
   Schema.decodeTo(
     QuitConfirmationMode,
@@ -238,17 +223,13 @@ const LegacyConfirmQuit = Schema.Boolean.pipe(
     }),
   ),
 );
-
 const QuitConfirmationModeSetting = Schema.Union([QuitConfirmationMode, LegacyConfirmQuit]);
-
 export const FontFamilyPreference = Schema.String.check(Schema.isMaxLength(200));
 export type FontFamilyPreference = typeof FontFamilyPreference.Type;
-
 /** Clients apply each environment theme set once; later local choices persist until the next set. Empty clears it. */
 export const DefaultThemePreference = Schema.String.check(Schema.isMaxLength(64));
 // Excluded from RPC patches so t3 theme set can validate syntax and resolvability.
 export type DefaultThemePreference = typeof DefaultThemePreference.Type;
-
 export const DEFAULT_BROWSER_VIEWPORT: PreviewViewportSetting = FILL_PREVIEW_VIEWPORT;
 export const DEFAULT_BROWSER_AUTO_SHOW_FLOATING_PREVIEW = true;
 export {
@@ -278,17 +259,13 @@ export const BROWSER_CUSTOM_SEARCH_URL_MAX_LENGTH = 2048;
 export const BrowserCustomSearchUrl = Schema.String.check(
   Schema.isMaxLength(BROWSER_CUSTOM_SEARCH_URL_MAX_LENGTH),
 );
-
 export const LoadBalancingWeights = Schema.Record(
   TrimmedNonEmptyString,
   Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 100 })),
 );
-
 export const DiffColorScheme = Schema.Literals(["red-green", "blue-orange"]);
-
 export const ChatWidth = Schema.Literals(["comfortable", "wide", "full"]);
 export type ChatWidth = typeof ChatWidth.Type;
-
 export const ModelFavorite = Schema.Struct({
   provider: ProviderInstanceId,
   model: TrimmedNonEmptyString,
@@ -305,8 +282,8 @@ export type ModelPreferences = {
   readonly favorites: typeof ModelFavorites.Type;
   readonly providerModelPreferences: typeof ProviderModelPreferences.Type;
 };
-
 export const ClientSettingsSchema = Schema.Struct({
+  appLocale: Schema.optionalKey(Schema.Literals(["zh-CN", "en"])),
   notificationMode: NotificationMode.pipe(
     Schema.withDecodingDefault(Effect.succeed("off" as const)),
   ),
@@ -342,32 +319,25 @@ export const ClientSettingsSchema = Schema.Struct({
   browserRecordingShowMousePresses: Schema.Boolean.pipe(
     Schema.withDecodingDefault(Effect.succeed(false)),
   ),
-
   browserLinkTarget: BrowserLinkTarget.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_BROWSER_LINK_TARGET)),
   ),
-
   browserSearchEngine: BrowserSearchEngine.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_BROWSER_SEARCH_ENGINE)),
   ),
-
   // Kept when the engine is switched away from "custom" so switching back restores it.
   browserCustomSearchUrl: BrowserCustomSearchUrl.pipe(
     Schema.withDecodingDefault(Effect.succeed("")),
   ),
-
   browserAutoShowFloatingPreview: Schema.Boolean.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_BROWSER_AUTO_SHOW_FLOATING_PREVIEW)),
   ),
-
   browserProfiles: Schema.Array(BrowserProfile).pipe(
     Schema.withDecodingDefault(Effect.succeed([])),
   ),
-
   browserDefaultProfileId: BrowserProfileId.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_BROWSER_PROFILE_ID)),
   ),
-
   confirmQuit: QuitConfirmationModeSetting.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_QUIT_CONFIRMATION_MODE)),
   ),
@@ -402,7 +372,6 @@ export const ClientSettingsSchema = Schema.Struct({
   fontFamilyComposer: FontFamilyPreference.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
   fontFamilySans: FontFamilyPreference.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
   fontFamilyTerminal: FontFamilyPreference.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
-
   fontSmoothing: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
   // Older installs also decode to null; onboarding must additionally require an empty workspace.
   onboardingCompletedAt: Schema.NullOr(Schema.String).pipe(
@@ -411,7 +380,6 @@ export const ClientSettingsSchema = Schema.Struct({
   persistComposerContextStrip: Schema.Boolean.pipe(
     Schema.withDecodingDefault(Effect.succeed(false)),
   ),
-
   favorites: ModelFavorites.pipe(Schema.withDecodingDefault(Effect.succeed([]))),
   providerModelPreferences: ProviderModelPreferences.pipe(
     Schema.withDecodingDefault(Effect.succeed({})),
@@ -420,10 +388,13 @@ export const ClientSettingsSchema = Schema.Struct({
     TrimmedNonEmptyString,
     PullRequestMergeMethod,
   ).pipe(Schema.withDecodingDefault(Effect.succeed({}))),
-
   pullRequestLinksOpenInApp: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
-
   planModeEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
+  // Local customization: long-conversation handoff reminder and the live speed bar.
+  longConversationReminderEnabled: Schema.Boolean.pipe(
+    Schema.withDecodingDefault(Effect.succeed(true)),
+  ),
+  turnThroughputEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
   contextWindowMeterEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   composerCollapseOnScroll: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
   composerRichTextEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
@@ -435,8 +406,10 @@ export const ClientSettingsSchema = Schema.Struct({
   ),
   proactivePanelsEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   showSkillsInSlashMenu: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
-  legacySidebarEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
-  sidebarWorkingShelfEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
+  legacySidebarEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
+  sidebarWorkingShelfEnabled: Schema.Boolean.pipe(
+    Schema.withDecodingDefault(Effect.succeed(false)),
+  ),
   sidebarProjectGroupingMode: SidebarProjectGroupingMode.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_SIDEBAR_PROJECT_GROUPING_MODE)),
   ),
@@ -474,17 +447,14 @@ export const ClientSettingsSchema = Schema.Struct({
   // KaTeX out of the render path entirely.
   mathRenderingEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   // The quieter sidebar, composer and panel design. Off keeps the classic look.
-  redesignEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
+  redesignEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
 });
 export type ClientSettings = typeof ClientSettingsSchema.Type;
-
 export const DEFAULT_CLIENT_SETTINGS: ClientSettings = Schema.decodeSync(ClientSettingsSchema)({});
-
 const UsageModelTokenPrice = Schema.Number.check(
   Schema.isFinite(),
   Schema.isGreaterThanOrEqualTo(0),
 );
-
 /** Omitted cache rates use the input rate. */
 export const UsageModelPriceOverride = Schema.Struct({
   inputCostPerMillionTokens: UsageModelTokenPrice,
@@ -493,7 +463,6 @@ export const UsageModelPriceOverride = Schema.Struct({
   cacheWriteCostPerMillionTokens: Schema.optionalKey(UsageModelTokenPrice),
 });
 export type UsageModelPriceOverride = typeof UsageModelPriceOverride.Type;
-
 export const makeBinaryPathSetting = (fallback: string) =>
   TrimmedString.pipe(
     Schema.decodeTo(
@@ -505,23 +474,18 @@ export const makeBinaryPathSetting = (fallback: string) =>
     ),
     Schema.withDecodingDefault(Effect.succeed(fallback)),
   );
-
 export type ProviderSettingsFormControl = "text" | "password" | "textarea" | "switch" | "select";
-
 export interface ProviderSettingsFormOption {
   readonly value: string;
   readonly label: string;
 }
-
 export interface ProviderSettingsFormAnnotation {
   readonly control?: ProviderSettingsFormControl | undefined;
   readonly placeholder?: string | undefined;
   readonly hidden?: boolean | undefined;
   readonly clearWhenEmpty?: "omit" | "persist" | undefined;
-
   readonly options?: ReadonlyArray<ProviderSettingsFormOption> | undefined;
 }
-
 export function secretSettingsFields(schema: {
   readonly fields: Readonly<Record<string, Schema.Top>>;
 }): ReadonlyArray<string> {
@@ -529,11 +493,9 @@ export function secretSettingsFields(schema: {
     return isSecretSetting(fieldSchema) ? [field] : [];
   });
 }
-
 export interface ProviderSettingsFormSchemaAnnotation {
   readonly order?: readonly string[] | undefined;
 }
-
 declare module "effect/Schema" {
   namespace Annotations {
     interface Annotations {
@@ -544,11 +506,9 @@ declare module "effect/Schema" {
     }
   }
 }
-
 export function secretSetting<S extends Schema.Top>(schema: S): S["Rebuild"] {
   return schema.annotateKey({ settingsSecret: true });
 }
-
 /** A masked form field is a credential too, so none is saved or sent to clients as plain text. */
 export function isSecretSetting(schema: Schema.Top): boolean {
   const annotations = Schema.resolveAnnotationsKey(schema) ?? Schema.resolveAnnotations(schema);
@@ -557,12 +517,10 @@ export function isSecretSetting(schema: Schema.Top): boolean {
     annotations?.providerSettingsForm?.control === "password"
   );
 }
-
 export type ProviderSettingsOrder<Fields extends Schema.Struct.Fields> = readonly Extract<
   keyof Fields,
   string
 >[];
-
 export function makeProviderSettingsSchema<const Fields extends Schema.Struct.Fields>(
   fields: Fields,
   options?: {
@@ -576,7 +534,6 @@ export function makeProviderSettingsSchema<const Fields extends Schema.Struct.Fi
     }),
   );
 }
-
 export const CodexSettings = makeProviderSettingsSchema(
   {
     setupMode: Schema.optionalKey(Schema.Literals(["managed", "existing"])).pipe(
@@ -633,9 +590,7 @@ export const CodexSettings = makeProviderSettingsSchema(
   },
 );
 export type CodexSettings = typeof CodexSettings.Type;
-
 const CLAUDE_AUTO_COMPACT_WINDOW_PATTERN = /^(?:|[1-9]\d{5}|1000000)$/;
-
 export const IDLE_COMPACTION_MODES = [
   { value: "onReturn", label: "When you return" },
   { value: "beforeCacheExpires", label: "Before the cache expires (beta)" },
@@ -643,11 +598,9 @@ export const IDLE_COMPACTION_MODES = [
 ] as const;
 export const IdleCompactionMode = Schema.Literals(IDLE_COMPACTION_MODES.map((mode) => mode.value));
 export type IdleCompactionMode = typeof IdleCompactionMode.Type;
-
 // Shipped clients reject the whole server config unless `compactIdleThreads` is boolean.
 // Keep the mode in `idleCompaction`, but accept strings from older servers.
 const LegacyCompactIdleThreads = Schema.Union([Schema.Boolean, IdleCompactionMode]);
-
 const INSTANCE_IDLE_COMPACTION_MODES = [
   { value: "default", label: "Use default" },
   ...IDLE_COMPACTION_MODES,
@@ -655,7 +608,6 @@ const INSTANCE_IDLE_COMPACTION_MODES = [
 const InstanceIdleCompaction = Schema.Literals(
   INSTANCE_IDLE_COMPACTION_MODES.map((mode) => mode.value),
 );
-
 export const ClaudeSettings = makeProviderSettingsSchema(
   {
     enabled: Schema.Boolean.pipe(
@@ -693,6 +645,13 @@ export const ClaudeSettings = makeProviderSettingsSchema(
         },
       }),
     ),
+    usageProtection: Schema.optionalKey(Schema.Boolean).pipe(
+      Schema.annotateKey({
+        title: "\u81EA\u52A8\u4FDD\u62A4\u8BA2\u9605\u989D\u5EA6",
+        description:
+          "\u72EC\u7ACB\u4EFB\u52A1\u6309\u8D26\u53F7\u6392\u961F\uFF1B80% \u63D0\u9192\u4FDD\u5B58\u8FDB\u5EA6\uFF0C90% \u8BF7\u6C42\u6536\u5C3E\u5E76\u6682\u505C\u65B0\u4EFB\u52A1\u3002\u989D\u5EA6\u672A\u77E5\u65F6\u7B49\u5F85\u6838\u5BF9\u3002",
+      }),
+    ),
     autoCompactWindow: TrimmedString.check(
       Schema.isPattern(CLAUDE_AUTO_COMPACT_WINDOW_PATTERN),
     ).pipe(
@@ -726,7 +685,6 @@ export const ClaudeSettings = makeProviderSettingsSchema(
   },
 );
 export type ClaudeSettings = typeof ClaudeSettings.Type;
-
 export const ANTIGRAVITY_AUTH_METHODS = [
   { value: "oauth-personal", label: "Google account" },
   { value: "oauth-business", label: "Gemini Enterprise" },
@@ -737,7 +695,6 @@ export const AntigravityAuthMethod = Schema.Literals(
   ANTIGRAVITY_AUTH_METHODS.map((method) => method.value),
 );
 export type AntigravityAuthMethod = typeof AntigravityAuthMethod.Type;
-
 export const AntigravitySettings = makeProviderSettingsSchema(
   {
     enabled: Schema.Boolean.pipe(
@@ -803,7 +760,6 @@ export const AntigravitySettings = makeProviderSettingsSchema(
   { order: ["authMethod", "apiKey", "gcpProject", "gcpLocation", "binaryPath"] },
 );
 export type AntigravitySettings = typeof AntigravitySettings.Type;
-
 export const UsageLimitSourceConfig = Schema.Struct({
   kind: Schema.Literal("cliproxy"),
   label: Schema.optional(TrimmedNonEmptyString),
@@ -812,24 +768,20 @@ export const UsageLimitSourceConfig = Schema.Struct({
   enabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
 });
 export type UsageLimitSourceConfig = typeof UsageLimitSourceConfig.Type;
-
 export const SourceControlHostSettings = Schema.Record(Schema.String, Schema.Unknown);
 export type SourceControlHostSettings = typeof SourceControlHostSettings.Type;
-
 export const ObservabilitySettings = Schema.Struct({
   otlpTracesUrl: TrimmedString.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
   otlpMetricsUrl: TrimmedString.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
   otlpLogsUrl: TrimmedString.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
 });
 export type ObservabilitySettings = typeof ObservabilitySettings.Type;
-
 export const SourceControlWritingStyleMode = Schema.Literals([
   "repo_conventions",
   "conventional_commits",
   "custom",
 ]);
 export type SourceControlWritingStyleMode = typeof SourceControlWritingStyleMode.Type;
-
 export const SourceControlWritingStyleSettings = Schema.Struct({
   mode: SourceControlWritingStyleMode.pipe(
     Schema.withDecodingDefault(Effect.succeed("repo_conventions" as const)),
@@ -840,7 +792,6 @@ export const SourceControlWritingStyleSettings = Schema.Struct({
   ),
 });
 export type SourceControlWritingStyleSettings = typeof SourceControlWritingStyleSettings.Type;
-
 const LegacySourceControlWritingStyle = TrimmedString.pipe(
   Schema.decodeTo(
     Schema.toType(SourceControlWritingStyleSettings),
@@ -854,26 +805,21 @@ const LegacySourceControlWritingStyle = TrimmedString.pipe(
     }),
   ),
 );
-
 // The struct member comes first so encoding uses its defaulted fields: the server strips
 // default sub-fields before writing settings.json, and a toType target would reject them.
 const SourceControlWritingStyleSetting = Schema.Union([
   SourceControlWritingStyleSettings,
   LegacySourceControlWritingStyle,
 ]);
-
 export const BranchNamingMode = Schema.Literals(["static", "semantic", "custom"]);
 export type BranchNamingMode = typeof BranchNamingMode.Type;
-
 export interface BranchNamingOptions {
   mode: BranchNamingMode;
   prefix: string;
   instructions: string;
 }
-
 export const DEFAULT_AUTOMATIC_GIT_FETCH_INTERVAL = Duration.seconds(30);
 export const DEFAULT_PROVIDER_HEALTH_REFRESH_INTERVAL = Duration.minutes(5);
-
 export const BackgroundActivityProfile = Schema.Literals([
   "balanced",
   "performance",
@@ -881,7 +827,6 @@ export const BackgroundActivityProfile = Schema.Literals([
 ]);
 export type BackgroundActivityProfile = typeof BackgroundActivityProfile.Type;
 export const DEFAULT_BACKGROUND_ACTIVITY_PROFILE: BackgroundActivityProfile = "balanced";
-
 export const BackgroundActivityProfileSelection = Schema.Literals([
   "balanced",
   "performance",
@@ -889,7 +834,6 @@ export const BackgroundActivityProfileSelection = Schema.Literals([
   "custom",
 ]);
 export type BackgroundActivityProfileSelection = typeof BackgroundActivityProfileSelection.Type;
-
 export const BackgroundActivityOverrides = Schema.Struct({
   automaticGitFetchInterval: Schema.optionalKey(Schema.DurationFromMillis),
   providerHealthRefreshInterval: Schema.optionalKey(Schema.DurationFromMillis),
@@ -902,7 +846,6 @@ export const BackgroundActivityOverrides = Schema.Struct({
   pauseWhenOnBattery: Schema.optionalKey(Schema.Boolean),
 });
 export type BackgroundActivityOverrides = typeof BackgroundActivityOverrides.Type;
-
 export const BackgroundActivitySettings = Schema.Struct({
   schemaVersion: Schema.Literal(1).pipe(Schema.withDecodingDefault(Effect.succeed(1 as const))),
   profile: BackgroundActivityProfileSelection.pipe(
@@ -912,24 +855,23 @@ export const BackgroundActivitySettings = Schema.Struct({
   overrides: BackgroundActivityOverrides.pipe(Schema.withDecodingDefault(Effect.succeed({}))),
 }).pipe(Schema.withDecodingDefault(Effect.succeed({})));
 export type BackgroundActivitySettings = typeof BackgroundActivitySettings.Type;
-
 export const ResponseStreamingMode = Schema.Literals(["turn", "paragraph"]);
 export type ResponseStreamingMode = typeof ResponseStreamingMode.Type;
-
+/** What the server holds awake while a thread is working. See `ServerSettings.keepAwake`. */
+export const KeepAwakeMode = Schema.Literals(["off", "system", "display"]);
+export type KeepAwakeMode = typeof KeepAwakeMode.Type;
 const StorageRetentionDays = Schema.NullOr(
   Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 3650 })),
 );
 const SettledWorktreeRetentionDays = Schema.NullOr(
   Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 3650 })),
 );
-
 export const WorktreeKeepWhen = Schema.Literals([
   "any-local-files",
   "uncommitted-changes",
   "tracked-changes",
 ]);
 export type WorktreeKeepWhen = typeof WorktreeKeepWhen.Type;
-
 export const WorktreeCleanupRules = Schema.Struct({
   worktreeKeepWhen: WorktreeKeepWhen.pipe(
     Schema.withDecodingDefault(Effect.succeed("uncommitted-changes")),
@@ -943,7 +885,6 @@ export const WorktreeCleanupRules = Schema.Struct({
   worktreeUnchanged: Schema.Boolean,
 });
 export type WorktreeCleanupRules = typeof WorktreeCleanupRules.Type;
-
 export const WorktreeCleanup = Schema.NullOr(
   Schema.Union([
     Schema.Struct({ mode: Schema.Literal("off") }),
@@ -951,7 +892,6 @@ export const WorktreeCleanup = Schema.NullOr(
   ]),
 );
 export type WorktreeCleanup = typeof WorktreeCleanup.Type;
-
 export const PROJECT_SCOPED_SERVER_SETTING_KEYS = [
   "worktreeCleanup",
   "defaultModelSelection",
@@ -981,12 +921,10 @@ export const PROJECT_SCOPED_SERVER_SETTING_KEYS = [
   "responseStreamingMode",
 ] as const;
 export type ProjectScopedServerSettingKey = (typeof PROJECT_SCOPED_SERVER_SETTING_KEYS)[number];
-
 export const ProjectProviderInstanceOverride = Schema.Struct({
   enabled: Schema.optionalKey(Schema.Boolean),
 });
 export type ProjectProviderInstanceOverride = typeof ProjectProviderInstanceOverride.Type;
-
 /** Absent keys inherit; null is a value for nullable settings.
  * providerInstances overrides fields per instance; other keys replace the whole setting. */
 export const ProjectSettingsOverrides = Schema.Struct({
@@ -1021,7 +959,6 @@ export const ProjectSettingsOverrides = Schema.Struct({
   ),
 } satisfies Record<ProjectScopedServerSettingKey | "providerInstances", unknown>);
 export type ProjectSettingsOverrides = typeof ProjectSettingsOverrides.Type;
-
 /** True if null stores an override; otherwise null removes it. */
 export function isNullableProjectSettingsOverride(key: ProjectScopedServerSettingKey): boolean {
   return NULLABLE_PROJECT_SETTINGS_OVERRIDES.has(key);
@@ -1037,10 +974,8 @@ const NULLABLE_PROJECT_SETTINGS_OVERRIDES: ReadonlySet<ProjectScopedServerSettin
   "pullRequestMergeMethod",
   "sidebarAutoSettleAfterDays",
 ]);
-
 /** Reclaimable bytes from which the offline `t3 doctor` repair is worth suggesting. */
 export const DATABASE_COMPACTION_RECOMMENDED_BYTES = 1024 ** 3;
-
 export const DatabaseStorageStatus = Schema.Struct({
   databaseBytes: Schema.Number,
   /** Free pages inside the file that an offline VACUUM (or incremental auto_vacuum) returns to disk. */
@@ -1051,14 +986,12 @@ export const DatabaseStorageStatus = Schema.Struct({
   compactCommand: Schema.String,
 });
 export type DatabaseStorageStatus = typeof DatabaseStorageStatus.Type;
-
 export function shouldRecommendDatabaseCompaction(status: DatabaseStorageStatus): boolean {
   return (
     !status.incrementalVacuumEnabled &&
     status.reclaimableBytes >= DATABASE_COMPACTION_RECOMMENDED_BYTES
   );
 }
-
 export const StorageCleanupReportEntry = Schema.Struct({
   kind: Schema.Literals(["worktree", "browser-artifacts", "logs"]),
   outcome: Schema.Literals(["removed", "kept", "failed"]),
@@ -1081,7 +1014,6 @@ export const StorageCleanupReport = Schema.Struct({
   bytesFreed: Schema.Number.pipe(Schema.withDecodingDefault(Effect.succeed(0))),
 });
 export type StorageCleanupReport = typeof StorageCleanupReport.Type;
-
 export const StorageCleanupSettings = Schema.Struct({
   worktreeKeepWhen: WorktreeKeepWhen.pipe(
     Schema.withDecodingDefault(Effect.succeed("uncommitted-changes")),
@@ -1099,7 +1031,6 @@ export const StorageCleanupSettings = Schema.Struct({
   logsAfterDays: StorageRetentionDays.pipe(Schema.withDecodingDefault(Effect.succeed(null))),
 });
 export type StorageCleanupSettings = typeof StorageCleanupSettings.Type;
-
 export const ServerSettings = Schema.Struct({
   // Null means unmigrated; empty is authoritative and must not resurrect cleared preferences.
   favorites: Schema.NullOr(ModelFavorites).pipe(Schema.withDecodingDefault(Effect.succeed(null))),
@@ -1110,7 +1041,6 @@ export const ServerSettings = Schema.Struct({
   storageCleanup: StorageCleanupSettings.pipe(
     Schema.withDecodingDefault(Effect.succeed(Schema.decodeSync(StorageCleanupSettings)({}))),
   ),
-
   worktreesDirectory: TrimmedString.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
   /** Server-maintained history keeps old worktrees eligible for cleanup and review diffs. */
   previousWorktreesDirectories: Schema.Array(TrimmedString).pipe(
@@ -1120,10 +1050,11 @@ export const ServerSettings = Schema.Struct({
     Schema.withDecodingDefault(Effect.succeed("paragraph" as const)),
   ),
   enableProviderUpdateChecks: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
+  /** macOS wake assertions are held only while a run is active. */
+  keepAwake: KeepAwakeMode.pipe(Schema.withDecodingDefault(Effect.succeed("display" as const))),
   continueThreadsAfterServerUpdate: Schema.Boolean.pipe(
     Schema.withDecodingDefault(Effect.succeed(true)),
   ),
-
   enableAgentBrowserAccess: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
   projectAgentBrowserAccessOverrides: Schema.Record(ProjectId, Schema.Boolean).pipe(
     Schema.withDecodingDefault(Effect.succeed({})),
@@ -1144,13 +1075,11 @@ export const ServerSettings = Schema.Struct({
   defaultRuntimeMode: RuntimeMode.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_RUNTIME_MODE)),
   ),
-
   projectSettingsOverrides: Schema.Record(ProjectId, ProjectSettingsOverrides).pipe(
     Schema.withDecodingDefault(Effect.succeed({})),
   ),
   /** Fold once so restarts cannot undo later UI resets. */
   projectSettingsFolded: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
-
   enableAgentDeviceAccess: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   /** Enabling the Device panel must not grant providers device control. */
   enableDeviceSupport: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
@@ -1173,7 +1102,6 @@ export const ServerSettings = Schema.Struct({
   ),
   sidebarAutoSettleOnMerge: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
   backgroundActivity: BackgroundActivitySettings,
-
   automaticGitFetchInterval: Schema.DurationFromMillis.pipe(
     Schema.withDecodingDefault(
       Effect.succeed(Duration.toMillis(DEFAULT_AUTOMATIC_GIT_FETCH_INTERVAL)),
@@ -1237,11 +1165,9 @@ export const ServerSettings = Schema.Struct({
     Schema.withDecodingDefault(Effect.succeed(null)),
   ),
   reviewGuideInstructions: TrimmedString.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
-
   pullRequestMergeMethod: Schema.NullOr(PullRequestMergeMethod).pipe(
     Schema.withDecodingDefault(Effect.succeed(null)),
   ),
-
   // Schema.Unknown preserves unknown-driver configs across versions; see providerInstance.ts.
   providerInstances: Schema.Record(ProviderInstanceId, ProviderInstanceConfig).pipe(
     Schema.withDecodingDefault(Effect.succeed({})),
@@ -1257,44 +1183,39 @@ export const ServerSettings = Schema.Struct({
   cursorKeychainUsageEnabled: Schema.Boolean.pipe(
     Schema.withDecodingDefault(Effect.succeed(false)),
   ),
-
   usagePriceOverrides: Schema.Record(TrimmedNonEmptyString, UsageModelPriceOverride).pipe(
     Schema.withDecodingDefault(Effect.succeed({})),
   ),
-
   usageModelAliases: Schema.Record(TrimmedNonEmptyString, TrimmedNonEmptyString).pipe(
     Schema.withDecodingDefault(Effect.succeed({})),
   ),
 });
 export type ServerSettings = typeof ServerSettings.Type;
-
 export const DEFAULT_SERVER_SETTINGS: ServerSettings = Schema.decodeSync(ServerSettings)({});
-
 export const providerInstanceConfigEnabledFlag = (config: unknown): boolean | undefined => {
   if (config === null || typeof config !== "object" || Array.isArray(config)) {
     return undefined;
   }
-  const enabled = (config as { readonly enabled?: unknown }).enabled;
+  const enabled = (
+    config as {
+      readonly enabled?: unknown;
+    }
+  ).enabled;
   return typeof enabled === "boolean" ? enabled : undefined;
 };
-
 // Must match each driver's enabled decoding default.
 const DEFAULT_DISABLED_PROVIDER_DRIVERS: ReadonlySet<ProviderDriverKind> = new Set(
   ["cursor", "grok", "fx", "muse", "pi", "opencode", "antigravity"].map((driver) =>
     ProviderDriverKind.make(driver),
   ),
 );
-
 const DEFAULT_ENABLED_DEFAULT_INSTANCES: ReadonlySet<ProviderInstanceId> = new Set(
   ["codex", "claudeAgent"].map((instanceId) => ProviderInstanceId.make(instanceId)),
 );
-
 export const isUnconfiguredDefaultInstanceEnabled = (instanceId: ProviderInstanceId): boolean =>
   DEFAULT_ENABLED_DEFAULT_INSTANCES.has(instanceId);
-
 const defaultEnabledForDriver = (driver: ProviderDriverKind): boolean =>
   !DEFAULT_DISABLED_PROVIDER_DRIVERS.has(driver);
-
 export const resolveProviderInstanceEnabled = (
   instance: Pick<ProviderInstanceConfig, "driver" | "enabled" | "config">,
 ): boolean => {
@@ -1304,7 +1225,6 @@ export const resolveProviderInstanceEnabled = (
   }
   return instance.enabled ?? configEnabled ?? defaultEnabledForDriver(instance.driver);
 };
-
 export const resolveProjectProviderInstanceEnabled = (
   settings: Pick<ServerSettings, "providerInstances" | "projectSettingsOverrides">,
   projectId: ProjectId | null,
@@ -1322,11 +1242,8 @@ export const resolveProjectProviderInstanceEnabled = (
     ? resolveProviderInstanceEnabled(instanceConfig)
     : isUnconfiguredDefaultInstanceEnabled(instanceId);
 };
-
 const decodeClaudeSettings = Schema.decodeUnknownOption(ClaudeSettings);
-
 type IdleCompactionSettings = Pick<ServerSettings, "compactIdleThreads" | "idleCompaction">;
-
 /** The environment-wide idle compaction mode, from whichever field the settings carry. */
 export const globalIdleCompaction = (settings: IdleCompactionSettings): IdleCompactionMode =>
   settings.idleCompaction ??
@@ -1335,17 +1252,14 @@ export const globalIdleCompaction = (settings: IdleCompactionSettings): IdleComp
     : settings.compactIdleThreads
       ? "beforeCacheExpires"
       : "onReturn");
-
 /** Sets the mode, and the legacy switch shipped clients still read alongside it. */
 export const withIdleCompaction = <S extends IdleCompactionSettings>(
   settings: S,
   mode: IdleCompactionMode,
 ): S => ({ ...settings, idleCompaction: mode, compactIdleThreads: mode === "beforeCacheExpires" });
-
 /** Whether a server reads modes, rather than only the boolean switch from before them. */
 export const readsIdleCompactionModes = (settings: IdleCompactionSettings) =>
   settings.idleCompaction !== undefined || typeof settings.compactIdleThreads === "string";
-
 /**
  * The patch that sets `mode` in the form the server's settings show it reads:
  * the mode for a server that has `idleCompaction` or kept the mode in the legacy
@@ -1357,7 +1271,6 @@ export const idleCompactionPatch = (settings: IdleCompactionSettings, mode: Idle
     : readsIdleCompactionModes(settings)
       ? { compactIdleThreads: mode }
       : { compactIdleThreads: mode === "beforeCacheExpires" };
-
 export const resolveIdleCompaction = (
   settings: Pick<ServerSettings, "providerInstances" | "compactIdleThreads" | "idleCompaction">,
   instanceId: ProviderInstanceId,
@@ -1371,7 +1284,6 @@ export const resolveIdleCompaction = (
   );
   return override === "default" ? globalIdleCompaction(settings) : override;
 };
-
 export const ServerSettingsOperation = Schema.Literals([
   "normalize",
   "check-exists",
@@ -1387,7 +1299,6 @@ export const ServerSettingsOperation = Schema.Literals([
   "prepare-directory",
 ]);
 export type ServerSettingsOperation = typeof ServerSettingsOperation.Type;
-
 export class ServerSettingsError extends Schema.TaggedError<ServerSettingsError>()(
   "ServerSettingsError",
   {
@@ -1408,19 +1319,16 @@ export class ServerSettingsError extends Schema.TaggedError<ServerSettingsError>
     return `Server settings ${this.operation} failed${provider}${variable} at ${this.settingsPath}.`;
   }
 }
-
 export type UnifiedSettings = Omit<ServerSettings, keyof ModelPreferences> & ClientSettings;
 export const DEFAULT_UNIFIED_SETTINGS: UnifiedSettings = {
   ...DEFAULT_SERVER_SETTINGS,
   ...DEFAULT_CLIENT_SETTINGS,
 };
-
 const ModelSelectionPatch = Schema.Struct({
   instanceId: Schema.optionalKey(ProviderInstanceId),
   model: Schema.optionalKey(TrimmedNonEmptyString),
   options: Schema.optionalKey(ProviderOptionSelections),
 });
-
 export const ServerSettingsPatch = Schema.Struct({
   setModelFavorites: Schema.optionalKey(
     Schema.Array(Schema.Struct({ ...ModelFavorite.fields, favorite: Schema.Boolean })),
@@ -1473,6 +1381,7 @@ export const ServerSettingsPatch = Schema.Struct({
   worktreesDirectory: Schema.optionalKey(TrimmedString),
   responseStreamingMode: Schema.optionalKey(ResponseStreamingMode),
   enableProviderUpdateChecks: Schema.optionalKey(Schema.Boolean),
+  keepAwake: Schema.optionalKey(KeepAwakeMode),
   continueThreadsAfterServerUpdate: Schema.optionalKey(Schema.Boolean),
   enableAgentBrowserAccess: Schema.optionalKey(Schema.Boolean),
   projectAgentBrowserAccessOverrides: Schema.optionalKey(
@@ -1563,17 +1472,14 @@ export const ServerSettingsPatch = Schema.Struct({
     Schema.Record(UsageLimitSourceId, Schema.NullOr(UsageLimitSourceConfig)),
   ),
   cursorKeychainUsageEnabled: Schema.optionalKey(Schema.Boolean),
-
   usagePriceOverrides: Schema.optionalKey(
     Schema.Record(TrimmedNonEmptyString, Schema.NullOr(UsageModelPriceOverride)),
   ),
-
   usageModelAliases: Schema.optionalKey(
     Schema.Record(TrimmedNonEmptyString, Schema.NullOr(TrimmedNonEmptyString)),
   ),
 });
 export type ServerSettingsPatch = typeof ServerSettingsPatch.Type;
-
 export function requiredScopesForServerSettingsPatch(
   patch: ServerSettingsPatch,
 ): ReadonlyArray<AuthEnvironmentScope> {
@@ -1592,7 +1498,6 @@ export function requiredScopesForServerSettingsPatch(
     ...(changesProviders ? [AuthProvidersManageScope] : []),
   ];
 }
-
 /** Host-executed project scripts require settings-write authority in addition to orchestration:operate. */
 export function requiredScopesForProjectMutation(
   mutation: ProjectMutation,
@@ -1605,7 +1510,6 @@ export function requiredScopesForProjectMutation(
     ...requiredScopesForServerSettingsPatch({ defaultProjectScripts: mutation.scripts }),
   ];
 }
-
 export const ClientSettingsPatch = Schema.Struct({
   notificationMode: Schema.optionalKey(NotificationMode),
   inAppNotificationsEnabled: Schema.optionalKey(Schema.Boolean),
@@ -1654,6 +1558,8 @@ export const ClientSettingsPatch = Schema.Struct({
   ),
   pullRequestLinksOpenInApp: Schema.optionalKey(Schema.Boolean),
   planModeEnabled: Schema.optionalKey(Schema.Boolean),
+  longConversationReminderEnabled: Schema.optionalKey(Schema.Boolean),
+  turnThroughputEnabled: Schema.optionalKey(Schema.Boolean),
   contextWindowMeterEnabled: Schema.optionalKey(Schema.Boolean),
   composerCollapseOnScroll: Schema.optionalKey(Schema.Boolean),
   composerRichTextEnabled: Schema.optionalKey(Schema.Boolean),
@@ -1667,6 +1573,7 @@ export const ClientSettingsPatch = Schema.Struct({
   sidebarProjectGroupingOverrides: Schema.optionalKey(
     Schema.Record(TrimmedNonEmptyString, SidebarProjectGroupingMode),
   ),
+  appLocale: Schema.optionalKey(Schema.Literals(["zh-CN", "en"])),
   sidebarProjectSortOrder: Schema.optionalKey(SidebarProjectSortOrder),
   sidebarThreadSortOrder: Schema.optionalKey(SidebarThreadSortOrder),
   sidebarThreadPreviewCount: Schema.optionalKey(SidebarThreadPreviewCount),

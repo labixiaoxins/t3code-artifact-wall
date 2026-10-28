@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type { EnvironmentId, ThreadId, TurnItemId } from "@t3tools/contracts";
 import {
   makeMcpAppHost,
@@ -21,7 +22,6 @@ import {
 import { Minimize2Icon } from "lucide-react";
 import { useEffect, useRef, useState, type FocusEvent, type ToggleEvent } from "react";
 import { flushSync } from "react-dom";
-
 import { useLongLivedAssetUrl } from "~/assets/longLivedAssetUrls";
 import { APP_VERSION } from "~/branding";
 import { isConfirmDialogActive, requestConfirmDialog } from "~/confirmDialog";
@@ -35,7 +35,6 @@ import { useTurnItemDetail } from "~/state/queries";
 import { mcpAppEnvironment } from "~/state/mcpApps";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { observeResize } from "~/lib/observeResize";
-
 const commandFailure = (result: {
   readonly cause: Parameters<typeof squashAtomCommandFailure>[0]["cause"];
 }) => {
@@ -44,14 +43,11 @@ const commandFailure = (result: {
     error instanceof Error && error.message.trim() !== "" ? error.message : "Request failed.",
   );
 };
-
 const fullscreenSupported =
   typeof HTMLElement !== "undefined" && "popover" in HTMLElement.prototype;
-
 const MAX_DOWNLOAD_BYTES = 25 * 1024 * 1024;
 // Exclude activation left by input elsewhere in T3.
-const PAGE_ACTIVATION_MS = 5_000;
-
+const PAGE_ACTIVATION_MS = 5000;
 // Frame input does not bubble here. An app can refocus itself, so focus
 // alone cannot exclude activation from input elsewhere in T3.
 let lastPageInputAt = Number.NEGATIVE_INFINITY;
@@ -64,7 +60,6 @@ if (typeof window !== "undefined") {
     window.addEventListener(type, note, true);
   }
 }
-
 function saveBlob(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -72,9 +67,8 @@ function saveBlob(blob: Blob, name: string) {
   link.download = name;
   link.click();
   // Browsers may start downloading after the click's task; defer revocation.
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
-
 export function McpAppFrame(props: {
   readonly environmentId: EnvironmentId;
   readonly threadId: ThreadId;
@@ -112,7 +106,6 @@ export function McpAppFrame(props: {
       boxRef.current = null;
     };
   };
-
   const resource = {
     _tag: "attachment" as const,
     attachmentId: app.attachmentId,
@@ -125,7 +118,6 @@ export function McpAppFrame(props: {
   const [src, setSrc] = useState<string | null>(null);
   const asset = useLongLivedAssetUrl(src === null ? props.environmentId : null, resource);
   if (src === null && asset._tag === "Success") setSrc(asset.url);
-
   const detail = useTurnItemDetail({
     environmentId: props.environmentId,
     threadId: props.threadId,
@@ -138,12 +130,15 @@ export function McpAppFrame(props: {
     storedItem?.type === "dynamic_tool"
       ? {
           arguments: storedItem.input,
-          result: (storedItem.output as { readonly result?: unknown } | undefined)?.result as
-            | McpAppCallToolResult
-            | undefined,
+          result: (
+            storedItem.output as
+              | {
+                  readonly result?: unknown;
+                }
+              | undefined
+          )?.result as McpAppCallToolResult | undefined,
         }
       : undefined;
-
   const callTool = useAtomCommand(mcpAppEnvironment.callTool, { reportFailure: false });
   const toolInfo = useAtomCommand(mcpAppEnvironment.toolInfo, { reportFailure: false });
   const toolDefinition = useEnvironmentQuery(
@@ -156,7 +151,6 @@ export function McpAppFrame(props: {
   const updateModelContext = useAtomCommand(mcpAppEnvironment.updateModelContext, {
     reportFailure: false,
   });
-
   // Read live values without rebuilding the host and losing the app session.
   const readLive = useStableCallback(() => ({
     theme,
@@ -170,7 +164,6 @@ export function McpAppFrame(props: {
     toolDefinition,
   }));
   const hostRef = useRef<McpAppHost | null>(null);
-
   const [stepAsideFor, setStepAsideFor] = useState(props.awaitingUser);
   if (stepAsideFor !== props.awaitingUser) {
     setStepAsideFor(props.awaitingUser);
@@ -203,7 +196,6 @@ export function McpAppFrame(props: {
       setDisplayMode("inline");
     }
   };
-
   // Navigation retains the frame window; reject second loads to prevent impersonation.
   const loads = useRef({ generation: 0, count: 0 });
   const onFrameLoad = () => {
@@ -216,7 +208,6 @@ export function McpAppFrame(props: {
       setNavigatedAway(true);
     }
   };
-
   // The host belongs to this frame element, which is replaced when the document is reopened.
   const attachFrame = (frame: HTMLIFrameElement) => {
     frameRef.current = frame;
@@ -355,7 +346,13 @@ export function McpAppFrame(props: {
             if (read._tag !== "Success") throw commandFailure(read);
             const content = read.value.contents[0];
             bytes = mcpResourceBytes(content);
-            const declared = (content as { readonly mimeType?: unknown } | undefined)?.mimeType;
+            const declared = (
+              content as
+                | {
+                    readonly mimeType?: unknown;
+                  }
+                | undefined
+            )?.mimeType;
             if (typeof declared === "string") mimeType = declared;
           }
           if (bytes === undefined) throw new McpAppHostRefusal(`${file.name} has no contents.`);
@@ -390,21 +387,22 @@ export function McpAppFrame(props: {
       frameRef.current = null;
     };
   };
-
   useEffect(() => {
     hostRef.current?.updateHostContext();
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Context changes trigger a resend.
   }, [theme, width, displayMode, toolDefinition]);
-
   useEffect(() => {
     if (toolCall !== undefined) hostRef.current?.setToolCall(toolCall);
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Each new document needs the call.
   }, [toolCall, src, documentGeneration]);
-
   if (closed) {
     return (
       <div className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-muted-foreground text-xs">
-        <span>The {app.server} app was closed</span>
+        <span>
+          {"The "}
+          {app.server}
+          {" app was closed"}
+        </span>
         <Button
           size="xs"
           variant="ghost"
@@ -414,12 +412,11 @@ export function McpAppFrame(props: {
             setClosed(false);
           }}
         >
-          Show app
+          {uiText("Show app")}
         </Button>
       </div>
     );
   }
-
   const fullscreen = displayMode === "fullscreen";
   return (
     // Preserve inline row height during fullscreen to prevent timeline jumps.
@@ -446,7 +443,7 @@ export function McpAppFrame(props: {
           >
             <span className="truncate">{app.server}</span>
             <Button
-              aria-label="Exit full screen"
+              aria-label={uiText("Exit full screen")}
               size="icon-sm"
               variant="ghost"
               onClick={() => setDisplayMode("inline")}
@@ -457,13 +454,15 @@ export function McpAppFrame(props: {
         ) : null}
         {navigatedAway ? (
           <p className="flex size-full items-center justify-center text-muted-foreground text-xs">
-            The {app.server} app left its page and was stopped
+            {"The "}
+            {app.server}
+            {" app left its page and was stopped"}
           </p>
         ) : src !== null ? (
           <iframe
             ref={attachFrame}
             src={src}
-            title={`${app.server} app`}
+            title={uiText("{0} app", { "0": app.server })}
             // Omitting allow-same-origin isolates the app from the session.
             sandbox="allow-scripts allow-forms"
             allow={mcpAppAllowAttribute(app.permissions)}
@@ -473,7 +472,9 @@ export function McpAppFrame(props: {
           />
         ) : asset._tag === "Failure" ? (
           <p className="flex size-full items-center justify-center text-muted-foreground text-xs">
-            Unable to load the {app.server} app
+            {"Unable to load the "}
+            {app.server}
+            {" app"}
           </p>
         ) : null}
       </div>

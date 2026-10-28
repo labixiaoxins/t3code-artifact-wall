@@ -769,7 +769,7 @@ export function createServerEnvironmentAtoms<R, E>(
         }),
       )
       .pipe(
-        Atom.setIdleTTL(5 * 60_000),
+        Atom.setIdleTTL(5 * 60000),
         Atom.withLabel(`environment-data:server:config-projection:${environmentId}`),
       ),
   );
@@ -1095,7 +1095,7 @@ export function createServerEnvironmentAtoms<R, E>(
     runtime
       .atom(serverWelcomeStateChanges(environmentId), { initialValue: null })
       .pipe(
-        Atom.setIdleTTL(5 * 60_000),
+        Atom.setIdleTTL(5 * 60000),
         Atom.withLabel(`environment-data:server:welcome-state:${environmentId}`),
       ),
   );
@@ -1156,6 +1156,37 @@ export function createServerEnvironmentAtoms<R, E>(
     }),
     databaseStorage,
     databaseCompactionRecommendations,
+    inspectStorage: createEnvironmentRpcQueryAtomFamily(runtime, {
+      label: "environment-data:server:inspect-storage",
+      tag: WS_METHODS.serverInspectStorage,
+      staleTimeMs: 0,
+      idleTtlMs: 0,
+      execute: (input) => request(WS_METHODS.serverInspectStorage, input),
+    }),
+    manageStorage: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:server:manage-storage",
+      tag: WS_METHODS.serverManageStorage,
+      concurrency: { mode: "singleFlight", key: ({ environmentId }) => environmentId },
+    }),
+    diskSpace: createEnvironmentRpcQueryAtomFamily(runtime, {
+      label: "environment-data:server:disk-space",
+      tag: WS_METHODS.serverGetDiskSpace,
+      staleTimeMs: 60_000,
+      idleTtlMs: 0,
+      execute: (input, emit) =>
+        request(WS_METHODS.serverGetDiskSpace, input).pipe(
+          Effect.filterOrElse(
+            (report) => !report.measuring,
+            (report) =>
+              emit(report).pipe(
+                Effect.andThen(
+                  request(WS_METHODS.serverGetDiskSpace, { ...input, awaitMeasurement: true }),
+                ),
+                Effect.orElseSucceed(() => report),
+              ),
+          ),
+        ),
+    }),
     storageCleanupReport: createEnvironmentRpcSubscriptionAtomFamily(runtime, {
       label: "environment-data:server:storage-cleanup-report",
       tag: WS_METHODS.serverGetStorageCleanupReport,

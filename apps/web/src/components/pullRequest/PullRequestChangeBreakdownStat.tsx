@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { formatDiffCount } from "@t3tools/client-runtime/diff-count";
 import type { EnvironmentId, PullRequestChangeBreakdown, PullRequestRef } from "@t3tools/contracts";
 import { useState } from "react";
@@ -13,7 +14,7 @@ const KIND_LABELS = {
   tests: "Tests",
   mocks: "Mocks",
   generated: "Generated",
-  docs: "Docs",
+  docs: uiText("Docs"),
 } satisfies Record<keyof NonNullable<PullRequestChangeBreakdown>, string>;
 
 type DiffTotals = { additions: number; deletions: number };
@@ -117,7 +118,11 @@ function ChangeBreakdownGrid({
       {total ? (
         <>
           <div className="col-span-3 border-t border-border" />
-          <BreakdownRow label="Total" additions={total.additions} deletions={total.deletions} />
+          <BreakdownRow
+            label={uiText("Total")}
+            additions={total.additions}
+            deletions={total.deletions}
+          />
         </>
       ) : null}
     </div>

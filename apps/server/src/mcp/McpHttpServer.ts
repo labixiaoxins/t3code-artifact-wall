@@ -19,7 +19,6 @@ import {
   type RunId,
   ThreadId,
 } from "@t3tools/contracts";
-
 import packageJson from "../../package.json" with { type: "json" };
 import * as ServerConfig from "../config.ts";
 import * as DeviceService from "../device/DeviceService.ts";
@@ -49,6 +48,9 @@ import { AttachmentToolkit } from "./toolkits/attachment/tools.ts";
 import * as AttachmentHandlers from "./toolkits/attachment/handlers.ts";
 import { ThreadToolkit } from "./toolkits/thread/tools.ts";
 import * as ThreadHandlers from "./toolkits/thread/handlers.ts";
+import { ArtifactToolkit } from "./toolkits/artifact/tools.ts";
+import * as ArtifactHandlers from "./toolkits/artifact/handlers.ts";
+import * as ArtifactWall from "../artifacts/ArtifactWall.ts";
 import * as ThreadMetadataMcpService from "./ThreadMetadataMcpService.ts";
 import * as McpSessionRegistry from "./McpSessionRegistry.ts";
 import * as PreviewAutomationBroker from "./PreviewAutomationBroker.ts";
@@ -73,12 +75,10 @@ import {
 } from "./toolkits/device/tools.ts";
 import * as HtmlHandlers from "./toolkits/html/handlers.ts";
 import { HtmlPreviewTool, HtmlPreviewToolkit, HtmlRenderToolkit } from "./toolkits/html/tools.ts";
-
 const mcpResourceMetadataUrl = (request: HttpServerRequest.HttpServerRequest) =>
   HttpServerRequest.toURL(request).pipe(
     Option.map((url) => `${url.origin}/.well-known/oauth-protected-resource/mcp`),
   );
-
 /** Launched agents cannot open OAuth browsers; OAuth would mint credentials outliving their session. */
 const unauthorized = (input: {
   readonly request: HttpServerRequest.HttpServerRequest;
@@ -111,7 +111,6 @@ const unauthorized = (input: {
     },
   );
 };
-
 export class McpClientAuthenticator extends Context.Service<
   McpClientAuthenticator,
   {
@@ -120,13 +119,11 @@ export class McpClientAuthenticator extends Context.Service<
     ) => Effect.Effect<McpInvocationContext.McpInvocationScope | undefined>;
   }
 >()("t3/mcp/McpHttpServer/McpClientAuthenticator") {}
-
 type AuthenticatedHttpEffect = Effect.Effect<
   HttpServerResponse.HttpServerResponse,
   Types.unhandled,
   McpInvocationContext.McpInvocationContext
 >;
-
 type McpAuthMiddleware = (
   httpEffect: AuthenticatedHttpEffect,
 ) => Effect.Effect<
@@ -134,7 +131,6 @@ type McpAuthMiddleware = (
   Types.unhandled,
   HttpServerRequest.HttpServerRequest
 >;
-
 const normalizeMcpHttpResponse = (
   response: HttpServerResponse.HttpServerResponse,
 ): HttpServerResponse.HttpServerResponse => {
@@ -146,10 +142,8 @@ const normalizeMcpHttpResponse = (
     ? HttpServerResponse.setStatus(response, 202)
     : response;
 };
-
 // Session tokens are `<payload>.<signature>`; registry tokens are a bare base64url secret.
 const looksLikeProviderToken = (token: string) => token.length > 0 && !token.includes(".");
-
 const makeMcpAuthMiddleware = Effect.gen(function* () {
   const registry = yield* McpSessionRegistry.McpSessionRegistry;
   const clients = yield* Effect.serviceOption(McpClientAuthenticator);
@@ -181,24 +175,20 @@ const makeMcpAuthMiddleware = Effect.gen(function* () {
     );
   }) satisfies McpAuthMiddleware;
 }).pipe(Effect.withSpan("McpHttpServer.makeAuthMiddleware"));
-
 const layerMcpAuthMiddleware = HttpRouter.middleware<{
   provides: McpInvocationContext.McpInvocationContext;
 }>()(makeMcpAuthMiddleware).layer;
-
 /** Claude Code spills oversized results to files, losing locators; bound both text and its preferred structuredContent. */
-export const MAX_SNAPSHOT_TEXT_BYTES = 20_000;
-const MAX_SNAPSHOT_VISIBLE_TEXT_CHARS = 8_000;
+export const MAX_SNAPSHOT_TEXT_BYTES = 20000;
+const MAX_SNAPSHOT_VISIBLE_TEXT_CHARS = 8000;
 const MAX_SNAPSHOT_ELEMENT_NAME_CHARS = 200;
 const MAX_SNAPSHOT_LOG_ENTRIES = 40;
 const MAX_SNAPSHOT_LOG_TEXT_CHARS = 500;
-const MAX_SNAPSHOT_IDENTIFIER_CHARS = 2_048;
-
+const MAX_SNAPSHOT_IDENTIFIER_CHARS = 2048;
 const encodeJsonText = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
 const utf8Length = (text: string) => Buffer.byteLength(text, "utf8");
 const cutText = (text: string, max: number) =>
   text.length > max ? `${text.slice(0, max)}…` : text;
-
 const cutEntryStrings = <A>(entry: A): A =>
   typeof entry === "object" && entry !== null
     ? (Object.fromEntries(
@@ -208,12 +198,10 @@ const cutEntryStrings = <A>(entry: A): A =>
         ]),
       ) as A)
     : entry;
-
 const hasLongString = (entry: unknown, max: number) =>
   typeof entry === "object" &&
   entry !== null &&
   Object.values(entry).some((value) => typeof value === "string" && value.length > max);
-
 type SnapshotMetadata = {
   readonly url: string;
   readonly title: string;
@@ -227,7 +215,6 @@ type SnapshotMetadata = {
   readonly actionTimeline: ReadonlyArray<unknown>;
   readonly [key: string]: unknown;
 };
-
 const boundSnapshotMetadata = (metadata: SnapshotMetadata) => {
   const omitted: Array<string> = [];
   const { accessibilityTree, ...withoutTree } = metadata;
@@ -270,7 +257,6 @@ const boundSnapshotMetadata = (metadata: SnapshotMetadata) => {
     networkEntries: tail(metadata.networkEntries, "network entries"),
     actionTimeline: tail(metadata.actionTimeline, "action timeline entries"),
   };
-
   // Per-field character caps can still exceed the total byte ceiling.
   const shedOrder = [
     "actionTimeline",
@@ -291,7 +277,7 @@ const boundSnapshotMetadata = (metadata: SnapshotMetadata) => {
     actionTimeline: 0,
   };
   let visibleTextChars = Math.min(metadata.visibleText.length, MAX_SNAPSHOT_VISIBLE_TEXT_CHARS);
-  let ariaTreeChars = Math.min(ariaTree?.length ?? 0, 20_000);
+  let ariaTreeChars = Math.min(ariaTree?.length ?? 0, 20000);
   const value = () => ({
     ...bounded,
     ...(ariaTree === undefined ? {} : { accessibilityTree: cutText(ariaTree, ariaTreeChars) }),
@@ -344,7 +330,6 @@ const boundSnapshotMetadata = (metadata: SnapshotMetadata) => {
   }
   return { value: value(), text, omitted };
 };
-
 export class PreviewScreenshotSaveError extends Schema.TaggedError<PreviewScreenshotSaveError>()(
   "PreviewScreenshotSaveError",
   { screenshotPath: Schema.String, cause: Schema.Defect() },
@@ -353,9 +338,7 @@ export class PreviewScreenshotSaveError extends Schema.TaggedError<PreviewScreen
     return `Could not save preview screenshot to ${this.screenshotPath}.`;
   }
 }
-
 const MAX_SCREENSHOT_SITE_SLUG_LENGTH = 40;
-
 const screenshotSiteSlug = (rawUrl: string): string => {
   try {
     const slug = new URL(rawUrl).hostname
@@ -369,7 +352,6 @@ const screenshotSiteSlug = (rawUrl: string): string => {
     return "site";
   }
 };
-
 const saveScreenshot = Effect.fn("McpHttpServer.saveScreenshot")(function* (
   pageUrl: string,
   data: Uint8Array,
@@ -388,7 +370,6 @@ const saveScreenshot = Effect.fn("McpHttpServer.saveScreenshot")(function* (
   );
   return screenshotPath;
 });
-
 /** Decode with the advertised JSON codec, which permits null for optional fields that the raw schema rejects. */
 const decodeAsAdvertised = <Tools extends Record<string, Tool.Any>>(
   toolkit: Toolkit.Toolkit<Tools>,
@@ -398,9 +379,7 @@ const decodeAsAdvertised = <Tools extends Record<string, Tool.Any>>(
       tool.setParameters(Schema.toCodecJson(tool.parametersSchema)),
     ),
   ) as unknown as Toolkit.Toolkit<Tools>;
-
 const isPreviewAutomationError = Schema.is(PreviewAutomationError);
-
 const previewSnapshotFailure = Effect.fn("previewSnapshotFailure")(function <E>(
   cause: Cause.Cause<E>,
 ) {
@@ -437,7 +416,6 @@ const previewSnapshotFailure = Effect.fn("previewSnapshotFailure")(function <E>(
     failureCount: failures.length,
   }).pipe(Effect.as(result));
 });
-
 const registerPreviewSnapshot = Effect.fn("McpHttpServer.registerPreviewSnapshot")(function* () {
   const server = yield* McpServer.McpServer;
   const broker = yield* PreviewAutomationBroker.PreviewAutomationBroker;
@@ -553,7 +531,6 @@ const registerPreviewSnapshot = Effect.fn("McpHttpServer.registerPreviewSnapshot
       }),
   });
 });
-
 interface ImageToolResult {
   readonly screenshot: {
     readonly mimeType: "image/png";
@@ -563,7 +540,6 @@ interface ImageToolResult {
   };
   readonly [key: string]: unknown;
 }
-
 /** Expose only undescribed failures' tags; remote messages may contain renderer or device output. */
 const imageToolFailure =
   <E>(toolName: string, operation: string, failureText: string | ((error: E) => string)) =>
@@ -608,7 +584,6 @@ const imageToolFailure =
       failureCount: failures.length,
     }).pipe(Effect.as(result));
   };
-
 /**
  * `McpServer.toolkit` serializes every result as JSON text, which is the wrong
  * shape for a screenshot: the model needs image content.
@@ -619,11 +594,25 @@ const registerImageTool = Effect.fn("McpHttpServer.registerImageTool")(function*
   R,
 >(
   tool: T,
-  handle: (payload: Tool.Parameters<T>) => Effect.Effect<{ readonly encodedResult: unknown }, E, R>,
+  handle: (payload: Tool.Parameters<T>) => Effect.Effect<
+    {
+      readonly encodedResult: unknown;
+    },
+    E,
+    R
+  >,
   provide: (
-    effect: Effect.Effect<{ readonly encodedResult: unknown }, E, R>,
+    effect: Effect.Effect<
+      {
+        readonly encodedResult: unknown;
+      },
+      E,
+      R
+    >,
   ) => Effect.Effect<
-    { readonly encodedResult: unknown },
+    {
+      readonly encodedResult: unknown;
+    },
     E,
     McpInvocationContext.McpInvocationContext
   >,
@@ -661,8 +650,13 @@ const registerImageTool = Effect.fn("McpHttpServer.registerImageTool")(function*
             onSuccess: ({ encodedResult }) => {
               const { screenshot, ...rest } = encodedResult as ImageToolResult;
               const includeImage =
-                (payload as { readonly includeImage?: boolean } | undefined)?.includeImage !==
-                false;
+                (
+                  payload as
+                    | {
+                        readonly includeImage?: boolean;
+                      }
+                    | undefined
+                )?.includeImage !== false;
               const metadata = {
                 ...rest,
                 screenshot: {
@@ -695,7 +689,6 @@ const registerImageTool = Effect.fn("McpHttpServer.registerImageTool")(function*
       }),
   });
 });
-
 const registerDeviceScreenshot = Effect.fn("McpHttpServer.registerDeviceScreenshot")(function* () {
   const devices = yield* DeviceService.DeviceService;
   const threads = yield* ThreadManagementService.ThreadManagementService;
@@ -715,9 +708,7 @@ const registerDeviceScreenshot = Effect.fn("McpHttpServer.registerDeviceScreensh
     "Device screenshot failed.",
   );
 });
-
 const isOrchestratorMcpFailure = Schema.is(OrchestratorMcpFailure);
-
 const registerHtmlPreview = Effect.fn("McpHttpServer.registerHtmlPreview")(function* () {
   const htmlRender = yield* HtmlRender.HtmlRender;
   const threads = yield* ThreadManagementService.ThreadManagementService;
@@ -734,14 +725,12 @@ const registerHtmlPreview = Effect.fn("McpHttpServer.registerHtmlPreview")(funct
         Effect.provideService(ThreadManagementService.ThreadManagementService, threads),
       ),
     "preview",
-
     (error) =>
       isOrchestratorMcpFailure(error) || AiError.isAiError(error)
         ? error.message
         : "HTML preview failed.",
   );
 });
-
 /**
  * Tools that hand work to another thread's agent: they create it, message it,
  * steer it, or move context into it. Their events name the receiving agent too.
@@ -755,31 +744,35 @@ const HANDOFF_TOOLS: ReadonlySet<string> = new Set([
   "schedule_task",
   "run_scheduled_task_now",
 ]);
-
 /** Tool actions that hand work over with only a `{ sequence }` result; the input names the thread. */
 const INPUT_TARGET_ACTIONS: Readonly<Record<string, ReadonlySet<string>>> = {
   t3_queue: new Set(["edit", "promote_to_steer"]),
   t3_pending_request: new Set(["respond"]),
 };
-
 /** Tool actions that hand work over and name the receiving thread in their result. */
 const RESULT_TARGET_ACTIONS: Readonly<Record<string, ReadonlySet<string>>> = {
   t3_thread_transfer: new Set(["fork", "merge_back"]),
 };
-
 const hasAction = (
   actions: Readonly<Record<string, ReadonlySet<string>>>,
   tool: string,
   args: unknown,
 ) =>
-  actions[tool]?.has(String((args as { readonly action?: unknown } | null | undefined)?.action)) ===
-  true;
-
+  actions[tool]?.has(
+    String(
+      (
+        args as
+          | {
+              readonly action?: unknown;
+            }
+          | null
+          | undefined
+      )?.action,
+    ),
+  ) === true;
 const isInputTargetHandoff = (tool: string, args: unknown) =>
   hasAction(INPUT_TARGET_ACTIONS, tool, args);
-
 const resultThreadKeys = ["childThreadId", "targetThreadId", "boundThreadId", "threadId"] as const;
-
 /** Thread ids a handoff tool result names: the thread that received the work. */
 const resultThreadIds = (content: unknown): ReadonlyArray<string> => {
   if (typeof content !== "object" || content === null) return [];
@@ -788,7 +781,6 @@ const resultThreadIds = (content: unknown): ReadonlyArray<string> => {
   const key = resultThreadKeys.find((candidate) => typeof record[candidate] === "string");
   return key === undefined ? [] : [record[key] as string];
 };
-
 /**
  * Thread ids that received a handoff. The input's `threadId` is used only after
  * the call succeeded, so it is one the handler already resolved and authorized.
@@ -800,10 +792,16 @@ const handoffTargetIds = (
 ): ReadonlyArray<string> => {
   if (!isInputTargetHandoff(tool, args)) return resultThreadIds(result?.structuredContent);
   if (result === undefined || toolOutcome(result).outcome !== "ok") return [];
-  const threadId = (args as { readonly threadId?: unknown } | null | undefined)?.threadId;
+  const threadId = (
+    args as
+      | {
+          readonly threadId?: unknown;
+        }
+      | null
+      | undefined
+  )?.threadId;
   return typeof threadId === "string" ? [threadId] : [];
 };
-
 /** Tool analytics must never include IDs, prompts or free text. */
 const withToolAnalytics =
   /* Request instrumentation already owns the span; keep this helper in that context. */
@@ -947,7 +945,34 @@ const withToolAnalytics =
     });
     return yield* registration.pipe(Effect.provideService(McpServer.McpServer, recordingServer));
   });
-
+/** `McpServer.registerToolkit` advertises the full codec schema; agents get the compact one. */
+const withAdvertisedSchemas = Effect.fn("McpHttpServer.withAdvertisedSchemas")(function* <
+  Tools extends Record<string, Tool.Any>,
+  A,
+  E,
+  R,
+>(toolkit: Toolkit.Toolkit<Tools>, registration: Effect.Effect<A, E, R>) {
+  const server = yield* McpServer.McpServer;
+  const tools: Record<string, Tool.Any> = toolkit.tools;
+  const advertisingServer = McpServer.McpServer.of({
+    ...server,
+    addTool: Effect.fn("McpServer.addTool")(function (options) {
+      const tool = tools[options.tool.name];
+      return server.addTool(
+        tool === undefined
+          ? options
+          : {
+              ...options,
+              tool: new McpSchema.Tool({
+                ...options.tool,
+                inputSchema: advertisedJsonSchema(tool),
+              }),
+            },
+      );
+    }),
+  });
+  return yield* registration.pipe(Effect.provideService(McpServer.McpServer, advertisingServer));
+});
 /**
  * `McpServer.toolkit` asks for every service its tools declare when it
  * registers them, but the auth middleware provides `McpInvocationContext` to
@@ -959,7 +984,9 @@ export const toolkitRegistration = <Tools extends Record<string, Tool.Any>, EX, 
   handlers: McpToolAccess.HandlersLayer<Tools, EX, RX>,
 ) => {
   const registration = Layer.effectDiscard(
-    withToolAnalytics(McpServer.registerToolkit(decodeAsAdvertised(toolkit))),
+    withToolAnalytics(
+      withAdvertisedSchemas(toolkit, McpServer.registerToolkit(decodeAsAdvertised(toolkit))),
+    ),
   ).pipe(Layer.provide(McpServer.McpServer.layer));
   // @effect-diagnostics-next-line unsafeEffectTypeAssertion:off - the auth middleware provides it per request.
   const registered = registration as Layer.Layer<
@@ -969,7 +996,6 @@ export const toolkitRegistration = <Tools extends Record<string, Tool.Any>, EX, 
   >;
   return registered.pipe(Layer.provide(McpToolAccess.HandlersLayer.layer(handlers)));
 };
-
 const imageToolRegistration = <Tools extends Record<string, Tool.Any>, A, E, R, EX, RX>(
   register: Effect.Effect<A, E, R>,
   handlers: McpToolAccess.HandlersLayer<Tools, EX, RX>,
@@ -977,76 +1003,61 @@ const imageToolRegistration = <Tools extends Record<string, Tool.Any>, A, E, R, 
   Layer.effectDiscard(withToolAnalytics(register)).pipe(
     Layer.provide(McpToolAccess.HandlersLayer.layer(handlers)),
   );
-
 export const layerHtmlToolkit = Layer.mergeAll(
   toolkitRegistration(HtmlRenderToolkit, HtmlHandlers.layerRender),
   imageToolRegistration(registerHtmlPreview(), HtmlHandlers.layerPreview),
 ).pipe(Layer.provide(HtmlRender.layer));
-
 const layerPreviewStandardToolkitRegistration = toolkitRegistration(
   PreviewStandardToolkit,
   PreviewHandlers.layerStandard,
 );
-
 const layerPreviewSnapshotRegistration = imageToolRegistration(
   registerPreviewSnapshot(),
   PreviewHandlers.layerSnapshot,
 );
-
 export const layerPreviewToolkit = Layer.mergeAll(
   layerPreviewStandardToolkitRegistration,
   layerPreviewSnapshotRegistration,
 );
-
 export const layerOrchestratorToolkit = toolkitRegistration(
   OrchestratorToolkit,
   OrchestratorHandlers.layer,
 ).pipe(Layer.provide(OrchestratorMcpService.layer), Layer.provide(ThreadMetadataMcpService.layer));
-
 export const layerThreadToolkit = toolkitRegistration(ThreadToolkit, ThreadHandlers.layer);
-
+export const layerArtifactToolkit = toolkitRegistration(ArtifactToolkit, ArtifactHandlers.layer);
 const layerWorktreeToolkitRegistration = toolkitRegistration(
   WorktreeToolkit,
   WorktreeHandlers.layer,
 ).pipe(Layer.provide(WorktreeMcpService.layer));
-
 const layerPreviewControlsRegistration = toolkitRegistration(
   PreviewControlsToolkit,
   PreviewControlsHandlers.layer,
 );
-
 const layerEnvironmentToolkit = toolkitRegistration(
   EnvironmentToolkit,
   EnvironmentHandlers.layer,
 ).pipe(Layer.provide(ThreadCommandExecutor.layer));
-
 const layerProjectRegistration = toolkitRegistration(ProjectToolkit, ProjectHandlers.layer);
-
 export const layerAttachmentToolkit = toolkitRegistration(
   AttachmentToolkit,
   AttachmentHandlers.layer,
 );
-
 export const layerPullRequestsToolkit = toolkitRegistration(
   PullRequestsToolkit,
   PullRequestsHandlers.layer,
 );
-
 const layerDeviceStandardToolkitRegistration = toolkitRegistration(
   DeviceStandardToolkit,
   DeviceHandlers.layerStandard,
 );
-
 const layerDeviceScreenshotRegistration = imageToolRegistration(
   registerDeviceScreenshot(),
   DeviceHandlers.layerScreenshot,
 );
-
 export const layerDeviceToolkit = Layer.mergeAll(
   layerDeviceStandardToolkitRegistration,
   layerDeviceScreenshotRegistration,
 );
-
 export const layerMcpTransport = McpServer.layerHttp({
   name: "T3 Code",
   version: packageJson.version,
@@ -1054,11 +1065,11 @@ export const layerMcpTransport = McpServer.layerHttp({
   protocols: [McpProtocol.v2025_06_18],
   allowSessionTermination: true,
 }).pipe(Layer.provide(layerMcpAuthMiddleware));
-
 export const layer = Layer.mergeAll(
   layerPreviewToolkit,
   layerOrchestratorToolkit,
   layerThreadToolkit,
+  layerArtifactToolkit.pipe(Layer.provide(ArtifactWall.layer)),
   layerAttachmentToolkit,
   layerProjectRegistration,
   layerEnvironmentToolkit,

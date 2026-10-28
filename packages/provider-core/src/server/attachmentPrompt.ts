@@ -8,9 +8,7 @@ import {
 } from "@t3tools/contracts";
 import * as Schema from "effect/Schema";
 import * as Effect from "effect/Effect";
-
 const encodePromptJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
-
 interface SnapShotPromptAccessibilityNode {
   readonly role: string;
   readonly name?: string;
@@ -21,7 +19,6 @@ interface SnapShotPromptAccessibilityNode {
   readonly actions?: ReadonlyArray<string>;
   readonly children?: ReadonlyArray<SnapShotPromptAccessibilityNode>;
 }
-
 type SnapShotPromptAccessibility =
   | {
       readonly format: "flat-text";
@@ -31,15 +28,16 @@ type SnapShotPromptAccessibility =
   | {
       readonly format: "element-tree";
       readonly coordinateSpace?: "captured-image";
-      readonly imageSize?: { readonly width: number; readonly height: number };
+      readonly imageSize?: {
+        readonly width: number;
+        readonly height: number;
+      };
       readonly truncated?: true;
       readonly root: SnapShotPromptAccessibilityNode;
     };
-
 function normalizedAccessibilityLabel(value: string): string {
   return value.trim().replaceAll(/\s+/g, " ").toLowerCase();
 }
-
 function isRedundantWindowButtonDescription(node: SnapShotAccessibilityNode): boolean {
   if (node.role !== "button" || !node.name || !node.description) return false;
   return (
@@ -47,10 +45,12 @@ function isRedundantWindowButtonDescription(node: SnapShotAccessibilityNode): bo
     `${normalizedAccessibilityLabel(node.name)} the window`
   );
 }
-
 function isFullImageBounds(
   bounds: NonNullable<SnapShotAccessibilityNode["bounds"]>,
-  imageSize: { readonly width: number; readonly height: number },
+  imageSize: {
+    readonly width: number;
+    readonly height: number;
+  },
 ): boolean {
   return (
     bounds.x === 0 &&
@@ -59,11 +59,16 @@ function isFullImageBounds(
     bounds.height === imageSize.height
   );
 }
-
 function compactAccessibilityNodeForPrompt(
   node: SnapShotAccessibilityNode,
-  imageSize: { readonly width: number; readonly height: number },
-  options: { readonly isRoot: boolean; readonly parentName?: string },
+  imageSize: {
+    readonly width: number;
+    readonly height: number;
+  },
+  options: {
+    readonly isRoot: boolean;
+    readonly parentName?: string;
+  },
 ): ReadonlyArray<SnapShotPromptAccessibilityNode> {
   const bounds =
     node.bounds && !(options.isRoot && isFullImageBounds(node.bounds, imageSize))
@@ -92,7 +97,6 @@ function compactAccessibilityNodeForPrompt(
     ...(actions && actions.length > 0 ? { actions } : {}),
     ...(children.length > 0 ? { children } : {}),
   };
-
   const hasMetadata = Boolean(
     compacted.name ||
     compacted.value ||
@@ -121,11 +125,9 @@ function compactAccessibilityNodeForPrompt(
   }
   return [compacted];
 }
-
 function accessibilityNodeHasBounds(node: SnapShotPromptAccessibilityNode): boolean {
   return Boolean(node.bounds || node.children?.some(accessibilityNodeHasBounds));
 }
-
 function compactAccessibilityForPrompt(
   accessibility: SnapShotAccessibility,
 ): SnapShotPromptAccessibility {
@@ -136,7 +138,6 @@ function compactAccessibilityForPrompt(
       ...(accessibility.truncated ? { truncated: true } : {}),
     };
   }
-
   const root = compactAccessibilityNodeForPrompt(accessibility.root, accessibility.imageSize, {
     isRoot: true,
   })[0]!;
@@ -150,13 +151,11 @@ function compactAccessibilityForPrompt(
     root,
   };
 }
-
 export function isProviderNativeImageAttachment(attachment: ChatAttachment): boolean {
   return (
     attachment.type === "image" && isProviderSendTurnSupportedImageMimeType(attachment.mimeType)
   );
 }
-
 export const providerMessageTextWithAttachmentPaths = Effect.fn(
   "providerMessageTextWithAttachmentPaths",
 )(function* (input: {
@@ -181,7 +180,6 @@ export const providerMessageTextWithAttachmentPaths = Effect.fn(
         : `[Attached ${attachment.type} "${attachment.name}" is saved at: ${path}${extracted ? ` (text extracted to: ${extracted})` : ""}]`;
     text = text ? `${text}\n\n${context}` : context;
   }
-
   const truncationNotice =
     "[Optional captured-window context was truncated to fit the prompt budget. Attachments are listed above.]";
   let truncated = false;
@@ -194,7 +192,6 @@ export const providerMessageTextWithAttachmentPaths = Effect.fn(
       truncated = true;
     }
   };
-
   for (const attachment of input.attachments) {
     const source =
       attachment.type === "image" ? (attachment as ChatImageAttachment).source : undefined;
@@ -230,6 +227,5 @@ export const providerMessageTextWithAttachmentPaths = Effect.fn(
         : undefined,
     );
   }
-
   return truncated ? `${text}\n\n${truncationNotice}` : text;
 });

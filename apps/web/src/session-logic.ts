@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type { ThreadStructure, ThreadStructureRuntime } from "@t3tools/client-runtime/state/shell";
 import { resolveThreadWorkingStartedAt } from "@t3tools/client-runtime/state/models";
 import {
@@ -366,7 +367,7 @@ export function providerErrorPresentation(
     return {
       label:
         item.failure.class === "usage_limit"
-          ? "Usage limit reached"
+          ? uiText("Usage limit reached")
           : item.title?.trim() || "Provider error",
       detail: item.failure.message,
     };
@@ -381,13 +382,13 @@ export function providerErrorPresentation(
       : item.status === "completed"
         ? `Provider recovered (${progress} retries)`
         : item.status === "failed"
-          ? `${item.failure.class === "usage_limit" ? "Usage limit reached" : "Provider error"} after ${progress} retries`
+          ? `${item.failure.class === "usage_limit" ? uiText("Usage limit reached") : "Provider error"} after ${progress} retries`
           : `Provider retry stopped (${progress})`;
   const retryDelay =
     item.status === "running" && item.retry.retryDelayMs !== null && item.retry.retryDelayMs > 0
       ? item.retry.retryDelayMs < 1_000
         ? ` Retrying in ${item.retry.retryDelayMs}ms.`
-        : ` Retrying in ${(item.retry.retryDelayMs / 1_000).toFixed(1).replace(/\.0$/u, "")}s.`
+        : ` Retrying in ${(item.retry.retryDelayMs / 1000).toFixed(1).replace(/\.0$/u, "")}s.`
       : "";
   return {
     label,
@@ -414,7 +415,7 @@ function projectedWorkEntry(row: OrchestrationV2ProjectedTurnItem): WorkLogEntry
     case "thread_created":
       return {
         ...common,
-        label: "Created thread",
+        label: uiText("Created thread"),
       };
     case "compaction":
       return {

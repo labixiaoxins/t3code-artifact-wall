@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { scopeProjectRef } from "@t3tools/client-runtime/environment";
 import type { ThreadContextRecord } from "@t3tools/contracts";
 import { Link } from "@tanstack/react-router";
@@ -25,7 +26,7 @@ export function ThreadContextChip(props: {
             kind="thread"
             {...(props.unreadable ? { state: "invalid" as const } : {})}
             render={<Link to="/$environmentId/$threadId" params={{ environmentId, threadId }} />}
-            aria-label={`Thread, ${title}`}
+            aria-label={uiText("Thread, {0}", { "0": title })}
             data-markdown-copy={props.copyMarkdown}
             className="no-underline"
           >
@@ -42,8 +43,8 @@ export function ThreadContextChip(props: {
         {props.unreadable
           ? "On another machine, so this machine's agent can't read it. Remove it or switch back to send."
           : shell
-            ? "Open thread"
-            : "Thread no longer available"}
+            ? uiText("Open thread")
+            : uiText("Thread no longer available")}
       </TooltipPopup>
     </Tooltip>
   );

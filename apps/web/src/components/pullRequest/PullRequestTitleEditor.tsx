@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import type { EnvironmentId, PullRequestDetail, PullRequestRef } from "@t3tools/contracts";
 import { useState } from "react";
@@ -5,7 +6,6 @@ import {
   capitalizeTerm,
   sourceControlClients,
 } from "@t3tools/client-runtime/source-control-clients";
-
 import { pullRequestEnvironment } from "~/state/pullRequests";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { Button } from "../ui/button";
@@ -16,7 +16,6 @@ import { PullRequestDetailTitleRow } from "./PullRequestDetailLayout";
 import { PullRequestEditButton } from "./PullRequestEditButton";
 import { readableFailure } from "./pullRequestDetail.logic";
 import { canEditPullRequestChangeRequest } from "@t3tools/client-runtime/pull-request-editing";
-
 /** The pull request title, which the reader can rename in place when the host allows it. */
 export function PullRequestTitleEditor({
   environmentId,
@@ -40,7 +39,6 @@ export function PullRequestTitleEditor({
   } | null>(null);
   const titleDraft = titleScope?.pullRequestKey === pullRequestKey ? titleScope.text : null;
   const [titleSaving, setTitleSaving] = useState(false);
-
   const saveTitle = async (next: string) => {
     const title = next.trim();
     if (!canWriteSourceControl || titleSaving) return;
@@ -54,7 +52,7 @@ export function PullRequestTitleEditor({
     if (result._tag === "Failure") {
       toastManager.add({
         type: "error",
-        title: "The title could not be saved",
+        title: uiText("The title could not be saved"),
         description: readableFailure(
           squashAtomCommandFailure(result),
           "The host refused the new title.",
@@ -65,7 +63,6 @@ export function PullRequestTitleEditor({
     setTitleScope(null);
     onSaved();
   };
-
   if (titleDraft === null) {
     return (
       <PullRequestDetailTitleRow className="group gap-1">
@@ -81,7 +78,7 @@ export function PullRequestTitleEditor({
         </Tooltip>
         {canEditPullRequestChangeRequest(detail) ? (
           <PullRequestEditButton
-            aria-label="Edit title"
+            aria-label={uiText("Edit title")}
             onClick={() => setTitleScope({ pullRequestKey, text: detail.title })}
           />
         ) : null}
@@ -115,7 +112,7 @@ export function PullRequestTitleEditor({
           disabled={titleSaving}
           onClick={() => setTitleScope(null)}
         >
-          Cancel
+          {uiText("Cancel")}
         </Button>
         <Button
           size="xs"
@@ -123,7 +120,7 @@ export function PullRequestTitleEditor({
           disabled={!canWriteSourceControl || titleSaving || titleDraft.trim().length === 0}
           onClick={() => void saveTitle(titleDraft)}
         >
-          {titleSaving ? "Saving..." : "Save"}
+          {titleSaving ? uiText("Saving...") : uiText("Save")}
         </Button>
       </div>
     </div>

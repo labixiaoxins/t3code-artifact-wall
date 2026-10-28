@@ -65,6 +65,7 @@ const makeSupervisor = Effect.fn("TestEnvironmentCommands.makeSupervisor")(funct
   readonly projection?: OrchestrationV2ThreadProjection;
   readonly projectionRequests?: ThreadId[];
   readonly advertiseServerResolvedCommandContext?: boolean;
+  readonly archiveSafety?: boolean;
   readonly advertiseThreadStop?: boolean;
 }) {
   const client = {
@@ -113,6 +114,7 @@ const makeSupervisor = Effect.fn("TestEnvironmentCommands.makeSupervisor")(funct
       environment: {
         capabilities: {
           repositoryIdentity: true,
+          ...(input.archiveSafety ? { threadArchiveSafety: true } : {}),
           ...(input.advertiseThreadStop === true ? { threadStop: true } : {}),
           ...(input.advertiseServerResolvedCommandContext === false
             ? {}
@@ -690,6 +692,28 @@ describe("V2 environment commands", () => {
           threadId: v2ThreadId,
         },
       ]);
+    }).pipe(Effect.provide(layerTestCrypto)),
+  );
+
+  it.effect("sends safe archival only to a server advertising the safety checks", () =>
+    Effect.gen(function* () {
+      for (const archiveSafety of [false, true]) {
+        const commands: OrchestrationV2Command[] = [];
+        const supervisor = yield* makeSupervisor({ commands, projects: [], archiveSafety });
+        const result = yield* Effect.exit(
+          archiveThread({ threadId: v2ThreadId, requireIdle: true }).pipe(
+            Effect.provideService(EnvironmentSupervisor.EnvironmentSupervisor, supervisor),
+          ),
+        );
+        expect(result._tag).toBe(archiveSafety ? "Success" : "Failure");
+        expect(commands.length).toBe(archiveSafety ? 1 : 0);
+        if (archiveSafety)
+          expect(commands[0]).toMatchObject({
+            type: "thread.archive",
+            threadId: v2ThreadId,
+            requireIdle: true,
+          });
+      }
     }).pipe(Effect.provide(layerTestCrypto)),
   );
 });

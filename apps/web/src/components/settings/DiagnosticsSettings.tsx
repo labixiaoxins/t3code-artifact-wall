@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { ProcessSignalActions } from "./ProcessSignalActions";
 import { resolveUsageAccess } from "@t3tools/client-runtime/state/usage-access";
 import { environmentSession } from "../../state/session";
@@ -100,7 +101,7 @@ function StatBlock({
                 <button
                   type="button"
                   className="cursor-pointer inline-flex size-3.5 shrink-0 items-center justify-center rounded-sm text-muted-foreground/60 hover:text-foreground"
-                  aria-label={`${label} details`}
+                  aria-label={uiText("{0} details", { "0": label })}
                 >
                   <InfoIcon className="size-3" />
                 </button>
@@ -227,14 +228,16 @@ function TraceIdCell({ traceId }: { traceId: string }) {
             <Button
               size="icon-micro"
               variant="ghost-muted"
-              aria-label={copied ? "Copied trace ID" : "Copy trace ID"}
+              aria-label={copied ? uiText("Copied trace ID") : uiText("Copy trace ID")}
               onClick={() => copyToClipboard(traceId)}
             >
               <CopyIcon className="size-3" />
             </Button>
           }
         />
-        <TooltipPopup side="top">{copied ? "Copied" : "Copy full trace ID"}</TooltipPopup>
+        <TooltipPopup side="top">
+          {copied ? uiText("Copied") : uiText("Copy full trace ID")}
+        </TooltipPopup>
       </Tooltip>
     </div>
   );
@@ -275,7 +278,9 @@ function ProcessNameCell({
         <Button
           size="icon-micro"
           variant="ghost-muted"
-          aria-label={isExpanded ? `Collapse ${name}` : `Expand ${name}`}
+          aria-label={
+            isExpanded ? uiText("Collapse {0}", { "0": name }) : uiText("Expand {0}", { "0": name })
+          }
           onClick={() => onToggle(process.pid)}
         >
           <MorphIcon className="size-3.5" icon={isExpanded ? ChevronDown : ChevronRight} />
@@ -367,20 +372,20 @@ function ProcessDiagnosticsTable({
           </colgroup>
           <thead className="sticky top-0 z-10 border-b border-border/60 bg-card text-2xs uppercase tracking-widest text-muted-foreground/70">
             <tr>
-              <th className="px-4 py-2 font-semibold sm:pl-5">Name</th>
+              <th className="px-4 py-2 font-semibold sm:pl-5">{uiText("Name")}</th>
               <th className="px-3 py-2 text-right font-semibold">CPU</th>
-              <th className="px-3 py-2 text-right font-semibold">Memory</th>
-              <th className="px-3 py-2 font-semibold">Command</th>
+              <th className="px-3 py-2 text-right font-semibold">{uiText("Memory")}</th>
+              <th className="px-3 py-2 font-semibold">{uiText("Command")}</th>
               <th className="px-3 py-2 text-right font-semibold">PID</th>
-              <th className="px-3 py-2 font-semibold">Type</th>
-              <th className="p-2 text-right font-semibold sm:pr-4">Kill</th>
+              <th className="px-3 py-2 font-semibold">{uiText("Type")}</th>
+              <th className="p-2 text-right font-semibold sm:pr-4">{uiText("Kill")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/50">
             {visibleProcesses.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-4 text-xs text-muted-foreground sm:px-5">
-                  {emptyLabel ?? "No live descendant processes found."}
+                  {emptyLabel ?? uiText("No live descendant processes found.")}
                 </td>
               </tr>
             ) : null}
@@ -462,7 +467,10 @@ function ResourceHistoryProcessNameCell({
     <div
       className="grid min-w-0 grid-cols-[1.25rem_0.375rem_minmax(0,1fr)] items-center gap-2"
       style={{ paddingLeft: `${Math.min(visualDepth, 6) * 10}px` }}
-      aria-label={`${process.isServerRoot ? "Root" : "Child"} process ${name}`}
+      aria-label={uiText("{0} process {1}", {
+        "0": process.isServerRoot ? "Root" : "Child",
+        "1": name,
+      })}
     >
       <span className="size-5 shrink-0" aria-hidden="true" />
       <span
@@ -507,7 +515,10 @@ function ProcessResourceHistoryChart({
                   <div className="flex h-full min-w-1 flex-1 items-end">
                     <div
                       className="relative h-full w-full"
-                      aria-label={`Average CPU ${bucket.avgCpuPercent.toFixed(1)}%, peak CPU ${bucket.maxCpuPercent.toFixed(1)}%`}
+                      aria-label={uiText("Average CPU {0}%, peak CPU {1}%", {
+                        "0": bucket.avgCpuPercent.toFixed(1),
+                        "1": bucket.maxCpuPercent.toFixed(1),
+                      })}
                     >
                       <div
                         className="absolute inset-x-0 bottom-0 rounded-t-sm bg-foreground/15 transition-colors"
@@ -522,7 +533,10 @@ function ProcessResourceHistoryChart({
                 }
               />
               <TooltipPopup side="top">
-                Avg {bucket.avgCpuPercent.toFixed(1)}%, peak {bucket.maxCpuPercent.toFixed(1)}%
+                {uiText("Avg") + " "}
+                {bucket.avgCpuPercent.toFixed(1)}
+                {uiText("%, peak") + " "}
+                {bucket.maxCpuPercent.toFixed(1)}%
               </TooltipPopup>
             </Tooltip>
           );
@@ -541,7 +555,7 @@ function ResourceHistoryWindowSelector({
 }) {
   return (
     <ToggleGroup
-      aria-label="Process history period"
+      aria-label={uiText("Process history period")}
       variant="segmented"
       value={[String(selectedWindowMs)]}
       onValueChange={(next) => {
@@ -593,13 +607,13 @@ function ProcessResourceHistoryTable({
           </colgroup>
           <thead className="sticky top-0 z-10 border-b border-border/60 bg-card text-2xs uppercase tracking-widest text-muted-foreground/70">
             <tr>
-              <th className="px-4 py-2 font-semibold sm:pl-5">Process</th>
-              <th className="px-3 py-2 text-right font-semibold">CPU Time</th>
-              <th className="px-3 py-2 text-right font-semibold">Current</th>
-              <th className="px-3 py-2 text-right font-semibold">Average</th>
-              <th className="px-3 py-2 text-right font-semibold">Peak</th>
-              <th className="px-3 py-2 text-right font-semibold">Max Mem</th>
-              <th className="px-3 py-2 font-semibold">Command</th>
+              <th className="px-4 py-2 font-semibold sm:pl-5">{uiText("Process")}</th>
+              <th className="px-3 py-2 text-right font-semibold">{uiText("CPU Time")}</th>
+              <th className="px-3 py-2 text-right font-semibold">{uiText("Current")}</th>
+              <th className="px-3 py-2 text-right font-semibold">{uiText("Average")}</th>
+              <th className="px-3 py-2 text-right font-semibold">{uiText("Peak")}</th>
+              <th className="px-3 py-2 text-right font-semibold">{uiText("Max Mem")}</th>
+              <th className="px-3 py-2 font-semibold">{uiText("Command")}</th>
               <th className="px-3 py-2 text-right font-semibold sm:pr-5">PID</th>
             </tr>
           </thead>
@@ -664,21 +678,27 @@ function DiagnosticsLastChecked({ checkedAt }: { checkedAt: DateTime.Utc | null 
   const relative = useRelativeTimeState(checkedAt ? DateTime.formatIso(checkedAt) : null);
 
   if (relative.status === "missing") {
-    return <span className="text-2xs text-muted-foreground/50">Checking</span>;
+    return <span className="text-2xs text-muted-foreground/50">{uiText("Checking")}</span>;
   }
 
   if (relative.status === "invalid") {
-    return <span className="text-2xs text-muted-foreground/50">Checked unavailable</span>;
+    return (
+      <span className="text-2xs text-muted-foreground/50">{uiText("Checked unavailable")}</span>
+    );
   }
 
   return (
     <span className="text-2xs text-muted-foreground/60">
       {relative.suffix ? (
         <>
-          Checked <span className="font-mono tabular-nums">{relative.value}</span> {relative.suffix}
+          {uiText("Checked") + " "}
+          <span className="font-mono tabular-nums">{relative.value}</span> {relative.suffix}
         </>
       ) : (
-        <>Checked {relative.value}</>
+        <>
+          {uiText("Checked") + " "}
+          {relative.value}
+        </>
       )}
     </span>
   );
@@ -846,7 +866,7 @@ function DiagnosticsSettingsBody() {
         clearSignaling();
         toastManager.add({
           type: "error",
-          title: "Could not confirm signal",
+          title: uiText("Could not confirm signal"),
           description: error instanceof Error ? error.message : `Failed to send ${signal}.`,
         });
         return;
@@ -873,7 +893,7 @@ function DiagnosticsSettingsBody() {
         const error = squashAtomCommandFailure(result);
         toastManager.add({
           type: "error",
-          title: `Could not send ${signal}`,
+          title: uiText("Could not send {0}", { "0": signal }),
           description: error instanceof Error ? error.message : `Failed to send ${signal}.`,
         });
       }
@@ -885,15 +905,17 @@ function DiagnosticsSettingsBody() {
       if (isStaleProcessSignalMessage(message)) {
         toastManager.add({
           type: "info",
-          title: "Process already exited",
-          description: "The process is not a child of the T3 Server. It might already have exited.",
+          title: uiText("Process already exited"),
+          description: uiText(
+            "The process is not a child of the T3 Server. It might already have exited.",
+          ),
         });
         return;
       }
 
       toastManager.add({
         type: "error",
-        title: `Could not send ${signal}`,
+        title: uiText("Could not send {0}", { "0": signal }),
         description: message ?? `Failed to send ${signal}.`,
       });
       return;
@@ -913,9 +935,9 @@ function DiagnosticsSettingsBody() {
       <SettingsPageContainer>
         <p className="text-sm text-muted-foreground">
           {environmentId === null
-            ? "Connect an environment to see diagnostics."
+            ? uiText("Connect an environment to see diagnostics.")
             : diagnosticsAccess.isPending
-              ? "Checking diagnostics access…"
+              ? uiText("Checking diagnostics access…")
               : diagnosticsAccess.error}
         </p>
       </SettingsPageContainer>
@@ -927,13 +949,13 @@ function DiagnosticsSettingsBody() {
       <ResourceTelemetryDiagnostics environmentId={environmentId} />
 
       <SettingsSection
-        title="Live Processes"
+        title={uiText("Live Processes")}
         headerAction={
           <div className="flex items-center gap-1.5">
             <DiagnosticsLastChecked checkedAt={processData?.readAt ?? null} />
             <DiagnosticsRefreshButton
               isPending={isProcessPending}
-              label="Refresh process diagnostics"
+              label={uiText("Refresh process diagnostics")}
               onClick={refreshProcesses}
             />
           </div>
@@ -941,21 +963,25 @@ function DiagnosticsSettingsBody() {
       >
         <StatsGrid>
           <StatBlock
-            label="Child Processes"
+            label={uiText("Child Processes")}
             value={processData ? formatCount(processData.processCount) : "..."}
           />
           <StatBlock
             label="CPU"
             value={processData ? `${processData.totalCpuPercent.toFixed(1)}%` : "..."}
-            tooltip="Total CPU across live child processes of the current server process. The desktop shell and other parent processes are not included."
+            tooltip={uiText(
+              "Total CPU across live child processes of the current server process. The desktop shell and other parent processes are not included.",
+            )}
           />
           <StatBlock
-            label="Memory"
+            label={uiText("Memory")}
             value={processData ? formatBytes(processData.totalRssBytes) : "..."}
-            tooltip="Total resident memory across live child processes of the current server process. The desktop shell and other parent processes are not included."
+            tooltip={uiText(
+              "Total resident memory across live child processes of the current server process. The desktop shell and other parent processes are not included.",
+            )}
           />
           <StatBlock
-            label="Server PID"
+            label={uiText("Server PID")}
             value={processData ? String(processData.serverPid) : "..."}
           />
         </StatsGrid>
@@ -989,7 +1015,7 @@ function DiagnosticsSettingsBody() {
       </SettingsSection>
 
       <SettingsSection
-        title="Resource History"
+        title={uiText("Resource History")}
         headerAction={
           <div className="flex items-center gap-1.5">
             <ResourceHistoryWindowSelector
@@ -999,7 +1025,7 @@ function DiagnosticsSettingsBody() {
             <DiagnosticsLastChecked checkedAt={resourceData?.readAt ?? null} />
             <DiagnosticsRefreshButton
               isPending={isResourcePending}
-              label="Refresh resource history"
+              label={uiText("Refresh resource history")}
               onClick={refreshResources}
             />
           </div>
@@ -1007,17 +1033,21 @@ function DiagnosticsSettingsBody() {
       >
         <StatsGrid>
           <StatBlock
-            label="CPU Time"
+            label={uiText("CPU Time")}
             value={resourceData ? formatCpuTime(resourceData.totalCpuSecondsApprox) : "..."}
-            tooltip="Approximate active CPU time for the T3 server root process and its descendants during the selected window. It grows only while sampled processes use CPU and older samples leave as the window moves."
+            tooltip={uiText(
+              "Approximate active CPU time for the T3 server root process and its descendants during the selected window. It grows only while sampled processes use CPU and older samples leave as the window moves.",
+            )}
           />
           <StatBlock
-            label="Samples"
+            label={uiText("Samples")}
             value={resourceData ? formatCount(resourceData.retainedSampleCount) : "..."}
-            tooltip="In-memory process samples retained by the server. The server samples only while diagnostics is open, and this resets when the server restarts."
+            tooltip={uiText(
+              "In-memory process samples retained by the server. The server samples only while diagnostics is open, and this resets when the server restarts.",
+            )}
           />
           <StatBlock
-            label="Interval"
+            label={uiText("Interval")}
             value={
               resourceData
                 ? resourceData.sampleIntervalMs === 0
@@ -1027,7 +1057,7 @@ function DiagnosticsSettingsBody() {
             }
           />
           <StatBlock
-            label="Processes"
+            label={uiText("Processes")}
             value={resourceData ? formatCount(resourceData.topProcesses.length) : "..."}
           />
         </StatsGrid>
@@ -1059,7 +1089,7 @@ function DiagnosticsSettingsBody() {
       </SettingsSection>
 
       <SettingsSection
-        title="Trace Diagnostics"
+        title={uiText("Trace Diagnostics")}
         headerAction={
           <div className="flex items-center gap-1.5">
             <DiagnosticsLastChecked checkedAt={data?.readAt ?? null} />
@@ -1075,41 +1105,43 @@ function DiagnosticsSettingsBody() {
                       isOpeningLogsDirectory
                     }
                     onClick={openLogsDirectory}
-                    aria-label="Open logs folder"
+                    aria-label={uiText("Open logs folder")}
                   >
                     <FolderOpenIcon />
                   </Button>
                 }
               />
-              <TooltipPopup side="top">Open logs folder</TooltipPopup>
+              <TooltipPopup side="top">{uiText("Open logs folder")}</TooltipPopup>
             </Tooltip>
             <DiagnosticsRefreshButton
               isPending={isPending}
-              label="Refresh trace diagnostics"
+              label={uiText("Refresh trace diagnostics")}
               onClick={refresh}
             />
           </div>
         }
       >
         <StatsGrid>
-          <StatBlock label="Spans" value={data ? formatCount(data.recordCount) : "..."} />
+          <StatBlock label={uiText("Spans")} value={data ? formatCount(data.recordCount) : "..."} />
           <StatBlock
-            label="Failures"
+            label={uiText("Failures")}
             value={data ? formatCount(data.failureCount) : "..."}
             tone={data && data.failureCount > 0 ? "danger" : "default"}
           />
           <StatBlock
-            label="Slow Spans"
+            label={uiText("Slow Spans")}
             value={data ? formatCount(data.slowSpanCount) : "..."}
             tooltip={
               data
-                ? `Spans with a duration of ${formatDuration(data.slowSpanThresholdMs)} or longer.`
-                : "Spans at or above the configured slow-span threshold."
+                ? uiText("Spans with a duration of {0} or longer.", {
+                    "0": formatDuration(data.slowSpanThresholdMs),
+                  })
+                : uiText("Spans at or above the configured slow-span threshold.")
             }
             tone={data && data.slowSpanCount > 0 ? "warning" : "default"}
           />
           <StatBlock
-            label="Parse Errors"
+            label={uiText("Parse Errors")}
             value={data ? formatCount(data.parseErrorCount) : "..."}
             tone={data && data.parseErrorCount > 0 ? "warning" : "default"}
           />
@@ -1132,7 +1164,10 @@ function DiagnosticsSettingsBody() {
                 <AlertTriangleIcon className="size-3.5 h-lh shrink-0" />
                 <span>
                   {traceDiagnosticsPartialFailure
-                    ? `Some trace files could not be read, so diagnostics may be incomplete. ${traceDiagnosticsError.message}`
+                    ? uiText(
+                        "Some trace files could not be read, so diagnostics may be incomplete. {0}",
+                        { "0": traceDiagnosticsError.message },
+                      )
                     : traceDiagnosticsError.message}
                 </span>
               </div>
@@ -1147,7 +1182,7 @@ function DiagnosticsSettingsBody() {
         ) : null}
       </SettingsSection>
 
-      <SettingsSection title="Latest Failures">
+      <SettingsSection title={uiText("Latest Failures")}>
         {data && data.latestFailures.length > 0 ? (
           <DiagnosticsTable headers={["Span", "Cause", "Duration", "Ended"]}>
             {data.latestFailures.map((failure) => (
@@ -1168,11 +1203,15 @@ function DiagnosticsSettingsBody() {
             ))}
           </DiagnosticsTable>
         ) : (
-          <EmptyRows label={isInitialLoading ? "Loading failures..." : "No failed spans found."} />
+          <EmptyRows
+            label={
+              isInitialLoading ? uiText("Loading failures...") : uiText("No failed spans found.")
+            }
+          />
         )}
       </SettingsSection>
 
-      <SettingsSection title="Most Common Failures">
+      <SettingsSection title={uiText("Most Common Failures")}>
         {data && data.commonFailures.length > 0 ? (
           <DiagnosticsTable
             headers={["Span", "Count", "Cause", "Last Seen"]}
@@ -1197,12 +1236,16 @@ function DiagnosticsSettingsBody() {
           </DiagnosticsTable>
         ) : (
           <EmptyRows
-            label={isInitialLoading ? "Loading failure groups..." : "No repeated failures found."}
+            label={
+              isInitialLoading
+                ? uiText("Loading failure groups...")
+                : uiText("No repeated failures found.")
+            }
           />
         )}
       </SettingsSection>
 
-      <SettingsSection title="Slowest Spans">
+      <SettingsSection title={uiText("Slowest Spans")}>
         {data && data.slowestSpans.length > 0 ? (
           <DiagnosticsTable
             headers={["Span", "Duration", "Ended", "Trace"]}
@@ -1227,11 +1270,13 @@ function DiagnosticsSettingsBody() {
             ))}
           </DiagnosticsTable>
         ) : (
-          <EmptyRows label={isInitialLoading ? "Loading slow spans..." : "No spans found."} />
+          <EmptyRows
+            label={isInitialLoading ? uiText("Loading slow spans...") : uiText("No spans found.")}
+          />
         )}
       </SettingsSection>
 
-      <SettingsSection title="Span Logs">
+      <SettingsSection title={uiText("Span Logs")}>
         {data && data.latestWarningAndErrorLogs.length > 0 ? (
           <ScrollArea
             radius="none"
@@ -1250,11 +1295,17 @@ function DiagnosticsSettingsBody() {
               </colgroup>
               <thead className="border-b border-border/60 text-2xs uppercase tracking-widest text-muted-foreground/70">
                 <tr>
-                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold sm:pl-5">Time</th>
-                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold">Level</th>
-                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold">Span</th>
-                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold">Message</th>
-                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold sm:pr-5">Trace</th>
+                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold sm:pl-5">
+                    {uiText("Time")}
+                  </th>
+                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold">{uiText("Level")}</th>
+                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold">{uiText("Span")}</th>
+                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold">
+                    {uiText("Message")}
+                  </th>
+                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold sm:pr-5">
+                    {uiText("Trace")}
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
@@ -1291,12 +1342,16 @@ function DiagnosticsSettingsBody() {
           </ScrollArea>
         ) : (
           <EmptyRows
-            label={isInitialLoading ? "Loading recent logs..." : "No warnings or errors found."}
+            label={
+              isInitialLoading
+                ? uiText("Loading recent logs...")
+                : uiText("No warnings or errors found.")
+            }
           />
         )}
       </SettingsSection>
 
-      <SettingsSection title="Top Span Names">
+      <SettingsSection title={uiText("Top Span Names")}>
         {data && data.topSpansByCount.length > 0 ? (
           <DiagnosticsTable
             headers={["Span", "Count", "Failures", "Average", "Max"]}
@@ -1324,7 +1379,9 @@ function DiagnosticsSettingsBody() {
             ))}
           </DiagnosticsTable>
         ) : (
-          <EmptyRows label={isInitialLoading ? "Loading span names..." : "No spans found."} />
+          <EmptyRows
+            label={isInitialLoading ? uiText("Loading span names...") : uiText("No spans found.")}
+          />
         )}
       </SettingsSection>
       {exportFormEnvironmentId === environmentId && <TelemetryExportSettings />}

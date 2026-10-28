@@ -83,6 +83,7 @@ function layerDesktopWindow(
   input: {
     readonly activate?: Effect.Effect<void>;
     readonly flushMainWindowBounds?: Effect.Effect<void>;
+    readonly prepareForShutdown?: Effect.Effect<boolean>;
   } = {},
 ) {
   return Layer.succeed(DesktopWindow.DesktopWindow, {
@@ -92,6 +93,7 @@ function layerDesktopWindow(
     activate: input.activate ?? Effect.void,
     createMainIfBackendReady: Effect.void,
     showConnectingSplash: Effect.void,
+    prepareForShutdown: input.prepareForShutdown ?? Effect.succeed(true),
     handleBackendReady: () => Effect.void,
     handleBackendNotReady: Effect.void,
     flushMainWindowBounds: input.flushMainWindowBounds ?? Effect.void,
@@ -159,8 +161,7 @@ describe("DesktopLifecycle", () => {
       ).pipe(Effect.provide(layer));
     },
   );
-
-  it.effect("destroys windows before waiting for backend shutdown", () =>
+  it.effect("keeps the closing window visible until backend shutdown completes", () =>
     Effect.gen(function* () {
       const appListeners = new Map<string, (...args: readonly unknown[]) => void>();
       const shutdownRequested = yield* Deferred.make<void>();
@@ -215,9 +216,68 @@ describe("DesktopLifecycle", () => {
           const eventsBeforeCleanup = [...events];
           yield* Deferred.succeed(allowShutdown, undefined);
           yield* Deferred.await(quitRequested);
-
-          assert.deepEqual(eventsBeforeCleanup, ["flush", "destroy", "request"]);
-          assert.deepEqual(events, ["flush", "destroy", "request", "quit"]);
+          assert.deepEqual(eventsBeforeCleanup, ["flush", "request"]);
+          assert.deepEqual(events, ["flush", "request", "destroy", "quit"]);
+        }),
+      ).pipe(Effect.provide(layer));
+    }),
+  );
+  it.effect("coalesces repeated quit requests while draft preparation is pending", () =>
+    Effect.gen(function* () {
+      const appListeners = new Map<string, (...args: readonly unknown[]) => void>();
+      const prepared = yield* Deferred.make<void>();
+      const prepareStarted = yield* Deferred.make<void>();
+      const quitDone = yield* Deferred.make<void>();
+      let prepares = 0;
+      let requests = 0;
+      const layer = DesktopLifecycle.layer.pipe(
+        Layer.provideMerge(
+          layerElectronApp(appListeners, Deferred.succeed(quitDone, undefined).pipe(Effect.asVoid)),
+        ),
+        Layer.provideMerge(layerElectronTheme),
+        Layer.provideMerge(layerElectronWindow()),
+        Layer.provideMerge(
+          layerDesktopWindow({
+            prepareForShutdown: Effect.sync(() => {
+              prepares++;
+            }).pipe(
+              Effect.andThen(Deferred.succeed(prepareStarted, undefined)),
+              Effect.andThen(Deferred.await(prepared)),
+              Effect.as(true),
+            ),
+          }),
+        ),
+        Layer.provideMerge(
+          Layer.succeed(DesktopEnvironment.DesktopEnvironment, {
+            platform: "darwin",
+            isDevelopment: false,
+          } as DesktopEnvironment.DesktopEnvironment["Service"]),
+        ),
+        Layer.provideMerge(
+          Layer.succeed(DesktopShutdown.DesktopShutdown, {
+            request: Effect.sync(() => {
+              requests++;
+            }),
+            awaitRequest: Effect.void,
+            awaitComplete: Effect.void,
+            markComplete: Effect.void,
+            isComplete: Effect.succeed(true),
+          }),
+        ),
+        Layer.provideMerge(DesktopState.layer),
+      );
+      yield* Effect.scoped(
+        Effect.gen(function* () {
+          const lifecycle = yield* DesktopLifecycle.DesktopLifecycle;
+          yield* lifecycle.register;
+          const event = { preventDefault: () => undefined } as Electron.Event;
+          appListeners.get("before-quit")?.(event);
+          yield* Deferred.await(prepareStarted);
+          appListeners.get("before-quit")?.(event);
+          yield* Deferred.succeed(prepared, undefined);
+          yield* Deferred.await(quitDone);
+          assert.equal(prepares, 1);
+          assert.equal(requests, 1);
         }),
       ).pipe(Effect.provide(layer));
     }),

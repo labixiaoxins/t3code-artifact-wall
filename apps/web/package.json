@@ -7,7 +7,7 @@
     "build:ghostty-wasm": "bash scripts/build-libghostty-wasm.sh",
     "dev": "vp dev",
     "dev:built": "vp build --watch",
-    "build": "vp build",
+    "build": "node ../../scripts/check-storage-budget.ts 0.5 && vp build",
     "preview": "vp preview",
     "test": "vp test run --passWithNoTests --project unit --project browser"
   },
@@ -76,6 +76,7 @@
     "morphicons": "^1.7.1",
     "pdfjs-dist": "6.4.299",
     "pele": "^1.8.0",
+    "pinyin-pro": "3.29.5",
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-markdown": "^10.1.0",
@@ -101,6 +102,7 @@
     "@types/mdast": "^4.0.4",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "@types/react-test-renderer": "19.1.0",
     "@types/sql.js": "1.4.11",
     "@types/use-sync-external-store": "^0.0.6",
     "@vercel/config": "^0.3.0",
@@ -109,6 +111,7 @@
     "compression": "^1.8.2",
     "oxc-transform-react": "~0.152.0",
     "playwright": "1.60.0",
+    "react-test-renderer": "19.3.0",
     "tailwindcss": "^4.0.0",
     "vite": "catalog:",
     "vite-plus": "catalog:"

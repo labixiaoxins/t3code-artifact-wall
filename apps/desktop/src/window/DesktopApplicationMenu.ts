@@ -3,16 +3,15 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
-
 import type * as Electron from "electron";
-
 import { makeComponentLogger } from "../app/DesktopObservability.ts";
 import * as ElectronDialog from "../electron/ElectronDialog.ts";
 import * as ElectronMenu from "../electron/ElectronMenu.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopUpdates from "../updates/DesktopUpdates.ts";
 import * as DesktopWindow from "./DesktopWindow.ts";
-
+import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
+import { localizeApplicationMenu } from "./menuLocale.ts";
 export class DesktopApplicationMenuActionError extends Schema.TaggedError<DesktopApplicationMenuActionError>()(
   "DesktopApplicationMenuActionError",
   {
@@ -24,23 +23,18 @@ export class DesktopApplicationMenuActionError extends Schema.TaggedError<Deskto
     return `Desktop menu action "${this.action}" failed.`;
   }
 }
-
 export class DesktopApplicationMenu extends Context.Service<
   DesktopApplicationMenu,
   {
     readonly configure: Effect.Effect<void>;
   }
 >()("@t3tools/desktop/window/DesktopApplicationMenu") {}
-
 type DesktopApplicationMenuRuntimeServices =
   | DesktopUpdates.DesktopUpdates
   | DesktopWindow.DesktopWindow
   | ElectronDialog.ElectronDialog;
-
 const { logInfo: logUpdaterInfo } = makeComponentLogger("desktop-updater");
-
 const { logError: logMenuError } = makeComponentLogger("desktop-menu");
-
 const dispatchMenuAction = Effect.fn("desktop.menu.dispatchMenuAction")(function* (
   action: string,
 ): Effect.fn.Return<void, DesktopWindow.DesktopWindowError, DesktopWindow.DesktopWindow> {
@@ -49,76 +43,88 @@ const dispatchMenuAction = Effect.fn("desktop.menu.dispatchMenuAction")(function
     reveal: action !== "paste-as-text",
   });
 });
-
 const zoomMainWindow = Effect.fn("desktop.menu.zoomMainWindow")(function* (
   direction: DesktopWindow.MainWindowZoomDirection,
 ): Effect.fn.Return<void, never, DesktopWindow.DesktopWindow> {
   const desktopWindow = yield* DesktopWindow.DesktopWindow;
   yield* desktopWindow.zoomMain(direction);
 });
-
 const runMainContentsCommand = Effect.fn("desktop.menu.runMainContentsCommand")(function* (
   command: DesktopWindow.MainWindowContentsCommand,
 ): Effect.fn.Return<void, never, DesktopWindow.DesktopWindow> {
   const desktopWindow = yield* DesktopWindow.DesktopWindow;
   yield* desktopWindow.runMainContentsCommand(command);
 });
-
-const checkForUpdatesFromMenu = Effect.gen(function* () {
+const checkForUpdatesFromMenu = Effect.fn("desktop.menu.checkForUpdates")(function* (
+  locale: "zh-CN" | "en",
+) {
+  const text = (en: string, zh: string) => (locale === "zh-CN" ? zh : en);
   const updates = yield* DesktopUpdates.DesktopUpdates;
   const electronDialog = yield* ElectronDialog.ElectronDialog;
   const result = yield* updates.check("menu");
   const updateState = result.state;
-
   if (updateState.status === "up-to-date") {
     yield* electronDialog.showMessageBox({
       type: "info",
-      title: "You're up to date!",
-      message: `T3 Code ${updateState.currentVersion} is currently the newest version available.`,
-      buttons: ["OK"],
+      title: text("You're up to date!", "\u5DF2\u662F\u6700\u65B0\u7248\u672C"),
+      message: text(
+        `T3 Code ${updateState.currentVersion} is currently the newest version available.`,
+        `T3 Code ${updateState.currentVersion} 已是当前最新版本。`,
+      ),
+      buttons: [text("OK", "\u786E\u5B9A")],
     });
   } else if (updateState.status === "error") {
     yield* electronDialog.showMessageBox({
       type: "warning",
-      title: "Update check failed",
-      message: "Could not check for updates.",
-      detail: updateState.message ?? "An unknown error occurred. Please try again later.",
-      buttons: ["OK"],
+      title: text("Update check failed", "\u68C0\u67E5\u66F4\u65B0\u5931\u8D25"),
+      message: text(
+        "Could not check for updates.",
+        "\u6682\u65F6\u65E0\u6CD5\u68C0\u67E5\u66F4\u65B0\u3002",
+      ),
+      detail:
+        updateState.message ??
+        text(
+          "An unknown error occurred. Please try again later.",
+          "\u53D1\u751F\u672A\u77E5\u9519\u8BEF\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5\u3002",
+        ),
+      buttons: [text("OK", "\u786E\u5B9A")],
     });
   }
-}).pipe(Effect.withSpan("desktop.menu.checkForUpdates"));
-
-const handleCheckForUpdatesMenuClick = Effect.gen(function* () {
-  const updates = yield* DesktopUpdates.DesktopUpdates;
-  const electronDialog = yield* ElectronDialog.ElectronDialog;
-  const disabledReason = yield* updates.disabledReason;
-  if (Option.isSome(disabledReason)) {
-    yield* logUpdaterInfo("manual update check requested, but updates are disabled", {
-      disabledReason: disabledReason.value,
-    });
-    yield* electronDialog.showMessageBox({
-      type: "info",
-      title: "Updates unavailable",
-      message: "Automatic updates are not available right now.",
-      detail: disabledReason.value,
-      buttons: ["OK"],
-    });
-    return;
-  }
-
-  // Opening a window before backend confirmation can strand it on failed auth bootstrap.
-  const desktopWindow = yield* DesktopWindow.DesktopWindow;
-  yield* desktopWindow.activate;
-  yield* checkForUpdatesFromMenu;
-}).pipe(Effect.withSpan("desktop.menu.handleCheckForUpdatesClick"));
-
+});
+const handleCheckForUpdatesMenuClick = Effect.fn("desktop.menu.handleCheckForUpdatesClick")(
+  function* (locale: "zh-CN" | "en") {
+    const text = (en: string, zh: string) => (locale === "zh-CN" ? zh : en);
+    const updates = yield* DesktopUpdates.DesktopUpdates;
+    const electronDialog = yield* ElectronDialog.ElectronDialog;
+    const disabledReason = yield* updates.disabledReason;
+    if (Option.isSome(disabledReason)) {
+      yield* logUpdaterInfo("manual update check requested, but updates are disabled", {
+        disabledReason: disabledReason.value,
+      });
+      yield* electronDialog.showMessageBox({
+        type: "info",
+        title: text("Updates unavailable", "\u66F4\u65B0\u6682\u4E0D\u53EF\u7528"),
+        message: text(
+          "Automatic updates are not available right now.",
+          "\u5F53\u524D\u65E0\u6CD5\u81EA\u52A8\u66F4\u65B0\u3002",
+        ),
+        detail: disabledReason.value,
+        buttons: [text("OK", "\u786E\u5B9A")],
+      });
+      return;
+    }
+    // Opening a window before backend confirmation can strand it on failed auth bootstrap.
+    const desktopWindow = yield* DesktopWindow.DesktopWindow;
+    yield* desktopWindow.activate;
+    yield* checkForUpdatesFromMenu(locale);
+  },
+);
 /** @public */
 export const make = Effect.gen(function* () {
   const electronMenu = yield* ElectronMenu.ElectronMenu;
   const environment = yield* DesktopEnvironment.DesktopEnvironment;
   const context = yield* Effect.context<DesktopApplicationMenuRuntimeServices>();
   const runPromise = Effect.runPromiseWith(context);
-
   const runMenuEffect = <E>(
     action: string,
     effect: Effect.Effect<void, E, DesktopApplicationMenuRuntimeServices>,
@@ -134,10 +140,9 @@ export const make = Effect.gen(function* () {
       ),
     );
   };
-
   const configure = Effect.gen(function* () {
     const checkForUpdatesClick = () => {
-      runMenuEffect("check-for-updates", handleCheckForUpdatesMenuClick);
+      runMenuEffect("check-for-updates", handleCheckForUpdatesMenuClick(locale));
     };
     const settingsClick = () => {
       runMenuEffect("open-settings", dispatchMenuAction("open-settings"));
@@ -158,7 +163,6 @@ export const make = Effect.gen(function* () {
       runMenuEffect(command, runMainContentsCommand(command));
     };
     const template: Electron.MenuItemConstructorOptions[] = [];
-
     if (environment.platform === "darwin") {
       template.push({
         label: environment.displayName,
@@ -185,7 +189,6 @@ export const make = Effect.gen(function* () {
         ],
       });
     }
-
     template.push(
       {
         label: "File",
@@ -300,13 +303,21 @@ export const make = Effect.gen(function* () {
         ],
       },
     );
-
-    yield* electronMenu.setApplicationMenu(template);
+    const settingsService = yield* Effect.serviceOption(
+      DesktopClientSettings.DesktopClientSettings,
+    );
+    const settings = Option.isSome(settingsService)
+      ? yield* settingsService.value.get.pipe(Effect.orElseSucceed(() => Option.none()))
+      : Option.none();
+    const locale = Option.isSome(settings)
+      ? (settings.value.appLocale ?? "zh-CN")
+      : environment.isPackaged
+        ? "zh-CN"
+        : "en";
+    yield* electronMenu.setApplicationMenu(localizeApplicationMenu(template, locale));
   }).pipe(Effect.withSpan("desktop.menu.configure"));
-
   return DesktopApplicationMenu.of({
     configure,
   });
 });
-
 export const layer = Layer.effect(DesktopApplicationMenu, make);

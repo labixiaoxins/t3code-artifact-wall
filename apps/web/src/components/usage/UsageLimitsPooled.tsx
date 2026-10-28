@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   CHATGPT_USAGE_URL,
   collectLimitAccounts,
@@ -26,7 +27,6 @@ import {
   useRef,
   useState,
 } from "react";
-
 import { ensureLocalApi } from "../../localApi";
 import { usePrimarySettings } from "../../hooks/useSettings";
 import { cn } from "../../lib/utils";
@@ -46,12 +46,10 @@ import {
   resetCreditsSummary,
   useResetCredit,
 } from "./UsageLimits";
-
 function accountInitials(email: string): string {
   const [local = "", domain = ""] = email.split("@");
   return `${local[0] ?? ""}${domain[0] ?? ""}`.toUpperCase() || "?";
 }
-
 function accountHue(email: string): number {
   let hash = 0;
   for (let index = 0; index < email.length; index += 1) {
@@ -59,13 +57,12 @@ function accountHue(email: string): number {
   }
   return Math.abs(hash) % 360;
 }
-
 function AccountChip({ email }: { readonly email: string }) {
   const hue = accountHue(email);
   return (
     <span
       role="img"
-      aria-label={`Account ${accountInitials(email)}`}
+      aria-label={uiText("Account {0}", { "0": accountInitials(email) })}
       className="inline-flex size-4 shrink-0 items-center justify-center rounded-full text-3xs leading-none font-semibold"
       style={{ backgroundColor: `oklch(0.85 0.08 ${hue})`, color: `oklch(0.35 0.1 ${hue})` }}
     >
@@ -73,7 +70,6 @@ function AccountChip({ email }: { readonly email: string }) {
     </span>
   );
 }
-
 function AccountAvatar({
   account,
   className,
@@ -100,7 +96,6 @@ function AccountAvatar({
   }
   return account.email ? <AccountChip email={account.email} /> : null;
 }
-
 function AccountName({
   account,
   className,
@@ -122,7 +117,6 @@ function AccountName({
     </span>
   );
 }
-
 function Row({ label, children }: { readonly label: string; readonly children: ReactNode }) {
   return (
     <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-3">
@@ -131,7 +125,6 @@ function Row({ label, children }: { readonly label: string; readonly children: R
     </div>
   );
 }
-
 function SegmentPopover({
   account,
   window,
@@ -177,22 +170,36 @@ function SegmentPopover({
         ) : null}
       </div>
       <div className="flex flex-col gap-1 border-t border-border/60 pt-2.5">
-        {account.plan ? <Row label="Plan">{account.plan}</Row> : null}
+        {account.plan ? <Row label={uiText("Plan")}>{account.plan}</Row> : null}
         {where ? (
-          <Row label={account.environments.length > 0 ? "Signed in" : "Via"}>{where}</Row>
+          <Row label={account.environments.length > 0 ? uiText("Signed in") : uiText("Via")}>
+            {where}
+          </Row>
         ) : null}
       </div>
       <div className="flex flex-col gap-1 border-t border-border/60 pt-2.5">
-        <Row label="Left">{remaining}%</Row>
+        <Row label={uiText("Left")}>
+          {remaining}
+          {"%"}
+        </Row>
         {window.resetsAt ? (
-          <Row label="Resets">
+          <Row label={uiText("Resets")}>
             {formatUpcomingTimestamp(window.resetsAt, timestampFormat, now)}
             {resetsIn ? ` · ${resetsIn.replace("resets in ", "in ")}` : ""}
           </Row>
         ) : null}
-        {timeLeft !== null ? <Row label="Even pace">{timeLeft}% left by now</Row> : null}
+        {timeLeft !== null ? (
+          <Row label="Even pace">
+            {timeLeft}
+            {"% left by now"}
+          </Row>
+        ) : null}
         {reset && reset.restoresPercent > 0 ? (
-          <Row label="Restores">+{reset.restoresPercent}% of pool</Row>
+          <Row label={uiText("Restores")}>
+            {"+"}
+            {reset.restoresPercent}
+            {uiText("% of pool")}
+          </Row>
         ) : null}
       </div>
       {credits && redeem ? (
@@ -206,7 +213,7 @@ function SegmentPopover({
               className="ms-auto"
               onClick={onRedeem}
             >
-              {redeem.busy ? "Using…" : "Use reset"}
+              {redeem.busy ? uiText("Using…") : uiText("Use reset")}
             </Button>
           </span>
         </div>
@@ -214,7 +221,6 @@ function SegmentPopover({
     </div>
   );
 }
-
 /**
  * Every segment on the page shares one popover, so hovering or clicking another
  * segment moves it instead of opening a second one. The payload is the segment
@@ -224,7 +230,6 @@ type SegmentPayload = Omit<Parameters<typeof SegmentPopover>[0], "now" | "onRede
 const SegmentPopoverContext = createContext<ReturnType<
   typeof PopoverCreateHandle<SegmentPayload>
 > | null>(null);
-
 function ActiveSegmentPopover({
   handle,
   actions,
@@ -270,7 +275,6 @@ function ActiveSegmentPopover({
     </PopoverPopup>
   );
 }
-
 /**
  * The confirm is a sibling of the popover, not a child: dialogs stack under
  * popovers, and the popover closes as the confirm opens.
@@ -294,7 +298,6 @@ function PoolSegment({
     <SegmentTriggers account={account} redeem={null} {...props} />
   );
 }
-
 function RedeemableSegment({
   redeemAt,
   ...props
@@ -315,13 +318,12 @@ function RedeemableSegment({
       {redeem.busy || redeem.status ? (
         <span role="status" className="col-span-full text-xs text-muted-foreground">
           <AccountName account={props.account} className="font-medium text-foreground" />{" "}
-          {redeem.busy ? "Using reset credit…" : redeem.status}
+          {redeem.busy ? "Using reset credit\u2026" : redeem.status}
         </span>
       ) : null}
     </>
   );
 }
-
 function SegmentTriggers({
   account,
   window,
@@ -409,16 +411,17 @@ function SegmentTriggers({
               !showAccountName && "redesign:hidden",
             )}
           >
-            {remaining}%
+            {remaining}
+            {"%"}
           </span>
           {resetsIn || credits ? (
             <span className="ms-auto flex min-w-0 items-center gap-1.5 overflow-hidden rounded-sm bg-background/85 px-1.5 py-0.5 text-2xs whitespace-nowrap text-foreground tabular-nums">
-              {resetsIn?.replace("resets in ", "↻ ") ?? ""}
+              {resetsIn?.replace("resets in ", "\u21BB ") ?? ""}
               {credits ? (
                 <>
                   {resetsIn ? (
                     <span aria-hidden className="text-muted-foreground">
-                      ·
+                      {"\u00B7"}
                     </span>
                   ) : null}
                   <span aria-hidden className="inline-flex items-center gap-0.5 font-semibold">
@@ -435,7 +438,6 @@ function SegmentTriggers({
     </>
   );
 }
-
 function LegendRow({
   payload,
   color,
@@ -466,16 +468,19 @@ function LegendRow({
           className="absolute inset-0 rounded-sm opacity-35"
           style={{ backgroundColor: color }}
         />
-        <span className="sr-only">Segment </span>
+        <span className="sr-only">{uiText("Segment")}</span>
         <span className="relative">{index}</span>
       </span>
       <AccountName account={account} className="min-w-0 truncate font-medium text-foreground" />
-      <span className="shrink-0 font-semibold text-foreground tabular-nums">{remaining}%</span>
+      <span className="shrink-0 font-semibold text-foreground tabular-nums">
+        {remaining}
+        {"%"}
+      </span>
       <span className="ms-auto flex shrink-0 items-center gap-1.5 text-2xs text-muted-foreground tabular-nums">
-        {resetsIn?.replace("resets in ", "↻ ") ?? ""}
+        {resetsIn?.replace("resets in ", "\u21BB ") ?? ""}
         {credits ? (
           <>
-            {resetsIn ? <span aria-hidden>·</span> : null}
+            {resetsIn ? <span aria-hidden>{"\u00B7"}</span> : null}
             <span
               aria-hidden
               className="inline-flex items-center gap-0.5 font-semibold text-foreground"
@@ -484,7 +489,10 @@ function LegendRow({
               {credits}
             </span>
             <span className="sr-only">
-              {credits} reset {credits === 1 ? "credit" : "credits"} banked
+              {credits}
+              {uiText("reset")}
+              {credits === 1 ? uiText("credit") : uiText("credits")}
+              {uiText("banked")}
             </span>
           </>
         ) : null}
@@ -492,7 +500,6 @@ function LegendRow({
     </PopoverTrigger>
   );
 }
-
 function PoolBar({
   pool,
   color,
@@ -528,7 +535,6 @@ function PoolBar({
     </div>
   );
 }
-
 function PoolWindowCard({
   pool,
   color,
@@ -549,16 +555,19 @@ function PoolWindowCard({
         <span className="text-sm font-medium text-foreground">{label ?? pool.label}</span>
         <span className="flex items-baseline gap-2">
           <span className="text-3xl font-semibold text-foreground tabular-nums">
-            {pool.remainingPercent}%
+            {pool.remainingPercent}
+            {"%"}
           </span>
           <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-            <span>left</span>
+            <span>{uiText("left")}</span>
             {pool.pace ? <PaceIcon pace={pool.pace} /> : null}
           </span>
         </span>
         {nextRefill && pool.columns.length > 1 ? (
           <span className="text-xs font-medium text-foreground tabular-nums">
-            ↻ +{nextRefill.restoresPercent}%
+            {"\u21BB +"}
+            {nextRefill.restoresPercent}
+            {"%"}
           </span>
         ) : null}
       </div>
@@ -569,7 +578,6 @@ function PoolWindowCard({
     </div>
   );
 }
-
 function PoolSection({ pool, now }: { readonly pool: LimitPool; readonly now: number }) {
   const color = barColor(pool.driver);
   const label = providerClients.get(pool.driver)?.label ?? String(pool.driver);
@@ -602,7 +610,6 @@ function PoolSection({ pool, now }: { readonly pool: LimitPool; readonly now: nu
     </section>
   );
 }
-
 export function UsageLimitsPooled({
   presentations,
   now,
@@ -626,7 +633,7 @@ export function UsageLimitsPooled({
     <div className="flex flex-col gap-8">
       {pools.length === 0 && notices.length === 0 && !cursorPrompt && externalLinks.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No provider on the selected environments reports subscription limits.
+          {uiText("No provider on the selected environments reports subscription limits.")}
         </p>
       ) : null}
       <SegmentPopoverContext value={segmentPopover}>
@@ -664,7 +671,7 @@ export function UsageLimitsPooled({
               <h2 className="text-sm font-medium">{link.label}</h2>
               {link.url === CHATGPT_USAGE_URL ? (
                 <p className="text-xs text-muted-foreground">
-                  View usage in ChatGPT with your connected account.
+                  {uiText("View usage in ChatGPT with your connected account.")}
                 </p>
               ) : link.message ? (
                 <p className="max-w-xl text-xs text-muted-foreground">{link.message}</p>
@@ -676,7 +683,7 @@ export function UsageLimitsPooled({
             size="xs"
             onClick={() => void ensureLocalApi().shell.openExternal(link.url)}
           >
-            Manage usage
+            {uiText("Manage usage")}
             <ExternalLinkIcon className="size-3.5" aria-hidden="true" />
           </Button>
         </section>
@@ -685,7 +692,6 @@ export function UsageLimitsPooled({
     </div>
   );
 }
-
 function LimitNotices({ notices }: { readonly notices: readonly string[] }) {
   if (notices.length === 0) return null;
   return (

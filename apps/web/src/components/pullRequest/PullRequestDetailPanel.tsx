@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { projectChangeRequestUrl } from "@t3tools/client-runtime/change-request-links";
 import { normalizeThreadPullRequestKey } from "@t3tools/client-runtime/thread-pull-requests";
 import { changeRequestReferenceAutolinker } from "@t3tools/client-runtime/pull-request-markdown";
@@ -44,7 +45,6 @@ import {
   useRef,
   useState,
 } from "react";
-
 import { type DraftId, useComposerDraftStore } from "~/composerDraftStore";
 import { type PullRequestDetailTab, useRightPanelStore } from "~/rightPanelStore";
 import { useEnvironmentSettings } from "~/hooks/useSettings";
@@ -76,7 +76,6 @@ import { PullRequestThreadLinks } from "./PullRequestThreadLinks";
 import { vcsEnvironment } from "~/state/vcs";
 import { RelativeTime } from "~/components/RelativeTime";
 import { useUiStateStore } from "~/uiStateStore";
-
 import { Button } from "../ui/button";
 import { toastManager } from "../ui/toast";
 import { Tooltip, TooltipPopup, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
@@ -154,21 +153,19 @@ import {
 import { PullRequestGuideTab } from "./PullRequestGuideTab";
 import { guideRunKey, useGuideRunStore } from "./guide/guideRunStore";
 import { useReviewGuideWriter } from "./guide/useReviewGuideWriter";
-
 const actionFailureLabels = (term: string): Record<PullRequestAction, string> => ({
   merge: `Could not merge this ${term}`,
-  ready: "Could not mark this ready for review",
-  draft: "Could not convert this to a draft",
+  ready: uiText("Could not mark this ready for review"),
+  draft: uiText("Could not convert this to a draft"),
   close: `Could not close this ${term}`,
   reopen: `Could not reopen this ${term}`,
-  "update-branch": "Could not update this branch",
-  "enable-auto-merge": "Could not turn on auto-merge",
-  "disable-auto-merge": "Could not turn off auto-merge",
+  "update-branch": uiText("Could not update this branch"),
+  "enable-auto-merge": uiText("Could not turn on auto-merge"),
+  "disable-auto-merge": uiText("Could not turn off auto-merge"),
   revert: `Could not open a revert ${term}`,
-  "delete-branch": "Could not delete this branch",
-  "approve-workflows": "Could not approve workflows",
+  "delete-branch": uiText("Could not delete this branch"),
+  "approve-workflows": uiText("Could not approve workflows"),
 });
-
 const actionFailureHints = (term: string): Record<PullRequestAction, string> => ({
   merge:
     "The host refused the merge. Check that you have write access, that the checks it requires have passed, and that the branch is not conflicting.",
@@ -189,35 +186,31 @@ const actionFailureHints = (term: string): Record<PullRequestAction, string> => 
   "approve-workflows":
     "The host refused it. Check that you have Actions write access and that these workflow runs are still awaiting approval.",
 });
-
 const UPDATE_BRANCH_REBASE_FAILURE_HINT =
   "The host refused it. A rebase stops at the first commit that does not apply cleanly; updating with a merge commit may still work.";
-
-const TABS: ReadonlyArray<{ value: PullRequestDetailTab; label: string }> = [
-  { value: "summary", label: "Summary" },
-  { value: "guide", label: "Guide" },
-  { value: "timeline", label: "Timeline" },
+const TABS: ReadonlyArray<{
+  value: PullRequestDetailTab;
+  label: string;
+}> = [
+  { value: "summary", label: uiText("Summary") },
+  { value: "guide", label: uiText("Guide") },
+  { value: "timeline", label: uiText("Timeline") },
   { value: "code", label: "Code" },
 ];
-
 // Defer the diff viewer's worker pool until Code is approached.
 const loadCodeTab = () => import("./PullRequestCodeTab");
 const PullRequestCodeTab = lazy(loadCodeTab);
-
 // Persist handoffs across unmounts; replace only unchanged contributions to preserve user edits.
 const lastHandoffPromptByDraft = new Map<string, string>();
-
 const composerTargetKey = (target: ScopedThreadRef | DraftId): string =>
   typeof target === "string" ? target : scopedThreadKey(target);
-
 function reportCheckoutCommandError(error: Error) {
   toastManager.add({
     type: "error",
-    title: "Could not copy checkout command",
+    title: uiText("Could not copy checkout command"),
     description: error.message,
   });
 }
-
 function resolvePullRequestReference(
   requestedReference: PullRequestRef,
   repositoryIdentity: Parameters<typeof resolvePullRequestReferenceHost>[1],
@@ -231,14 +224,12 @@ function resolvePullRequestReference(
         number: requestedReference.number,
       };
 }
-
 function pullRequestMarkdownContext(
   detail: Pick<PullRequestDetail, "provider" | "url"> | null,
   threadRef: ScopedThreadRef | null,
 ) {
   return { autolinks: changeRequestReferenceAutolinker(detail), threadRef };
 }
-
 function pullRequestStackReference(
   detail: Pick<PullRequestDetail, "url" | "capabilities"> | null,
   reference: PullRequestRef,
@@ -251,7 +242,6 @@ function pullRequestStackReference(
         host: reference.host ?? sourceControlClients.parseChangeRequestUrl(detail.url)?.link.host,
       };
 }
-
 export function PullRequestDetailPanel({
   environmentId,
   shortcutsEnabled,
@@ -468,11 +458,12 @@ export function PullRequestDetailPanel({
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
   const { copyToClipboard: copyReference } = useCopyToClipboard<string>({
     target: `${terminology.singular} reference`,
-    onCopy: (label) => toastManager.add({ type: "success", title: `${label} copied` }),
+    onCopy: (label) =>
+      toastManager.add({ type: "success", title: uiText("{0} copied", { "0": label }) }),
     onError: (error, label) =>
       toastManager.add({
         type: "error",
-        title: `Failed to copy ${label}`,
+        title: uiText("Failed to copy {0}", { "0": label }),
         description: error.message,
       }),
   });
@@ -641,7 +632,6 @@ export function PullRequestDetailPanel({
     environmentId: actingEnvironmentId,
     cwd: checkoutRoot,
   });
-
   const finishAction = async (
     action: PullRequestAction,
     method?: PullRequestMergeMethod,
@@ -677,7 +667,7 @@ export function PullRequestDetailPanel({
       toastManager.add({ type: "success", title: `Revert ${terminology.singular} opened` });
     }
     if (action === "delete-branch") {
-      toastManager.add({ type: "success", title: "Branch deleted" });
+      toastManager.add({ type: "success", title: uiText("Branch deleted") });
     }
     if (pullRequestActionNeedsHostRefresh(action)) {
       void refreshFromHost();
@@ -687,7 +677,6 @@ export function PullRequestDetailPanel({
     onActed?.(action, "done");
     return true;
   };
-
   const perform = async (
     action: PullRequestAction,
     method?: PullRequestMergeMethod,
@@ -697,7 +686,6 @@ export function PullRequestDetailPanel({
     setPendingAction(action);
     return finishAction(action, method, updateMethod);
   };
-
   const performCommentAction = async (body: string, action: "close" | "reopen") => {
     if (!canWriteSourceControl || pendingAction !== null) return { commentPosted: false };
     setPendingAction(action);
@@ -707,7 +695,7 @@ export function PullRequestDetailPanel({
     });
     if (commentResult._tag === "Failure") {
       setPendingAction(null);
-      toastManager.add({ type: "error", title: "Could not post the comment" });
+      toastManager.add({ type: "error", title: uiText("Could not post the comment") });
       return { commentPosted: false };
     }
     const actionSucceeded = await finishAction(action);
@@ -715,12 +703,10 @@ export function PullRequestDetailPanel({
     if (!actionSucceeded) refreshDetail();
     return { commentPosted: true };
   };
-
   type ThreadTask = {
     prompt: string;
     reviewComments?: ReadonlyArray<ReviewCommentContext>;
   };
-
   const attachTarget = composerDraftTarget ?? null;
   const canPrepareWorktree = prepareThread.isAllowed && canOperateThread;
   const canFixFindings = attachTarget !== null || canPrepareWorktree;
@@ -734,7 +720,6 @@ export function PullRequestDetailPanel({
     void guideWriter.write();
     if (guideWriter.data?.guide == null) selectTab("guide");
   };
-
   const writeTaskToComposer = (target: ScopedThreadRef | DraftId, task: ThreadTask) => {
     const store = useComposerDraftStore.getState();
     const draft = store.getComposerDraft(target);
@@ -771,12 +756,15 @@ export function PullRequestDetailPanel({
       });
     }
   };
-
   const openThreadWithTask = async (
     projectRef: ReturnType<typeof scopeProjectRef>,
     task: ThreadTask | null,
-    opened?: { draftId: DraftId },
-  ): Promise<{ draftId: DraftId } | null> => {
+    opened?: {
+      draftId: DraftId;
+    },
+  ): Promise<{
+    draftId: DraftId;
+  } | null> => {
     const session =
       opened ??
       (await newThread(projectRef).then(
@@ -788,18 +776,19 @@ export function PullRequestDetailPanel({
     writeTaskToComposer(session.draftId, task);
     return session;
   };
-
   const startAsk = async (
     kind: string,
     task: ThreadTask,
-    options?: { readonly keepGuide?: boolean },
+    options?: {
+      readonly keepGuide?: boolean;
+    },
   ) => {
     if (!detail || handoff !== null) return;
     if (attachTarget !== null) {
       writeTaskToComposer(attachTarget, task);
       toastManager.add({
         type: "success",
-        title: "Added to the composer",
+        title: uiText("Added to the composer"),
         description:
           task.prompt.length > 0
             ? "The question is in the composer. Read it over, then send."
@@ -830,24 +819,26 @@ export function PullRequestDetailPanel({
     if (opened === null) {
       toastManager.add({
         type: "error",
-        title: "Could not open a thread",
-        description: "Try again from the project, or open a thread first.",
+        title: uiText("Could not open a thread"),
+        description: uiText("Try again from the project, or open a thread first."),
       });
       return;
     }
     toastManager.add({
       type: "success",
-      title: "Asked in a thread",
+      title: uiText("Asked in a thread"),
       description:
         task.prompt.length > 0
           ? "The question is in the composer. Read it over, then send."
           : `The ${terminology.singular} is in the composer. Type your question, then send.`,
     });
   };
-
   const startHandoff = async (
     kind: string,
-    task: { prompt: string; reviewComments?: ReadonlyArray<ReviewCommentContext> } | null,
+    task: {
+      prompt: string;
+      reviewComments?: ReadonlyArray<ReviewCommentContext>;
+    } | null,
     mode: "worktree" | "local" = "worktree",
   ) => {
     if (!handoffSummary || handoff !== null) return;
@@ -855,7 +846,7 @@ export function PullRequestDetailPanel({
       writeTaskToComposer(attachTarget, task);
       toastManager.add({
         type: "success",
-        title: "Added to the composer",
+        title: uiText("Added to the composer"),
         description: "The task is in the composer. Read it over, then send.",
       });
       return;
@@ -891,8 +882,8 @@ export function PullRequestDetailPanel({
       setHandoff(null);
       toastManager.update(toastId, {
         type: "error",
-        title: "Could not open a thread for the checkout",
-        description: "Try again from the project, or open a thread first.",
+        title: uiText("Could not open a thread for the checkout"),
+        description: uiText("Try again from the project, or open a thread first."),
       });
       return;
     }
@@ -925,8 +916,11 @@ export function PullRequestDetailPanel({
       // Sending after failed rebinding would use the previous checkout.
       toastManager.update(toastId, {
         type: "error",
-        title: "Checked out, but the thread stayed where it was",
-        description: `The checkout is ready on \`${prepared.value.branch}\`. Point a thread at it from the branch picker, then ask again.`,
+        title: uiText("Checked out, but the thread stayed where it was"),
+        description: uiText(
+          "The checkout is ready on `{0}`. Point a thread at it from the branch picker, then ask again.",
+          { "0": prepared.value.branch },
+        ),
       });
       return;
     }
@@ -953,13 +947,12 @@ export function PullRequestDetailPanel({
       prepared.value.isOnPullRequestHead
         ? {
             type: "success",
-            title: "Checkout ready",
+            title: uiText("Checkout ready"),
             description: "The task is in the composer. Read it over, then send.",
           }
         : offHeadPullRequestCheckoutToast(terminology),
     );
   };
-
   const askAboutPullRequest = () => {
     if (!detail) return;
     void startAsk("ask", {
@@ -974,7 +967,6 @@ export function PullRequestDetailPanel({
       }),
     });
   };
-
   const explainPullRequest = () => {
     if (!detail) return;
     void startAsk("explain", {
@@ -989,7 +981,6 @@ export function PullRequestDetailPanel({
       }),
     });
   };
-
   const askAboutGuideStop = (stop: PullRequestReviewGuideStop, index: number, question: string) => {
     if (!detail) return;
     void startAsk(
@@ -1014,10 +1005,11 @@ export function PullRequestDetailPanel({
       { keepGuide: true },
     );
   };
-
   const addSelectionToAgent = (
     selection: PullRequestAgentSelectionInput,
-    options?: { readonly keepGuide?: boolean },
+    options?: {
+      readonly keepGuide?: boolean;
+    },
   ) => {
     if (!detail) return;
     void startAsk(
@@ -1036,12 +1028,10 @@ export function PullRequestDetailPanel({
       options,
     );
   };
-
   const startCheckout = (mode: "worktree" | "local") => {
     if (!handoffSummary) return;
     void startHandoff(`checkout:${mode}`, null, mode);
   };
-
   const startFixFinding = (finding: PullRequestFinding) => {
     if (!detail) return;
     void startHandoff(
@@ -1056,7 +1046,6 @@ export function PullRequestDetailPanel({
       }),
     );
   };
-
   const startFixFindings = () => {
     if (!detail) return;
     void startHandoff(
@@ -1074,7 +1063,6 @@ export function PullRequestDetailPanel({
       }),
     );
   };
-
   const startResolveConflicts = () => {
     if (!handoffSummary) return;
     void startHandoff("conflicts", {
@@ -1086,7 +1074,6 @@ export function PullRequestDetailPanel({
       }),
     });
   };
-
   const selectMergeMethod = (method: PullRequestMergeMethod) => {
     setMergeMethod(method);
     setLastSelectedMergeMethod(method);
@@ -1105,7 +1092,9 @@ export function PullRequestDetailPanel({
     lastSelectedMergeMethod,
   );
   const selectedMergeMethodLabel = PULL_REQUEST_MERGE_METHOD_LABELS[selectedMergeMethod];
-  const pendingAutoMergeLabel = `Auto-merge (${selectedMergeMethodLabel.toLowerCase()})`;
+  const pendingAutoMergeLabel = uiText("Auto-merge ({0})", {
+    "0": selectedMergeMethodLabel.toLowerCase(),
+  });
   const conflicting = detail?.state === "open" && detail.mergeability === "conflicting";
   const autoMergeArmed = detail?.state === "open" && detail.autoMergeEnabled === true;
   const armedMergeMethod = detail?.autoMergeMethod;
@@ -1204,7 +1193,6 @@ export function PullRequestDetailPanel({
           (entry) => entry.outcome === "approved" && !entry.stale,
         ).length
       : 0;
-
   const checkoutControl =
     context === "page" ? (
       <PullRequestCheckoutMenu
@@ -1219,7 +1207,6 @@ export function PullRequestDetailPanel({
         onActingEnvironmentChange={selectActingEnvironment}
       />
     ) : null;
-
   const resolveConflictsControl = (
     <PullRequestResolveConflictsButton
       handoff={handoff}
@@ -1227,7 +1214,6 @@ export function PullRequestDetailPanel({
       onResolve={startResolveConflicts}
     />
   );
-
   if (detailQuery.isPending && !detail) {
     return (
       <PullRequestDetailGhost
@@ -1253,7 +1239,6 @@ export function PullRequestDetailPanel({
       />
     );
   }
-
   return (
     <div className="relative flex h-full min-h-0 w-full flex-col bg-background">
       {threadPickerOpen && detail ? (
@@ -1287,7 +1272,7 @@ export function PullRequestDetailPanel({
             <TooltipProvider delay={150} closeDelay={150} timeout={400}>
               {!nativeStack && supportsStackActions && nativeStackQuery.error ? (
                 <Button variant="ghost" size="xs" onClick={nativeStackQuery.refresh}>
-                  Retry stack lookup
+                  {uiText("Retry stack lookup")}
                 </Button>
               ) : null}
               {nativeStack ? (
@@ -1398,7 +1383,6 @@ export function PullRequestDetailPanel({
             </Button>
           ) : null}
         </div>
-
         <div
           className={cn(
             "col-span-2 grid",
@@ -1442,7 +1426,7 @@ export function PullRequestDetailPanel({
                       iconClassName="size-3"
                     />
                     <ArrowLeftIcon
-                      aria-label="receives changes from"
+                      aria-label={uiText("receives changes from")}
                       className="size-3 shrink-0 opacity-60"
                     />
                     <Tooltip>
@@ -1459,9 +1443,10 @@ export function PullRequestDetailPanel({
                   <span className="ml-auto inline-flex shrink-0 items-baseline justify-end gap-2 text-2xs">
                     <span
                       className="inline-flex items-baseline gap-1 tabular-nums"
-                      aria-label={`${detail.changedFiles.toLocaleString()} changed ${
-                        detail.changedFiles === 1 ? "file" : "files"
-                      }`}
+                      aria-label={uiText("{0} changed {1}", {
+                        "0": detail.changedFiles.toLocaleString(),
+                        "1": detail.changedFiles === 1 ? "file" : "files",
+                      })}
                     >
                       <FileDiffIcon aria-hidden className="size-3 self-center" />
                       {detail.changedFiles.toLocaleString()}
@@ -1480,7 +1465,6 @@ export function PullRequestDetailPanel({
             ) : null}
           </div>
         </div>
-
         <div
           className={cn(
             "col-span-2 grid",
@@ -1516,7 +1500,8 @@ export function PullRequestDetailPanel({
                 }
                 updated={
                   <span>
-                    updated <RelativeTime timestamp={detail.updatedAt} />
+                    {"updated "}
+                    <RelativeTime timestamp={detail.updatedAt} />
                   </span>
                 }
                 checkout={
@@ -1551,7 +1536,7 @@ export function PullRequestDetailPanel({
                     copiedLabel="Branch name copied"
                   />
                 }
-                files={`${detail.changedFiles.toLocaleString()} ${detail.changedFiles === 1 ? "file" : "files"}`}
+                files={`${detail.changedFiles.toLocaleString()} ${detail.changedFiles === 1 ? uiText("file") : uiText("files")}`}
                 diffStat={
                   <PullRequestChangeBreakdownStat
                     environmentId={environmentId}
@@ -1566,7 +1551,6 @@ export function PullRequestDetailPanel({
             ) : null}
           </div>
         </div>
-
         {detail ? (
           <PullRequestDetailTabBar
             tabs={visibleTabs}
@@ -1586,7 +1570,9 @@ export function PullRequestDetailPanel({
               ) : (
                 <PullRequestChecksStatusLine
                   className="text-muted-foreground"
-                  aria-label={checksSummary ? `Checks: ${checksSummary}` : "Checks"}
+                  aria-label={
+                    checksSummary ? uiText("Checks: {0}", { "0": checksSummary }) : uiText("Checks")
+                  }
                   icon={
                     checksState !== null ? (
                       <PullRequestChecksPopover
@@ -1614,34 +1600,30 @@ export function PullRequestDetailPanel({
                     className="inline-flex items-center gap-1"
                     aria-label={
                       activityError
-                        ? "Comments unavailable"
-                        : `${detail.commentCount.toLocaleString()} ${
-                            detail.commentCount === 1 ? "comment" : "comments"
-                          }`
+                        ? uiText("Comments unavailable")
+                        : `${detail.commentCount.toLocaleString()} ${detail.commentCount === 1 ? "comment" : "comments"}`
                     }
                   >
                     <MessageSquareIcon aria-hidden className="size-3" />
                     {activityError
                       ? "-"
                       : activityPending
-                        ? "…"
+                        ? "\u2026"
                         : detail.commentCount.toLocaleString()}
                   </span>
                   <span
                     className="inline-flex items-center gap-1"
                     aria-label={
                       activityError
-                        ? "Commits unavailable"
-                        : `${detail.commits.length.toLocaleString()} ${
-                            detail.commits.length === 1 ? "commit" : "commits"
-                          }`
+                        ? uiText("Commits unavailable")
+                        : `${detail.commits.length.toLocaleString()} ${detail.commits.length === 1 ? "commit" : "commits"}`
                     }
                   >
                     <GitCommitHorizontalIcon aria-hidden className="size-3" />
                     {activityError
                       ? "-"
                       : activityPending
-                        ? "…"
+                        ? "\u2026"
                         : detail.commits.length.toLocaleString()}
                   </span>
                   {approvalCount > 0 ? (
@@ -1654,7 +1636,7 @@ export function PullRequestDetailPanel({
                       <PullRequestReviewOutcomeIcon outcome="approved" className="size-3" />
                       {approvalCount.toLocaleString()}
                       <span className="sr-only">
-                        {approvalCount === 1 ? "approval" : "approvals"}
+                        {approvalCount === 1 ? uiText("approval") : uiText("approvals")}
                       </span>
                     </span>
                   ) : null}
@@ -1664,22 +1646,21 @@ export function PullRequestDetailPanel({
                   variant="ghost-muted"
                   aria-label={
                     timelineOrder === "newest"
-                      ? "Show oldest activity first"
-                      : "Show newest activity first"
+                      ? uiText("Show oldest activity first")
+                      : uiText("Show newest activity first")
                   }
                   onClick={() =>
                     setTimelineOrder((value) => (value === "newest" ? "oldest" : "newest"))
                   }
                 >
                   <ArrowDownUpIcon aria-hidden className="size-3" />
-                  {timelineOrder === "newest" ? "Newest first" : "Oldest first"}
+                  {timelineOrder === "newest" ? uiText("Newest first") : uiText("Oldest first")}
                 </Button>
               </div>
             ) : null}
           </PullRequestDetailTabBar>
         ) : null}
       </div>
-
       <div
         className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
         onScrollCapture={(event) => {
@@ -1827,7 +1808,6 @@ export function PullRequestDetailPanel({
           </PullRequestMarkdownContext>
         ) : null}
       </div>
-
       {detail ? (
         <div className="absolute right-4 bottom-3 z-20">
           <PullRequestComposer

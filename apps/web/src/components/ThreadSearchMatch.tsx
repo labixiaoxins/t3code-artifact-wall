@@ -1,10 +1,10 @@
+import { uiText } from "~/i18n";
 import {
   findSearchTokenRanges,
   splitSearchText,
   type SearchMatchHint,
   type SearchRange,
 } from "@t3tools/shared/paletteSearch";
-
 /** `text` with each range in semibold foreground. */
 function HighlightedSearchText(props: { text: string; ranges: ReadonlyArray<SearchRange> }) {
   if (props.ranges.length === 0) return props.text;
@@ -18,17 +18,18 @@ function HighlightedSearchText(props: { text: string; ranges: ReadonlyArray<Sear
     ),
   );
 }
-
 /** Why a row matched when its title does not show it: the field and its match. */
 export function SearchMatchHintLine(props: { hint: SearchMatchHint }) {
   return (
     <span className="truncate text-xs text-muted-foreground/85">
-      <span className="text-muted-foreground/70">{props.hint.label}:</span>{" "}
+      <span className="text-muted-foreground/70">
+        {props.hint.label}
+        {":"}
+      </span>{" "}
       <HighlightedSearchText text={props.hint.text} ranges={props.hint.ranges} />
     </span>
   );
 }
-
 export function ThreadSearchMatchExcerpt(props: {
   match: {
     readonly source: "user" | "assistant";
@@ -40,7 +41,7 @@ export function ThreadSearchMatchExcerpt(props: {
   return (
     <span className="truncate text-xs text-muted-foreground/85">
       <span className={isUser ? "text-info-foreground" : "text-success-foreground"}>
-        {isUser ? "You:" : "Agent:"}
+        {isUser ? uiText("You:") : uiText("Agent:")}
       </span>{" "}
       <HighlightedSearchText
         text={props.match.snippet}

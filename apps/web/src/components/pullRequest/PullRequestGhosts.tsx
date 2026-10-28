@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type { PullRequestListEntry, PullRequestSummary } from "@t3tools/contracts";
 import {
   ArrowLeftIcon,
@@ -15,11 +16,9 @@ import {
   sourceControlClients,
   type ChangeRequestTerminology,
 } from "@t3tools/client-runtime/source-control-clients";
-
 import { readLocalApi } from "~/localApi";
 import { cn } from "~/lib/utils";
 import { RelativeTime } from "~/components/RelativeTime";
-
 import { Button, InlineButton } from "../ui/button";
 import { MiddleTruncate } from "../ui/middle-truncate";
 import { PullRequestCopyableCode } from "./PullRequestCopyableCode";
@@ -36,22 +35,23 @@ import {
   pullRequestChecksStatePresentation,
   resolvePullRequestState,
 } from "./pullRequestPresentation";
-
 function GhostBar({ className }: { className?: string | undefined }) {
   return <span aria-hidden className={cn("block h-3 rounded bg-muted-foreground/15", className)} />;
 }
-
 const TITLE_WIDTHS = ["w-3/5", "w-2/5", "w-1/2", "w-2/3", "w-2/5", "w-3/5", "w-1/2"];
 const META_WIDTHS = ["w-2/5", "w-1/3", "w-2/5", "w-1/4", "w-1/3", "w-2/5", "w-1/3"];
 const DEFAULT_DETAIL_TABS = [
-  { value: "summary", label: "Summary" },
-  { value: "timeline", label: "Timeline" },
+  { value: "summary", label: uiText("Summary") },
+  { value: "timeline", label: uiText("Timeline") },
   { value: "code", label: "Code" },
 ] as const;
-
 export function PullRequestListGhost({ rows = 7, caption }: { rows?: number; caption?: string }) {
   return (
-    <div role="status" aria-label={caption ?? "Loading pull requests"} className="space-y-0.5">
+    <div
+      role="status"
+      aria-label={caption ?? uiText("Loading pull requests")}
+      className="space-y-0.5"
+    >
       {/* Outside the pulse so the explanation stays readable. */}
       {caption ? (
         <p className="px-3 pb-1 text-xs font-medium text-muted-foreground/70 redesign:text-muted-foreground">
@@ -79,7 +79,6 @@ export function PullRequestListGhost({ rows = 7, caption }: { rows?: number; cap
     </div>
   );
 }
-
 export function PullRequestDetailGhost({
   seed: entry,
   summary,
@@ -96,7 +95,10 @@ export function PullRequestDetailGhost({
   summary?: PullRequestSummary | null;
   actions?: ReactNode;
   checkoutCommand?: string | null;
-  tabs?: ReadonlyArray<{ value: string; label: string }>;
+  tabs?: ReadonlyArray<{
+    value: string;
+    label: string;
+  }>;
   activeTab?: string;
   number?: number;
   onBack?: (() => void) | undefined;
@@ -126,7 +128,6 @@ export function PullRequestDetailGhost({
   const changedFiles = summary?.changedFiles ?? null;
   const selectedTab =
     tabs.find((item) => item.value === activeTab)?.value ?? tabs[0]?.value ?? "summary";
-
   return (
     <div
       role="status"
@@ -145,7 +146,7 @@ export function PullRequestDetailGhost({
                 variant="ghost-muted"
                 className="-ml-1.5"
                 onClick={onBack}
-                aria-label="Back to this thread's pull requests"
+                aria-label={uiText("Back to this thread's pull requests")}
               >
                 <ArrowLeftIcon aria-hidden className="size-3.5" />
               </Button>
@@ -157,14 +158,20 @@ export function PullRequestDetailGhost({
                   onClick={() => void readLocalApi()?.shell.openExternal(seed.url)}
                   aria-label={`Open ${terminology.singular} #${seed.number} on host`}
                 >
-                  <span className={statePresentation?.toneClassName}>#{seed.number}</span>
+                  <span className={statePresentation?.toneClassName}>
+                    {"#"}
+                    {seed.number}
+                  </span>
                   <ExternalLinkIcon aria-hidden className="size-2.5" />
                 </InlineButton>
               </>
             ) : (
               <>
                 <GhostBar className="w-24" />
-                <span className="shrink-0 text-xs text-muted-foreground">#{number ?? "…"}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {"#"}
+                  {number ?? "\u2026"}
+                </span>
               </>
             )}
           </div>
@@ -190,7 +197,6 @@ export function PullRequestDetailGhost({
             </Button>
           ) : null}
         </div>
-
         <div className="col-span-2 grid grid-rows-[1fr]">
           <div className="min-h-0 overflow-hidden">
             <PullRequestDetailHeaderBody
@@ -216,7 +222,8 @@ export function PullRequestDetailGhost({
               updated={
                 seed ? (
                   <span>
-                    updated <RelativeTime timestamp={seed.updatedAt} />
+                    {"updated "}
+                    <RelativeTime timestamp={seed.updatedAt} />
                   </span>
                 ) : (
                   <GhostBar className="h-3 w-16" />
@@ -282,7 +289,6 @@ export function PullRequestDetailGhost({
             />
           </div>
         </div>
-
         <PullRequestDetailTabBar tabs={tabs} value={selectedTab} inert>
           {checksPresentation ? (
             <PullRequestChecksStatusLine
@@ -298,18 +304,22 @@ export function PullRequestDetailGhost({
           )}
         </PullRequestDetailTabBar>
       </div>
-
       <div className="min-h-0 flex-1 overflow-hidden">
         <section className="px-4 pt-2.5 pb-1">
           <div className="space-y-2">
             <div className="grid min-h-7 min-w-0 grid-cols-[6rem_minmax(0,1fr)] items-center gap-2 text-xs sm:min-h-6">
               <span className="flex items-center gap-1.5 text-muted-foreground">
                 <UsersIcon aria-hidden className="size-3.5" />
-                Reviewers
+                {uiText("Reviewers")}
               </span>
               <span className="flex min-w-0 items-center gap-1.5 text-foreground">
                 <GhostBar className="h-3 w-10" />
-                <Button size="icon-xs" variant="ghost" disabled aria-label="Reviewers loading">
+                <Button
+                  size="icon-xs"
+                  variant="ghost"
+                  disabled
+                  aria-label={uiText("Reviewers loading")}
+                >
                   <UserPlusIcon aria-hidden className="size-3.5" />
                 </Button>
               </span>
@@ -317,7 +327,7 @@ export function PullRequestDetailGhost({
             <div className="grid min-h-7 min-w-0 grid-cols-[6rem_minmax(0,1fr)] items-center gap-2 text-xs sm:min-h-6">
               <span className="flex items-center gap-1.5 text-muted-foreground">
                 <TagIcon aria-hidden className="size-3.5" />
-                Labels
+                {uiText("Labels")}
               </span>
               <span className="flex min-w-0 flex-wrap items-center gap-1 text-foreground">
                 {entry?.labels ? (
@@ -331,7 +341,7 @@ export function PullRequestDetailGhost({
                       />
                     ))
                   ) : (
-                    <span className="text-muted-foreground">None</span>
+                    <span className="text-muted-foreground">{uiText("None")}</span>
                   )
                 ) : (
                   <>
@@ -339,18 +349,22 @@ export function PullRequestDetailGhost({
                     <GhostBar className="h-4.5 w-20" />
                   </>
                 )}
-                <Button size="icon-xs" variant="ghost" disabled aria-label="Labels loading">
+                <Button
+                  size="icon-xs"
+                  variant="ghost"
+                  disabled
+                  aria-label={uiText("Labels loading")}
+                >
                   <TagIcon aria-hidden className="size-3.5" />
                 </Button>
               </span>
             </div>
           </div>
         </section>
-
         <section>
           <div className="sticky top-0 z-10 flex w-full items-center bg-background pr-4">
             <div className="flex min-w-0 flex-1 items-center gap-1.5 px-4 py-3 text-left text-xs font-medium text-muted-foreground">
-              <span>Description</span>
+              <span>{uiText("Description")}</span>
               <ChevronRightIcon
                 aria-hidden
                 className="size-3.5 rotate-90 text-muted-foreground/60"
@@ -371,12 +385,11 @@ export function PullRequestDetailGhost({
     </div>
   );
 }
-
 export function PullRequestPeopleGhost({ rows = 4 }: { rows?: number }) {
   return (
     <div
       role="status"
-      aria-label="Loading people"
+      aria-label={uiText("Loading people")}
       className="motion-safe:animate-skeleton space-y-1 p-1"
     >
       {Array.from({ length: rows }, (_, index) => (
@@ -388,12 +401,11 @@ export function PullRequestPeopleGhost({ rows = 4 }: { rows?: number }) {
     </div>
   );
 }
-
 export function PullRequestTimelineGhost({ rows = 6 }: { rows?: number }) {
   return (
     <div
       role="status"
-      aria-label="Loading timeline"
+      aria-label={uiText("Loading timeline")}
       className="motion-safe:animate-skeleton px-4 py-5"
     >
       <div className="relative ml-2 border-l border-border/70 pl-5">
@@ -408,7 +420,6 @@ export function PullRequestTimelineGhost({ rows = 6 }: { rows?: number }) {
     </div>
   );
 }
-
 export function PullRequestConversationGhost({
   rows = 3,
   terminology,

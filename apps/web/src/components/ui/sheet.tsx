@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog";
 import { XIcon } from "lucide-react";
 import type { CSSProperties } from "react";
@@ -14,6 +15,7 @@ function Sheet<Payload>(props: SheetPrimitive.Root.Props<Payload>) {
 }
 
 const SheetPortal = SheetPrimitive.Portal;
+const SheetTrigger = SheetPrimitive.Trigger;
 
 function SheetBackdrop({ className, ...props }: SheetPrimitive.Backdrop.Props) {
   return (
@@ -113,7 +115,7 @@ function SheetPopup({
           {children}
           {showCloseButton && (
             <SheetPrimitive.Close
-              aria-label="Close"
+              aria-label={uiText("Close")}
               className="absolute end-2 top-2"
               render={<Button size="icon" variant="ghost" />}
             >
@@ -161,6 +163,7 @@ function SheetDescription({ className, ...props }: SheetPrimitive.Description.Pr
 
 export {
   Sheet,
+  SheetTrigger,
   SheetPortal,
   SheetBackdrop,
   SheetBackdrop as SheetOverlay,

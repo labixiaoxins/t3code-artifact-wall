@@ -17,7 +17,7 @@ import * as DesktopWslEnvironment from "./DesktopWslEnvironment.ts";
 
 export const WSL_INSTANCE_ID_PREFIX = "wsl:";
 const WSL_DEFAULT_DISTRO_ID = `${WSL_INSTANCE_ID_PREFIX}default`;
-const MAX_TCP_PORT = 65_535;
+const MAX_TCP_PORT = 65535;
 
 export class DesktopWslBackend extends Context.Service<
   DesktopWslBackend,
@@ -136,6 +136,13 @@ export const layer = Layer.effect(
           onReady: () =>
             Ref.set(ownershipRefusedRef, Option.none()).pipe(
               Effect.andThen(Ref.set(preflightErrorRef, Option.none())),
+            ),
+          onRestartExhausted: () =>
+            Ref.set(
+              preflightErrorRef,
+              Option.some(
+                "The WSL backend failed repeatedly. Automatic retries have stopped. Restart T3 Code or reconnect WSL to retry.",
+              ),
             ),
         })
         .pipe(

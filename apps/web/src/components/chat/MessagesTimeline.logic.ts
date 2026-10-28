@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { worktreeSetupAgentStarted } from "@t3tools/client-runtime/worktree-setup";
 export { worktreeSetupAgentStarted } from "@t3tools/client-runtime/worktree-setup";
 import { isLiveSubagentTurnItem } from "@t3tools/client-runtime/state/subagentRuntime";
@@ -175,7 +176,7 @@ export function workEntryDisplayLabel(entry: WorkLogEntry, workspaceRoot: string
       : `${path} +${entry.changedFiles!.length - 1} more`;
   }
   if (action === "read" && !entry.viewedImagePath) {
-    return "Read file";
+    return uiText("Read file");
   }
   const heading = normalizeCompactToolLabel(entry.toolTitle || entry.label);
   return `${heading.charAt(0).toUpperCase()}${heading.slice(1)}`;
@@ -243,7 +244,7 @@ export function liveWorkEntryLabel(
   if (entry.itemType === "reasoning") {
     return (
       entry.detail?.trim().replace(/\s+/g, " ") ||
-      (status === "inProgress" ? "Thinking" : "Thought")
+      (status === "inProgress" ? uiText("Thinking") : uiText("Thought"))
     );
   }
   const toolPresentation = resolveWorkEntryToolPresentation({
@@ -257,7 +258,7 @@ export function liveWorkEntryLabel(
       status === "inProgress"
         ? "Running"
         : status === "failed"
-          ? "Failed"
+          ? uiText("Failed")
           : status === "declined"
             ? "Declined"
             : status === "stopped"
@@ -1695,7 +1696,7 @@ export function deriveMessagesTimelineRows(input: {
         createdAt: supersededFold.createdAt,
         runId: supersededFold.runId,
         attemptId: supersededFold.attemptId,
-        label: "Superseded attempt",
+        label: uiText("Superseded attempt"),
         expanded: input.expandedAttemptIds?.has(supersededFold.attemptId) ?? false,
       });
     }
@@ -2103,7 +2104,13 @@ export function deriveMessagesTimelineRows(input: {
   }
 
   const result = attachTrailingToolGroupsToAssistant(
-    attachCreatedThreadSummaries(nextRows, timelineEntries, collapsedFoldMemberIds),
+    attachCreatedThreadSummaries(
+      hasActiveCompaction && !setupOwnsWorkingSlot
+        ? nextRows.filter((row) => row.kind !== "working")
+        : nextRows,
+      timelineEntries,
+      collapsedFoldMemberIds,
+    ),
   );
   return result.map((row, index) =>
     timelineRowIsWorkLog(row) && timelineRowIsWorkLog(result[index + 1])

@@ -1,29 +1,23 @@
+import { uiText } from "~/i18n";
 import { useImperativeHandle, useRef, useState, useSyncExternalStore, type Ref } from "react";
 import { flushSync } from "react-dom";
-
 import {
   onWindowControlsOverlayGeometryChange,
   windowControlsOverlayHeight,
 } from "../../lib/windowControlsOverlay";
-
 import { AttachmentImage } from "../media/AttachmentImage";
-
 const MAX_ZOOM = 8;
-
 // Subtract the caption strip, matching dialog CSS's --native-titlebar-height.
 function readViewerSize() {
   return { width: window.innerWidth, height: window.innerHeight - windowControlsOverlayHeight() };
 }
-
 let viewerSize: ReturnType<typeof readViewerSize> | null = null;
-
 // Cached so an unchanged size keeps its identity: a new one resets the zoom.
 function getViewerSize() {
   const next = readViewerSize();
   if (next.width !== viewerSize?.width || next.height !== viewerSize.height) viewerSize = next;
   return viewerSize;
 }
-
 function subscribeViewerSize(onChange: () => void) {
   window.addEventListener("resize", onChange);
   // Fullscreen caption-strip changes may not emit resize.
@@ -33,11 +27,9 @@ function subscribeViewerSize(onChange: () => void) {
     stopOverlayListener();
   };
 }
-
 export interface ZoomableImageHandle {
   pan: (key: string) => boolean;
 }
-
 export function ZoomableImage({
   src,
   name,
@@ -78,7 +70,6 @@ export function ZoomableImage({
   );
   const width = naturalSize.width * fit * zoom;
   const height = naturalSize.height * fit * zoom;
-
   useImperativeHandle(
     ref,
     () => ({
@@ -112,8 +103,13 @@ export function ZoomableImage({
     }),
     [zoom],
   );
-
-  const changeZoom = (next: number, point?: { x: number; y: number }) => {
+  const changeZoom = (
+    next: number,
+    point?: {
+      x: number;
+      y: number;
+    },
+  ) => {
     const viewport = viewportRef.current;
     const clamped = Math.min(MAX_ZOOM, Math.max(1, next));
     if (!viewport || zoom === clamped) return;
@@ -130,7 +126,6 @@ export function ZoomableImage({
     viewport.scrollLeft = anchorX * clamped - (clientX - resized.left);
     viewport.scrollTop = anchorY * clamped - (clientY - resized.top);
   };
-
   const attachViewport = (viewport: HTMLDivElement) => {
     viewportRef.current = viewport;
     // React's onWheel is passive and cannot stop the page from scrolling.
@@ -151,14 +146,15 @@ export function ZoomableImage({
       viewportRef.current = null;
     };
   };
-
   return (
     <div className="min-w-0">
       <div
         ref={attachViewport}
         role="region"
-        aria-label={`${name}, zoomable image`}
-        aria-description="Click to zoom in or return to fit. Scroll to zoom, drag to pan. Use Enter to toggle zoom, plus or minus to zoom, and 0 to fit."
+        aria-label={uiText("{0}, zoomable image", { "0": name })}
+        aria-description={uiText(
+          "Click to zoom in or return to fit. Scroll to zoom, drag to pan. Use Enter to toggle zoom, plus or minus to zoom, and 0 to fit.",
+        )}
         tabIndex={0}
         className="max-w-[var(--media-width)] overflow-auto overscroll-contain rounded-lg bg-background shadow-2xl ring-1 ring-border/70 outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-ring"
         style={{
@@ -252,7 +248,8 @@ export function ZoomableImage({
         />
       </div>
       <span className="sr-only" aria-live="polite">
-        {Math.round(zoom * 100)}% zoom
+        {Math.round(zoom * 100)}
+        {uiText("% zoom")}
       </span>
     </div>
   );

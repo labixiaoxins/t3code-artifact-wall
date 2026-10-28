@@ -286,6 +286,10 @@ function stableStringify(value: unknown): string {
 }
 
 function normalizeContextHandoffText(value: string): string {
+  value = value.replace(
+    /^Current task workspace: \{[^\n]+\}\. Historical paths/,
+    "Current task workspace: <dynamic-workspace>. Historical paths",
+  );
   if (!value.startsWith("Context handoff (")) {
     return value;
   }

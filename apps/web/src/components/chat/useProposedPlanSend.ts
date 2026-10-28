@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   AuthOrchestrationOperateScope,
   type EnvironmentId,
@@ -387,7 +388,7 @@ export function useImplementPlanInNewThread(input: ImplementPlanInNewThreadInput
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Could not start implementation thread",
+            title: uiText("Could not start implementation thread"),
             description:
               error instanceof Error
                 ? error.message

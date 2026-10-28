@@ -90,13 +90,27 @@ interface ClosingRegisteredInstance {
 type RegisteredInstance = ActiveRegisteredInstance | ClosingRegisteredInstance;
 
 type RegisterAction =
-  | { readonly _tag: "Registered"; readonly instance: DesktopBackendInstance }
-  | { readonly _tag: "Wait"; readonly done: Deferred.Deferred<void> };
+  | {
+      readonly _tag: "Registered";
+      readonly instance: DesktopBackendInstance;
+    }
+  | {
+      readonly _tag: "Wait";
+      readonly done: Deferred.Deferred<void>;
+    };
 
 type UnregisterAction =
-  | { readonly _tag: "Absent" }
-  | { readonly _tag: "Wait"; readonly done: Deferred.Deferred<void> }
-  | { readonly _tag: "Close"; readonly entry: ActiveRegisteredInstance };
+  | {
+      readonly _tag: "Absent";
+    }
+  | {
+      readonly _tag: "Wait";
+      readonly done: Deferred.Deferred<void>;
+    }
+  | {
+      readonly _tag: "Close";
+      readonly entry: ActiveRegisteredInstance;
+    };
 
 export const layer = Layer.effect(
   DesktopBackendPool,
@@ -166,6 +180,13 @@ export const layer = Layer.effect(
         ),
       onShutdown: () => desktopWindow.handleBackendNotReady,
       onPreflightFailed: handlePrimaryPreflightFailure,
+      onRestartExhausted: Effect.fn("desktop.backendPool.onRestartExhausted")(function* () {
+        yield* desktopWindow.ensureMain.pipe(Effect.ignore);
+        yield* electronDialog.showErrorBox(
+          "T3 Code backend stopped",
+          "The local backend failed repeatedly. Automatic retries have stopped. Your saved conversations have not been deleted. Restart T3 Code to retry; if it happens again, check the desktop backend log.",
+        );
+      }),
       onStateDirOwned: () =>
         electronDialog
           .showErrorBox(

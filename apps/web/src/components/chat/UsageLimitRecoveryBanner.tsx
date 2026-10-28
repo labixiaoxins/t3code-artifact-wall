@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   type OrchestrationV2LimitRecovery,
   type OrchestrationV2LimitRecoveryUpdate,
@@ -12,7 +13,6 @@ import { Button } from "../ui/button";
 import { formatUpcomingTimestamp } from "../../timestampFormat";
 import { toastManager } from "../ui/toast";
 import type { ComposerBannerStackItem } from "./ComposerBannerStack";
-
 type RecoveryProps = {
   runId: RunId;
   resetAt: string | null;
@@ -22,7 +22,6 @@ type RecoveryProps = {
   timestampFormat: TimestampFormat;
   onChange: (recovery: OrchestrationV2LimitRecoveryUpdate) => Promise<void>;
 };
-
 export function usageLimitRecoveryBannerItem(props: RecoveryProps): ComposerBannerStackItem {
   const { runId, resetAt, stoppedAt, timestampFormat } = props;
   const canSchedule = resetAt !== null && Date.parse(resetAt) > Date.parse(stoppedAt);
@@ -30,17 +29,15 @@ export function usageLimitRecoveryBannerItem(props: RecoveryProps): ComposerBann
     id: `usage-limit-recovery:${runId}`,
     variant: "warning",
     icon: <GaugeIcon />,
-    title: "Usage limit reached",
+    title: uiText("Usage limit reached"),
     description: resetAt
       ? `Resets ${formatUpcomingTimestamp(resetAt, timestampFormat)}`
       : "Reset time unavailable; retry manually",
     actions: canSchedule ? <RecoveryActions key={`${runId}:${resetAt}`} {...props} /> : null,
   };
 }
-
 function RecoveryActions({ runId, resetAt, recovery, snoozedUntil, onChange }: RecoveryProps) {
   const [pending, setPending] = useState(false);
-
   const scheduled =
     recovery?.runId === runId && recovery.resetAt === resetAt && recovery.autoResume;
   // The server leaves snoozedUntil in place after the timer wakes the thread,
@@ -86,7 +83,11 @@ function RecoveryActions({ runId, resetAt, recovery, snoozedUntil, onChange }: R
   return (
     <>
       <Button size="xs" variant="ghost" disabled={pending} onClick={() => void toggle("resume")}>
-        {pending ? "Saving..." : scheduled ? "Cancel auto-resume" : "Resume at reset"}
+        {pending
+          ? uiText("Saving...")
+          : scheduled
+            ? uiText("Cancel auto-resume")
+            : uiText("Resume at reset")}
       </Button>
       <Button
         size="xs"
@@ -94,7 +95,7 @@ function RecoveryActions({ runId, resetAt, recovery, snoozedUntil, onChange }: R
         disabled={pending || (!snoozed && resetPassed)}
         onClick={() => void toggle("snooze")}
       >
-        {pending ? "Saving..." : snoozed ? "Wake now" : "Snooze until reset"}
+        {pending ? uiText("Saving...") : snoozed ? "Wake now" : uiText("Snooze until reset")}
       </Button>
     </>
   );

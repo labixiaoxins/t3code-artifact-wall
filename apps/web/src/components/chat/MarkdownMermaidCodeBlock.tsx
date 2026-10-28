@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { CodeIcon, WorkflowIcon } from "lucide-react";
 import { Suspense, use, useState, type ReactNode } from "react";
 
@@ -28,7 +29,7 @@ export function MarkdownMermaidCodeBlock({
   const revealSource = () => setShowCode(true);
   const sourceRevealRef = findRevealRef(revealSource);
   const showDiagram = !showCode && !isStreaming && code.trim().length > 0;
-  const toggleLabel = showCode ? "Show diagram" : "Show code";
+  const toggleLabel = showCode ? "Show diagram" : uiText("Show code");
   return (
     <MarkdownCodeBlock
       code={code}

@@ -1,3 +1,4 @@
+import { assertStorageBudget } from "@t3tools/shared/storageBudget";
 import {
   ServerSelfUpdateError,
   type ServerSelfUpdateCapability,
@@ -231,6 +232,10 @@ export const make = Effect.fn("cloud.server_self_update.make")(function* () {
   const update: ServerSelfUpdate["Service"]["update"] = Effect.fn(
     "cloud.server_self_update.update",
   )(function* (input, reportProgress = () => Effect.void, onHandoffAccepted = () => Effect.void) {
+    yield* Effect.try({
+      try: () => assertStorageBudget(serverConfig.baseDir, 2),
+      catch: (cause) => new ServerSelfUpdateError({ reason: String(cause) }),
+    });
     if (capability === "desktop-managed") {
       if (desktopAppUpdate.available) {
         return yield* desktopAppUpdate.run(reportProgress);

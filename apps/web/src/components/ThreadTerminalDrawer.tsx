@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useAtomMount, useAtomValue } from "@effect/atom-react";
 import {
   isAtomCommandInterrupted,
@@ -100,17 +101,14 @@ import {
   resolveTerminalFontSizePreference,
   TYPOGRAPHY_ADVANCED_STORAGE_KEY,
 } from "../appearanceFonts";
-
 const MIN_DRAWER_HEIGHT = 180;
 const MAX_DRAWER_HEIGHT_RATIO = 0.75;
-
 interface DrawerLayout {
   viewportHeight: number;
   chatColumnHeight?: number;
   headerHeight?: number;
   composerHeight?: number;
 }
-
 function resolveTerminalDrawerMaxHeight(input: DrawerLayout): number {
   const windowCap = Math.max(
     MIN_DRAWER_HEIGHT,
@@ -124,18 +122,14 @@ function resolveTerminalDrawerMaxHeight(input: DrawerLayout): number {
     Math.max(0, input.chatColumnHeight - (input.headerHeight ?? 0) - (input.composerHeight ?? 0)),
   );
 }
-
 const DRAG_HEIGHT_PROPERTY = "--terminal-drawer-drag-height";
-
 function clampDrawerHeight(height: number, maxHeight: number): number {
   const safeHeight = Number.isFinite(height) ? height : DEFAULT_THREAD_TERMINAL_HEIGHT;
   return Math.min(Math.max(Math.round(safeHeight), MIN_DRAWER_HEIGHT), maxHeight);
 }
-
 function chatColumnOf(drawer: HTMLElement | null): HTMLElement | null {
   return drawer?.closest<HTMLElement>("[data-chat-column]") ?? null;
 }
-
 function readDrawerLayout(column: HTMLElement | null): Omit<DrawerLayout, "composerHeight"> {
   const viewportHeight = typeof window === "undefined" ? 0 : window.innerHeight;
   if (!column) return { viewportHeight };
@@ -145,14 +139,12 @@ function readDrawerLayout(column: HTMLElement | null): Omit<DrawerLayout, "compo
     headerHeight: column.querySelector<HTMLElement>("[data-chat-header]")?.offsetHeight ?? 0,
   };
 }
-
 function writeSystemMessage(
   terminal: Pick<GhosttyTerminalSurface, "write">,
   message: string,
 ): void {
   terminal.write(`\r\n[terminal] ${message}\r\n`);
 }
-
 export function writeTerminalOutputUpdate(
   terminal: Pick<GhosttyTerminalSurface, "resetAndWrite" | "write">,
   update: TerminalOutputUpdate,
@@ -163,7 +155,6 @@ export function writeTerminalOutputUpdate(
     terminal.write(update.data);
   }
 }
-
 export function synchronizeTerminalOutput(
   terminal: Pick<GhosttyTerminalSurface, "resetAndWrite" | "write" | "clearSelection">,
   session: Pick<TerminalSessionState, "output" | "version">,
@@ -175,7 +166,6 @@ export function synchronizeTerminalOutput(
   terminal.clearSelection();
   return update.cursor;
 }
-
 /** Writes what changed between two session notifications: new output, then a new error. */
 export function synchronizeTerminalSession(
   terminal: Pick<GhosttyTerminalSurface, "resetAndWrite" | "write" | "clearSelection">,
@@ -193,34 +183,28 @@ export function synchronizeTerminalSession(
   }
   return nextCursor;
 }
-
 function parseTerminalColor(value: string, fallback: GhosttyColor): GhosttyColor {
   if (typeof document === "undefined") return fallback;
-
   const canvas = document.createElement("canvas");
   canvas.width = 1;
   canvas.height = 1;
   const context = canvas.getContext("2d", { willReadFrequently: true });
   if (!context) return fallback;
-
   context.clearRect(0, 0, 1, 1);
   context.fillStyle = value;
   context.fillRect(0, 0, 1, 1);
   const [red, green, blue, alpha] = context.getImageData(0, 0, 1, 1).data;
   if (alpha === 0) return fallback;
-
   return {
     r: red ?? fallback.r,
     g: green ?? fallback.g,
     b: blue ?? fallback.b,
   };
 }
-
 function hexToGhosttyColor(hex: string): GhosttyColor {
   const value = Number.parseInt(hex.slice(1), 16);
   return { r: (value >> 16) & 255, g: (value >> 8) & 255, b: value & 255 };
 }
-
 const TERMINAL_PALETTES = {
   light: [
     "#000000",
@@ -259,10 +243,11 @@ const TERMINAL_PALETTES = {
     "#e5e5e5",
   ].map(hexToGhosttyColor),
 };
-
 // Read visibility when WASM finishes loading, not when setup starts.
 function withLiveVisibility(
-  visibleRef: { readonly current: boolean },
+  visibleRef: {
+    readonly current: boolean;
+  },
   options: Omit<GhosttyTerminalSurfaceOptions, "visible">,
 ): GhosttyTerminalSurfaceOptions {
   return {
@@ -272,7 +257,6 @@ function withLiveVisibility(
     },
   };
 }
-
 function runtimeEnvSignature(runtimeEnv: Record<string, string> | undefined): string {
   if (!runtimeEnv) return "";
   return JSON.stringify(
@@ -281,7 +265,6 @@ function runtimeEnvSignature(runtimeEnv: Record<string, string> | undefined): st
       .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey)),
   );
 }
-
 function normalizeComputedColor(value: string | null | undefined, fallback: string): string {
   const normalizedValue = value?.trim().toLowerCase();
   if (
@@ -294,16 +277,19 @@ function normalizeComputedColor(value: string | null | undefined, fallback: stri
   }
   return value ?? fallback;
 }
-
 function readThemeColor(styles: CSSStyleDeclaration, variable: string, fallback: string): string {
   return normalizeComputedColor(styles.getPropertyValue(variable), fallback);
 }
-
-function terminalFontOptions(family: string, size: number): { family?: string; size: number } {
+function terminalFontOptions(
+  family: string,
+  size: number,
+): {
+  family?: string;
+  size: number;
+} {
   const trimmed = family.trim();
   return trimmed.length > 0 ? { family: trimmed, size } : { size };
 }
-
 export function terminalThemeFromApp(mountElement?: HTMLElement | null): GhosttyTheme {
   const drawerSurface =
     mountElement?.closest("[data-thread-terminal-drawer]") ??
@@ -367,8 +353,14 @@ export function terminalThemeFromApp(mountElement?: HTMLElement | null): Ghostty
     selectionBackground: terminalSelection,
   };
 }
-
-function terminalSelectionLineRange(position: { start: { y: number }; end: { y: number } }): {
+function terminalSelectionLineRange(position: {
+  start: {
+    y: number;
+  };
+  end: {
+    y: number;
+  };
+}): {
   lineStart: number;
   lineEnd: number;
 } {
@@ -378,25 +370,24 @@ function terminalSelectionLineRange(position: { start: { y: number }; end: { y: 
     lineEnd: Math.max(lineStart, position.end.y + 1),
   };
 }
-
 export type TerminalContextMenuAction =
   | "add-to-chat"
   | "copy"
   | "paste"
   | "select-all"
   | "scroll-to-bottom";
-
 function terminalSelectionMenuItems(options?: {
   canAddToChat?: boolean;
 }): ContextMenuItem<"add-to-chat" | "copy">[] {
   return [
     ...(options?.canAddToChat === false
       ? []
-      : ([{ id: "add-to-chat", label: "Add to chat" }] satisfies ContextMenuItem<"add-to-chat">[])),
-    { id: "copy", label: "Copy" },
+      : ([
+          { id: "add-to-chat", label: uiText("Add to chat") },
+        ] satisfies ContextMenuItem<"add-to-chat">[])),
+    { id: "copy", label: uiText("Copy") },
   ];
 }
-
 function terminalContextMenuItems(options: {
   hasSelection: boolean;
   canAddToChat?: boolean;
@@ -408,12 +399,11 @@ function terminalContextMenuItems(options: {
       ...item,
       disabled: !hasSelection,
     })),
-    { id: "paste", label: "Paste", ...(options.readOnly ? { disabled: true } : {}) },
-    { id: "select-all", label: "Select all" },
-    { id: "scroll-to-bottom", label: "Jump to latest" },
+    { id: "paste", label: uiText("Paste"), ...(options.readOnly ? { disabled: true } : {}) },
+    { id: "select-all", label: uiText("Select all") },
+    { id: "scroll-to-bottom", label: uiText("Jump to latest") },
   ];
 }
-
 /** A superseded popup's unsettled promise must not cancel the newer right-click flow. */
 export function shouldClearTerminalSelectionAction(options: {
   actionPending: boolean;
@@ -422,7 +412,6 @@ export function shouldClearTerminalSelectionAction(options: {
 }): boolean {
   return options.actionPending || options.openMenuRequestId === options.currentRequestId;
 }
-
 /**
  * A writable session's output generation. A new one is a fresh PTY (or a
  * reconnect) that has not seen the surface's grid yet.
@@ -435,7 +424,6 @@ function writableSessionGeneration(
     ? session.output.generation
     : null;
 }
-
 export function shouldHandleTerminalExit(
   current: TerminalSessionState["status"],
   synchronized: TerminalSessionState["status"],
@@ -449,7 +437,6 @@ export function shouldHandleTerminalExit(
     !alreadyHandled
   );
 }
-
 interface TerminalViewportProps {
   advancedTypography: boolean;
   threadRef: ScopedThreadRef;
@@ -467,13 +454,11 @@ interface TerminalViewportProps {
   visible: boolean;
   keybindings: ResolvedKeybindingsConfig;
 }
-
 interface TerminalLaunchLocation {
   readonly cwd: string;
   readonly worktreePath?: string | null;
   readonly runtimeEnv?: Record<string, string>;
 }
-
 export function TerminalViewport(props: TerminalViewportProps) {
   const sessionKey = JSON.stringify([
     props.threadRef.environmentId,
@@ -485,7 +470,6 @@ export function TerminalViewport(props: TerminalViewportProps) {
   ]);
   return <TerminalSessionViewport key={sessionKey} {...props} />;
 }
-
 function TerminalSessionViewport({
   advancedTypography,
   threadRef,
@@ -615,13 +599,11 @@ function TerminalSessionViewport({
     (url: string, forceBrowser: boolean, fallbackToBrowser: () => void) =>
       openTerminalLinkInPreview({ url, threadRef, openPreview, fallbackToBrowser, forceBrowser }),
   );
-
   useLayoutEffect(() => {
     if (terminalRef.current) terminalRef.current.input.readOnly = !canOperateTerminal;
     if (canOperateTerminal && visibleRef.current)
       consumePendingTerminalFocus(threadRef, terminalId);
   }, [canOperateTerminal, terminalId, threadRef]);
-
   // Links re-read the grant on activation; only the hovered link's styling needs a nudge.
   const linkActivationScopeRef = useRef(canOpenHostEditor);
   useEffect(() => {
@@ -629,32 +611,27 @@ function TerminalSessionViewport({
     linkActivationScopeRef.current = canOpenHostEditor;
     terminalRef.current?.refreshLinkActivation();
   }, [canOpenHostEditor]);
-
   useLayoutEffect(() => {
     visibleRef.current = visible;
     terminalRef.current?.setVisible(visible);
     // A request made while this viewport was hidden could not focus it.
     if (visible) consumePendingTerminalFocus(threadRef, terminalId);
   }, [terminalId, threadRef, visible]);
-
   useEffect(() => {
     const current = terminalFontRef.current;
     if (current.family === terminalFontFamily && current.size === terminalFontSize) return;
     terminalFontRef.current = { family: terminalFontFamily, size: terminalFontSize };
     void terminalRef.current?.setFont(terminalFontOptions(terminalFontFamily, terminalFontSize));
   }, [terminalFontFamily, terminalFontSize]);
-
   useEffect(() => {
     const mount = containerRef.current;
     if (!mount) return;
-
     const localApi = readLocalApi();
     let cancelled = false;
     let teardown: (() => void) | null = null;
     let setupTerminal: GhosttyTerminalSurface | null = null;
     let setupCleanups: Array<() => void> = [];
     let selectionActions: ReturnType<typeof observeSelectionActions> | null = null;
-
     const setup = async (): Promise<(() => void) | null> => {
       const setupFont = terminalFontRef.current;
       const terminalOptions = withLiveVisibility(visibleRef, {
@@ -729,7 +706,6 @@ function TerminalSessionViewport({
       ) {
         terminal.focus();
       }
-
       const dismissSelectionAction = (supersede = false) => {
         const ownsMenu =
           openSelectionMenuRequestIdRef.current === selectionActionRequestIdRef.current;
@@ -741,11 +717,13 @@ function TerminalSessionViewport({
         dismissSelectionAction(true);
       };
       setupCleanups.push(clearSelectionAction);
-
       const readSelectionAction = (
         pointer: SelectionActionPoint | null = null,
       ): {
-        position: { x: number; y: number };
+        position: {
+          x: number;
+          y: number;
+        };
         clipboardText: string;
         selection: TerminalContextSelection;
       } | null => {
@@ -780,13 +758,11 @@ function TerminalSessionViewport({
           },
         };
       };
-
       const addSelectionToChat = (selection: TerminalContextSelection) => {
         handleAddTerminalContext(selection);
         terminalRef.current?.clearSelection();
         terminalRef.current?.focus();
       };
-
       const reportIfCurrent = (requestId: number, error: unknown, fallback: string) => {
         if (requestId !== selectionActionRequestIdRef.current) return;
         const activeTerminal = terminalRef.current;
@@ -794,13 +770,11 @@ function TerminalSessionViewport({
           writeSystemMessage(activeTerminal, error instanceof Error ? error.message : fallback);
         }
       };
-
       const focusIfCurrent = (requestId: number) => {
         if (requestId === selectionActionRequestIdRef.current) {
           terminalRef.current?.focus();
         }
       };
-
       const copySelection = async (text: string, requestId: number) => {
         try {
           await writeTextToClipboard(text, "terminal selection");
@@ -809,7 +783,6 @@ function TerminalSessionViewport({
         }
         focusIfCurrent(requestId);
       };
-
       const pasteFromClipboard = async (requestId: number) => {
         if (!hasTerminalWriteAccess()) return;
         const activeTerminal = terminalRef.current;
@@ -826,7 +799,6 @@ function TerminalSessionViewport({
         }
         focusIfCurrent(requestId);
       };
-
       const showTerminalContextMenu = async (event: MouseEvent) => {
         if (!localApi || !terminalRef.current) return;
         // Prevent default before awaits; native menus offer a permanently disabled Paste over the canvas.
@@ -874,7 +846,6 @@ function TerminalSessionViewport({
             return;
         }
       };
-
       const showSelectionAction = async (pointer: SelectionActionPoint | null) => {
         if (!localApi) {
           clearSelectionAction();
@@ -912,7 +883,6 @@ function TerminalSessionViewport({
             return;
         }
       };
-
       const sendTerminalInput = async (data: string, fallbackError: string) => {
         if (!hasTerminalWriteAccess()) return;
         const activeTerminal = terminalRef.current;
@@ -926,7 +896,6 @@ function TerminalSessionViewport({
           );
         }
       };
-
       function handleBeforeKey(event: KeyboardEvent): boolean {
         const currentKeybindings = readKeybindings();
         const options = { context: { terminalFocus: true, terminalOpen: true } };
@@ -942,7 +911,6 @@ function TerminalSessionViewport({
         ) {
           return false;
         }
-
         const navigationData = terminalNavigationShortcutData(event);
         if (navigationData !== null) {
           event.preventDefault();
@@ -950,7 +918,6 @@ function TerminalSessionViewport({
           void sendTerminalInput(navigationData, "Failed to move cursor");
           return false;
         }
-
         const deleteData = terminalDeleteShortcutData(event);
         if (deleteData !== null) {
           event.preventDefault();
@@ -958,14 +925,12 @@ function TerminalSessionViewport({
           void sendTerminalInput(deleteData, "Failed to delete terminal input");
           return false;
         }
-
         if (!isTerminalClearShortcut(event)) return true;
         event.preventDefault();
         event.stopPropagation();
-        void sendTerminalInput("\u000c", "Failed to clear terminal");
+        void sendTerminalInput("\f", "Failed to clear terminal");
         return false;
       }
-
       function handleLinkActivate(text: string, event: MouseEvent): void {
         if (!canActivateTerminalLink(text)) return;
         const latestTerminal = terminalRef.current;
@@ -992,7 +957,7 @@ function TerminalSessionViewport({
               toastManager.add(
                 stackedThreadToast({
                   type: "error",
-                  title: "Unable to open link",
+                  title: uiText("Unable to open link"),
                   description: error instanceof Error ? error.message : "An error occurred.",
                 }),
               );
@@ -1013,7 +978,6 @@ function TerminalSessionViewport({
           );
         })();
       }
-
       function handleData(data: string): void {
         if (!hasTerminalWriteAccess()) return;
         void (async () => {
@@ -1026,7 +990,6 @@ function TerminalSessionViewport({
           );
         })();
       }
-
       function handleSelectionChange(): void {
         if (terminalRef.current?.hasSelection()) {
           return;
@@ -1039,7 +1002,6 @@ function TerminalSessionViewport({
         if (!shouldClear) return;
         clearSelectionAction();
       }
-
       selectionActions = observeSelectionActions({
         element: mount,
         onSelection: (pointer) => {
@@ -1048,7 +1010,6 @@ function TerminalSessionViewport({
         onDismiss: (reason) => dismissSelectionAction(reason === "interaction"),
       });
       setupCleanups.push(() => selectionActions?.dispose());
-
       const themeObserver = new MutationObserver(() => {
         const activeTerminal = terminalRef.current;
         if (!activeTerminal) return;
@@ -1059,7 +1020,6 @@ function TerminalSessionViewport({
         attributeFilter: ["class", "style"],
       });
       setupCleanups.push(() => themeObserver.disconnect());
-
       const fitTimer = window.setTimeout(() => {
         const activeTerminal = terminalRef.current;
         if (!activeTerminal) return;
@@ -1070,7 +1030,6 @@ function TerminalSessionViewport({
         }
       }, 30);
       setupCleanups.push(() => window.clearTimeout(fitTimer));
-
       const cleanups = setupCleanups;
       setupCleanups = [];
       setupTerminal = null;
@@ -1080,7 +1039,6 @@ function TerminalSessionViewport({
         terminal.dispose();
       };
     };
-
     void setup()
       .then((nextTeardown) => {
         if (cancelled) {
@@ -1100,7 +1058,6 @@ function TerminalSessionViewport({
           error instanceof Error ? error.message : "Unable to initialize libghostty-vt";
         mount.textContent = `${message}. Close and reopen the terminal to retry.`;
       });
-
     return () => {
       cancelled = true;
       const hadFocus = mount.contains(document.activeElement);
@@ -1110,7 +1067,6 @@ function TerminalSessionViewport({
       }
     };
   }, [cwd, environmentId, terminalId]);
-
   const attachContainer = (mount: HTMLDivElement) => {
     containerRef.current = mount;
     const focus = () =>
@@ -1145,7 +1101,6 @@ function TerminalSessionViewport({
     />
   );
 }
-
 interface ThreadTerminalDrawerProps {
   mode?: "drawer" | "panel";
   threadRef: ScopedThreadRef;
@@ -1176,7 +1131,6 @@ interface ThreadTerminalDrawerProps {
   terminalLabelsById?: ReadonlyMap<string, string>;
   terminalLaunchLocationsById?: ReadonlyMap<string, TerminalLaunchLocation>;
 }
-
 interface TerminalActionButtonProps {
   label: string;
   className: string;
@@ -1184,7 +1138,6 @@ interface TerminalActionButtonProps {
   children: ReactNode;
   disabled?: boolean;
 }
-
 function TerminalActionButton({
   label,
   className,
@@ -1220,7 +1173,6 @@ function TerminalActionButton({
     </Popover>
   );
 }
-
 function TerminalSplitPanes({
   terminalIds,
   splitDirection,
@@ -1305,7 +1257,6 @@ function TerminalSplitPanes({
     </div>
   );
 }
-
 function TerminalSidebarGroup({
   terminalGroup,
   activeTerminalId,
@@ -1341,7 +1292,6 @@ function TerminalSidebarGroup({
     : terminalGroup.splitDirection === "vertical"
       ? SquareSplitVertical
       : SquareSplitHorizontal;
-
   return (
     <div className="pb-0.5">
       {showHeader && (
@@ -1359,14 +1309,14 @@ function TerminalSidebarGroup({
           <span className="text-muted-foreground/70 text-3xs tabular-nums">{terminalCount}</span>
         </button>
       )}
-
       <div className="flex flex-col gap-0.5">
         {terminalGroup.terminalIds.map((terminalId) => {
           const isActive = terminalId === activeTerminalId;
           const terminalLabel = terminalLabelById.get(terminalId) ?? "Terminal";
-          const closeTerminalLabel = `Close ${terminalLabel}${
-            isActive && closeShortcutLabel ? ` (${closeShortcutLabel})` : ""
-          }`;
+          const closeTerminalLabel = uiText("Close {0}{1}", {
+            "0": terminalLabel,
+            "1": isActive && closeShortcutLabel ? ` (${closeShortcutLabel})` : "",
+          });
           return (
             <div
               key={terminalId}
@@ -1402,7 +1352,6 @@ function TerminalSidebarGroup({
     </div>
   );
 }
-
 export default function ThreadTerminalDrawer({
   mode = "drawer",
   threadRef,
@@ -1452,7 +1401,6 @@ export default function ThreadTerminalDrawer({
     height: number;
     drawer: HTMLElement | null;
   } | null>(null);
-
   const normalizedTerminalIds = (() => {
     const normalizedIds: string[] = [];
     const seen = new Set<string>();
@@ -1472,7 +1420,6 @@ export default function ThreadTerminalDrawer({
     const assignedTerminalIds = new Set<string>();
     const usedGroupIds = new Set<string>();
     const nextGroups: ThreadTerminalGroup[] = [];
-
     const assignUniqueGroupId = (groupId: string): string => {
       if (!usedGroupIds.has(groupId)) {
         usedGroupIds.add(groupId);
@@ -1486,7 +1433,6 @@ export default function ThreadTerminalDrawer({
       usedGroupIds.add(uniqueGroupId);
       return uniqueGroupId;
     };
-
     for (const terminalGroup of terminalGroups) {
       const nextTerminalIds: string[] = [];
       const seenGroupTerminalIds = new Set<string>();
@@ -1500,11 +1446,9 @@ export default function ThreadTerminalDrawer({
         nextTerminalIds.push(terminalId);
       }
       if (nextTerminalIds.length === 0) continue;
-
       for (const terminalId of nextTerminalIds) {
         assignedTerminalIds.add(terminalId);
       }
-
       const baseGroupId =
         terminalGroup.id.trim().length > 0
           ? terminalGroup.id.trim()
@@ -1517,7 +1461,6 @@ export default function ThreadTerminalDrawer({
           : {}),
       });
     }
-
     for (const terminalId of normalizedTerminalIds) {
       if (assignedTerminalIds.has(terminalId)) continue;
       nextGroups.push({
@@ -1525,7 +1468,6 @@ export default function ThreadTerminalDrawer({
         terminalIds: [terminalId],
       });
     }
-
     const terminalOrderIndex = new Map(
       normalizedTerminalIds.map((id, index) => [id, index] as const),
     );
@@ -1534,7 +1476,6 @@ export default function ThreadTerminalDrawer({
         Math.min(...ids.map((id) => terminalOrderIndex.get(id) ?? Number.POSITIVE_INFINITY));
       return rank(left.terminalIds) - rank(right.terminalIds);
     });
-
     return nextGroups;
   })();
   const groupIndexByTerminalId = (() => {
@@ -1551,14 +1492,12 @@ export default function ThreadTerminalDrawer({
     }
     return next;
   })();
-
   const resolvedActiveTerminalId =
     normalizedTerminalIds.length === 0
       ? ""
       : normalizedTerminalIds.includes(activeTerminalId)
         ? activeTerminalId
         : (normalizedTerminalIds[0] ?? "");
-
   const groupIndexById = resolvedTerminalGroups.findIndex(
     (terminalGroup) => terminalGroup.id === activeTerminalGroupId,
   );
@@ -1566,7 +1505,6 @@ export default function ThreadTerminalDrawer({
     groupIndexById >= 0
       ? groupIndexById
       : (groupIndexByTerminalId.get(resolvedActiveTerminalId) ?? 0);
-
   const visibleTerminalIds =
     resolvedTerminalGroups[resolvedActiveGroupIndex]?.terminalIds ??
     (normalizedTerminalIds.length > 0 ? [resolvedActiveTerminalId] : []);
@@ -1620,7 +1558,6 @@ export default function ThreadTerminalDrawer({
       }
     });
   };
-
   const handleResizePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
     event.preventDefault();
@@ -1633,7 +1570,6 @@ export default function ThreadTerminalDrawer({
       drawer: event.currentTarget.parentElement,
     };
   };
-
   const handleResizePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     const resizeState = resizeStateRef.current;
     if (!resizeState || resizeState.pointerId !== event.pointerId) return;
@@ -1648,7 +1584,6 @@ export default function ThreadTerminalDrawer({
     resizeState.height = clampedHeight;
     resizeState.drawer?.style.setProperty(DRAG_HEIGHT_PROPERTY, `${clampedHeight}px`);
   };
-
   const handleResizePointerEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
     const resizeState = resizeStateRef.current;
     if (!resizeState || resizeState.pointerId !== event.pointerId) return;
@@ -1662,7 +1597,6 @@ export default function ThreadTerminalDrawer({
     if (resizeState.height === resizeState.startHeight || resizeState.height === height) return;
     onHeightChange(resizeState.height);
   };
-
   const drawerLayoutRef = useRef(drawerLayout);
   const updateDrawerLayout = useEffectEvent(
     (column: HTMLElement | null, source: "window" | "column") => {
@@ -1711,7 +1645,6 @@ export default function ThreadTerminalDrawer({
       window.removeEventListener("resize", onWindowResize);
     };
   }, [isPanel, visible]);
-
   if (normalizedTerminalIds.length === 0) {
     return (
       <aside
@@ -1735,7 +1668,7 @@ export default function ThreadTerminalDrawer({
           />
         ) : null}
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 py-6 text-center text-sm text-muted-foreground">
-          <p>No terminal sessions for this thread yet.</p>
+          <p>{uiText("No terminal sessions for this thread yet.")}</p>
           <Button
             size="xs"
             variant="outline"
@@ -1748,7 +1681,6 @@ export default function ThreadTerminalDrawer({
       </aside>
     );
   }
-
   return (
     <aside
       ref={drawerRef}
@@ -1770,7 +1702,6 @@ export default function ThreadTerminalDrawer({
           onLostPointerCapture={handleResizePointerEnd}
         />
       ) : null}
-
       {!hasTerminalSidebar && (
         <div className="pointer-events-none absolute right-2 top-2 z-20">
           <div className="pointer-events-auto inline-flex items-center overflow-hidden rounded-md border border-border/80 bg-background shadow-xs">
@@ -1820,7 +1751,6 @@ export default function ThreadTerminalDrawer({
           </div>
         </div>
       )}
-
       <div className="min-h-0 w-full flex-1">
         <div
           className={cn(
@@ -1845,7 +1775,6 @@ export default function ThreadTerminalDrawer({
               keybindings={keybindings}
             />
           </div>
-
           {hasTerminalSidebar && (
             <aside className="flex w-36 min-w-36 flex-col border border-border/70 bg-muted/10">
               <div className="flex h-[22px] items-stretch justify-end border-b border-border/70">
@@ -1892,7 +1821,6 @@ export default function ThreadTerminalDrawer({
                   </TerminalActionButton>
                 </div>
               </div>
-
               <div className="min-h-0 flex-1 overflow-y-auto px-1 py-1">
                 {resolvedTerminalGroups.map((terminalGroup) => (
                   <TerminalSidebarGroup

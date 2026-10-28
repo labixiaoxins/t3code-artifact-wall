@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type { ServerUpdateState } from "@t3tools/client-runtime/state/server";
 import type { EnvironmentId, ServerConfig } from "@t3tools/contracts";
 import { cliReleaseChannelOf } from "@t3tools/shared/cliRelease";
@@ -236,10 +237,10 @@ export function describeUpdateCapsule(
 ): UpdateCapsuleView {
   if (run.phase === "countdown" && run.restartAt !== null) {
     const seconds = Math.max(0, Math.ceil((run.restartAt - now) / 1000));
-    return { tone: "default", label: `Restart in ${seconds}s`, action: "later" };
+    return { tone: "default", label: uiText("Restart in {0}s", { "0": seconds }), action: "later" };
   }
   if (run.phase === "installing") {
-    return { tone: "default", label: "Restarting…", action: null };
+    return { tone: "default", label: uiText("Restarting…"), action: null };
   }
   const active = machines.filter(({ status }) => isActive(status) && status !== "waiting");
   const slowest = active.toSorted((a, b) => a.machine.startedAt - b.machine.startedAt)[0];
@@ -256,12 +257,18 @@ export function describeUpdateCapsule(
   }
   const done = machines.filter(({ status }) => status === "done").length;
   if (machines.some(({ status }) => isActive(status))) {
-    return { tone: "default", label: `${done} of ${machines.length} updated`, action: null };
+    return {
+      tone: "default",
+      label: uiText("{0} of {1} updated", { "0": done, "1": machines.length }),
+      action: null,
+    };
   }
   if (local?.status === "downloading") {
     return {
       tone: "default",
-      label: `Downloading${local.percent === null ? "" : ` ${Math.floor(local.percent)}%`}`,
+      label: uiText("Downloading{0}", {
+        "0": local.percent === null ? "" : ` ${Math.floor(local.percent)}%`,
+      }),
       action: null,
     };
   }
@@ -273,16 +280,20 @@ export function describeUpdateCapsule(
       action: failed.some(({ machine }) => machine.server !== null) ? "retry" : "dismiss",
     };
   }
-  return { tone: "default", label: `${done} of ${machines.length} updated`, action: null };
+  return {
+    tone: "default",
+    label: uiText("{0} of {1} updated", { "0": done, "1": machines.length }),
+    action: null,
+  };
 }
 
 export const RUN_STATUS_LABELS: Record<UpdateRunMachineStatus, string> = {
-  providers: "updating providers",
-  waiting: "waiting",
-  downloading: "downloading",
-  restarting: "restarting",
-  done: "done",
-  failed: "failed",
+  providers: uiText("updating providers"),
+  waiting: uiText("waiting"),
+  downloading: uiText("downloading"),
+  restarting: uiText("restarting"),
+  done: uiText("done"),
+  failed: uiText("failed"),
 };
 
 export interface UpdateEverythingResult {
@@ -343,7 +354,7 @@ export function getUpdateEverythingToastView(
     if (parts.length === 0) return null;
     return {
       type: "success",
-      title: `Updated ${joinList(parts)}`,
+      title: uiText("Updated {0}", { "0": joinList(parts) }),
       ...(restarting.length === 0 ? {} : { description: restarting.join("\n") }),
     };
   }

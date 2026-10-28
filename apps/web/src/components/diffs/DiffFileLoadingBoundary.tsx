@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
-
 import { useStableCallback } from "~/hooks/useStableCallback";
 import { observeIntersection } from "~/lib/observeIntersection";
 import { DiffFileHeaderSkeleton } from "../DiffPanelShell";
-
 export function DiffFileLoadingBoundary({ load, count }: { load: () => void; count: number }) {
   const [isNear, setIsNear] = useState(false);
   const loadLatest = useStableCallback(load);
@@ -20,7 +18,6 @@ export function DiffFileLoadingBoundary({ load, count }: { load: () => void; cou
   useEffect(() => {
     if (isNear && count > 0) loadLatest();
   }, [isNear, count, loadLatest]);
-
   return (
     <div ref={observe} role="status" aria-label="Loading diff…">
       {Array.from({ length: Math.min(count, 4) }, (_, index) => (

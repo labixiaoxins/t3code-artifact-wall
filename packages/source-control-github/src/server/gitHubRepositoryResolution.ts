@@ -1,3 +1,4 @@
+import { isGitHubHost } from "./GitHubCredentials.ts";
 import { normalizeGitRemoteUrl } from "@t3tools/shared/git";
 import { isSshRemoteUrl } from "@t3tools/shared/sourceControl";
 import { parseGitRemoteHost } from "@t3tools/source-control-core/shared/definition";
@@ -114,8 +115,9 @@ export function parseGitHubRepositorySelector(
   }
   const parts = trimmed.split("/").filter(Boolean);
   if (parts.length === 2) return { host: defaultHost, owner: parts[0]!, name: parts[1]! };
-  if (parts.length === 3)
-    return { host: parts[0]!.toLowerCase(), owner: parts[1]!, name: parts[2]! };
+  const host = parts[0]?.toLowerCase();
+  if (parts.length === 3 && host !== undefined && isGitHubHost(host))
+    return { host, owner: parts[1]!, name: parts[2]! };
   return null;
 }
 

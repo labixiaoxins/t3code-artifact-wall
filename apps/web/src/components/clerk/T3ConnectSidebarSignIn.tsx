@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { UserButton, useAuth } from "@clerk/react";
 import { LogInIcon } from "lucide-react";
 
@@ -58,7 +59,7 @@ function ConfiguredT3ConnectSidebarSignIn() {
         <SidebarMenuItem>
           <SidebarMenuButton onClick={openAuthPrompt}>
             <LogInIcon />
-            <span>Sign in to T3 Connect</span>
+            <span>{uiText("Sign in to T3 Connect")}</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>

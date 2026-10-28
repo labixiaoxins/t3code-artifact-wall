@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useRef, useSyncExternalStore, use } from "react";
 import { useSyncExternalStoreWithSelector } from "use-sync-external-store/with-selector";
 import { RegistryContext, useAtomValue } from "@effect/atom-react";
@@ -61,11 +62,8 @@ import {
 } from "~/state/session";
 import { environmentIdsKey } from "~/state/environmentAtomList";
 import { appAtomRegistry } from "~/rpc/atomRegistry";
-
 const CLIENT_SETTINGS_PERSISTENCE_ERROR_SCOPE = "[CLIENT_SETTINGS]";
-
 type UnifiedSettingsPatch = ServerSettingsPatch & ClientSettingsPatch;
-
 const clientSettingsListeners = new Set<() => void>();
 const clientSettingsHydrationListeners = new Set<() => void>();
 type ClientSettingsHydrationStatus = "pending" | "ready" | "failed" | "retrying";
@@ -75,28 +73,23 @@ let clientSettingsHydrationPromise: Promise<void> | null = null;
 let clientSettingsHydrationGeneration = 0;
 let clientSettingsPersistenceQueue: Promise<void> = Promise.resolve();
 let deferredClientSettingsPatchCount = 0;
-
 function emitClientSettingsChange() {
   for (const listener of clientSettingsListeners) {
     listener();
   }
 }
-
 function emitClientSettingsHydrationChange() {
   for (const listener of clientSettingsHydrationListeners) {
     listener();
   }
 }
-
 function getClientSettingsSnapshot(): ClientSettings {
   return clientSettingsSnapshot;
 }
-
 function replaceClientSettingsSnapshot(settings: ClientSettings): void {
   clientSettingsSnapshot = settings;
   emitClientSettingsChange();
 }
-
 function setClientSettingsHydrationStatus(nextStatus: ClientSettingsHydrationStatus): void {
   if (clientSettingsHydrationStatus === nextStatus) {
     return;
@@ -104,7 +97,6 @@ function setClientSettingsHydrationStatus(nextStatus: ClientSettingsHydrationSta
   clientSettingsHydrationStatus = nextStatus;
   emitClientSettingsHydrationChange();
 }
-
 export function subscribeClientSettings(listener: () => void): () => void {
   clientSettingsListeners.add(listener);
   void hydrateClientSettings().catch(() => undefined);
@@ -112,15 +104,12 @@ export function subscribeClientSettings(listener: () => void): () => void {
     clientSettingsListeners.delete(listener);
   };
 }
-
 export function getClientSettingsHydratedSnapshot(): boolean {
   return clientSettingsHydrationStatus === "ready";
 }
-
 function getClientSettingsHydrationStatusSnapshot(): ClientSettingsHydrationStatus {
   return clientSettingsHydrationStatus;
 }
-
 export function subscribeClientSettingsHydration(listener: () => void): () => void {
   clientSettingsHydrationListeners.add(listener);
   void hydrateClientSettings().catch(() => undefined);
@@ -128,7 +117,6 @@ export function subscribeClientSettingsHydration(listener: () => void): () => vo
     clientSettingsHydrationListeners.delete(listener);
   };
 }
-
 async function hydrateClientSettings(): Promise<void> {
   if (clientSettingsHydrationStatus === "ready") {
     return;
@@ -136,7 +124,6 @@ async function hydrateClientSettings(): Promise<void> {
   if (clientSettingsHydrationPromise) {
     return clientSettingsHydrationPromise;
   }
-
   const hydrationGeneration = clientSettingsHydrationGeneration;
   setClientSettingsHydrationStatus(
     clientSettingsHydrationStatus === "failed" || clientSettingsHydrationStatus === "retrying"
@@ -164,20 +151,16 @@ async function hydrateClientSettings(): Promise<void> {
       throw error;
     }
   })();
-
   const hydrationPromise = nextHydration.finally(() => {
     if (clientSettingsHydrationPromise === hydrationPromise) {
       clientSettingsHydrationPromise = null;
     }
   });
   clientSettingsHydrationPromise = hydrationPromise;
-
   return clientSettingsHydrationPromise;
 }
-
 const defaultClientSettingsPersistence = (settings: ClientSettings): Promise<void> =>
   ensureLocalApi().persistence.setClientSettings(settings);
-
 function enqueueClientSettingsPersistence<A>(work: () => Promise<A>): Promise<A> {
   const result = clientSettingsPersistenceQueue.then(work);
   clientSettingsPersistenceQueue = result.then(
@@ -186,7 +169,6 @@ function enqueueClientSettingsPersistence<A>(work: () => Promise<A>): Promise<A>
   );
   return result;
 }
-
 export function persistClientSettingsPatch(
   patch: ClientSettingsPatch,
   persist: (settings: ClientSettings) => Promise<void> = defaultClientSettingsPersistence,
@@ -218,7 +200,6 @@ export function persistClientSettingsPatch(
     });
   });
 }
-
 /** Reapply to newer snapshots after pending writes to avoid losing concurrent changes. */
 export async function persistClientSettingsUpdate(
   update: (current: ClientSettings) => ClientSettings,
@@ -239,9 +220,7 @@ export async function persistClientSettingsUpdate(
     }
   });
 }
-
 const SERVER_SETTINGS_KEYS = new Set<string>(Struct.keys(ServerSettings.fields));
-
 function splitPatch(patch: UnifiedSettingsPatch): {
   serverPatch: ServerSettingsPatch;
   clientPatch: ClientSettingsPatch;
@@ -260,20 +239,16 @@ function splitPatch(patch: UnifiedSettingsPatch): {
     clientPatch: clientPatch as ClientSettingsPatch,
   };
 }
-
 export function getClientSettings(): ClientSettings {
   return getClientSettingsSnapshot();
 }
-
 export function isClientSettingsHydrated(): boolean {
   return getClientSettingsHydratedSnapshot();
 }
-
 /** Failed reads reject and remain retryable so defaults cannot overwrite saved preferences. */
 export function ensureClientSettingsHydrated(): Promise<void> {
   return hydrateClientSettings();
 }
-
 export function useClientSettingsHydrated(): boolean {
   return useSyncExternalStore(
     subscribeClientSettingsHydration,
@@ -281,7 +256,6 @@ export function useClientSettingsHydrated(): boolean {
     () => false,
   );
 }
-
 export function useClientSettingsHydrationStatus(): ClientSettingsHydrationStatus {
   return useSyncExternalStore(
     subscribeClientSettingsHydration,
@@ -289,10 +263,8 @@ export function useClientSettingsHydrationStatus(): ClientSettingsHydrationStatu
     () => "pending",
   );
 }
-
 const getDefaultClientSettings = () => DEFAULT_CLIENT_SETTINGS;
 const selectWholeClientSettings = (settings: ClientSettings) => settings;
-
 /** Structurally equal selections retain their reference and skip rendering. */
 export function useClientSettings<T = ClientSettings>(
   selector?: (settings: ClientSettings) => T,
@@ -305,7 +277,6 @@ export function useClientSettings<T = ClientSettings>(
     Equal.equals,
   );
 }
-
 export function mergeEnvironmentSettings(
   serverSettings: ServerSettings,
   clientSettings: ClientSettings,
@@ -317,15 +288,12 @@ export function mergeEnvironmentSettings(
     ...resolveModelPreferences(serverSettings, clientSettings),
   };
 }
-
 const selectLegacyModelPreferences = (settings: ClientSettings) => ({
   favorites: settings.favorites,
   providerModelPreferences: settings.providerModelPreferences,
 });
-
 // Servers that predate `migrateModelPreferences` drop it and keep reporting null favorites.
 const attemptedMigrationGenerations = new Map<EnvironmentId, number>();
-
 const modelPreferencesMigrationTargetsAtom = Atom.make((get) =>
   [...get(environmentCatalog.catalogValueAtom).entries.keys()].flatMap((environmentId) => {
     const generation = Option.match(
@@ -341,7 +309,6 @@ const modelPreferencesMigrationTargetsAtom = Atom.make((get) =>
       : [{ environmentId, generation, settings }];
   }),
 ).pipe(Atom.withLabel("web-model-preferences-migration-targets"));
-
 function migrateModelPreferences(): void {
   if (clientSettingsHydrationStatus !== "ready") return;
   for (const { environmentId, generation, settings } of appAtomRegistry.get(
@@ -359,7 +326,6 @@ function migrateModelPreferences(): void {
     );
   }
 }
-
 /** Moves this client's legacy model preferences onto each server, once per connection. */
 export function startModelPreferencesMigration(): () => void {
   const unsubscribes = [
@@ -372,7 +338,6 @@ export function startModelPreferencesMigration(): () => void {
     for (const unsubscribe of unsubscribes) unsubscribe();
   };
 }
-
 export function useMergedSettings<T = UnifiedSettings>(
   serverSettings: ServerSettings,
   selector?: (settings: UnifiedSettings) => T,
@@ -382,7 +347,6 @@ export function useMergedSettings<T = UnifiedSettings>(
     return selector ? selector(merged) : (merged as T);
   });
 }
-
 export function resolveEnvironmentIdentificationMode(input: {
   mode: EnvironmentIdentificationMode;
   settingsHydrated: boolean;
@@ -394,7 +358,6 @@ export function resolveEnvironmentIdentificationMode(input: {
     ? "pill"
     : input.mode;
 }
-
 export function useEnvironmentIdentificationMode(): EnvironmentIdentificationMode {
   const settingsHydrated = useClientSettingsHydrated();
   const mode = useClientSettings((settings) => settings.environmentIdentificationMode);
@@ -413,14 +376,12 @@ export function useEnvironmentIdentificationMode(): EnvironmentIdentificationMod
     paletteThemeAllowsArtwork: previewSidebarArtwork ?? themeAllowsSidebarArtwork(activeTheme),
   });
 }
-
 /** Wait for hydration: swapping sidebar implementations after mount remounts the whole tree. */
 export function useLegacySidebarEnabled(): boolean {
   const settingsHydrated = useClientSettingsHydrated();
   const legacySidebarEnabled = useClientSettings((settings) => settings.legacySidebarEnabled);
   return settingsHydrated && legacySidebarEnabled;
 }
-
 export async function prepareModelPreferencesPatch(
   settings: ServerSettings,
   patch: ServerSettingsPatch,
@@ -430,7 +391,6 @@ export async function prepareModelPreferencesPatch(
   }
   return { ...modelPreferencesMigrationPatch(settings, getClientSettings()), ...patch };
 }
-
 export function useUpdateEnvironmentModelPreferences(environmentId: EnvironmentId | null) {
   const settings = useAtomValue(
     environmentId ? serverEnvironment.settingsValueAtom(environmentId) : noEnvironmentSettingsAtom,
@@ -444,20 +404,26 @@ export function useUpdateEnvironmentModelPreferences(environmentId: EnvironmentI
     } catch {
       toastManager.add({
         type: "error",
-        title: "Model preferences not saved",
-        description: "Could not load saved model preferences. Try again.",
+        title: uiText("Model preferences not saved"),
+        description: uiText("Could not load saved model preferences. Try again."),
       });
       return;
     }
     return save({ environmentId, input: { patch: prepared } });
   };
 }
-
 /** Send the desired state so two clients adding a favorite do not cancel each other. */
 export function useToggleEnvironmentModelFavorite(environmentId: EnvironmentId | null) {
   const registry = use(RegistryContext);
   const pendingFavorites = useRef(
-    new Map<string, { favorite: boolean; settings: ServerSettings; pending: boolean }>(),
+    new Map<
+      string,
+      {
+        favorite: boolean;
+        settings: ServerSettings;
+        pending: boolean;
+      }
+    >(),
   );
   const save = useUpdateEnvironmentModelPreferences(environmentId);
   return async (provider: ProviderInstanceId, model: string) => {
@@ -471,8 +437,8 @@ export function useToggleEnvironmentModelFavorite(environmentId: EnvironmentId |
       } catch {
         toastManager.add({
           type: "error",
-          title: "Favorites not saved",
-          description: "Could not load saved model preferences. Try again.",
+          title: uiText("Favorites not saved"),
+          description: uiText("Could not load saved model preferences. Try again."),
         });
         return;
       }
@@ -515,9 +481,7 @@ export function useToggleEnvironmentModelFavorite(environmentId: EnvironmentId |
     }
   };
 }
-
 const noEnvironmentSettingsAtom = Atom.make<ServerSettings | null>(null);
-
 export function useEnvironmentModelPreferences(environmentId: EnvironmentId | null) {
   const settings = useAtomValue(
     environmentId ? serverEnvironment.settingsValueAtom(environmentId) : noEnvironmentSettingsAtom,
@@ -525,7 +489,6 @@ export function useEnvironmentModelPreferences(environmentId: EnvironmentId | nu
   const legacy = useClientSettings(selectLegacyModelPreferences);
   return resolveModelPreferences(settings ?? DEFAULT_SERVER_SETTINGS, legacy);
 }
-
 export function useEnvironmentSettings<T = UnifiedSettings>(
   environmentId: EnvironmentId,
   selector?: (settings: UnifiedSettings) => T,
@@ -533,7 +496,6 @@ export function useEnvironmentSettings<T = UnifiedSettings>(
   const serverSettings = useAtomValue(serverEnvironment.settingsValueAtom(environmentId));
   return useMergedSettings(serverSettings ?? DEFAULT_SERVER_SETTINGS, selector);
 }
-
 export function usePersistEnvironmentProviderInstanceMutation(environmentId: EnvironmentId) {
   const mutateProviderInstance = useAtomCommand(serverEnvironment.mutateProviderInstance, {
     reportFailure: false,
@@ -544,23 +506,19 @@ export function usePersistEnvironmentProviderInstanceMutation(environmentId: Env
       input: { patch, providerInstanceMutation },
     });
 }
-
 export function usePrimarySettings<T = UnifiedSettings>(
   selector?: (settings: UnifiedSettings) => T,
 ): T {
   const settings = useAtomValue(primaryServerSettingsAtom);
   return useMergedSettings(settings, selector);
 }
-
 export const PRIMARY_SETTINGS_UNAVAILABLE_MESSAGE =
   "This setting is saved on a server, and the hosted app is not anchored to one. Change it from the desktop app or from the server's own address.";
-
 /** Hosted clients have no primary: usePrimarySettings reads defaults and cannot write. */
 export function usePrimarySettingsAvailable(): boolean {
   const primaryEnvironment = usePrimaryEnvironment();
   return primaryEnvironment !== null || !isHostedStaticApp();
 }
-
 function useSharedSettingsSyncTargetIds(includePending = false): ReadonlyArray<EnvironmentId> {
   const { environments } = useEnvironments();
   const targetIds = environments
@@ -579,11 +537,10 @@ function useSharedSettingsSyncTargetIds(includePending = false): ReadonlyArray<E
       : [];
   });
 }
-
 function useUpdateSettingsTarget(environmentId: EnvironmentId | null) {
   useEnvironmentScope(environmentId, AuthSettingsWriteScope);
   const persist = useAtomCommand(serverEnvironment.updateSettings, {
-    label: "server settings update",
+    label: uiText("server settings update"),
     reportFailure: false,
   });
   const { environments } = useEnvironments();
@@ -596,7 +553,7 @@ function useUpdateSettingsTarget(environmentId: EnvironmentId | null) {
       const error = squashAtomCommandFailure(result);
       toastManager.add({
         type: "error",
-        title: "Setting not saved",
+        title: uiText("Setting not saved"),
         description: `Could not save on ${label}: ${error instanceof Error ? error.message : "The save failed. Try reconnecting and saving again."}`,
       });
     }
@@ -605,7 +562,6 @@ function useUpdateSettingsTarget(environmentId: EnvironmentId | null) {
   const sharedSettingsSyncTargetIds = useSharedSettingsSyncTargetIds(true);
   const updateSettings = (patch: UnifiedSettingsPatch) => {
     const { serverPatch, clientPatch } = splitPatch(patch);
-
     const canWriteServerPatch =
       environmentId === null ||
       requiredScopesForServerSettingsPatch(serverPatch).every((scope) =>
@@ -614,7 +570,7 @@ function useUpdateSettingsTarget(environmentId: EnvironmentId | null) {
     if (Object.keys(serverPatch).length > 0 && !canWriteServerPatch) {
       toastManager.add({
         type: "warning",
-        title: "Setting not saved",
+        title: uiText("Setting not saved"),
         description: `This connection lacks permission to change settings on ${environments.find((target) => target.environmentId === environmentId)?.label ?? "the selected environment"}.`,
       });
     }
@@ -624,7 +580,7 @@ function useUpdateSettingsTarget(environmentId: EnvironmentId | null) {
       const warnUnsaved = (description = PRIMARY_SETTINGS_UNAVAILABLE_MESSAGE) =>
         toastManager.add({
           type: "warning",
-          title: "Setting not saved",
+          title: uiText("Setting not saved"),
           description,
         });
       if (Object.keys(localPatch).length > 0) {
@@ -701,7 +657,10 @@ function useUpdateSettingsTarget(environmentId: EnvironmentId | null) {
               .map(({ label }) => label);
             toastManager.add({
               type: "error",
-              title: saved.length > 0 ? "Setting saved on some environments" : "Setting not saved",
+              title:
+                saved.length > 0
+                  ? "Setting saved on some environments"
+                  : uiText("Setting not saved"),
               description: [
                 ...failures,
                 ...(saved.length > 0 ? [`Saved on ${saved.join(", ")}.`] : []),
@@ -715,22 +674,17 @@ function useUpdateSettingsTarget(environmentId: EnvironmentId | null) {
       void persistClientSettingsPatch(clientPatch);
     }
   };
-
   return updateSettings;
 }
-
 export function useUpdateEnvironmentSettings(environmentId: EnvironmentId | null) {
   return useUpdateSettingsTarget(environmentId);
 }
-
 export function useUpdatePrimarySettings() {
   return useUpdateSettingsTarget(usePrimaryEnvironment()?.environmentId ?? null);
 }
-
 export function updateClientSettings(patch: ClientSettingsPatch): Promise<void> {
   return persistClientSettingsPatch(patch);
 }
-
 export function __resetClientSettingsPersistenceForTests(): void {
   clientSettingsHydrationGeneration += 1;
   clientSettingsSnapshot = DEFAULT_CLIENT_SETTINGS;
@@ -741,7 +695,6 @@ export function __resetClientSettingsPersistenceForTests(): void {
   clientSettingsListeners.clear();
   clientSettingsHydrationListeners.clear();
 }
-
 export function __setClientSettingsForTests(settings: ClientSettings): void {
   clientSettingsHydrationGeneration += 1;
   clientSettingsSnapshot = settings;

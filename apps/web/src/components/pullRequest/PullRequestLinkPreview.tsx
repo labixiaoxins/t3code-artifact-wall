@@ -10,25 +10,20 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
-
 import { RelativeTime } from "~/components/RelativeTime";
 import { pullRequestEnvironment } from "~/state/pullRequests";
 import { useAtomQueryRunner } from "~/state/use-atom-query-runner";
 import { useEnvironmentQuery } from "~/state/query";
-
 import { PreviewCard, PreviewCardPopup, PreviewCardTrigger } from "../ui/preview-card";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { PullRequestActorAvatar, resolvePullRequestState } from "./pullRequestPresentation";
-
 interface PullRequestLinkPreviewTarget {
   readonly environmentId: EnvironmentId;
   readonly input: PullRequestRef;
 }
-
 type PullRequestLinkElement = ReactElement<
   ComponentPropsWithoutRef<"a"> | ComponentPropsWithoutRef<"button">
 >;
-
 export function PullRequestLinkPreview({
   link,
   originalUrl,
@@ -97,7 +92,6 @@ export function PullRequestLinkPreview({
       : preview?.author.name && preview.author.name !== preview.author.login
         ? `${preview.author.name} (@${preview.author.login})`
         : (preview?.author.login ?? null);
-
   return (
     <PreviewCard open={open} onOpenChange={setOpen} actionsRef={previewActionsRef}>
       <Tooltip
@@ -122,8 +116,11 @@ export function PullRequestLinkPreview({
               <div className="min-w-0">
                 <div className="flex min-w-0 items-center gap-1.5 text-2xs text-muted-foreground">
                   <span className="min-w-0 truncate">{preview.repository}</span>
-                  <span className="shrink-0">#{preview.number}</span>
-                  <span aria-hidden>·</span>
+                  <span className="shrink-0">
+                    {"#"}
+                    {preview.number}
+                  </span>
+                  <span aria-hidden>{"\u00B7"}</span>
                   {state === null ? null : (
                     <span className="inline-flex shrink-0 items-center gap-1">
                       <state.Icon aria-hidden className={`size-3 ${state.toneClassName}`} />
@@ -137,9 +134,10 @@ export function PullRequestLinkPreview({
                 <div className="mt-2 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
                   <PullRequestActorAvatar actor={preview.author} className="size-4" />
                   <span className="min-w-0 truncate">{authorLabel}</span>
-                  <span aria-hidden>·</span>
+                  <span aria-hidden>{"\u00B7"}</span>
                   <span className="shrink-0">
-                    opened <RelativeTime timestamp={preview.createdAt} />
+                    {"opened "}
+                    <RelativeTime timestamp={preview.createdAt} />
                   </span>
                 </div>
               </div>

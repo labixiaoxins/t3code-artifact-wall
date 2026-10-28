@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { type OrchestrationV2ProviderTurn, type RunAttemptId } from "@t3tools/contracts";
 import {
   deriveLatestThreadRun,
@@ -495,7 +496,7 @@ export function buildLocalDraftThread(
   return presentThreadShell(draftThread.environmentId, {
     id: threadId,
     projectId: draftThread.projectId,
-    title: "New thread",
+    title: uiText("New thread"),
     providerInstanceId: fallbackModelSelection.instanceId,
     modelSelection: fallbackModelSelection,
     runtimeMode: draftThread.runtimeMode,
@@ -824,13 +825,13 @@ export function buildExpiredTerminalContextToastCopy(
   const noun = count === 1 ? "Expired terminal context" : "Expired terminal contexts";
   if (variant === "empty") {
     return {
-      title: `${noun} won't be sent`,
-      description: "Remove it or re-add it to include terminal output.",
+      title: uiText("{0} won't be sent", { "0": noun }),
+      description: uiText("Remove it or re-add it to include terminal output."),
     };
   }
   return {
-    title: `${noun} omitted from message`,
-    description: "Re-add it if you want that terminal output included.",
+    title: uiText("{0} omitted from message", { "0": noun }),
+    description: uiText("Re-add it if you want that terminal output included."),
   };
 }
 
@@ -981,8 +982,8 @@ export function getStartedThreadModelChangeBlockReason(input: {
       return null;
     }
     return {
-      title: "Start a new chat to switch providers",
-      description: "This thread does not support switching providers after it has started.",
+      title: uiText("Start a new chat to switch providers"),
+      description: uiText("This thread does not support switching providers after it has started."),
     };
   }
   const currentProvider = input.providers.find(
@@ -998,14 +999,16 @@ export function getStartedThreadModelChangeBlockReason(input: {
     return null;
   }
   return {
-    title: "Start a new chat to change models",
-    description: "This provider does not allow switching models after a conversation has started.",
+    title: uiText("Start a new chat to change models"),
+    description: uiText(
+      "This provider does not allow switching models after a conversation has started.",
+    ),
   };
 }
 
 export async function waitForStartedServerThread(
   threadRef: ScopedThreadRef,
-  timeoutMs = 1_000,
+  timeoutMs = 1000,
 ): Promise<boolean> {
   const threadAtom = environmentThreadShells.threadShellAtom(threadRef);
   return waitForAtomValue({
@@ -1021,7 +1024,7 @@ export async function waitForRevertedMessage(
   turnCount: number,
   requestId: CommandId,
   revert: () => Promise<void>,
-  timeoutMs = 120_000,
+  timeoutMs = 120000,
 ): Promise<void> {
   const threadAtom = environmentThreadDetails.stateAtom(threadRef);
   const readProjection = () => Option.getOrNull(appAtomRegistry.get(threadAtom).data);
@@ -1220,6 +1223,11 @@ export function shouldRefocusComposerOnWindowFocus(
   ) {
     return false;
   }
+  // A menu opens on pointer-down before aria-expanded updates or its popup receives
+  // focus. Returning to the window in that interval must not dismiss the menu.
+  if (activeElement.getAttribute("aria-haspopup") === "menu") {
+    return false;
+  }
   return (
     activeElement.closest(
       '[role="dialog"], [role="alertdialog"], [role="application"], [data-slot$="-popup"], [data-terminal-owner]',
@@ -1329,7 +1337,7 @@ export type LocalThreadErrorEntry = {
 };
 
 export function chatActionErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "An error occurred.";
+  return error instanceof Error ? error.message : uiText("An error occurred.");
 }
 
 export function releaseChatTimelineAnchor<T extends { readonly messageId: MessageId | null }>(

@@ -77,8 +77,14 @@ export function useWorktreeSetup(input: {
     readonly routeThreadRef: ScopedThreadRef;
     readonly latestSnapshot: WorktreeSetupSnapshot | null | undefined;
   }>({ routeThreadRef, latestSnapshot: null });
-  if (heldFor.routeThreadRef !== routeThreadRef || heldFor.latestSnapshot !== latestSnapshot) {
-    const routeChanged = heldFor.routeThreadRef !== routeThreadRef;
+  if (
+    heldFor.routeThreadRef.environmentId !== routeThreadRef.environmentId ||
+    heldFor.routeThreadRef.threadId !== routeThreadRef.threadId ||
+    heldFor.latestSnapshot !== latestSnapshot
+  ) {
+    const routeChanged =
+      heldFor.routeThreadRef.environmentId !== routeThreadRef.environmentId ||
+      heldFor.routeThreadRef.threadId !== routeThreadRef.threadId;
     setHeldFor({ routeThreadRef, latestSnapshot });
     if (routeChanged) {
       setHeldSnapshot(null);

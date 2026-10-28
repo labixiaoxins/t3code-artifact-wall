@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import DOMPurify from "dompurify";
 import type { DiagramType, MathResolver } from "pele/lazy";
 import { use, useState } from "react";
@@ -276,7 +277,7 @@ export function MermaidDiagram({
       {renderError ? <DiagramError message={renderError} source={source} /> : null}
       <button
         type="button"
-        aria-label="Expand diagram"
+        aria-label={uiText("Expand diagram")}
         hidden={renderError !== null}
         className="block w-full cursor-zoom-in rounded-md focus-visible:outline-2 focus-visible:outline-ring"
         onClick={(event) => {
@@ -302,10 +303,13 @@ function DiagramError({
   return (
     <div>
       <div className="flex items-center justify-between gap-2">
-        <p className="m-0 text-xs text-destructive">Unable to render diagram: {message}</p>
+        <p className="m-0 text-xs text-destructive">
+          {uiText("Unable to render diagram:")}
+          {message}
+        </p>
         {onRetry ? (
           <Button type="button" variant="ghost" size="xs" onClick={onRetry}>
-            Retry
+            {uiText("Retry")}
           </Button>
         ) : null}
       </div>

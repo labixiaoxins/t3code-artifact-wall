@@ -1,10 +1,10 @@
+import { uiText } from "~/i18n";
 import type { ProviderAuthResponse } from "@t3tools/contracts";
 import { useEffect, useRef, useState } from "react";
 import { GhosttyTerminalSurface } from "../../terminal/ghostty/surface";
 import { ensureLocalApi } from "../../localApi";
 import { useStableCallback } from "../../hooks/useStableCallback";
 import { terminalThemeFromApp } from "../ThreadTerminalDrawer";
-
 export default function ProviderAuthTerminal({
   output,
   outputOffset,
@@ -12,7 +12,14 @@ export default function ProviderAuthTerminal({
 }: {
   readonly output: string;
   readonly outputOffset?: number | undefined;
-  readonly onResponse: (response: Extract<ProviderAuthResponse, { type: "terminal" }>) => void;
+  readonly onResponse: (
+    response: Extract<
+      ProviderAuthResponse,
+      {
+        type: "terminal";
+      }
+    >,
+  ) => void;
 }) {
   const [surface, setSurface] = useState<GhosttyTerminalSurface | null>(null);
   const written = useRef(0);
@@ -64,7 +71,7 @@ export default function ProviderAuthTerminal({
     <>
       <div
         ref={mountSurface}
-        aria-label="Provider sign-in terminal"
+        aria-label={uiText("Provider sign-in terminal")}
         className="relative h-64 overflow-hidden rounded-md border border-border"
       />
       {error ? (

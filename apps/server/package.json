@@ -17,7 +17,7 @@
   "scripts": {
     "dev": "node --watch --watch-path=src --watch-path=../../packages --watch-path=package.json src/bin.ts",
     "dev:built": "vp run dev",
-    "build:bundle": "vp pack",
+    "build:bundle": "node ../../scripts/check-storage-budget.ts 0.5 && vp pack",
     "build:exe": "node scripts/cli.ts build-exe",
     "start": "node dist/bin.mjs",
     "typecheck": "tsc --noEmit",
@@ -62,6 +62,7 @@
     "effect": "catalog:",
     "jose": "catalog:",
     "node-pty": "^1.2.0-beta.15",
+    "pinyin-pro": "3.29.5",
     "playwright-core": "1.60.0",
     "proper-lockfile": "4.1.2",
     "saxes": "6.0.0",

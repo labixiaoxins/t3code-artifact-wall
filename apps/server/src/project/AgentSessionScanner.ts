@@ -1,5 +1,4 @@
 import * as NodeOS from "node:os";
-
 import {
   AgentSessionScanError,
   ClaudeSettings,
@@ -23,12 +22,10 @@ import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
 import * as Semaphore from "effect/Semaphore";
 import * as Stream from "effect/Stream";
-
 import { isBareGitConfig, parseOriginUrlFromGitConfig } from "@t3tools/shared/git";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { normalizeProjectPathForComparison } from "@t3tools/shared/path";
 import { repositoryPathFromRemoteUrl } from "@t3tools/source-control-core/server/SourceControlProvider";
-
 import * as ServerConfig from "../config.ts";
 import * as ProjectStore from "../orchestration-v2/ProjectStore.ts";
 import { resolveCodexHomeLayout } from "../provider/Drivers/CodexHomeLayout.ts";
@@ -40,42 +37,44 @@ import {
   createTranscriptJsonSelector,
   TranscriptJsonLimitError,
 } from "./AgentSessionJson.ts";
-
 const TRANSCRIPT_PREFIX_BYTES = 32 * 1024;
 const METADATA_READ_BYTES = 8 * 1024;
-const MAX_TRANSCRIPT_SCAN_BYTES = 1024 * 1024;
-
+/** Prevent malformed transcripts from turning project discovery into a full file scan. */
+const MAX_TRANSCRIPT_SCAN_BYTES = 4 * 1024 * 1024;
+/**
+ * Upper bound on transcripts inspected (first line read) per source.
+ * Newest-first ordering means the cap drops only stale sessions when a home
+ * directory is unusually large.
+ */
 const MAX_TRANSCRIPTS_PER_SOURCE = 5000;
-
 const MAX_DISCOVERY_OPERATIONS_PER_SOURCE = MAX_TRANSCRIPTS_PER_SOURCE * 4;
-const MAX_METADATA_BYTES_PER_SOURCE = 64 * 1024 * 1024;
+const MAX_METADATA_BYTES_PER_SOURCE = 128 * 1024 * 1024;
 const MAX_METADATA_OPERATIONS_PER_SOURCE = MAX_TRANSCRIPTS_PER_SOURCE * 4;
-const MAX_METADATA_RECORDS_PER_SOURCE = 100_000;
-const MAX_METADATA_RECORDS_PER_TRANSCRIPT = 1_000;
-const RECENT_THREAD_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
-// Screenshot-heavy transcripts can reach GiB; select fields while streaming to avoid allocating payloads.
+const MAX_METADATA_RECORDS_PER_SOURCE = 100000;
+const MAX_METADATA_RECORDS_PER_TRANSCRIPT = 1000;
+/**
+ * Large tool results (especially screenshots) can make an otherwise ordinary
+ * Codex transcript several GiB. Streaming field selection avoids allocating
+ * those payloads.
+ */
 const MAX_IMPORTED_TRANSCRIPT_BYTES = 4 * 1024 * 1024 * 1024;
 const MAX_IMPORTED_MESSAGES = 200;
 const MAX_IMPORT_HISTORY_BYTES = 32 * 1024 * 1024;
 const MAX_IMPORT_BYTES = 4 * 1024 * 1024 * 1024;
 const MAX_IMPORT_TRANSCRIPTS = 100;
-const MAX_IMPORT_RECORDS = 100_000;
-
+const MAX_IMPORT_RECORDS = 100000;
 const TranscriptContentBlock = Schema.Struct({
   type: Schema.optional(Schema.String),
   text: Schema.optional(Schema.String),
 });
-
 const TranscriptMessage = Schema.Struct({
   role: Schema.optional(Schema.String),
   content: Schema.optional(Schema.Union([Schema.String, Schema.Array(TranscriptContentBlock)])),
   model: Schema.optional(Schema.String),
 });
-
 const CodexTurnMetadata = Schema.Struct({
   turn_id: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
 });
-
 const TranscriptRecord = Schema.Struct({
   type: Schema.optional(Schema.String),
   timestamp: Schema.optional(Schema.String),
@@ -101,29 +100,28 @@ const TranscriptRecord = Schema.Struct({
     }),
   ),
 });
-
 const decodeClaudeSettings = Schema.decodeUnknownOption(ClaudeSettings);
+const decodeCodexTitleIndex = Schema.decodeUnknownOption(
+  Schema.fromJsonString(Schema.Struct({ id: Schema.String, thread_name: Schema.String })),
+);
 const decodeCodexSettings = Schema.decodeUnknownOption(CodexSettings);
 const decodeTranscriptRecord = Schema.decodeUnknownOption(Schema.fromJsonString(TranscriptRecord));
 const decodeTranscriptValue = Schema.decodeUnknownOption(TranscriptRecord);
 const selectTranscriptPath = createTranscriptJsonSelector(TranscriptRecord);
 const decodeCodexTurnMetadata = Schema.decodeUnknownOption(CodexTurnMetadata);
-
 type DecodedTranscriptRecord = typeof TranscriptRecord.Type;
-
 interface AgentSessionTranscriptMetadata {
+  readonly preferredTitles?: ReadonlyMap<string, string> | undefined;
   readonly source: AgentSessionSource;
   readonly providerInstanceId: ProviderInstanceId;
   readonly fallbackSessionId: string;
   readonly lastActiveAtMs: number;
 }
-
 export interface AgentSessionThreadMessage {
   readonly role: "user" | "assistant";
   readonly text: string;
   readonly createdAt: string;
 }
-
 export interface AgentSessionThread {
   readonly source: AgentSessionSource;
   readonly providerInstanceId: ProviderInstanceId;
@@ -134,17 +132,23 @@ export interface AgentSessionThread {
   readonly updatedAt: string;
   readonly messages: ReadonlyArray<AgentSessionThreadMessage>;
 }
-
 export type AgentSessionRecentThread =
   | {
       readonly _tag: "Importable";
       readonly thread: AgentSessionThread;
       readonly source: AgentSessionImportSource;
     }
-  | { readonly _tag: "AlreadyImported"; readonly source: AgentSessionImportSource }
-  | { readonly _tag: "Duplicate"; readonly source: AgentSessionImportSource }
-  | { readonly _tag: "Skipped" };
-
+  | {
+      readonly _tag: "AlreadyImported";
+      readonly source: AgentSessionImportSource;
+    }
+  | {
+      readonly _tag: "Duplicate";
+      readonly source: AgentSessionImportSource;
+    }
+  | {
+      readonly _tag: "Skipped";
+    };
 export class AgentSessionScanner extends Context.Service<
   AgentSessionScanner,
   {
@@ -155,9 +159,7 @@ export class AgentSessionScanner extends Context.Service<
     ) => Stream.Stream<AgentSessionRecentThread, AgentSessionScanError>;
   }
 >()("t3/project/AgentSessionScanner") {}
-
 type AgentSessionSource = AgentSessionProjectCandidate["sources"][number];
-
 interface RawCandidate {
   readonly cwd: string;
   readonly source: AgentSessionSource;
@@ -169,21 +171,18 @@ interface RawCandidate {
     readonly mtimeMs: number | null;
   }>;
 }
-
 interface TranscriptCandidate {
   readonly filePath: string;
   readonly mtimeMs: number;
   readonly providerInstanceId: ProviderInstanceId;
   readonly size: number;
 }
-
 interface MetadataReadBudget {
   bytesRemaining: number;
   operationsRemaining: number;
   recordsRemaining: number;
   truncated: boolean;
 }
-
 function selectMetadataTranscripts(transcripts: ReadonlyArray<TranscriptCandidate>) {
   const selected: Array<TranscriptCandidate> = [];
   let pending = Array.from(
@@ -203,16 +202,13 @@ function selectMetadataTranscripts(transcripts: ReadonlyArray<TranscriptCandidat
   }
   return selected;
 }
-
 function splitTranscriptRecords(contents: string, limit: number): string[] {
   const records = contents.endsWith("\n") ? contents.slice(0, -1) : contents;
   return records.split("\n", limit);
 }
-
 function isTextContentBlock(block: typeof TranscriptContentBlock.Type): boolean {
   return block.type === "text" || block.type === "input_text" || block.type === "output_text";
 }
-
 function extractText(
   content: string | ReadonlyArray<typeof TranscriptContentBlock.Type> | undefined,
 ): string {
@@ -224,13 +220,11 @@ function extractText(
     .filter((text) => text.length > 0)
     .join("\n");
 }
-
 function normalizeTimestamp(value: string | undefined, fallback: string): string {
   if (value === undefined) return fallback;
   const parsed = DateTime.make(value);
   return Option.isSome(parsed) ? DateTime.formatIso(parsed.value) : fallback;
 }
-
 function codexTurnId(metadata: unknown): string | null {
   const decoded = decodeCodexTurnMetadata(metadata);
   if (
@@ -242,11 +236,9 @@ function codexTurnId(metadata: unknown): string | null {
   }
   return decoded.value.turn_id;
 }
-
 function isHiddenClaudeRecord(record: DecodedTranscriptRecord): boolean {
   return record.isSidechain === true || record.isMeta === true || record.isCompactSummary === true;
 }
-
 // Claude repeats session fields on records that need not be retained.
 interface ClaudeFields {
   readonly sessionId: string | undefined;
@@ -254,14 +246,12 @@ interface ClaudeFields {
   readonly customTitle: string | null;
   readonly model: string | undefined;
 }
-
 const emptyClaudeFields: ClaudeFields = {
   sessionId: undefined,
   title: undefined,
   customTitle: null,
   model: undefined,
 };
-
 function foldClaudeFields(fields: ClaudeFields, record: DecodedTranscriptRecord): ClaudeFields {
   if (isHiddenClaudeRecord(record)) return fields;
   const model = record.message?.model?.trim();
@@ -276,17 +266,14 @@ function foldClaudeFields(fields: ClaudeFields, record: DecodedTranscriptRecord)
     model: model && model !== "<synthetic>" ? model : fields.model,
   };
 }
-
 // Codex records setup context as user text ahead of the real request. Skip
 // these leading blocks when deriving a title; imported messages keep them.
 const CODEX_TITLE_PREAMBLE =
   /^(?:\s*(?:<(recommended_plugins|environment_context|user_instructions|INSTRUCTIONS|in-app-browser-context)(?:\s[^>]*)?>[\s\S]*?<\/\1>|# AGENTS\.md instructions\b[^\n]*|## My request for Codex:))+/;
-
 function deriveTitle(source: AgentSessionSource, text: string): string | undefined {
   const request = source === "codex" ? text.replace(CODEX_TITLE_PREAMBLE, "") : text;
   return request.trim().split("\n")[0]?.slice(0, 100).trim() || undefined;
 }
-
 export function parseAgentSessionTranscript(
   input: AgentSessionTranscriptMetadata & {
     readonly contents: string;
@@ -301,7 +288,6 @@ export function parseAgentSessionTranscript(
       : emptyClaudeFields;
   return parseAgentSessionRecords(input, records, claudeFields);
 }
-
 function parseAgentSessionRecords(
   input: AgentSessionTranscriptMetadata,
   records: ReadonlyArray<DecodedTranscriptRecord>,
@@ -316,9 +302,15 @@ function parseAgentSessionRecords(
   let model = claudeFields.model ?? null;
   let derivedTitle: string | undefined;
   let hasCodexSessionId = false;
-  const messages: Array<AgentSessionThreadMessage & { readonly codexResponseUser: boolean }> = [];
+  const messages: Array<
+    AgentSessionThreadMessage & {
+      readonly codexResponseUser: boolean;
+    }
+  > = [];
   let firstUserMessage:
-    | (AgentSessionThreadMessage & { readonly codexResponseUser: boolean })
+    | (AgentSessionThreadMessage & {
+        readonly codexResponseUser: boolean;
+      })
     | undefined;
   const canonicalCodexResponseUserIndices = new Set<number>();
   let canonicalUserTextsInTurn = new Set<string>();
@@ -372,9 +364,10 @@ function parseAgentSessionRecords(
     }
     finishCodexTurn();
   }
-
   const retainMessage = (
-    message: AgentSessionThreadMessage & { readonly codexResponseUser: boolean },
+    message: AgentSessionThreadMessage & {
+      readonly codexResponseUser: boolean;
+    },
   ) => {
     if (firstUserMessage === undefined && message.role === "user") {
       firstUserMessage = message;
@@ -385,7 +378,6 @@ function parseAgentSessionRecords(
     messages.push(message);
     if (messages.length > MAX_IMPORTED_MESSAGES) messages.shift();
   };
-
   const hasMatchingCodexEventInTurn = (text: string) => {
     const comparisonText = text.trim();
     for (let index = messages.length - 1; index >= 0; index--) {
@@ -401,7 +393,6 @@ function parseAgentSessionRecords(
     }
     return false;
   };
-
   let recordIndex = -1;
   for (const record of records) {
     recordIndex += 1;
@@ -418,7 +409,6 @@ function parseAgentSessionRecords(
       });
       continue;
     }
-
     if (record.type === "session_meta") {
       const sessionId = record.payload?.id?.trim() || record.payload?.session_id?.trim();
       if (!hasCodexSessionId && sessionId) {
@@ -459,7 +449,6 @@ function parseAgentSessionRecords(
     ) {
       continue;
     }
-
     const extractedText = extractText(record.payload.content);
     if (extractedText.length === 0) continue;
     if (record.payload.role === "user" && canonicalCodexResponseUserIndices.has(recordIndex)) {
@@ -475,7 +464,6 @@ function parseAgentSessionRecords(
       codexResponseUser: record.payload.role === "user",
     });
   }
-
   const visibleMessages = messages.map(
     ({ codexResponseUser: _codexResponseUser, ...message }) => message,
   );
@@ -485,24 +473,48 @@ function parseAgentSessionRecords(
   const retainedMessages = firstUserMessageRetained
     ? visibleMessages
     : [visibleFirstUserMessage, ...visibleMessages.slice(-(MAX_IMPORTED_MESSAGES - 1))];
-
+  const workbenchDerivedTitle =
+    retainedMessages
+      .filter((message) => message.role === "user")
+      .map((message) => {
+        const text = message.text
+          .replace(CODEX_TITLE_PREAMBLE, "")
+          .replace(
+            /<(environment_context|system-reminder|recommended_plugins|skills_instructions)>[\s\S]*?<\/\1>/gi,
+            "",
+          )
+          .trim();
+        if (/^(#\s*AGENTS\.md|<INSTRUCTIONS>|<permissions instructions>)/i.test(text)) return "";
+        return (
+          text
+            .split("\n")
+            .find((line) => line.trim().length > 0)
+            ?.slice(0, 100)
+            .trim() ?? ""
+        );
+      })
+      .find(Boolean) ?? `历史会话 · ${fallbackTimestamp.slice(0, 10)}`;
   return {
     source: input.source,
     providerInstanceId: input.providerInstanceId,
     providerSessionId,
-    title: claudeFields.customTitle ?? title ?? derivedTitle ?? "Imported thread",
+    title:
+      model === "codex-auto-review"
+        ? `自动审批 · ${fallbackTimestamp.slice(0, 16).replace("T", " ")} · ${providerSessionId.slice(-6)}`
+        : (input.preferredTitles?.get(providerSessionId) ??
+          claudeFields.customTitle ??
+          title ??
+          (workbenchDerivedTitle || derivedTitle || "Imported thread")),
     model,
     createdAt: retainedMessages[0]?.createdAt ?? fallbackTimestamp,
     updatedAt: fallbackTimestamp,
     messages: retainedMessages,
   };
 }
-
 function extractDecodedCwd(record: DecodedTranscriptRecord): string | null {
   const cwd = record.cwd?.trim() || record.payload?.cwd?.trim();
   return cwd && cwd.length > 0 ? cwd : null;
 }
-
 function shouldRetainDecodedRecord(
   source: AgentSessionSource,
   record: DecodedTranscriptRecord,
@@ -528,12 +540,10 @@ function shouldRetainDecodedRecord(
       (record.payload.role === "user" || record.payload.role === "assistant"))
   );
 }
-
 function normalizeForWorktreeMatch(value: string, caseFold: boolean): string {
   const normalized = `${value.replaceAll("\\", "/")}/`;
   return caseFold ? normalized.toLowerCase() : normalized;
 }
-
 function isT3ManagedWorktree(
   candidatePath: string,
   worktreesDir: string,
@@ -545,7 +555,6 @@ function isT3ManagedWorktree(
     normalized.includes("/.t3/worktrees/")
   );
 }
-
 // false stops metadata scanning for an excluded rollout, even if later records contain a cwd.
 function extractCwd(line: string, source: AgentSessionSource): string | null | false {
   let parsed: unknown;
@@ -555,7 +564,6 @@ function extractCwd(line: string, source: AgentSessionSource): string | null | f
     return null;
   }
   if (typeof parsed !== "object" || parsed === null) return null;
-
   const record = parsed as Record<string, unknown>;
   if (typeof record.cwd === "string" && record.cwd.trim().length > 0) {
     return record.cwd;
@@ -580,7 +588,6 @@ function extractCwd(line: string, source: AgentSessionSource): string | null | f
   }
   return null;
 }
-
 function transcriptIdentity(filePath: string, stats: FileSystem.File.Info) {
   return {
     filePath,
@@ -594,14 +601,11 @@ function transcriptIdentity(filePath: string, stats: FileSystem.File.Info) {
     }),
   };
 }
-
 type TranscriptIdentity = Pick<
   AgentSessionImportSource,
   "filePath" | "size" | "mtimeMs" | "device" | "inode" | "birthtimeMs"
 >;
-
 const fileIdKey = (inode: TranscriptIdentity["inode"]) => (inode === null ? null : String(inode));
-
 function sameTranscriptIdentity(left: TranscriptIdentity, right: TranscriptIdentity): boolean {
   // Unsafe legacy numbers may already have lost file ID precision.
   if (
@@ -619,7 +623,6 @@ function sameTranscriptIdentity(left: TranscriptIdentity, right: TranscriptIdent
     left.birthtimeMs === right.birthtimeMs
   );
 }
-
 /** @public */
 export const make = Effect.gen(function* () {
   const fileSystem = yield* FileSystem.FileSystem;
@@ -631,6 +634,11 @@ export const make = Effect.gen(function* () {
   const projectStore = yield* ProjectStore.ProjectStoreV2;
   const baseDir = path.resolve(serverConfig.baseDir);
   const worktreesDir = path.resolve(serverConfig.worktreesDir);
+  const realWorktreesDir = yield* fileSystem
+    .realPath(worktreesDir)
+    .pipe(Effect.orElseSucceed(() => worktreesDir));
+  // Windows filesystems are case-insensitive, so path prefix checks there
+  // must case fold.
   const foldWorktreeCase = (yield* HostProcess.Platform) === "win32";
   const hostEnvironment = yield* HostProcess.Environment;
   const homeDir = yield* HostProcess.HomeDirectory;
@@ -640,11 +648,8 @@ export const make = Effect.gen(function* () {
       normalizeProjectPathForComparison(path.resolve(directory)),
     ),
   );
-  const excludedProjectAncestors = [
-    path.join(homeDir, "Downloads"),
-    path.join(homeDir, "Documents", "Codex"),
-  ];
-
+  // Date-based Codex workspaces also carry user history and must be offered.
+  const excludedProjectAncestors = [path.join(homeDir, "Downloads")];
   const isExcludedProjectPath = (candidatePath: string) =>
     excludedProjectRoots.has(normalizeProjectPathForComparison(candidatePath)) ||
     excludedProjectAncestors.some((ancestor) =>
@@ -655,14 +660,12 @@ export const make = Effect.gen(function* () {
     normalizeForWorktreeMatch(candidatePath, foldWorktreeCase).startsWith(
       normalizeForWorktreeMatch(baseDir, foldWorktreeCase),
     ) ||
-    isT3ManagedWorktree(candidatePath, worktreesDir, foldWorktreeCase);
-
+    isT3ManagedWorktree(candidatePath, worktreesDir, foldWorktreeCase) ||
+    isT3ManagedWorktree(candidatePath, realWorktreesDir, foldWorktreeCase);
   const listDirectory = (directory: string) =>
     fileSystem.readDirectory(directory).pipe(Effect.orElseSucceed((): ReadonlyArray<string> => []));
-
   const statOption = (target: string) =>
     fileSystem.stat(target).pipe(Effect.asSome, Effect.orElseSucceed(Option.none));
-
   const directoryIdentity = Effect.fn("AgentSessionScanner.directoryIdentity")(function* (
     target: string,
     knownStats?: FileSystem.File.Info,
@@ -677,13 +680,19 @@ export const make = Effect.gen(function* () {
       .pipe(Effect.orElseSucceed(() => resolved));
     return `path:${normalizeProjectPathForComparison(realPath)}`;
   });
-
   const readGitIdentity = Effect.fn("AgentSessionScanner.readGitIdentity")(function* (
     directory: string,
   ): Effect.fn.Return<
-    | { readonly _tag: "Repository"; readonly git: AgentSessionProjectGit | null }
-    | { readonly _tag: "Worktree" }
-    | { readonly _tag: "NotGit" }
+    | {
+        readonly _tag: "Repository";
+        readonly git: AgentSessionProjectGit | null;
+      }
+    | {
+        readonly _tag: "Worktree";
+      }
+    | {
+        readonly _tag: "NotGit";
+      }
   > {
     const gitPath = path.join(directory, ".git");
     const gitStats = yield* statOption(gitPath);
@@ -721,7 +730,6 @@ export const make = Effect.gen(function* () {
       },
     } as const;
   });
-
   const readCwd = Effect.fn("AgentSessionScanner.readCwd")(function* (
     source: AgentSessionSource,
     transcript: TranscriptCandidate,
@@ -764,7 +772,6 @@ export const make = Effect.gen(function* () {
                 ? null
                 : extractCwd(record.trim(), source);
             };
-
             while (bytesRead < maxBytes) {
               if (budget.bytesRemaining === 0 || budget.operationsRemaining === 0) {
                 budget.truncated = true;
@@ -781,19 +788,16 @@ export const make = Effect.gen(function* () {
               if (Option.isNone(next)) {
                 return readLastRecord();
               }
-
               bytesRead += next.value.byteLength;
               remaining += decoder.decode(next.value, { stream: true });
               const lines = remaining.split("\n");
               remaining = lines.pop() ?? "";
-
               for (const line of lines) {
                 if (!reserveRecord()) return null;
                 const cwd = extractCwd(line.trim(), source);
                 if (cwd !== null) return cwd;
               }
             }
-
             if (bytesRead < transcript.size) {
               budget.truncated = true;
               return null;
@@ -804,7 +808,6 @@ export const make = Effect.gen(function* () {
       ),
     ).pipe(Effect.orElseSucceed(() => null));
   });
-
   const readTranscript = Effect.fn("AgentSessionScanner.readTranscript")(function* (
     filePath: string,
     expected: ReturnType<typeof transcriptIdentity>,
@@ -812,7 +815,6 @@ export const make = Effect.gen(function* () {
     source: AgentSessionSource,
   ) {
     if (expected.size > MAX_IMPORTED_TRANSCRIPT_BYTES) return null;
-
     return yield* Effect.scoped(
       fileSystem.open(filePath, { flag: "r" }).pipe(
         Effect.flatMap((file) =>
@@ -838,7 +840,6 @@ export const make = Effect.gen(function* () {
             let reader = createTranscriptJsonReader(reserve, selectTranscriptPath);
             let decoder = new TextDecoder();
             let recordStarted = false;
-
             const finishRecord = () => {
               reader.write(decoder.decode());
               recordCount += 1;
@@ -860,7 +861,6 @@ export const make = Effect.gen(function* () {
               recordStarted = false;
               return true;
             };
-
             while (bytesRead < expected.size) {
               const next = yield* file.readAlloc(
                 Math.min(TRANSCRIPT_PREFIX_BYTES, expected.size - bytesRead),
@@ -868,7 +868,6 @@ export const make = Effect.gen(function* () {
               if (Option.isNone(next)) {
                 return null;
               }
-
               bytesRead += next.value.byteLength;
               const withinBudget = yield* Effect.try(() => {
                 let start = 0;
@@ -885,7 +884,6 @@ export const make = Effect.gen(function* () {
               });
               if (!withinBudget) return null;
             }
-
             if (recordStarted && !(yield* Effect.try(finishRecord))) return null;
             return sameTranscriptIdentity(expected, transcriptIdentity(filePath, yield* file.stat))
               ? { records, recordCount, cwd, claudeFields }
@@ -901,7 +899,6 @@ export const make = Effect.gen(function* () {
       ),
     );
   });
-
   const resolveClaudeConfigDir = (homePath: string, environmentHome?: string): string => {
     const configured = homePath.trim();
     if (configured.length > 0) {
@@ -913,7 +910,6 @@ export const make = Effect.gen(function* () {
     }
     return path.join(homeDir, ".claude");
   };
-
   const discoverClaudeTranscripts = Effect.fn("AgentSessionScanner.discoverClaudeTranscripts")(
     function* (homePath: string, providerInstanceId: ProviderInstanceId, operationBudget: number) {
       const projectsDir = path.join(homePath, "projects");
@@ -929,7 +925,6 @@ export const make = Effect.gen(function* () {
       };
       const projectDirectories = yield* readDirectory(projectsDir);
       const transcripts: Array<TranscriptCandidate> = [];
-
       for (const projectDirectory of projectDirectories) {
         if (operationsRemaining <= 0) {
           truncated = true;
@@ -939,7 +934,6 @@ export const make = Effect.gen(function* () {
         const directoryTranscripts = (yield* readDirectory(directory))
           .filter((entry) => entry.endsWith(".jsonl"))
           .map((entry) => path.join(directory, entry));
-
         for (const filePath of directoryTranscripts) {
           if (operationsRemaining <= 0) {
             truncated = true;
@@ -965,11 +959,9 @@ export const make = Effect.gen(function* () {
       return { transcripts, truncated };
     },
   );
-
   const discoverCodexTranscripts = Effect.fn("AgentSessionScanner.discoverCodexTranscripts")(
     function* (homePath: string, providerInstanceId: ProviderInstanceId, operationBudget: number) {
       const sessionsDir = path.join(homePath, "sessions");
-
       const transcripts: Array<TranscriptCandidate> = [];
       let operationsRemaining = operationBudget;
       let truncated = false;
@@ -1026,10 +1018,33 @@ export const make = Effect.gen(function* () {
           }
         }
       }
+      // Archived Codex sessions are equally part of the user's project history.
+      const archiveDir = path.join(homePath, "archived_sessions");
+      for (const entry of (yield* readDirectory(archiveDir)).toSorted().toReversed()) {
+        if (!entry.startsWith("rollout-") || !entry.endsWith(".jsonl")) continue;
+        if (operationsRemaining <= 0) {
+          truncated = true;
+          break;
+        }
+        operationsRemaining -= 1;
+        const filePath = path.join(archiveDir, entry);
+        const stats = yield* statOption(filePath);
+        if (
+          Option.isSome(stats) &&
+          stats.value.type === "File" &&
+          Option.isSome(stats.value.mtime)
+        ) {
+          transcripts.push({
+            filePath,
+            mtimeMs: stats.value.mtime.value.getTime(),
+            providerInstanceId,
+            size: Number(stats.value.size),
+          });
+        }
+      }
       return { transcripts, truncated };
     },
   );
-
   const groupTranscriptsByCwd = Effect.fn("AgentSessionScanner.groupTranscriptsByCwd")(function* (
     source: AgentSessionSource,
     transcripts: ReadonlyArray<TranscriptCandidate>,
@@ -1041,10 +1056,12 @@ export const make = Effect.gen(function* () {
         cwd: string;
         providerInstanceId: ProviderInstanceId;
         lastActiveAtMs: number;
-        transcripts: Array<{ filePath: string; mtimeMs: number }>;
+        transcripts: Array<{
+          filePath: string;
+          mtimeMs: number;
+        }>;
       }
     >();
-
     for (const transcript of transcripts) {
       const cwd = yield* readCwd(source, transcript, budget);
       if (cwd === null || cwd === false) continue;
@@ -1062,7 +1079,6 @@ export const make = Effect.gen(function* () {
         });
       }
     }
-
     return Array.from(byOwnerAndCwd.values(), (group): RawCandidate => ({
       cwd: group.cwd,
       source,
@@ -1072,15 +1088,13 @@ export const make = Effect.gen(function* () {
       transcripts: group.transcripts,
     }));
   });
-
+  const preferredCodexTitles = new Map<string, string>();
   const collectCandidates = Effect.fn("AgentSessionScanner.collectCandidates")(function* () {
     const settings = yield* serverSettings.getSettings.pipe(
       Effect.mapError((cause) => new AgentSessionScanError({ operation: "read-settings", cause })),
     );
-
     const raw: Array<RawCandidate> = [];
     let truncated = false;
-
     for (const source of ["claudeAgent", "codex"] as const) {
       const instances: Array<{
         readonly instanceId: ProviderInstanceId;
@@ -1102,20 +1116,21 @@ export const make = Effect.gen(function* () {
           instances.push(defaultInstance);
         }
       }
-
       instances.sort((left, right) => {
         const leftDefault = left.instanceId === source ? 0 : 1;
         const rightDefault = right.instanceId === source ? 0 : 1;
         return leftDefault - rightDefault;
       });
-      const homes: Array<{ homePath: string; providerInstanceId: ProviderInstanceId }> = [];
+      const homes: Array<{
+        homePath: string;
+        providerInstanceId: ProviderInstanceId;
+      }> = [];
       const seenHomes = new Set<string>();
       for (const { instanceId, config: instance } of instances) {
         const homeVariable = source === "claudeAgent" ? "CLAUDE_CONFIG_DIR" : "CODEX_HOME";
         const environmentHome =
           instance.environment?.findLast((variable) => variable.name === homeVariable)?.value ??
           hostEnvironment[homeVariable];
-
         let homePath: string;
         if (source === "claudeAgent") {
           const config = decodeClaudeSettings(instance.config ?? {});
@@ -1134,14 +1149,28 @@ export const make = Effect.gen(function* () {
             Effect.provideService(Path.Path, path),
           );
           homePath = layout.sharedHomePath;
+          const titleIndexPath = path.join(homePath, "session_index.jsonl");
+          const indexStats = yield* statOption(titleIndexPath);
+          if (Option.isSome(indexStats) && Number(indexStats.value.size) <= 16 * 1024 * 1024) {
+            const indexText = yield* fileSystem
+              .readFileString(titleIndexPath)
+              .pipe(Effect.orElseSucceed(() => ""));
+            for (const line of indexText.split("\n")) {
+              // Codex may still be appending its final index line.
+              const decoded = decodeCodexTitleIndex(line);
+              if (Option.isNone(decoded)) continue;
+              const entry = decoded.value;
+              const title = entry.thread_name.trim();
+              if (title && !/^(#\s*AGENTS\.md|<|# Files mentioned)/i.test(title))
+                preferredCodexTitles.set(entry.id, title.slice(0, 120));
+            }
+          }
         }
-
         const homeKey = `${source}\0${yield* directoryIdentity(homePath)}`;
         if (seenHomes.has(homeKey)) continue;
         seenHomes.add(homeKey);
         homes.push({ homePath, providerInstanceId: instanceId });
       }
-
       const transcriptCandidates: Array<TranscriptCandidate> = [];
       const baseOperationBudget = Math.floor(
         MAX_DISCOVERY_OPERATIONS_PER_SOURCE / Math.max(1, homes.length),
@@ -1159,7 +1188,6 @@ export const make = Effect.gen(function* () {
         truncated ||= discovered.truncated;
         transcriptCandidates.push(...discovered.transcripts);
       }
-
       transcriptCandidates.sort(
         (left, right) =>
           right.mtimeMs - left.mtimeMs || left.filePath.localeCompare(right.filePath),
@@ -1177,16 +1205,12 @@ export const make = Effect.gen(function* () {
       raw.push(...(yield* groupTranscriptsByCwd(source, selectedTranscripts, metadataBudget)));
       truncated ||= metadataBudget.truncated;
     }
-
     return { candidates: raw, truncated };
   });
-
   let cachedCandidates: ReadonlyArray<RawCandidate> | null = null;
-
   const scan: AgentSessionScanner["Service"]["scan"] = Effect.gen(function* () {
     const { candidates: raw, truncated } = yield* collectCandidates();
     cachedCandidates = raw;
-
     const merged = new Map<
       string,
       {
@@ -1199,7 +1223,6 @@ export const make = Effect.gen(function* () {
     >();
     const directoryKeys = new Map<string, string>();
     const gitIdentities = new Map<string, AgentSessionProjectGit | null>();
-
     for (const candidate of raw) {
       const expanded = expandHomePath(candidate.cwd.trim(), homeDir);
       if (!path.isAbsolute(expanded)) continue;
@@ -1230,7 +1253,6 @@ export const make = Effect.gen(function* () {
         directoryKeys.set(resolved, key);
       }
       if (key === "") continue;
-
       const existing = merged.get(key);
       if (!existing) {
         merged.set(key, {
@@ -1251,7 +1273,6 @@ export const make = Effect.gen(function* () {
           ? (existing.lastActiveAtMs ?? candidate.lastActiveAtMs)
           : Math.max(existing.lastActiveAtMs, candidate.lastActiveAtMs);
     }
-
     // Resolve persisted roots too; transcripts may use different symlinks to the same directory.
     const importedProjects = yield* projectStore
       .listShells()
@@ -1266,7 +1287,6 @@ export const make = Effect.gen(function* () {
       importedProjectsByRoot.set(normalizeProjectPathForComparison(projectRoot), project);
       importedProjectsByRoot.set(yield* directoryIdentity(projectRoot), project);
     }
-
     const candidates: Array<AgentSessionProjectCandidate> = [];
     for (const [key, entry] of merged.entries()) {
       const importedProject =
@@ -1287,21 +1307,18 @@ export const make = Effect.gen(function* () {
         git: entry.git,
       });
     }
-
     candidates.sort((left, right) => {
       if (left.lastActiveAt === right.lastActiveAt) return left.path.localeCompare(right.path);
       if (left.lastActiveAt === null) return 1;
       if (right.lastActiveAt === null) return -1;
       return right.lastActiveAt.localeCompare(left.lastActiveAt);
     });
-
     return {
       candidates,
       scannedAt: DateTime.formatIso(yield* DateTime.now),
       ...(truncated ? { truncated: true } : {}),
     };
   });
-
   const prepareRecentThreads = Effect.fn("AgentSessionScanner.prepareRecentThreads")(function* (
     workspaceRoot: string,
     completedSources: ReadonlyArray<AgentSessionImportSource>,
@@ -1311,27 +1328,21 @@ export const make = Effect.gen(function* () {
     if (isExcludedProjectPath(root) || isExcludedProjectPath(realRoot)) return Stream.empty;
     const rootIdentity = yield* directoryIdentity(root);
     const nowMs = DateTime.toEpochMillis(yield* DateTime.now);
-    const cutoffMs = nowMs - RECENT_THREAD_WINDOW_MS;
-
     const candidates = cachedCandidates ?? (yield* collectCandidates()).candidates;
     cachedCandidates = candidates;
-
     const eligibleTranscripts: Array<{
       readonly candidate: RawCandidate;
-      readonly transcript: RawCandidate["transcripts"][number] & { readonly mtimeMs: number };
+      readonly transcript: RawCandidate["transcripts"][number] & {
+        readonly mtimeMs: number;
+      };
     }> = [];
     for (const candidate of candidates) {
       const expanded = expandHomePath(candidate.cwd.trim(), homeDir);
       if (!path.isAbsolute(expanded)) continue;
       const resolved = path.resolve(expanded);
       if ((yield* directoryIdentity(resolved)) !== rootIdentity) continue;
-
       for (const transcript of candidate.transcripts) {
-        if (
-          transcript.mtimeMs === null ||
-          transcript.mtimeMs < cutoffMs ||
-          transcript.mtimeMs > nowMs
-        ) {
+        if (transcript.mtimeMs === null || transcript.mtimeMs > nowMs) {
           continue;
         }
         eligibleTranscripts.push({
@@ -1340,14 +1351,12 @@ export const make = Effect.gen(function* () {
         });
       }
     }
-
     eligibleTranscripts.sort((left, right) => {
       if (left.transcript.mtimeMs !== right.transcript.mtimeMs) {
         return right.transcript.mtimeMs - left.transcript.mtimeMs;
       }
       return left.transcript.filePath.localeCompare(right.transcript.filePath);
     });
-
     const completedByFile = Map.groupBy(
       completedSources,
       (source) => `${source.providerInstanceId}\0${source.filePath}`,
@@ -1406,7 +1415,6 @@ export const make = Effect.gen(function* () {
             return Option.some<AgentSessionRecentThread>({ _tag: "Skipped" });
           }
           recordsRemaining -= snapshot.recordCount;
-
           if (Option.isNone(snapshot.cwd)) {
             return Option.some<AgentSessionRecentThread>({ _tag: "Skipped" });
           }
@@ -1417,10 +1425,10 @@ export const make = Effect.gen(function* () {
           ) {
             return Option.some<AgentSessionRecentThread>({ _tag: "Skipped" });
           }
-
           const parsedThread = parseAgentSessionRecords(
             {
               source: candidate.source,
+              preferredTitles: candidate.source === "codex" ? preferredCodexTitles : undefined,
               providerInstanceId: candidate.providerInstanceId,
               fallbackSessionId: path.basename(transcript.filePath, ".jsonl"),
               lastActiveAtMs: transcript.mtimeMs,
@@ -1431,7 +1439,6 @@ export const make = Effect.gen(function* () {
           if (parsedThread === null) {
             return Option.some<AgentSessionRecentThread>({ _tag: "Skipped" });
           }
-
           const source: AgentSessionImportSource = {
             ...identity,
             provider: parsedThread.source,
@@ -1454,13 +1461,10 @@ export const make = Effect.gen(function* () {
       Stream.flattenIterable,
     );
   });
-
   const recentThreads: AgentSessionScanner["Service"]["recentThreads"] = (
     workspaceRoot,
     completedSources = [],
   ) => Stream.unwrap(prepareRecentThreads(workspaceRoot, completedSources));
-
   return AgentSessionScanner.of({ scan, recentThreads });
 });
-
 export const layer = Layer.effect(AgentSessionScanner, make);

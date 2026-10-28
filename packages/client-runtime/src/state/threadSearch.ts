@@ -17,10 +17,8 @@ import {
   type ThreadSearchSubject,
 } from "@t3tools/shared/paletteSearch";
 import { threadSearchPullRequests } from "@t3tools/shared/threadPullRequests";
-
 import type { EnvironmentThreadShell } from "./models.ts";
 import { getThreadSortTimestamp } from "./threadSort.ts";
-
 // When this client last sent an open per thread, by its own clock: a server
 // timestamp would be off by any clock skew. The server merges opens closer
 // together than THREAD_OPEN_DEDUPE_MS anyway, so skipping them saves a command
@@ -42,11 +40,9 @@ export function claimThreadOpen(environmentId: EnvironmentId, threadId: string, 
   sentThreadOpens.set(key, now);
   return true;
 }
-
 export interface EnvironmentThreadSearchMatch extends OrchestrationThreadSearchMatch {
   readonly environmentId: EnvironmentId;
 }
-
 export interface ThreadSearchResultsState {
   readonly matches: ReadonlyArray<EnvironmentThreadSearchMatch>;
   readonly isLoading: boolean;
@@ -55,8 +51,8 @@ export interface ThreadSearchResultsState {
     readonly environmentId: EnvironmentId;
     readonly read: OrchestrationV2ThreadFamily;
   }>;
+  readonly error?: string;
 }
-
 /**
  * How a search reaches environments whose shells omit older settled threads (others ignore it):
  * the caller's project scope and its names for environments, which its own ranking matches, and
@@ -66,9 +62,9 @@ export const ThreadSearchScope = Schema.Struct({
   projectIds: Schema.optionalKey(Schema.Array(ProjectId)),
   environmentLabels: Schema.optionalKey(Schema.Record(Schema.String, Schema.String)),
   titlesOnly: Schema.optionalKey(Schema.Boolean),
+  spotlight: Schema.optionalKey(Schema.Boolean),
 });
 export type ThreadSearchScope = typeof ThreadSearchScope.Type;
-
 const ThreadSearchKey = Schema.fromJsonString(
   Schema.Union([
     Schema.Tuple([Schema.Array(EnvironmentId), OrchestrationSearchThreadsInput.fields.query]),
@@ -82,7 +78,6 @@ const ThreadSearchKey = Schema.fromJsonString(
 const decodeThreadSearchKey = Schema.decodeUnknownOption(ThreadSearchKey);
 const EMPTY_SEARCH_ROWS: ThreadSearchResultsState["rows"] = [];
 const EMPTY_READS: ReadonlyArray<OrchestrationV2ThreadFamily> = [];
-
 export function makeThreadSearchKey(
   environmentIds: ReadonlyArray<EnvironmentId>,
   query: string,
@@ -91,17 +86,14 @@ export function makeThreadSearchKey(
   const sorted = [...environmentIds].sort((left, right) => left.localeCompare(right));
   return JSON.stringify(Object.keys(scope).length === 0 ? [sorted, query] : [sorted, query, scope]);
 }
-
 function parseThreadSearchKey(key: string) {
   return decodeThreadSearchKey(key);
 }
-
 export function threadSearchMatchKey(
   match: Pick<EnvironmentThreadSearchMatch, "environmentId" | "threadId">,
 ): string {
   return JSON.stringify([match.environmentId, match.threadId]);
 }
-
 /**
  * Message matches from every environment, plus, from environments whose shells omit older settled
  * threads (`olderSettledBefore` is set), the rows of the best older matches. Callers mount those
@@ -121,7 +113,6 @@ export function createThreadSearchResultsAtomFamily<E>(options: {
       if (Option.isNone(parsedKey)) {
         return { matches: [], isLoading: false, rows: EMPTY_SEARCH_ROWS };
       }
-
       const [environmentIds, query, scope = {}] = parsedKey.value;
       // The server needs a word of three or more letters to match messages.
       const searchMessages =
@@ -129,12 +120,12 @@ export function createThreadSearchResultsAtomFamily<E>(options: {
       const matches: EnvironmentThreadSearchMatch[] = [];
       const rows: Array<ThreadSearchResultsState["rows"][number]> = [];
       let isLoading = false;
-
+      let error: string | undefined;
       for (const environmentId of environmentIds) {
         const before = options.olderSettledBefore
           ? get(options.olderSettledBefore(environmentId))
           : null;
-        if (!searchMessages && before === null) continue;
+        if (!searchMessages && before === null && scope.spotlight !== true) continue;
         const label = scope.environmentLabels?.[environmentId];
         const result = get(
           options.getSearchAtom(environmentId, {
@@ -149,20 +140,42 @@ export function createThreadSearchResultsAtomFamily<E>(options: {
                 }),
           }),
         );
-        isLoading ||= result.waiting;
-        const value = Option.getOrNull(AsyncResult.value(result));
-        if (value !== null) {
-          matches.push(...value.matches.map((match) => ({ ...match, environmentId })));
-          if (value.threads !== undefined && value.threads.length > 0) {
-            rows.push({
-              environmentId,
-              read: { snapshotSequence: value.snapshotSequence ?? 0, threads: value.threads },
-            });
+        const spotlightResult =
+          scope.spotlight === true
+            ? get(options.getSearchAtom(environmentId, { query, searchMode: "spotlight" }))
+            : null;
+        const results = spotlightResult ? [spotlightResult, result] : [result];
+        const seen = new Set<string>();
+        for (const result of results) {
+          isLoading ||= result.waiting;
+          if (AsyncResult.isFailure(result))
+            error =
+              "\u641C\u7D22\u6682\u4E0D\u53EF\u7528\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5\u3002";
+          const value = Option.getOrNull(AsyncResult.value(result));
+          if (value !== null) {
+            matches.push(
+              ...value.matches.flatMap((match) => {
+                const key = `${match.threadId}:${match.messageId ?? "title"}`;
+                if (seen.has(key)) return [];
+                seen.add(key);
+                return [{ ...match, environmentId }];
+              }),
+            );
+            if (value.threads !== undefined && value.threads.length > 0) {
+              rows.push({
+                environmentId,
+                read: { snapshotSequence: value.snapshotSequence ?? 0, threads: value.threads },
+              });
+            }
           }
         }
       }
-
-      return { matches, isLoading, rows: rows.length === 0 ? EMPTY_SEARCH_ROWS : rows };
+      return {
+        matches,
+        isLoading,
+        ...(error ? { error } : {}),
+        rows: rows.length === 0 ? EMPTY_SEARCH_ROWS : rows,
+      };
     }).pipe(Atom.withLabel(`${options.labelPrefix}:${key}`)),
   );
   const rowsAtom = Atom.family((rowsKey: string) => {
@@ -185,7 +198,6 @@ export function createThreadSearchResultsAtomFamily<E>(options: {
       rowsAtom(JSON.stringify([key, environmentId])),
   };
 }
-
 export type ThreadSearchShell = Pick<
   EnvironmentThreadShell,
   | "environmentId"
@@ -199,7 +211,6 @@ export type ThreadSearchShell = Pick<
   | "opens"
 > &
   Partial<Pick<EnvironmentThreadShell, "pullRequests" | "linkedPullRequest" | "branchPullRequest">>;
-
 /**
  * What the web and mobile palettes rank a thread shell by. Pass the
  * environment label only when there are two or more environments.
@@ -234,7 +245,6 @@ export function threadSearchSubject(
         : (thread.opens ?? null),
   };
 }
-
 /** Message result keys in the order a search box last showed them for `query`. */
 export interface ShownOrder {
   readonly query: string;
@@ -242,10 +252,8 @@ export interface ShownOrder {
   /** How many of `keys` are on screen; only those hold their places. */
   readonly shown: number;
 }
-
 // Rows past the limit a slower environment's best matches may take.
 const LATE_ROOM = 3;
-
 /**
  * Keep shown rows in place so late results cannot move the pointer or keyboard target.
  * Allow up to LATE_ROOM extra rows so late best matches remain visible.
@@ -278,12 +286,10 @@ export function nextShownOrder(
     keys.every((key, index) => key === previous.keys[index]);
   return unchanged ? previous : { query, keys, shown };
 }
-
 export interface SettledThreadSearch {
   readonly query: string;
   readonly matches: ReadonlyArray<EnvironmentThreadSearchMatch>;
 }
-
 /**
  * What a search box shows for `query`: its own results once they arrive
  * (`ready`), else the previous results if `query` refines or widens their

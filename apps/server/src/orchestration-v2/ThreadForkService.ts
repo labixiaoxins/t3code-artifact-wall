@@ -91,6 +91,8 @@ export const layer: Layer.Layer<ThreadForkServiceV2> = Layer.succeed(
         id: input.targetThreadId,
         title: input.title ?? `${input.sourceProjection.thread.title} fork`,
         activeProviderThreadId: null,
+        // A fork is not a handoff continuation of whatever its source continued.
+        continuedFromThreadId: undefined,
         lineage: {
           parentThreadId: input.sourceProjection.thread.id,
           relationshipToParent: "fork",

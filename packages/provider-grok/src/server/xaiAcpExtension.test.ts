@@ -549,6 +549,73 @@ describe("XAiAcpExtension", () => {
     ]);
   });
 
+  it("completes structured command TaskOutput ids without treating them as subagents", () => {
+    // Oracle: BackgroundTaskStarted and TaskOutput from the Grok hang incident.
+    const toolCall: AcpToolCallState = {
+      toolCallId: "call-poll",
+      title: "get_command_or_subagent_output",
+      status: "completed",
+      data: {
+        rawInput: {
+          variant: "TaskOutput",
+          task_ids: ["call-7c835a60-7bf5-4284-a5c7-cf42a4212ece-29"],
+        },
+        rawOutput: {
+          type: "TaskOutput",
+          Result: {
+            task_id: "call-7c835a60-7bf5-4284-a5c7-cf42a4212ece-29",
+            status: "completed",
+            exit_code: 0,
+            output: "done",
+          },
+        },
+      },
+    };
+    expect(extractXAiBackgroundTaskCompletion(toolCall)).toEqual([
+      {
+        taskId: "call-7c835a60-7bf5-4284-a5c7-cf42a4212ece-29",
+        status: "completed",
+        appendOutput: "done",
+      },
+    ]);
+    expect(extractXAiAcpSubagentUpdate(toolCall)).toBeUndefined();
+  });
+
+  it("keeps the normal tool frame for a command result from a mixed-ID poll", () => {
+    // Oracle: review 4325739061 requires the result ID to override requested subagent IDs.
+    const toolCall: AcpToolCallState = {
+      toolCallId: "call-mixed-poll",
+      title: "get_command_or_subagent_output",
+      status: "completed",
+      data: {
+        rawInput: {
+          variant: "TaskOutput",
+          task_ids: [
+            "019f44a6-4820-7402-925d-bc862ee711dd",
+            "call-7c835a60-7bf5-4284-a5c7-cf42a4212ece-29",
+          ],
+        },
+        rawOutput: {
+          type: "TaskOutput",
+          Result: {
+            task_id: "call-7c835a60-7bf5-4284-a5c7-cf42a4212ece-29",
+            status: "completed",
+            exit_code: 0,
+            output: "done",
+          },
+        },
+      },
+    };
+    expect(extractXAiAcpSubagentUpdate(toolCall)).toBeUndefined();
+    expect(extractXAiBackgroundTaskCompletion(toolCall)).toEqual([
+      {
+        taskId: "call-7c835a60-7bf5-4284-a5c7-cf42a4212ece-29",
+        status: "completed",
+        appendOutput: "done",
+      },
+    ]);
+  });
+
   it("hydrates monitor completion from a standalone TaskOutput frame without rawInput", () => {
     expect(
       extractXAiBackgroundTaskCompletion({

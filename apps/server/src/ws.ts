@@ -1,8 +1,8 @@
+import * as StorageManagement from "./storageManagement.ts";
 import { OrchestrationDispatchCommandError } from "@t3tools/contracts";
 import * as Context from "effect/Context";
 import * as Crypto from "effect/Crypto";
 import * as Orchestrator from "./orchestration-v2/Orchestrator.ts";
-
 import * as DateTime from "effect/DateTime";
 import * as Duration from "effect/Duration";
 import * as Base64 from "effect/encoding/Base64";
@@ -106,7 +106,6 @@ import {
   HttpServerResponse,
 } from "effect/http";
 import { RpcGroup, RpcSerialization, RpcServer } from "effect/rpc";
-
 import * as CheckpointDiffQuery from "./checkpointing/CheckpointDiffQuery.ts";
 import * as ServerConfig from "./config.ts";
 import * as EnvironmentTheme from "./environmentTheme.ts";
@@ -184,6 +183,7 @@ import * as ServerRuntimeStartup from "./serverRuntimeStartup.ts";
 import * as ServerSettings from "./serverSettings.ts";
 import * as DatabaseStorage from "./persistence/DatabaseStorage.ts";
 import * as StorageCleanup from "./storageCleanup.ts";
+import * as DiskSpace from "./diskSpace.ts";
 import * as TerminalManager from "./terminal/Manager.ts";
 import { terminalOutputStream, withTerminalOutputWindow } from "./terminal/OutputProtocol.ts";
 import * as PreviewAutomationBroker from "./mcp/PreviewAutomationBroker.ts";
@@ -265,10 +265,8 @@ import {
 import * as AgentSessionScanner from "./project/AgentSessionScanner.ts";
 import * as AgentSessionImporter from "./project/AgentSessionImporter.ts";
 import * as UsageLimitSources from "./usage/UsageLimitSources.ts";
-
 const CONFIG_DISCOVERY_TIMEOUT = Duration.seconds(5);
 const isProviderUploadFeedbackError = Schema.is(ProviderUploadFeedbackError);
-
 const resolveDiscoveryForConfig = <A, E, R>(
   discovery: Effect.Effect<A, E, R>,
   onTimeout: () => A,
@@ -277,20 +275,16 @@ const resolveDiscoveryForConfig = <A, E, R>(
     Effect.timeoutOption(CONFIG_DISCOVERY_TIMEOUT),
     Effect.map(Option.getOrElse(onTimeout)),
   );
-
 const resolveAvailableEditorsForConfig = <A, E, R>(
   discovery: Effect.Effect<ReadonlyArray<A>, E, R>,
 ) => resolveDiscoveryForConfig(discovery, () => []);
-
 const resolveFileManagerRevealKindForConfig = <E, R>(
   discovery: Effect.Effect<FileManagerRevealKind | undefined, E, R>,
 ) => resolveDiscoveryForConfig(discovery, () => undefined);
-
 type EditorDiscovery = Pick<
   ExternalLauncher.ExternalLauncher["Service"],
   "resolveAvailableEditors" | "resolveFileManagerRevealKind"
 >;
-
 const resolveEditorConfig = Effect.fn("ws.resolveEditorConfig")(function* <E, R>(
   availableEditors: ReadonlyArray<EditorId>,
   revealKind: Effect.Effect<FileManagerRevealKind | undefined, E, R>,
@@ -308,7 +302,6 @@ const resolveEditorConfig = Effect.fn("ws.resolveEditorConfig")(function* <E, R>
         }),
   };
 });
-
 export const withLateEditorConfig = <E, R>(
   config: ClientServerConfig,
   liveUpdates: Stream.Stream<ServerConfigStreamEvent, E, R>,
@@ -331,7 +324,6 @@ export const withLateEditorConfig = <E, R>(
     ),
     Stream.map((editorConfig) => ({ type: "editorsResolved" as const, editorConfig })),
   );
-
   return Stream.merge(liveUpdates, lateEditorConfig).pipe(
     Stream.mapAccum(
       (): ClientServerConfig => config,
@@ -361,15 +353,12 @@ export const withLateEditorConfig = <E, R>(
     ),
   );
 };
-
 function withoutWorkspaceSnapshots(providers: ReadonlyArray<ServerProvider>): ServerProvider[] {
   return providers.map(({ workspaceSnapshots: _workspaceSnapshots, ...provider }) => provider);
 }
-
 function unexpectedCompatibilityError(error: never): never {
   throw new Error(`Unhandled compatibility error: ${String(error)}`);
 }
-
 const persistChatAttachments = Effect.fn("ws.assets.persistChatAttachments")(function* (input: {
   readonly threadId: ThreadId;
   readonly messageId: MessageId;
@@ -439,7 +428,6 @@ const persistChatAttachments = Effect.fn("ws.assets.persistChatAttachments")(fun
     { concurrency: 2 },
   );
 });
-
 function projectEntriesFailureContext(error: WorkspaceEntries.WorkspaceEntriesError): {
   readonly failure: ProjectEntriesFailure;
   readonly normalizedCwd?: string;
@@ -496,7 +484,6 @@ function projectEntriesFailureContext(error: WorkspaceEntries.WorkspaceEntriesEr
       return unexpectedCompatibilityError(error);
   }
 }
-
 function filesystemBrowseFailureContext(error: WorkspaceEntries.WorkspaceEntriesBrowseError): {
   readonly failure: FilesystemBrowseFailure;
   readonly parentPath?: string;
@@ -513,7 +500,6 @@ function filesystemBrowseFailureContext(error: WorkspaceEntries.WorkspaceEntries
       return unexpectedCompatibilityError(error);
   }
 }
-
 function projectFileFailureContext(
   error:
     | WorkspaceFileSystem.WorkspaceFileSystemError
@@ -551,12 +537,9 @@ function projectFileFailureContext(
       return unexpectedCompatibilityError(error);
   }
 }
-
 const PROVIDER_STATUS_DEBOUNCE_MS = 200;
-
 // Middleware added later wraps middleware added earlier, so instrumentation wraps authorization.
 const ServerWsRpcGroup = WsRpcGroup.middleware(RpcInstrumentation);
-
 // RpcGroup.toLayer derives each handler's requirements by scanning every RPC in
 // the group, so its type cost grows with handlers × RPCs. Near 200 methods that
 // crosses TypeScript's instantiation limit and the layer's requirements degrade to
@@ -565,7 +548,9 @@ type ServerWsRpc = RpcGroup.Rpcs<typeof ServerWsRpcGroup>;
 const SPLIT_WS_RPC_PREFIXES = ["server", "pullRequests", "provider", "orchestration"] as const;
 type SplitWsRpc = Extract<
   ServerWsRpc,
-  { readonly _tag: `${(typeof SPLIT_WS_RPC_PREFIXES)[number]}.${string}` }
+  {
+    readonly _tag: `${(typeof SPLIT_WS_RPC_PREFIXES)[number]}.${string}`;
+  }
 >;
 const isSplitWsRpc = (rpc: ServerWsRpc): rpc is SplitWsRpc =>
   SPLIT_WS_RPC_PREFIXES.some((prefix) => rpc._tag.startsWith(`${prefix}.`));
@@ -576,10 +561,9 @@ const SplitWsRpcGroup = RpcGroup.make(...serverWsRpcs.filter(isSplitWsRpc));
 const OtherWsRpcGroup = RpcGroup.make(...serverWsRpcs.filter(isOtherWsRpc));
 // Replaying each intervening event costs a shell refetch; past this gap a
 // single O(active-threads) snapshot is cheaper and bounded.
-const SHELL_RESUME_MAX_GAP = 1_000;
+const SHELL_RESUME_MAX_GAP = 1000;
 // Row counts do not bound large tool payloads; sum stored JSON bytes in SQL and snapshot above budget.
 const ORCHESTRATION_REPLAY_PAYLOAD_BUDGET_BYTES = 8 * 1024 * 1024;
-
 function toAuthAccessStreamEvent(
   change: PairingGrantStore.BootstrapCredentialChange | SessionStore.SessionCredentialChange,
   revision: number,
@@ -620,7 +604,6 @@ function toAuthAccessStreamEvent(
       };
   }
 }
-
 const isClientSurface = Schema.is(ClientSurface);
 const isClientConnectionMethod = Schema.is(ClientConnectionMethod);
 const isClientDeviceType = Schema.is(ClientDeviceType);
@@ -629,20 +612,17 @@ const isClientWebDeployment = Schema.is(ClientWebDeployment);
 const MAX_CLIENT_APP_VERSION_LENGTH = 64;
 const MAX_CLIENT_BROWSER_LENGTH = 64;
 const MAX_CLIENT_DEVICE_MODEL_LENGTH = 80;
-
 function hasCompatibleOrchestrationProtocol(url: URL): boolean {
   return (
     url.searchParams.get(ORCHESTRATION_PROTOCOL_QUERY_PARAM) ===
     String(ORCHESTRATION_PROTOCOL_VERSION)
   );
 }
-
 function shouldUseBoundedThreadSnapshot(input: {
   readonly acceptBoundedSnapshot?: boolean;
 }): boolean {
   return input.acceptBoundedSnapshot === true;
 }
-
 function readClientConnectionOrigin(
   request: HttpServerRequest.HttpServerRequest,
 ): OrchestrationClientOrigin {
@@ -659,14 +639,12 @@ function readClientConnectionOrigin(
       : {}),
   };
 }
-
 // Keep telemetry per socket; several client types can connect simultaneously.
 function readClientAnalyticsProps(request: HttpServerRequest.HttpServerRequest) {
   const url = HttpServerRequest.toURL(request);
   if (Option.isNone(url)) {
     return {};
   }
-
   const surface = url.value.searchParams.get("clientSurface");
   const appVersion = url.value.searchParams.get("clientAppVersion")?.trim() ?? "";
   const deviceType = url.value.searchParams.get("clientDeviceType");
@@ -682,7 +660,6 @@ function readClientAnalyticsProps(request: HttpServerRequest.HttpServerRequest) 
     isMobile && rawOsMajorVersion !== "" && Number.isInteger(osMajorVersion) && osMajorVersion > 0;
   const hasDeviceModel =
     isMobile && deviceModel !== "" && deviceModel.length <= MAX_CLIENT_DEVICE_MODEL_LENGTH;
-
   return {
     ...(isClientSurface(surface) ? { surface } : {}),
     ...(appVersion !== "" && appVersion.length <= MAX_CLIENT_APP_VERSION_LENGTH
@@ -704,7 +681,6 @@ function readClientAnalyticsProps(request: HttpServerRequest.HttpServerRequest) 
     ...(isClientConnectionMethod(connectionMethod) ? { connectionMethod } : {}),
   };
 }
-
 /**
  * Owners a connecting client reports: its hashed T3 Connect account and its
  * hashed device id. Only hashes are accepted, so a raw id never reaches analytics.
@@ -726,14 +702,12 @@ function readClientOwners(
     ownerId !== null && isTelemetryIdHash(ownerId) ? [{ source, ownerId }] : [],
   );
 }
-
 const canReplayPersistedRange = Effect.fnUntraced(function* (
   afterSequence: number,
   headSequence: number,
   maxGap: number,
 ) {
   const applicationEvents = yield* OrchestrationEventStore.OrchestrationEventStore;
-
   const replayGap = headSequence - afterSequence;
   if (replayGap < 0 || replayGap > maxGap) {
     return false;
@@ -755,7 +729,6 @@ const canReplayPersistedRange = Effect.fnUntraced(function* (
   }
   return true;
 });
-
 const enrichProjectShells = Effect.fn("ws.orchestrationV2.enrichProjectShells")(
   (projects: ReadonlyArray<OrchestrationProjectShell>) =>
     Effect.flatMap(ProjectEnrichmentService.ProjectEnrichmentService, (projectEnrichment) =>
@@ -782,7 +755,6 @@ const enrichProjectShells = Effect.fn("ws.orchestrationV2.enrichProjectShells")(
       ),
     ),
 );
-
 export const subscribeOrchestrationV2Thread = Effect.fn("ws.orchestrationV2.subscribeThread")(
   function* (input: {
     readonly threadId: ThreadId;
@@ -799,7 +771,6 @@ export const subscribeOrchestrationV2Thread = Effect.fn("ws.orchestrationV2.subs
     const withLiveDedupe = <E, R>(stream: Stream.Stream<OrchestrationV2ThreadStreamItem, E, R>) =>
       dedupeBodies ? Stream.suspend(() => Stream.map(stream, makeLiveBodyDeduper())) : stream;
     const applicationEvents = yield* OrchestrationEventStore.OrchestrationEventStore;
-
     yield* Effect.annotateCurrentSpan({
       "orchestration_v2.thread_id": input.threadId,
     });
@@ -813,7 +784,6 @@ export const subscribeOrchestrationV2Thread = Effect.fn("ws.orchestrationV2.subs
           }),
       ),
     );
-
     const eventStreamFrom = (afterSequence: number) =>
       threadManagement
         .streamStoredEventsFrom({
@@ -836,7 +806,6 @@ export const subscribeOrchestrationV2Thread = Effect.fn("ws.orchestrationV2.subs
               }),
           ),
         );
-
     const loadReplayThrough = (afterSequence: number, throughSequence: number) =>
       applicationEvents
         .readAgentEvents({
@@ -864,12 +833,10 @@ export const subscribeOrchestrationV2Thread = Effect.fn("ws.orchestrationV2.subs
               }),
           ),
         );
-
     const completionMarker =
       input.requestCompletionMarker === true
         ? Stream.make({ kind: "synchronized" as const })
         : Stream.empty;
-
     const snapshotThenLive = Effect.fn("ws.orchestrationV2.threadSnapshotThenLive")(function* () {
       const useBoundedSnapshot = shouldUseBoundedThreadSnapshot(input);
       const snapshot = yield* (
@@ -912,7 +879,6 @@ export const subscribeOrchestrationV2Thread = Effect.fn("ws.orchestrationV2.subs
         ),
       );
     });
-
     // Subscribe before reading persisted events to retain concurrent publishes; clients dedupe overlap by sequence.
     if (input.afterSequence !== undefined) {
       const highWater = yield* applicationEvents.latestAgentSequence(input.threadId).pipe(
@@ -983,11 +949,9 @@ export const subscribeOrchestrationV2Thread = Effect.fn("ws.orchestrationV2.subs
         ),
       );
     }
-
     return yield* snapshotThenLive();
   },
 );
-
 export const subscribeOrchestrationV2Shell = Effect.fn("ws.orchestrationV2.subscribeShell")(
   function* (input: {
     readonly afterSequence?: number;
@@ -1004,7 +968,6 @@ export const subscribeOrchestrationV2Shell = Effect.fn("ws.orchestrationV2.subsc
     let subagentThreadIds = new Set<string>();
     const filterSubagentTranscript = (stored: ApplicationStoredEvent) =>
       shouldPublishShellApplicationEvent(stored, subagentThreadIds);
-
     const enrichmentChanges = yield* projectEnrichment.subscribeChanges;
     const loadProjectMetadataSnapshot = Effect.fn("ws.orchestrationV2.loadProjectMetadataSnapshot")(
       function* (snapshotSequence: number) {
@@ -1046,7 +1009,12 @@ export const subscribeOrchestrationV2Shell = Effect.fn("ws.orchestrationV2.subsc
       };
     });
     const projectItem = Effect.fn("ws.orchestrationV2.projectShellItem")(function* (
-      stored: Extract<ShellApplicationEvent, { readonly aggregateKind: "project" }>,
+      stored: Extract<
+        ShellApplicationEvent,
+        {
+          readonly aggregateKind: "project";
+        }
+      >,
     ) {
       if (stored.type === "project.deleted") {
         return {
@@ -1069,7 +1037,6 @@ export const subscribeOrchestrationV2Shell = Effect.fn("ws.orchestrationV2.subsc
         }),
       });
     });
-
     const projectShellItems = Effect.fn("ws.orchestrationV2.projectShellItems")(function* (
       events: ReadonlyArray<ShellApplicationEvent>,
     ) {
@@ -1086,7 +1053,6 @@ export const subscribeOrchestrationV2Shell = Effect.fn("ws.orchestrationV2.subsc
         { concurrency: 8 },
       );
     });
-
     const toShellStream = <E, R>(stream: Stream.Stream<ShellApplicationEvent, E, R>) =>
       stream.pipe(
         Stream.groupedWithin(512, Duration.millis(50)),
@@ -1094,7 +1060,6 @@ export const subscribeOrchestrationV2Shell = Effect.fn("ws.orchestrationV2.subsc
         Stream.flatMap(Stream.fromIterable),
         skipUnchangedThreadShells,
       );
-
     const liveFrom = (afterSequence: number) =>
       bufferShellLiveStream(
         toShellStream(
@@ -1105,7 +1070,6 @@ export const subscribeOrchestrationV2Shell = Effect.fn("ws.orchestrationV2.subsc
           }),
         ),
       );
-
     const enrichmentRefreshes = Stream.fromSubscription(enrichmentChanges).pipe(
       Stream.filter((change) => change.repositoryIdentityResolved),
       Stream.groupedWithin(64, Duration.millis(25)),
@@ -1136,7 +1100,6 @@ export const subscribeOrchestrationV2Shell = Effect.fn("ws.orchestrationV2.subsc
         }),
       ),
     );
-
     // Subscribe before loading for racing enrichments; initial refresh covers pre-subscription completions and cold HTTP snapshots.
     const completionMarker =
       input.requestCompletionMarker === true
@@ -1165,7 +1128,6 @@ export const subscribeOrchestrationV2Shell = Effect.fn("ws.orchestrationV2.subsc
     // Drain initial frames before merging enrichment with live events so marked refreshes cannot precede the initial frame.
     const completionThenLive = (afterSequence: number) =>
       Stream.concat(completionMarker, liveFrom(afterSequence));
-
     const stream = yield* Effect.gen(function* () {
       if (input.afterSequence === undefined) {
         const loaded = yield* loadSnapshot();
@@ -1175,7 +1137,6 @@ export const subscribeOrchestrationV2Shell = Effect.fn("ws.orchestrationV2.subsc
           enrichment: enrichmentRefreshes,
         });
       }
-
       const highWater = yield* applicationEvents.latestApplicationSequence;
       if (!(yield* canReplayPersistedRange(input.afterSequence, highWater, SHELL_RESUME_MAX_GAP))) {
         const loaded = yield* loadSnapshot();
@@ -1185,9 +1146,7 @@ export const subscribeOrchestrationV2Shell = Effect.fn("ws.orchestrationV2.subsc
           enrichment: enrichmentRefreshes,
         });
       }
-
       subagentThreadIds = new Set(yield* threadManagement.listActiveSubagentThreadIds());
-
       const loaded = yield* loadProjectMetadataSnapshot(highWater);
       const replay = toShellStream(
         applicationEvents
@@ -1215,7 +1174,6 @@ export const subscribeOrchestrationV2Shell = Effect.fn("ws.orchestrationV2.subsc
           }),
       ),
     );
-
     return stream.pipe(
       dedupeShellEnrichment,
       Stream.mapError(
@@ -1228,7 +1186,6 @@ export const subscribeOrchestrationV2Shell = Effect.fn("ws.orchestrationV2.subsc
     );
   },
 );
-
 export const layerWsRpc = (
   currentSession: EnvironmentAuth.AuthenticatedSession,
   clientOrigin: OrchestrationClientOrigin,
@@ -1255,7 +1212,6 @@ export const layerWsRpc = (
       const managedFolders = yield* ManagedProjectFolders.ManagedProjectFolders;
       const eventLoopMonitor = yield* EventLoopMonitor.EventLoopMonitor;
       const threadSearch = yield* ThreadSearch.ThreadSearch;
-
       const providerSessionsV2 = yield* ProviderSessionManager.ProviderSessionManagerV2;
       const mcpAppRequests = yield* McpAppRequests.McpAppRequests;
       const analytics = yield* AnalyticsService.AnalyticsService;
@@ -1342,6 +1298,8 @@ export const layerWsRpc = (
       const lifecycleEvents = yield* ServerLifecycleEvents.ServerLifecycleEvents;
       const storageCleanup = yield* StorageCleanup.StorageCleanup;
       const databaseStorage = yield* DatabaseStorage.DatabaseStorage;
+      const diskSpace = yield* DiskSpace.DiskSpace;
+      const storageManagement = yield* StorageManagement.StorageManagement;
       const serverSettings = yield* ServerSettings.ServerSettingsService;
       const startup = yield* ServerRuntimeStartup.ServerRuntimeStartup;
       const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
@@ -1390,7 +1348,6 @@ export const layerWsRpc = (
         currentSession.scopes.includes(requiredScope)
           ? effect
           : Effect.fail(rpcAuthorizationError(requiredScope));
-
       const acpRegistryProject = Effect.fn("ws.acpRegistry.project")(function* (
         projectId: ProjectId,
       ) {
@@ -1413,7 +1370,6 @@ export const layerWsRpc = (
             }),
         );
       });
-
       const acpSessionManager = Effect.fn("ws.acpRegistry.sessionManager")(function* (
         instanceId: ProviderInstanceId,
       ) {
@@ -1432,7 +1388,6 @@ export const layerWsRpc = (
         }
         return { instance, manager: instance.acpSessionManagement };
       });
-
       const importedAcpThreadId = (input: {
         readonly driver: ProviderDriverKind;
         readonly instanceId: ProviderInstanceId;
@@ -1443,7 +1398,6 @@ export const layerWsRpc = (
           providerInstanceId: input.instanceId,
           nativeThreadId: input.sessionId,
         });
-
       const listAcpRegistrySessions = Effect.fn("ws.acpRegistry.listSessions")(function* (
         input: AcpRegistryListSessionsInput,
       ) {
@@ -1480,7 +1434,6 @@ export const layerWsRpc = (
         );
         return { ...listed, sessions };
       });
-
       const importAcpRegistrySession = Effect.fn("ws.acpRegistry.importSession")(function* (
         input: AcpRegistryImportSessionInput,
       ) {
@@ -1514,7 +1467,6 @@ export const layerWsRpc = (
               ),
             );
             if (existing !== null) return { threadId, imported: false } as const;
-
             const provider = (yield* providerRegistry.getProviders).find(
               (candidate) => candidate.instanceId === input.instanceId,
             );
@@ -1573,7 +1525,6 @@ export const layerWsRpc = (
           }),
         );
       });
-
       const deleteAcpRegistrySession = Effect.fn("ws.acpRegistry.deleteSession")(function* (
         input: AcpRegistryDeleteSessionInput,
       ) {
@@ -1617,7 +1568,6 @@ export const layerWsRpc = (
           }),
         );
       });
-
       const listAcpRegistryProviders = Effect.fn("ws.acpRegistry.listProviders")(function* (
         input: AcpRegistryListProvidersInput,
       ) {
@@ -1632,7 +1582,6 @@ export const layerWsRpc = (
         }
         return yield* manager.listProviders(project.workspaceRoot);
       });
-
       const setAcpRegistryProvider = Effect.fn("ws.acpRegistry.setProvider")(function* (
         input: AcpRegistrySetProviderInput,
       ) {
@@ -1674,7 +1623,6 @@ export const layerWsRpc = (
         yield* providerRegistry.refreshInstance(input.instanceId);
         return { configured: true } as const;
       });
-
       const disableAcpRegistryProvider = Effect.fn("ws.acpRegistry.disableProvider")(function* (
         input: AcpRegistryDisableProviderInput,
       ) {
@@ -1722,7 +1670,6 @@ export const layerWsRpc = (
               }),
           ),
         );
-
       const loadServerConfig = Effect.fn("ws.loadServerConfig")(function* (options: {
         readonly usageLimitsCommand: boolean;
         readonly workspaceSnapshotsOnDemand: boolean;
@@ -1746,7 +1693,6 @@ export const layerWsRpc = (
           yield* resolveAvailableEditorsForConfig(externalLauncher.resolveAvailableEditors()),
           resolveFileManagerRevealKindForConfig(externalLauncher.resolveFileManagerRevealKind()),
         );
-
         return {
           environment,
           auth,
@@ -1804,12 +1750,10 @@ export const layerWsRpc = (
           ...(lastEventLoopStall === undefined ? {} : { lastEventLoopStall }),
         };
       });
-
       const refreshGitStatus = (cwd: string) =>
         vcsStatusBroadcaster
           .refreshStatus(cwd)
           .pipe(Effect.ignoreCause({ log: true }), Effect.forkDetach, Effect.asVoid);
-
       const getOrchestrationV2ArchivedShellSnapshot = Effect.gen(function* () {
         const { threads, projects, snapshotSequence } = yield* loadShellSnapshotParts({
           sql,
@@ -1837,11 +1781,16 @@ export const layerWsRpc = (
             }),
         ),
       );
-
       // Rows the shell can omit, read with the same snapshot sequence the shell uses.
       const readOmittableShellRows = Effect.fn("ws.orchestrationV2.readOmittableShellRows")(
         function* (
-          options: { readonly familyOf: ThreadId } | { readonly worktreePath: string },
+          options:
+            | {
+                readonly familyOf: ThreadId;
+              }
+            | {
+                readonly worktreePath: string;
+              },
           message: string,
         ) {
           const { threads, snapshotSequence } = yield* loadShellSnapshotParts({
@@ -1857,7 +1806,6 @@ export const layerWsRpc = (
           return { snapshotSequence, threads: threads.threads };
         },
       );
-
       const subscribeOrchestrationV2ArchivedShell = Effect.fn(
         "ws.orchestrationV2.subscribeArchivedShell",
       )(function* () {
@@ -1893,14 +1841,12 @@ export const layerWsRpc = (
           );
         return Stream.concat(rpcInitialItems([{ kind: "snapshot" as const, snapshot }]), live);
       });
-
       const mutateProject = Effect.fn("ws.projects.mutate")(function* (mutation: ProjectMutation) {
         const result = yield* projectMutationOperation(projectService, mutation);
         if (mutation.type === "project.delete")
           yield* projectCloneTracker.discard(mutation.projectId);
         return result;
       });
-
       const handlers = ServerWsRpcGroup.of({
         [ORCHESTRATION_V2_WS_METHODS.dispatchCommand]: (command) =>
           Effect.annotateCurrentSpan({
@@ -2535,6 +2481,9 @@ export const layerWsRpc = (
         [WS_METHODS.serverRunStorageCleanup]: () => storageCleanup.runNow,
         [WS_METHODS.serverGetStorageCleanupReport]: () => storageCleanup.reports,
         [WS_METHODS.serverGetDatabaseStorage]: () => databaseStorage.status,
+        [WS_METHODS.serverGetDiskSpace]: (input) => diskSpace.report(input),
+        [WS_METHODS.serverInspectStorage]: (input) => storageManagement.inspect(input),
+        [WS_METHODS.serverManageStorage]: (input) => storageManagement.manage(input),
         [WS_METHODS.serverGetSettings]: (_input) =>
           serverSettings.getSettings.pipe(Effect.map(ServerSettings.redactServerSettingsForClient)),
         [WS_METHODS.serverUpdateSettings]:
@@ -3092,8 +3041,8 @@ export const layerWsRpc = (
           Stream.callback<DiscoveredLocalServerList>((queue) =>
             Effect.gen(function* () {
               const configuredUrls = input.configuredUrls ?? [];
+              const initial = yield* portDiscovery.scan(configuredUrls, { retryFailed: true });
               yield* portDiscovery.retain;
-              const initial = yield* portDiscovery.scan(configuredUrls);
               const initialScannedAt = DateTime.formatIso(yield* DateTime.now);
               yield* Queue.offer(queue, {
                 servers: initial,
@@ -3199,7 +3148,6 @@ export const layerWsRpc = (
                   payload: { settings },
                 })),
               );
-
               const liveUpdates = Stream.merge(
                 keybindingsUpdates,
                 Stream.merge(
@@ -3210,7 +3158,6 @@ export const layerWsRpc = (
                   ),
                 ),
               );
-
               return Stream.concat(
                 rpcInitialItems([{ version: 1 as const, type: "snapshot" as const, config }]),
                 withLateEditorConfig(config, liveUpdates, externalLauncher),
@@ -3245,7 +3192,6 @@ export const layerWsRpc = (
               const accessChanges: Stream.Stream<
                 PairingGrantStore.BootstrapCredentialChange | SessionStore.SessionCredentialChange
               > = Stream.merge(bootstrapCredentials.streamChanges, sessions.streamChanges);
-
               const liveEvents: Stream.Stream<AuthAccessStreamEvent> = accessChanges.pipe(
                 Stream.mapEffect((change) =>
                   Ref.updateAndGet(revisionRef, (revision) => revision + 1).pipe(
@@ -3255,7 +3201,6 @@ export const layerWsRpc = (
                   ),
                 ),
               );
-
               return Stream.concat(
                 rpcInitialItems([
                   {
@@ -3291,13 +3236,11 @@ export const layerWsRpc = (
       );
     }),
   );
-
 // Default socket-level Defect frames end every pending client request.
 export const WS_RPC_SERVER_OPTIONS = {
   disableTracing: true,
   disableFatalDefects: true,
 } as const;
-
 export const layer = Layer.unwrap(
   Effect.gen(function* () {
     const previewAutomationBroker = yield* PreviewAutomationBroker.PreviewAutomationBroker;

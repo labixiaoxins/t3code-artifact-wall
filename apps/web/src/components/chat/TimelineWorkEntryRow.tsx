@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { WorkLogDetails, WorkLogRow } from "./WorkLog";
 import {
   getQuestionAnswerPreview,
@@ -250,7 +251,7 @@ function WorkEntryLogRow(props: WorkEntryRowProps) {
               onClick={() => onRetryWorkspacePreparation(retryRunId)}
             >
               <RotateCcwIcon aria-hidden />
-              Retry
+              {uiText("Retry")}
             </Button>
           </div>
         ) : null}
@@ -278,8 +279,8 @@ function WorkEntryLogRow(props: WorkEntryRowProps) {
   const previewText =
     isReasoning && expanded
       ? workEntry.toolLifecycleStatus === "inProgress"
-        ? "Thinking"
-        : "Thought"
+        ? uiText("Thinking")
+        : uiText("Thought")
       : questionHeading || (displayLabel ?? workEntryDisplayLabel(workEntry, workspaceRoot));
   const answerPreview =
     workEntry.questionAnswer && hasQuestionAnswer(workEntry.questionAnswer)
@@ -392,7 +393,7 @@ function WorkEntryLogRow(props: WorkEntryRowProps) {
         <span
           className={iconWrapperClass}
           role={showFailedIndicator ? "img" : undefined}
-          aria-label={showFailedIndicator ? "Tool call failed" : undefined}
+          aria-label={showFailedIndicator ? uiText("Tool call failed") : undefined}
         >
           <ToolActivityIconView
             icon={entryToolIcon}
@@ -417,7 +418,9 @@ function WorkEntryLogRow(props: WorkEntryRowProps) {
                   extraRemarkPlugins={[
                     [
                       remarkThoughtPreview,
-                      workEntry.toolLifecycleStatus === "inProgress" ? "Thinking" : "Thought",
+                      workEntry.toolLifecycleStatus === "inProgress"
+                        ? uiText("Thinking")
+                        : uiText("Thought"),
                     ],
                   ]}
                 />
@@ -454,26 +457,26 @@ function WorkEntryLogRow(props: WorkEntryRowProps) {
             <button
               type="button"
               className="shrink-0 rounded-sm text-sm text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-              aria-label={`Open ${createdThread.title ?? "created thread"}`}
+              aria-label={uiText("Open {0}", { "0": createdThread.title ?? "created thread" })}
               onClick={(event) => {
                 event.stopPropagation();
                 ctx.onOpenThread(createdThread.targetThreadId);
               }}
               onKeyDown={stopRowToggle}
             >
-              Open chat
+              {uiText("Open chat")}
             </button>
           ) : null}
           {notifiedSubagentThreadId ? (
             <InlineButton
-              aria-label="Open subagent thread"
+              aria-label={uiText("Open subagent thread")}
               onClick={(event) => {
                 event.stopPropagation();
                 ctx.onOpenThread(notifiedSubagentThreadId);
               }}
               onKeyDown={stopRowToggle}
             >
-              Open subagent
+              {uiText("Open subagent")}
             </InlineButton>
           ) : null}
           {showFailedIndicator &&

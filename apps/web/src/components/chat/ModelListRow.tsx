@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { type ProviderDriverKind, type ProviderInstanceId } from "@t3tools/contracts";
 import { memo } from "react";
 import { CheckIcon, StarIcon } from "lucide-react";
@@ -13,8 +14,9 @@ import { Kbd } from "../ui/kbd";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { cn } from "~/lib/utils";
 import { modelPickerModelKey } from "./modelPickerKeys";
-import { ProviderInstanceIcon } from "./ProviderInstanceIcon";
-
+// Rows take the model's fields rather than the picker's item object, and one shared toggle
+// handler, because the picker rebuilds its items on every search keystroke; that keeps memo
+// effective for rows whose content did not change.
 export const ModelListRow = memo(function ModelListRow(props: {
   index: number;
   slug: string;
@@ -46,7 +48,6 @@ export const ModelListRow = memo(function ModelListRow(props: {
     subProvider: props.subProvider,
   };
   const providerLabel = getProviderRowLabel(props.providerDisplayName, props.subProvider);
-
   const row = (
     <ComboboxItem
       hideIndicator
@@ -61,7 +62,7 @@ export const ModelListRow = memo(function ModelListRow(props: {
     >
       <div className="min-w-0 flex-1 text-left">
         <div className="flex min-w-0 items-center gap-2">
-          <div className="min-w-0 truncate text-xs font-medium leading-snug redesign:text-sm redesign:font-normal">
+          <div className="min-w-0 truncate text-sm font-normal leading-snug">
             {props.useTriggerLabel
               ? getTriggerDisplayModelLabel(model)
               : getDisplayModelName(
@@ -69,37 +70,26 @@ export const ModelListRow = memo(function ModelListRow(props: {
                   props.preferShortName ? { preferShortName: true } : undefined,
                 )}
           </div>
+          {props.showProvider ? (
+            <span className="min-w-0 max-w-[45%] truncate text-xs font-normal text-muted-foreground">
+              {providerLabel}
+            </span>
+          ) : null}
           {props.showNewBadge ? (
             <span
               className="shrink-0 rounded border border-update/35 bg-update/15 px-0.5 py-px text-3xs font-bold uppercase leading-none tracking-wide text-update-foreground"
-              aria-label="New model"
+              aria-label={uiText("New model")}
             >
-              New
+              {uiText("New")}
             </span>
           ) : null}
           {props.unavailable ? (
             <Badge variant="outline" size="sm">
-              Unavailable
+              {uiText("Unavailable")}
             </Badge>
           ) : null}
         </div>
-        {props.showProvider && (
-          <div className="mt-1 flex items-center gap-1.5">
-            <ProviderInstanceIcon
-              driverKind={props.driverKind}
-              displayName={props.providerDisplayName}
-              acpRegistryAgentId={props.acpRegistryAgentId}
-              acpRegistryIconUrl={props.acpRegistryIconUrl}
-              className="size-3"
-              iconClassName="size-3"
-            />
-            <span className="truncate text-xs font-normal leading-snug text-muted-foreground/70">
-              {providerLabel}
-            </span>
-          </div>
-        )}
       </div>
-
       <div className="flex shrink-0 items-center gap-1.5">
         {props.jumpLabel ? <Kbd>{props.jumpLabel}</Kbd> : null}
         <Tooltip>
@@ -117,24 +107,25 @@ export const ModelListRow = memo(function ModelListRow(props: {
                   event.stopPropagation();
                 }}
                 disabled={Boolean(props.disabledReason)}
-                aria-label={props.isFavorite ? "Remove from favorites" : "Add to favorites"}
+                aria-label={
+                  props.isFavorite ? uiText("Remove from favorites") : uiText("Add to favorites")
+                }
               >
                 <StarIcon
                   className={cn(
                     "size-3.5 sm:size-3",
                     props.isFavorite
                       ? "fill-current text-warning"
-                      : "redesign:opacity-0 redesign:group-hover:opacity-100 redesign:group-data-highlighted:opacity-100 redesign:in-focus-visible:opacity-100 redesign:pointer-coarse:opacity-100",
+                      : "opacity-0 group-hover:opacity-100 group-data-highlighted:opacity-100 in-focus-visible:opacity-100 pointer-coarse:opacity-100",
                   )}
                 />
               </Button>
             }
           />
           <TooltipPopup side="top" align="center">
-            {props.isFavorite ? "Remove from favorites" : "Add to favorites"}
+            {props.isFavorite ? uiText("Remove from favorites") : uiText("Add to favorites")}
           </TooltipPopup>
         </Tooltip>
-        {/* Last, and always reserved, so stars and the check keep fixed columns. */}
         {props.showSelection ? (
           <CheckIcon
             className={cn("size-3.5", !props.isSelected && "invisible")}
@@ -144,11 +135,9 @@ export const ModelListRow = memo(function ModelListRow(props: {
       </div>
     </ComboboxItem>
   );
-
   if (!props.disabledReason) {
     return row;
   }
-
   return (
     <Tooltip>
       <TooltipTrigger render={row} />

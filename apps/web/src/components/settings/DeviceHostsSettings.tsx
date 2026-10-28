@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { DeviceToolVersions } from "../device/DeviceToolVersions";
 import { DeviceHostAvailability } from "../device/DeviceHostAvailability";
 import { useAtomValue } from "@effect/atom-react";
@@ -100,8 +101,10 @@ export function DeviceHostsSettings(props: { environmentId: EnvironmentId | null
     } else {
       toastManager.add({
         type: "error",
-        title: "Device hosts not saved on all environments",
-        description: `Could not update ${failed.map((environment) => environment.label).join(", ")}.`,
+        title: uiText("Device hosts not saved on all environments"),
+        description: uiText("Could not update {0}.", {
+          "0": failed.map((environment) => environment.label).join(", "),
+        }),
       });
     }
   };
@@ -132,10 +135,12 @@ export function DeviceHostsSettings(props: { environmentId: EnvironmentId | null
   return (
     <SettingsRow
       id="device-hosts"
-      title="Device hosts"
+      title={uiText("Device hosts")}
       serverScoped
       settingKeys={["deviceHosts"]}
-      description="Add remote machines with simulator or emulator runtimes installed, and the selected environments will connect over SSH and set up device tools automatically."
+      description={uiText(
+        "Add remote machines with simulator or emulator runtimes installed, and the selected environments will connect over SSH and set up device tools automatically.",
+      )}
       control={
         <Button
           size="sm"
@@ -148,14 +153,14 @@ export function DeviceHostsSettings(props: { environmentId: EnvironmentId | null
             setEditing({ kind: "ssh", id: randomUUID(), label: "", target: "" });
           }}
         >
-          <PlusIcon className="size-3.5" /> Add host
+          <PlusIcon className="size-3.5" /> {uiText("Add host") + " "}
         </Button>
       }
     >
       <div className="pt-3 pb-2">
         {!props.environmentId ? (
           <p className="text-sm text-muted-foreground">
-            Connect a selected environment to manage device hosts.
+            {uiText("Connect a selected environment to manage device hosts.")}
           </p>
         ) : (
           <>
@@ -269,7 +274,7 @@ function DeviceHostList({
   return (
     <>
       {rows.length === 0 ? (
-        <p className="py-2 text-sm text-muted-foreground">No device hosts.</p>
+        <p className="py-2 text-sm text-muted-foreground">{uiText("No device hosts.")}</p>
       ) : null}
       {rows.map(({ host, members }) => {
         const hostChecks = checks[deviceHostConnectionKey(host)];
@@ -375,7 +380,7 @@ function DeviceHostList({
                   <div className="space-y-1">
                     {failed.map((result) => (
                       <p key={result.environmentId}>
-                        {result.name}: {result.error || "Connection failed"}
+                        {result.name}: {result.error || uiText("Connection failed")}
                       </p>
                     ))}
                   </div>
@@ -481,7 +486,7 @@ function DeviceHostList({
                           {result.versions}
                           {result.check?.status === "local" ? (
                             <p className="text-xs text-muted-foreground">
-                              Already available locally
+                              {uiText("Already available locally")}
                             </p>
                           ) : (
                             <DeviceHostAvailability
@@ -501,12 +506,14 @@ function DeviceHostList({
                 first.versions
               )}
               {!compact && check?.status === "local" ? (
-                <p className="mt-1 text-xs text-muted-foreground">Already available locally</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {uiText("Already available locally")}
+                </p>
               ) : null}
               {!compact && error ? (
                 <div className="mt-1" role="status">
                   <details className="text-xs text-destructive">
-                    <summary>Connection failed</summary>
+                    <summary>{uiText("Connection failed")}</summary>
                     <p className="mt-1 whitespace-pre-wrap break-words">{error}</p>
                   </details>
                 </div>
@@ -547,9 +554,9 @@ function DeviceHostList({
                 <MoreVertical />
               </MenuTrigger>
               <MenuPopup align="end">
-                <MenuItem onClick={() => onEdit(host)}>Edit</MenuItem>
+                <MenuItem onClick={() => onEdit(host)}>{uiText("Edit")}</MenuItem>
                 <MenuItem variant="destructive" onClick={() => onRemove(host)}>
-                  Remove
+                  {uiText("Remove")}
                 </MenuItem>
                 {compact
                   ? retryable.map((result) => (
@@ -560,8 +567,8 @@ function DeviceHostList({
                           retryHost(result.environmentId, result.host.id, result.environmentId)
                         }
                       >
-                        {retrying === result.environmentId ? "Retrying" : "Retry"} from{" "}
-                        {result.label}
+                        {retrying === result.environmentId ? "Retrying" : uiText("Retry")}{" "}
+                        {uiText("from")} {result.label}
                         {result.address ? ` (${result.address})` : null}
                       </MenuItem>
                     ))
@@ -579,7 +586,11 @@ function DeviceHostList({
                 else void testConnection(host);
               }}
             >
-              {canRetry ? (retrying === host.id ? "Retrying…" : "Retry") : "Test connection"}
+              {canRetry
+                ? retrying === host.id
+                  ? uiText("Retrying…")
+                  : uiText("Retry")
+                : uiText("Test connection")}
             </Button>
           </div>
         );

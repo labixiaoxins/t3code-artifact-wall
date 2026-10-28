@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { resolveTimelineMinimapPreview, type TimelineMinimapItem } from "./timelineMinimapItems";
 import { useRef, useState, type MouseEvent } from "react";
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
@@ -156,7 +157,9 @@ export function TimelineMinimap({
             }}
           />
           <button
-            aria-label={`Jump to message: ${activeItem?.userText ?? "User message"}`}
+            aria-label={uiText("Jump to message: {0}", {
+              "0": activeItem?.userText ?? "User message",
+            })}
             className="absolute inset-y-0 left-0 w-full cursor-pointer bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70"
             onBlur={() => setActiveIndex(null)}
             onClick={(event) => {

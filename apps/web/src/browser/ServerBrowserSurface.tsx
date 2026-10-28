@@ -1,3 +1,5 @@
+import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
+import { uiText } from "~/i18n";
 import {
   createPreviewFramePainter,
   createPreviewStreamClient,
@@ -55,7 +57,7 @@ const PROBE_REUSE_MS = 10_000;
 // Android keyboards report Backspace as text deletion, so keep a deletable sentinel.
 const INPUT_SENTINEL = "\u200b";
 const BACKSPACE = { key: "Backspace", code: "Backspace", keyCode: 8 } as const;
-const DELETE = { key: "Delete", code: "Delete", keyCode: 46 } as const;
+const DELETE = { key: "Delete", code: uiText("Delete"), keyCode: 46 } as const;
 const MAX_UNAUTHORIZED_REFUSALS = 3;
 const TAP_SLOP_PX = 8;
 const MULTI_CLICK_MS = 500;
@@ -97,16 +99,16 @@ const pressedButtonOf = (buttons: number): PreviewStreamMouseButton =>
 /** Browsers may refuse a write that arrives after the key press; a toast button is a fresh gesture. */
 async function copyPageText(text: string) {
   try {
-    await navigator.clipboard.writeText(text);
+    await writeTextToClipboard(text, "browser page text");
   } catch {
     const id = toastManager.add({
       type: "info",
-      title: "The page copied text",
+      title: uiText("The page copied text"),
       actionProps: {
         children: "Copy",
         onClick: () => {
           toastManager.close(id);
-          void navigator.clipboard.writeText(text).catch(() => undefined);
+          void writeTextToClipboard(text, "browser page text").catch(() => undefined);
         },
       },
     });
@@ -116,9 +118,9 @@ async function copyPageText(text: string) {
 function offerDownload(download: PreviewStreamDownload) {
   const id = toastManager.add({
     type: "info",
-    title: `Downloaded ${download.fileName}`,
+    title: uiText("Downloaded {0}", { "0": download.fileName }),
     actionProps: {
-      children: "Save",
+      children: uiText("Save"),
       onClick: () => {
         toastManager.close(id);
         const anchor = document.createElement("a");
@@ -180,7 +182,7 @@ export function ServerBrowserSurface(props: {
     void uploadPreviewStreamFiles(chooser, files).catch((cause: unknown) =>
       toastManager.add({
         type: "error",
-        title: "Could not send the files to the page",
+        title: uiText("Could not send the files to the page"),
         description: cause instanceof Error ? cause.message : undefined,
       }),
     );
@@ -428,7 +430,7 @@ export function ServerBrowserSurface(props: {
           }
           refreshTimer = setTimeout(
             () => refreshPreviewStreamAccess(environmentId),
-            refusals === 1 ? 0 : 1_000 * 2 ** (refusals - 1),
+            refusals === 1 ? 0 : 1000 * 2 ** (refusals - 1),
           );
         },
       },
@@ -718,7 +720,7 @@ export function ServerBrowserSurface(props: {
               send({ type: control.controller === "you" ? "releaseControl" : "takeControl" })
             }
           >
-            {control.controller === "you" ? "Release control" : "Take control"}
+            {control.controller === "you" ? uiText("Release control") : uiText("Take control")}
           </Button>
         ) : null}
       </div>
@@ -750,8 +752,8 @@ export function ServerBrowserSurface(props: {
         {/* Pin top-left to avoid focus scrolling; 16px prevents iOS focus zoom. */}
         <textarea
           ref={inputRef}
-          aria-label="Browser page"
-          aria-description="Press Shift+Escape to leave the browser page."
+          aria-label={uiText("Browser page")}
+          aria-description={uiText("Press Shift+Escape to leave the browser page.")}
           autoCapitalize="off"
           autoComplete="off"
           autoCorrect="off"
@@ -781,10 +783,12 @@ export function ServerBrowserSurface(props: {
           <div
             className="absolute inset-x-2 top-2 z-10 flex flex-col gap-2 rounded-lg border border-border bg-background p-3 shadow-lg"
             role="dialog"
-            aria-label="Choose files for the page"
+            aria-label={uiText("Choose files for the page")}
           >
             <p className="text-sm">
-              The page asks for {fileChooser.multiple ? "files" : "a file"}.
+              {uiText("The page asks for")}
+              {fileChooser.multiple ? uiText("files") : uiText("a file")}
+              {"."}
             </p>
             <input
               ref={fileInputRef}
@@ -800,10 +804,11 @@ export function ServerBrowserSurface(props: {
             />
             <div className="flex justify-end gap-2">
               <Button variant="outline" size="sm" onClick={() => answerFileChooser([])}>
-                Cancel
+                {uiText("Cancel")}
               </Button>
               <Button size="sm" onClick={() => fileInputRef.current?.click()}>
-                Choose {fileChooser.multiple ? "files" : "file"}
+                {uiText("Choose")}
+                {fileChooser.multiple ? uiText("files") : uiText("file")}
               </Button>
             </div>
           </div>
@@ -812,14 +817,14 @@ export function ServerBrowserSurface(props: {
           <div
             className="absolute inset-x-2 top-2 z-10 flex flex-col gap-2 rounded-lg border border-border bg-background p-3 shadow-lg"
             role="dialog"
-            aria-label="Browser dialog"
+            aria-label={uiText("Browser dialog")}
           >
             <p className="break-words text-sm">{control.dialog.message}</p>
             {control.controller === "you" ? (
               <>
                 {control.dialog.type === "prompt" ? (
                   <Input
-                    aria-label="Dialog response"
+                    aria-label={uiText("Dialog response")}
                     value={promptText}
                     onChange={(event) => setPromptText(event.target.value)}
                   />
@@ -830,7 +835,7 @@ export function ServerBrowserSurface(props: {
                     size="sm"
                     onClick={() => send({ type: "dialog", accept: false })}
                   >
-                    Dismiss
+                    {uiText("Dismiss")}
                   </Button>
                   <Button
                     size="sm"
@@ -842,12 +847,12 @@ export function ServerBrowserSurface(props: {
                       })
                     }
                   >
-                    Accept
+                    {uiText("Accept")}
                   </Button>
                 </div>
               </>
             ) : (
-              <p className="text-xs text-muted-foreground">Take control to respond.</p>
+              <p className="text-xs text-muted-foreground">{uiText("Take control to respond.")}</p>
             )}
           </div>
         ) : null}
@@ -859,7 +864,7 @@ export function ServerBrowserSurface(props: {
           </p>
           <CommandBlock command={hostSetup.command} className="w-full max-w-md text-left" />
           <Button variant="outline" size="sm" onClick={() => setHostSetup(null)}>
-            Try again
+            {uiText("Try again")}
           </Button>
         </div>
       ) : null}
@@ -867,7 +872,7 @@ export function ServerBrowserSurface(props: {
         // The page can be invisible beneath an empty or unreachable state; reconnect must remain reachable.
         <div className="visible absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-background p-3 text-center">
           <p role="alert" className="text-xs text-muted-foreground">
-            Browser connection was refused.
+            {uiText("Browser connection was refused.")}
           </p>
           <Button
             variant="outline"
@@ -878,7 +883,7 @@ export function ServerBrowserSurface(props: {
               refreshPreviewStreamAccess(environmentId);
             }}
           >
-            Reconnect
+            {uiText("Reconnect")}
           </Button>
         </div>
       ) : null}

@@ -33,6 +33,15 @@ import { derivePendingBackgroundWork } from "@t3tools/shared/orchestrationV2Pend
 import { visibleThreadPullRequests } from "@t3tools/shared/threadPullRequests";
 import * as Crypto from "effect/Crypto";
 import * as Effect from "effect/Effect";
+import * as Schema from "effect/Schema";
+export class ArchiveSafetyUnavailable extends Schema.TaggedError<ArchiveSafetyUnavailable>()(
+  "ArchiveSafetyUnavailable",
+  {},
+) {
+  override get message() {
+    return "此环境尚不支持安全归档，请先更新服务端。";
+  }
+}
 
 import { getInitialServerConfig, request } from "../rpc/client.ts";
 
@@ -69,6 +78,7 @@ export interface DeleteProjectInput extends CommandMetadata {
 }
 
 export interface CreateThreadInput extends CommandMetadata {
+  readonly continuationOfThreadId?: ThreadId;
   readonly threadId: ThreadId;
   readonly projectId: ProjectId;
   readonly title: string;
@@ -84,7 +94,9 @@ export interface ThreadCommandInput extends CommandMetadata {
 }
 
 export type DeleteThreadInput = ThreadCommandInput;
-export type ArchiveThreadInput = ThreadCommandInput;
+export interface ArchiveThreadInput extends ThreadCommandInput {
+  readonly requireIdle?: true;
+}
 export type UnarchiveThreadInput = ThreadCommandInput;
 export type SettleThreadInput = ThreadCommandInput;
 
@@ -177,7 +189,10 @@ export interface StartThreadTurnInput extends ThreadCommandInput {
   readonly runtimeMode: RuntimeMode;
   readonly interactionMode: ProviderInteractionMode;
   readonly bootstrap?: StartThreadBootstrap;
-  readonly sourceProposedPlan?: { readonly threadId: ThreadId; readonly planId: PlanId };
+  readonly sourceProposedPlan?: {
+    readonly threadId: ThreadId;
+    readonly planId: PlanId;
+  };
   readonly dispatchMode?: "auto" | "queue" | "steer" | "restart" | "start";
 }
 
@@ -398,6 +413,9 @@ export const createThread = Effect.fn("EnvironmentCommands.createThread")(functi
 ) {
   return yield* dispatch({
     type: "thread.create",
+    ...(input.continuationOfThreadId === undefined
+      ? {}
+      : { continuationOfThreadId: input.continuationOfThreadId }),
     commandId: yield* allocateCommandId(input),
     createdBy: "user",
     creationSource: input.creationSource ?? "web",
@@ -476,6 +494,19 @@ export const resolveGuestMessage = Effect.fn("EnvironmentCommands.resolveGuestMe
 export const archiveThread = Effect.fn("EnvironmentCommands.archiveThread")(function* (
   input: ArchiveThreadInput,
 ) {
+  if (input.requireIdle) {
+    const config = yield* getInitialServerConfig();
+    if (config.environment.capabilities.threadArchiveSafety !== true) {
+      return yield* new ArchiveSafetyUnavailable({});
+    }
+    const commandId = yield* allocateCommandId(input);
+    return yield* dispatch({
+      type: "thread.archive",
+      commandId,
+      threadId: input.threadId,
+      requireIdle: true,
+    });
+  }
   return yield* simpleThreadCommand("thread.archive", input);
 });
 
@@ -1137,12 +1168,22 @@ export const editQueuedRun = Effect.fn("EnvironmentCommands.editQueuedRun")(func
 });
 
 export type LinkThreadPullRequestInput = Omit<
-  Extract<OrchestrationV2Command, { type: "thread.pull-request.link" }>,
+  Extract<
+    OrchestrationV2Command,
+    {
+      type: "thread.pull-request.link";
+    }
+  >,
   "type" | "commandId"
 > &
   CommandMetadata;
 export type UnlinkThreadPullRequestInput = Omit<
-  Extract<OrchestrationV2Command, { type: "thread.pull-request.unlink" }>,
+  Extract<
+    OrchestrationV2Command,
+    {
+      type: "thread.pull-request.unlink";
+    }
+  >,
   "type" | "commandId"
 > &
   CommandMetadata;
@@ -1156,7 +1197,12 @@ export const linkThreadPullRequest = Effect.fn("EnvironmentCommands.linkThreadPu
   },
 );
 export type WatchThreadPullRequestInput = Omit<
-  Extract<OrchestrationV2Command, { type: "thread.pull-request.watch" }>,
+  Extract<
+    OrchestrationV2Command,
+    {
+      type: "thread.pull-request.watch";
+    }
+  >,
   "type" | "commandId"
 > &
   CommandMetadata;

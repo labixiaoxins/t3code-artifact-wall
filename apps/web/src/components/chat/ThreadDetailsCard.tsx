@@ -1,5 +1,8 @@
+import { uiText } from "~/i18n";
 import { useLayoutEffect, useState, type ReactNode, type RefObject } from "react";
 import type { ScopedThreadRef } from "@t3tools/contracts";
+import { useIsMobile } from "../../hooks/useMediaQuery";
+import { Sheet, SheetPopup, SheetTitle } from "../ui/sheet";
 import { ScrollArea } from "../ui/scroll-area";
 import { cn } from "../../lib/utils";
 import { Popover, PopoverPopup, PopoverCreateHandle } from "../ui/popover";
@@ -10,7 +13,6 @@ import {
   resolveThreadDetailsCardDensity,
 } from "./threadDetailsCardLayout";
 import { observeResize } from "../../lib/observeResize";
-
 export function ThreadDetailsCard({
   threadRef,
   anchor,
@@ -22,10 +24,11 @@ export function ThreadDetailsCard({
   handle: ReturnType<typeof PopoverCreateHandle>;
   children: (density: "full" | "compact" | "essential") => ReactNode;
 }) {
+  const mobile = useIsMobile();
   const canvas = useChatCanvas();
   const preferredPlacement = canvas?.preferredDetailsCard ?? null;
   const placement = canvas?.detailsCardPlacement ?? null;
-  const mode = placement ? "inline" : "popover";
+  const mode = !mobile && placement ? "inline" : "popover";
   const topInset = canvas?.detailsCardTopInset ?? 0;
   const inlineOpen = useRightPanelStore((state) =>
     selectThreadPanelOpen(state.threadPanelVisibilityByThreadKey, threadRef, "inline"),
@@ -96,10 +99,30 @@ export function ThreadDetailsCard({
     environmentId,
     threadId,
   ]);
+  if (mobile)
+    return (
+      <Sheet
+        open={popoverOpen}
+        onOpenChange={(open) =>
+          useRightPanelStore.getState().setThreadPanelOpen(threadRef, "popover", open)
+        }
+      >
+        <SheetPopup side="right" className="w-full max-w-none" aria-label="会话详情">
+          <div className="px-4 py-3">
+            <SheetTitle>{"\u4F1A\u8BDD\u8BE6\u60C5"}</SheetTitle>
+          </div>
+          <ScrollArea className="min-h-0 flex-1">
+            <div data-thread-details-card data-thread-details-panel="mobile">
+              {children("full")}
+            </div>
+          </ScrollArea>
+        </SheetPopup>
+      </Sheet>
+    );
   const card = (
     <div
       className={cn(
-        "dropdown-glass isolate contain-paint grid max-h-full grid-rows-[minmax(0,1fr)] overflow-hidden rounded-2xl",
+        "dropdown-glass isolate contain-paint grid max-h-full grid-rows-[minmax(0,1fr)] overflow-hidden rounded-3xl",
         mode === "popover" &&
           "max-h-[min(calc(100dvh-6.5rem),calc(var(--available-height,100dvh)-1rem))]",
       )}
@@ -131,7 +154,7 @@ export function ThreadDetailsCard({
     >
       {placement && inlineOpen ? (
         <aside
-          aria-label="Thread details"
+          aria-label={uiText("Thread details")}
           // Skip the return transition to avoid overlapping the rising preview.
           className={cn(
             "absolute z-20",
@@ -150,8 +173,8 @@ export function ThreadDetailsCard({
         </aside>
       ) : null}
       {/* Rendered in both modes: base-ui keeps a popup that unmounts mid-open
-          mounted, because its exit animation never finishes. Staying in the tree
-          lets it close cleanly when the card switches inline. */}
+            mounted, because its exit animation never finishes. Staying in the tree
+            lets it close cleanly when the card switches inline. */}
       <PopoverPopup
         anchor={anchor}
         align="end"

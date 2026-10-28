@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 import type { RuntimeMode } from "@t3tools/contracts";
-
 const testState = vi.hoisted(() => {
   let completeProjectFileRead: (value: null) => void = () => undefined;
   let projectFileRead = Promise.resolve<null>(null);
@@ -23,9 +22,15 @@ const testState = vi.hoisted(() => {
       location: { href: "/" },
       matches: [{ params: {} }],
     },
-    navigate: vi.fn(async (request: { readonly params: { readonly draftId: string } }) => {
-      router.state.location.href = `/draft/${request.params.draftId}`;
-    }),
+    navigate: vi.fn(
+      async (request: {
+        readonly params: {
+          readonly draftId: string;
+        };
+      }) => {
+        router.state.location.href = `/draft/${request.params.draftId}`;
+      },
+    ),
   };
   const draftStore = {
     getComposerDraft: vi.fn(() => ({})),
@@ -37,7 +42,6 @@ const testState = vi.hoisted(() => {
     setLogicalProjectDraftThreadId: vi.fn(),
     setModelSelection: vi.fn(),
   };
-
   return {
     completeProjectFileRead: (value: null) => completeProjectFileRead(value),
     draftStore,
@@ -86,7 +90,6 @@ const testState = vi.hoisted(() => {
     router,
   };
 });
-
 const testServerConfigs = () =>
   new Map([
     [
@@ -100,7 +103,6 @@ const testServerConfigs = () =>
     ],
     ["environment-ssh", { settings: testState.targetSettings }],
   ]);
-
 vi.mock("../rpc/atomRegistry", () => ({
   appAtomRegistry: {
     get: (atom: unknown) =>
@@ -109,7 +111,6 @@ vi.mock("../rpc/atomRegistry", () => ({
         : testServerConfigs(),
   },
 }));
-
 vi.mock("@effect/atom-react", () => ({
   useAtomValue: (atom: unknown) =>
     atom === "primary-settings"
@@ -130,7 +131,9 @@ vi.mock("@t3tools/shared/projectSettings", () => ({
     settings: Record<string, unknown>,
     _projectId: unknown,
     _project: unknown,
-    projectFile?: { defaultThreadEnvMode?: "local" | "worktree" } | null,
+    projectFile?: {
+      defaultThreadEnvMode?: "local" | "worktree";
+    } | null,
   ) => ({
     settings:
       projectFile === undefined
@@ -144,7 +147,11 @@ vi.mock("@t3tools/shared/projectSettings", () => ({
     overrides: {},
   }),
   resolveNewThreadEnvMode: (input: {
-    projectSettings: { settings: { defaultThreadEnvMode: "local" | "worktree" } };
+    projectSettings: {
+      settings: {
+        defaultThreadEnvMode: "local" | "worktree";
+      };
+    };
   }) => input.projectSettings.settings.defaultThreadEnvMode,
 }));
 vi.mock("@tanstack/react-router", () => ({
@@ -168,7 +175,6 @@ vi.mock("../composerDraftStore", () => {
 });
 vi.mock("../lib/chatThreadActions", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../lib/chatThreadActions")>()),
-  hasExplicitComposerModelSelection: () => false,
   resolveNewThreadModelSelectionOverride: () => null,
 }));
 vi.mock("../lib/t3ProjectFileDefaults", () => ({
@@ -214,9 +220,7 @@ vi.mock("../uiStateStore", () => ({
   useUiStateStore: () => [],
 }));
 vi.mock("./useSettings", () => ({ getClientSettings: () => ({}) }));
-
 import { useNewThreadHandler } from "./useHandleNewThread";
-
 describe.each([
   ["new", null],
   [
@@ -236,43 +240,59 @@ describe.each([
       { environmentId: "environment-ssh", projectId: "project-remote" } as never,
       { replace: true },
     );
-
     testState.router.state.location.href = "/usage";
     testState.completeProjectFileRead(null);
     await pendingOpen;
-
     expect(testState.router.state.location.href).toBe("/usage");
     expect(testState.router.navigate).not.toHaveBeenCalled();
     expect(testState.draftStore.setLogicalProjectDraftThreadId).not.toHaveBeenCalled();
   });
-
   it("abandons a delayed draft open when the project is removed meanwhile", async () => {
     testState.reset(draft);
     const pendingOpen = useNewThreadHandler()(
       { environmentId: "environment-ssh", projectId: "project-remote" } as never,
       { replace: true },
     );
-
     testState.removeProject();
     testState.completeProjectFileRead(null);
-
     await expect(pendingOpen).resolves.toBeNull();
     expect(testState.router.navigate).not.toHaveBeenCalled();
     expect(testState.draftStore.setLogicalProjectDraftThreadId).not.toHaveBeenCalled();
   });
 });
-
 describe("useNewThreadHandler", () => {
   it("opens the draft without waiting on a project file from an offline machine", async () => {
     testState.reset(null, { envMode: null, startFromOrigin: false });
     testState.disconnect("environment-ssh");
-
     const opened = await useNewThreadHandler()({
       environmentId: "environment-ssh",
       projectId: "project-remote",
     } as never);
-
     expect(opened).toEqual({ draftId: "draft-delayed", threadId: "thread-delayed" });
     expect(testState.router.navigate).toHaveBeenCalledOnce();
   });
+});
+it("keeps the explicit preset captured by draft creation instead of applying sticky defaults", async () => {
+  testState.reset(null);
+  const selection = {
+    instanceId: "codex",
+    model: "gpt-6.1-sol",
+    options: [{ id: "reasoningEffort", value: "high" }],
+  };
+  using _draft = vi.spyOn(testState.draftStore, "getComposerDraft").mockImplementation(() => ({
+    modelSelectionExplicit: true,
+    activeProvider: "codex",
+    modelSelectionByProvider: { codex: selection },
+  }));
+  testState.draftStore.applyStickyState.mockClear();
+  testState.draftStore.setModelSelection.mockClear();
+  const pending = useNewThreadHandler()({
+    environmentId: "environment-ssh",
+    projectId: "project-remote",
+  } as never);
+  testState.completeProjectFileRead(null);
+  await pending;
+  expect(testState.draftStore.setLogicalProjectDraftThreadId).toHaveBeenCalledOnce();
+  expect(testState.draftStore.applyStickyState).not.toHaveBeenCalled();
+  expect(testState.draftStore.setModelSelection).not.toHaveBeenCalled();
 });

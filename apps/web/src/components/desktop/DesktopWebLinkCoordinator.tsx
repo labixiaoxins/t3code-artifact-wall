@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
@@ -92,7 +93,7 @@ export function DesktopWebLinkCoordinator() {
 
   const reportFailure = (url: string, description = url) =>
     toastManager.add(
-      stackedThreadToast({ type: "error", title: "Could not open the link", description }),
+      stackedThreadToast({ type: "error", title: uiText("Could not open the link"), description }),
     );
 
   const startThread = async (url: string): Promise<ScopedThreadRef | null> => {

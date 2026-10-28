@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { Tooltip, TooltipTrigger, TooltipPopup } from "../ui/tooltip";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { settlePromise, squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
@@ -6,7 +7,6 @@ import { CheckIcon, MessageSquareIcon } from "lucide-react";
 import { useState } from "react";
 import { threadPullRequestLinkMode } from "@t3tools/client-runtime/thread-pull-request-compatibility";
 import { usePullRequestLinking } from "~/hooks/usePullRequestLinking";
-
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { normalizeThreadPullRequestKey } from "@t3tools/client-runtime/thread-pull-requests";
 import { useProjects, useServerConfigs, useThreadShell, useThreadShells } from "~/state/entities";
@@ -21,7 +21,6 @@ import { Dialog, DialogPopup, DialogTitle } from "../ui/dialog";
 import { MenuItem } from "../ui/menu";
 import { toastManager } from "../ui/toast";
 import { PullRequestGlyph } from "./pullRequestIcons";
-
 interface PullRequestThreadLinksProps {
   environmentId: EnvironmentId;
   reference: PullRequestRef;
@@ -30,7 +29,6 @@ interface PullRequestThreadLinksProps {
   display: "count" | "menu-item" | "picker";
   onPickerOpenChange?: (open: boolean) => void;
 }
-
 export function PullRequestThreadLinks(props: PullRequestThreadLinksProps) {
   const configs = useServerConfigs();
   if (
@@ -41,7 +39,6 @@ export function PullRequestThreadLinks(props: PullRequestThreadLinksProps) {
   }
   return <EnabledPullRequestThreadLinks key={`${props.environmentId}:${props.url}`} {...props} />;
 }
-
 function EnabledPullRequestThreadLinks({
   environmentId,
   reference,
@@ -75,7 +72,6 @@ function EnabledPullRequestThreadLinks({
     setLastRelations(relations.data);
   }
   const [pending, setPending] = useState(false);
-
   const changeLink = async (threadId: ThreadId, remove: boolean) => {
     if (parsed === null || pending) return;
     setPending(true);
@@ -102,7 +98,6 @@ function EnabledPullRequestThreadLinks({
     }
     onPickerOpenChange?.(false);
   };
-
   if (parsed === null || (!linkedHere && !linking.canLink(url))) return null;
   const linkedThreads =
     linking.mode === "multiple" ? ((relations.data ?? lastRelations)?.threads ?? []) : [];
@@ -134,7 +129,10 @@ function EnabledPullRequestThreadLinks({
               </Button>
             }
           />
-          <TooltipPopup>{linkedThreadsLabel}. Search in the command palette.</TooltipPopup>
+          <TooltipPopup>
+            {linkedThreadsLabel}
+            {". Search in the command palette."}
+          </TooltipPopup>
         </Tooltip>
       ) : null}
       {display === "menu-item" ? (
@@ -154,16 +152,20 @@ function EnabledPullRequestThreadLinks({
             <PullRequestGlyph.link aria-hidden className="size-3.5" />
           )}
           {linkedHere
-            ? "Unlink from this thread"
+            ? uiText("Unlink from this thread")
             : currentThreadRef
-              ? "Link to this thread"
-              : "Link to thread"}
+              ? uiText("Link to this thread")
+              : uiText("Link to thread")}
         </MenuItem>
       ) : null}
       {display === "picker" ? (
         <Dialog open onOpenChange={onPickerOpenChange}>
           <DialogPopup className="max-w-md" showCloseButton={false}>
-            <DialogTitle className="sr-only">Link {term} to a thread</DialogTitle>
+            <DialogTitle className="sr-only">
+              {"Link "}
+              {term}
+              {" to a thread"}
+            </DialogTitle>
             <ThreadPicker
               environmentId={environmentId}
               url={url}
@@ -176,7 +178,6 @@ function EnabledPullRequestThreadLinks({
     </>
   );
 }
-
 function ThreadPicker({
   environmentId,
   url,
@@ -211,12 +212,17 @@ function ThreadPicker({
     )
     .toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   return (
-    <Command mode="none" value={query} onValueChange={setQuery} aria-label="Choose a thread">
-      <CommandInput placeholder="Search threads or projects..." disabled={pending} />
+    <Command
+      mode="none"
+      value={query}
+      onValueChange={setQuery}
+      aria-label={uiText("Choose a thread")}
+    >
+      <CommandInput placeholder={uiText("Search threads or projects...")} disabled={pending} />
       <CommandList className="max-h-80 overflow-y-auto">
         {candidates.length === 0 ? (
           <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-            No active threads found.
+            {uiText("No active threads found.")}
           </div>
         ) : (
           candidates.map((thread) => {
@@ -230,7 +236,7 @@ function ThreadPicker({
               >
                 <MessageSquareIcon aria-hidden className="size-4 shrink-0" />
                 <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate">{thread.title || "Untitled thread"}</span>
+                  <span className="truncate">{thread.title || uiText("Untitled thread")}</span>
                   <span className="truncate text-xs text-muted-foreground">
                     {projectNames.get(thread.projectId)}
                   </span>
@@ -238,7 +244,7 @@ function ThreadPicker({
                 {linked ? (
                   <>
                     <CheckIcon aria-hidden className="size-3.5" />
-                    <span className="text-xs text-muted-foreground">Linked</span>
+                    <span className="text-xs text-muted-foreground">{uiText("Linked")}</span>
                   </>
                 ) : null}
               </CommandItem>

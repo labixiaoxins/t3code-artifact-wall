@@ -1,9 +1,11 @@
+import { uiText } from "~/i18n";
 import type { DesktopBridge, DesktopUpdateState } from "@t3tools/contracts";
 import { TriangleAlertIcon } from "lucide-react";
 import { type ComponentProps, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { settlePromise, squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import { isElectron } from "../../env";
+import { useLegacySidebarEnabled } from "../../hooks/useSettings";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { cn } from "../../lib/utils";
 import { ensureLocalApi } from "../../localApi";
@@ -124,7 +126,7 @@ function SidebarUpdateArchitectureWarningContent() {
   return (
     <Alert variant="warning">
       <TriangleAlertIcon />
-      <AlertTitle>Intel build on Apple Silicon</AlertTitle>
+      <AlertTitle>{uiText("Intel build on Apple Silicon")}</AlertTitle>
       <AlertDescription>{description}</AlertDescription>
     </Alert>
   );
@@ -190,6 +192,7 @@ export function SidebarUpdatePill() {
 }
 
 function SidebarUpdateControl() {
+  const legacySidebarEnabled = useLegacySidebarEnabled();
   const state = useDesktopUpdateState();
   const [isActionPending, setIsActionPending] = useState(false);
   const [isConfirmingEverything, setIsConfirmingEverything] = useState(false);
@@ -299,7 +302,7 @@ function SidebarUpdateControl() {
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Could not confirm update",
+            title: uiText("Could not confirm update"),
             description: error instanceof Error ? error.message : "Update confirmation failed.",
           }),
         );
@@ -324,7 +327,7 @@ function SidebarUpdateControl() {
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Could not check for updates",
+            title: uiText("Could not check for updates"),
             description:
               result.state.message ?? "Automatic updates are not available in this build.",
           }),
@@ -334,7 +337,7 @@ function SidebarUpdateControl() {
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Could not check for updates",
+            title: uiText("Could not check for updates"),
             description: error instanceof Error ? error.message : "Update check failed.",
           }),
         );
@@ -364,7 +367,7 @@ function SidebarUpdateControl() {
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: "Could not update everything",
+          title: uiText("Could not update everything"),
           description: error instanceof Error ? error.message : "An unexpected error occurred.",
         }),
       );
@@ -382,6 +385,16 @@ function SidebarUpdateControl() {
   };
 
   if (!isElectron && !runsEverything && !isRunningEverything) return null;
+  // Routine provider notices remain available under More → Model channels.
+  if (
+    legacySidebarEnabled &&
+    runsEverything &&
+    action === "none" &&
+    !isRunningEverything &&
+    !showCheckIcon &&
+    state?.status !== "error"
+  )
+    return null;
 
   const statusIcon = (
     <DesktopUpdateStatusIcon
@@ -541,7 +554,7 @@ function SidebarUpdateControl() {
         {showReleaseNotesPopover && state ? (
           <PopoverPopup
             align="center"
-            aria-label="Nightly update release notes"
+            aria-label={uiText("Nightly update release notes")}
             initialFocus={false}
             onKeyDownCapture={(event) => {
               if (

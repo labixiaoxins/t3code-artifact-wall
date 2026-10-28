@@ -4,6 +4,7 @@ import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 
 import * as NodeServices from "@effect/platform-node/NodeServices";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import { assert, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -51,3 +52,26 @@ it.effect("drops planner statistics a database already has", () => {
     Effect.ensuring(Effect.sync(() => NodeFS.rmSync(tempDir, { recursive: true, force: true }))),
   );
 });
+
+it.effect.skipIf(HostProcess.Platform.defaultValue() === "win32")(
+  "creates a database readable only by its owner",
+  () => {
+    const directory = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-sqlite-private-"));
+    const dbPath = NodePath.join(directory, "state.sqlite");
+    return Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      yield* sql`CREATE TABLE privacy_probe(id INTEGER PRIMARY KEY)`;
+      assert.equal(NodeFS.statSync(dbPath).mode & 0o777, 0o600);
+      for (const suffix of ["-wal", "-shm"]) {
+        assert.equal(NodeFS.statSync(`${dbPath}${suffix}`).mode & 0o777, 0o600);
+      }
+    }).pipe(
+      Effect.provide(
+        SqlitePersistence.layerFromPath(dbPath).pipe(Layer.provide(NodeServices.layer)),
+      ),
+      Effect.ensuring(
+        Effect.sync(() => NodeFS.rmSync(directory, { recursive: true, force: true })),
+      ),
+    );
+  },
+);

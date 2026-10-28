@@ -374,10 +374,13 @@ export function createNewThreadHandler(router: AnyRouter) {
         runtimeMode: defaultRuntimeMode,
         ...(carryInteractionMode ? { interactionMode: carryInteractionMode } : {}),
       });
+      // Draft creation may have captured an explicit work-style preset.
+      if (!hasExplicitComposerModelSelection(getComposerDraft(draftId))) {
       applyStickyState(draftId);
       const modelSelectionOverride = resolveModelSelectionOverride(draftId);
       if (modelSelectionOverride) {
         setModelSelection(draftId, modelSelectionOverride, { replaceOptions: true });
+      }
       }
       await router.navigate({
         to: "/draft/$draftId",

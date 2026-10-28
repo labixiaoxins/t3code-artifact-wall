@@ -18,7 +18,6 @@ import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
 import * as TestClock from "effect/testing/TestClock";
 import { vi } from "vite-plus/test";
-
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { AgentScope } from "@t3tools/shared/AgentScope";
 import { ProviderEventLoggers } from "@t3tools/provider-core/server/ProviderEventLoggers";
@@ -30,11 +29,8 @@ import {
   layerQueryRunner,
   spawnClaudeProcessGroup,
 } from "./ClaudeAdapterV2.ts";
-
 vi.mock("@anthropic-ai/claude-agent-sdk", { spy: true });
-
 const FORK_SESSION_ID = "11111111-1111-4111-8111-111111111111";
-
 const writeClaudeSession = Effect.fnUntraced(function* (configDir: string) {
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
@@ -64,11 +60,9 @@ const writeClaudeSession = Effect.fnUntraced(function* (configDir: string) {
   );
   return projectDir;
 });
-
 const forkRunnerLayer = layerQueryRunner.pipe(
   Layer.provide(Layer.succeed(ProviderEventLoggers, { native: undefined, canonical: undefined })),
 );
-
 it.effect("forks a session stored under the instance's own CLAUDE_CONFIG_DIR", () =>
   Effect.scoped(
     Effect.gen(function* () {
@@ -81,7 +75,6 @@ it.effect("forks a session stored under the instance's own CLAUDE_CONFIG_DIR", (
       const hostConfigDir = process.env.CLAUDE_CONFIG_DIR;
       const inProcessFork = vi.spyOn(ClaudeSdk, "forkSession");
       yield* Effect.addFinalizer(() => Effect.sync(() => inProcessFork.mockRestore()));
-
       const runner = yield* ClaudeAgentSdkQueryRunner;
       const forked = yield* runner.forkSession({
         sessionId: FORK_SESSION_ID,
@@ -90,7 +83,6 @@ it.effect("forks a session stored under the instance's own CLAUDE_CONFIG_DIR", (
         threadId: ThreadId.make("thread-fork-config-dir"),
         providerSessionId: ProviderSessionId.make("session-fork-config-dir"),
       });
-
       assert.notEqual(forked.sessionId, FORK_SESSION_ID);
       const transcript = yield* fileSystem.readFileString(
         path.join(projectDir, `${forked.sessionId}.jsonl`),
@@ -118,7 +110,6 @@ const realQueryRunner = layerQueryRunner.pipe(
   ),
   Layer.provide(NodeServices.layer),
 );
-
 const resumedMcpQueryInput = {
   threadId: ThreadId.make("thread-restart-registration"),
   providerSessionId: ProviderSessionId.make("session-restart-registration"),
@@ -136,7 +127,6 @@ const resumedMcpQueryInput = {
     },
   },
 } satisfies ClaudeAgentSdkQueryOpenInput;
-
 it.effect("reopens a stalled MCP registration before delivering the resumed prompt", () =>
   Effect.scoped(
     Effect.gen(function* () {
@@ -179,7 +169,6 @@ it.effect("reopens a stalled MCP registration before delivering the resumed prom
       finishDisposal.resolve();
       const session = yield* Fiber.join(opening);
       yield* Effect.addFinalizer(() => session.close.pipe(Effect.orDie));
-
       assert.equal(firstClose.mock.calls.length, 1);
       assert.equal(secondClose.mock.calls.length, 0);
       assert.equal(querySpy.mock.calls.length, 2);
@@ -202,7 +191,6 @@ it.effect("reopens a stalled MCP registration before delivering the resumed prom
     }).pipe(Effect.provide(realQueryRunner)),
   ),
 );
-
 it.effect.each([true, false])("only retries after confirmed process exit: %s", (exits) =>
   Effect.scoped(
     Effect.gen(function* () {
@@ -260,7 +248,6 @@ it.effect.each([true, false])("only retries after confirmed process exit: %s", (
         .pipe(Effect.exit, Effect.forkChild);
       yield* Effect.promise(() => registrationStarted.promise);
       yield* TestClock.adjust("90 seconds");
-
       assert.equal(yield* Effect.promise(() => cleanupProgress.promise), "kill");
       assert.equal(querySpy.mock.calls.length, 1);
       assert.deepEqual(child.kill.mock.calls, [["SIGKILL"]]);
@@ -274,7 +261,6 @@ it.effect.each([true, false])("only retries after confirmed process exit: %s", (
     }).pipe(Effect.provide(realQueryRunner)),
   ),
 );
-
 it.effect("stops retrying MCP registration after two timeouts and reports the cause", () =>
   Effect.scoped(
     Effect.gen(function* () {
@@ -301,7 +287,6 @@ it.effect("stops retrying MCP registration after two timeouts and reports the ca
       yield* Effect.promise(() => secondRegistration.promise);
       yield* TestClock.adjust("90 seconds");
       const result = yield* Fiber.join(opening);
-
       assert.equal(result._tag, "Failure");
       if (result._tag !== "Failure") return;
       assert.equal(querySpy.mock.calls.length, 2);
@@ -315,7 +300,6 @@ it.effect("stops retrying MCP registration after two timeouts and reports the ca
     }).pipe(Effect.provide(realQueryRunner)),
   ),
 );
-
 it.effect("cancels a stalled registration without retrying or retaining its prompt queue", () =>
   Effect.scoped(
     Effect.gen(function* () {
@@ -336,7 +320,6 @@ it.effect("cancels a stalled registration without retrying or retaining its prom
       const opening = yield* runner.open(resumedMcpQueryInput).pipe(Effect.forkChild);
       yield* Effect.promise(() => registrationStarted.promise);
       yield* Fiber.interrupt(opening);
-
       assert.equal(querySpy.mock.calls.length, 1);
       assert.equal(disposed.mock.calls.length, 1);
       const prompt = querySpy.mock.calls[0]![0].prompt;
@@ -345,7 +328,6 @@ it.effect("cancels a stalled registration without retrying or retaining its prom
     }).pipe(Effect.provide(realQueryRunner)),
   ),
 );
-
 it.effect("does not reuse a fresh session ID after MCP registration times out", () =>
   Effect.scoped(
     Effect.gen(function* () {
@@ -373,21 +355,18 @@ it.effect("does not reuse a fresh session ID after MCP registration times out", 
       yield* Effect.promise(() => registrationStarted.promise);
       yield* TestClock.adjust("90 seconds");
       const result = yield* Fiber.join(opening);
-
       assert.equal(result._tag, "Failure");
       assert.equal(querySpy.mock.calls.length, 1);
       assert.equal(disposed.mock.calls.length, 1);
     }).pipe(Effect.provide(realQueryRunner)),
   ),
 );
-
 function fakeClaudeCli(script: string): string {
   const dir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-claude-cli-"));
   const cli = NodePath.join(dir, "claude");
   NodeFS.writeFileSync(cli, `#!/bin/sh\n${script}\n`, { mode: 0o755 });
   return cli;
 }
-
 const openFakeCli = (cli: string) =>
   Effect.gen(function* () {
     const runner = yield* ClaudeAgentSdkQueryRunner;
@@ -403,7 +382,6 @@ const openFakeCli = (cli: string) =>
       },
     });
   });
-
 describe.skipIf(HostProcess.Platform.defaultValue() === "win32")("Claude CLI process", () => {
   // The leftover child holds a FIFO open; its death produces EOF without polling.
   it.effect("stops what the CLI left running when the session closes", () =>
@@ -430,7 +408,6 @@ describe.skipIf(HostProcess.Platform.defaultValue() === "win32")("Claude CLI pro
       const leftoverStarted = new Promise<void>((resolve) => alive.once("open", () => resolve()));
       const leftoverStopped = new Promise<void>((resolve) => alive.once("close", () => resolve()));
       alive.resume();
-
       const stopped = yield* Deferred.make<string>();
       const session = yield* openFakeCli(cli).pipe(
         Effect.provide(
@@ -452,7 +429,6 @@ describe.skipIf(HostProcess.Platform.defaultValue() === "win32")("Claude CLI pro
       assert.strictEqual(yield* Deferred.await(stopped), "t3code-claude-test.scope");
     }),
   );
-
   // The CLI keeps running its turn after its pipes close, so a server that
   // crashed would leave it working next to the session it resumes.
   it.effect("stops the CLI when the server that started it goes away", () =>
@@ -481,7 +457,6 @@ describe.skipIf(HostProcess.Platform.defaultValue() === "win32")("Claude CLI pro
       const turnStopped = new Promise<void>((resolve) => alive.once("close", () => resolve()));
       alive.resume();
       yield* Effect.promise(() => turnStarted);
-
       // A dying server's descriptors close; the kernel would do this for it.
       for (const pipe of child.stdio) pipe?.destroy();
       yield* Effect.promise(() => turnStopped);

@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useState } from "react";
 
 import { Button } from "~/components/ui/button";
@@ -29,20 +30,20 @@ export function PreviewFileNotShown({
       <div className="mx-auto flex w-full max-w-xl flex-1 flex-col px-8 py-12 sm:py-16">
         <ErrorIcon className="mb-6 size-12 text-muted-foreground/70" />
         <h1 className="mb-3 text-2xl font-semibold leading-tight text-foreground">
-          This file can&rsquo;t be shown here
+          {uiText("This file can&rsquo;t be shown here")}
         </h1>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          <span className="font-semibold text-foreground">{fileName}</span> from {host} was
-          downloaded instead.
+          <span className="font-semibold text-foreground">{fileName}</span> {uiText("from") + " "}
+          {host} {uiText("was downloaded instead.") + " "}
         </p>
         <div className="mt-auto flex items-center gap-2 pt-8">
           <div className="flex-1" />
           <Button type="button" variant="outline" size="sm" onClick={onOpen}>
-            Open in browser
+            {uiText("Open in browser")}
           </Button>
           {downloadUrl ? (
             <Button type="button" size="sm" render={<a href={downloadUrl} download={fileName} />}>
-              Download
+              {uiText("Download")}
             </Button>
           ) : null}
         </div>
@@ -62,7 +63,7 @@ export function PreviewUnreachable({ url, code, description, onReload, move }: P
       <div className="mx-auto flex w-full max-w-xl flex-1 flex-col px-8 py-12 sm:py-16">
         <ErrorIcon className="mb-6 size-12 text-muted-foreground/70" />
         <h1 className="mb-3 text-2xl font-semibold leading-tight text-foreground">
-          This site can&rsquo;t be reached
+          {uiText("This site can&rsquo;t be reached")}
         </h1>
         <p className="text-sm leading-relaxed text-muted-foreground">
           <span className="font-semibold text-foreground">{host}</span>: {friendly}.
@@ -70,14 +71,18 @@ export function PreviewUnreachable({ url, code, description, onReload, move }: P
 
         {showDetails ? (
           <div className="mt-6 rounded-lg border border-border bg-muted/40 p-4 text-sm">
-            <p className="mb-2 font-medium text-foreground">Try:</p>
+            <p className="mb-2 font-medium text-foreground">{uiText("Try:")}</p>
             <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
-              <li>Checking your connection</li>
-              <li>Confirming the dev server is running</li>
+              <li>{uiText("Checking your connection")}</li>
+              <li>{uiText("Confirming the dev server is running")}</li>
               {move ? (
-                <li>Opening it in the environment&rsquo;s browser, which reaches its network</li>
+                <li>
+                  {uiText(
+                    "Opening it in the environment&rsquo;s browser, which reaches its network",
+                  )}
+                </li>
               ) : null}
-              <li>Checking the proxy and the firewall</li>
+              <li>{uiText("Checking the proxy and the firewall")}</li>
             </ul>
           </div>
         ) : null}
@@ -93,7 +98,7 @@ export function PreviewUnreachable({ url, code, description, onReload, move }: P
             size="sm"
             onClick={() => setShowDetails((value) => !value)}
           >
-            {showDetails ? "Hide details" : "Details"}
+            {showDetails ? uiText("Hide details") : uiText("Details")}
           </Button>
           <div className="flex-1" />
           {move ? (
@@ -102,7 +107,7 @@ export function PreviewUnreachable({ url, code, description, onReload, move }: P
             </Button>
           ) : null}
           <Button type="button" size="sm" onClick={onReload}>
-            Reload
+            {uiText("Reload")}
           </Button>
         </div>
       </div>

@@ -85,9 +85,7 @@ export function downloadContentDisposition(fileName?: string): string {
     /['()*]/g,
     (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
   );
-  return `attachment; filename="${asciiFallback}"${
-    needsExtended ? `; filename*=UTF-8''${extendedName}` : ""
-  }`;
+  return `attachment; filename="${asciiFallback}"${needsExtended ? `; filename*=UTF-8''${extendedName}` : ""}`;
 }
 
 export function assetResponseHeaders(
@@ -269,7 +267,7 @@ export const layerBrowserApiCors = Layer.unwrap(
   }),
 );
 
-function isLoopbackHostname(hostname: string): boolean {
+export function isLoopbackHostname(hostname: string): boolean {
   const normalizedHostname = hostname
     .trim()
     .toLowerCase()
@@ -284,8 +282,7 @@ function resolveDevRedirectUrl(devUrl: URL, requestUrl: URL): string {
   redirectUrl.hash = requestUrl.hash;
   return redirectUrl.toString();
 }
-
-const authenticateRawRouteWithScope =
+export const authenticateRawRouteWithScope =
   /* Request instrumentation already owns the span; keep this helper in that context. */
   Effect.fnUntraced(function* (
     scope: typeof AuthOrchestrationReadScope | typeof AuthOrchestrationOperateScope,
@@ -549,7 +546,7 @@ const streamStaticFile = (file: FileSystem.File, size: bigint) =>
     Effect.fnUntraced(function* (offset: bigint) {
       if (offset >= size) return;
       const remaining = size - offset;
-      const bytes = yield* file.readAlloc(Number(remaining < 65_536n ? remaining : 65_536n));
+      const bytes = yield* file.readAlloc(Number(remaining < 65536n ? remaining : 65536n));
       if (Option.isNone(bytes)) return;
       return [bytes.value, offset + BigInt(bytes.value.byteLength)] as const;
     }),

@@ -1,20 +1,16 @@
 import "vite-plus/test/config";
 import { defineConfig, mergeConfig } from "vite-plus";
-
 import baseConfig from "../../vite.config.ts";
 import { loadRepoEnv } from "../../scripts/lib/public-config.ts";
 import rootPackageJson from "../../package.json" with { type: "json" };
 import packageJson from "./package.json" with { type: "json" };
 import { WeightedShardSequencer } from "./src/testUtils/weightedShardSequencer.ts";
-
 // NSIS install time tracks file count, not bytes.
 import {
   isExternalCliDependency,
   shouldBundleCliDependency,
 } from "../../scripts/lib/cli-external-packages.ts";
-
 export { shouldBundleCliDependency };
-
 const repoEnv = loadRepoEnv();
 const cliBuildChannel = /^[^-+]+-(?:nightly|preview)\./.test(packageJson.version)
   ? "nightly"
@@ -27,7 +23,6 @@ if (!TELEMETRY_CHANNELS.includes(telemetryChannel)) {
     `T3CODE_TELEMETRY_CHANNEL must be one of ${TELEMETRY_CHANNELS.join(", ")}, got "${telemetryChannel}".`,
   );
 }
-
 // tsdown SEA needs one chunk (sourcemaps count) and Node >=25.7, so package separately.
 const packExecutable = process.env.T3CODE_PACK_EXE === "1";
 const SEA_TARGETS = {
@@ -58,13 +53,11 @@ const packExecutableTargets = packExecutableTarget
       },
     ]
   : undefined;
-
 // The root config's `projects` route repo-root runs to package configs,
 // including this one. Inheriting them would make this config a container.
 const { projects: _rootTestProjects, ...baseTestConfig } = baseConfig.test ?? {};
 // Workspace cache configuration is invalid on a package config.
 const { run: _rootRunConfig, ...basePackageConfig } = baseConfig;
-
 export default mergeConfig(
   { ...basePackageConfig, test: baseTestConfig },
   defineConfig({
@@ -78,8 +71,11 @@ export default mergeConfig(
       },
     },
     pack: {
-      // SEA embeds one entry; expose the history worker as a hidden subcommand.
-      entry: packExecutable ? ["src/bin.ts"] : ["src/bin.ts", "src/claude-history-worker.ts"],
+      // The executable embeds one entry; the history worker becomes a hidden
+      // subcommand there instead of a sibling script.
+      entry: packExecutable
+        ? ["src/bin.ts"]
+        : ["src/bin.ts", "src/claude-history-worker.ts", "src/spotlight-search-worker.ts"],
       outDir: packExecutable ? "dist-exe" : "dist",
       sourcemap: !packExecutable,
       clean: true,
@@ -132,8 +128,8 @@ export default mergeConfig(
         "./src/testUtils/gitConfig.setup.ts",
         "./src/testUtils/managedServiceEnv.setup.ts",
       ],
-      hookTimeout: 120_000,
-      testTimeout: 120_000,
+      hookTimeout: 120000,
+      testTimeout: 120000,
     },
   }),
 );

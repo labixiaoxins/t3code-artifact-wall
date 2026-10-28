@@ -1,4 +1,6 @@
 import * as GuestShareService from "../guest/GuestShareService.ts";
+import * as ClaudeUsageProtection from "./ClaudeUsageProtection.ts";
+import * as ClaudeUsageProtectionWorker from "./ClaudeUsageProtectionWorker.ts";
 import * as UsageLimitRecoveryWorker from "./UsageLimitRecoveryWorker.ts";
 import * as Scheduler from "../scheduling/Scheduler.ts";
 import * as Layer from "effect/Layer";
@@ -56,23 +58,19 @@ import * as ThreadForkService from "./ThreadForkService.ts";
 import * as TurnItemPositionStore from "./TurnItemPositionStore.ts";
 import * as ScheduledTaskService from "../scheduledTasks/ScheduledTaskService.ts";
 import * as SecretRequests from "../secrets/SecretRequests.ts";
-
 export const layerEventInfrastructure = Layer.mergeAll(
   OrchestrationEventStore.layer,
   OrchestrationCommandReceipts.layer,
 );
-
 const layerRuntimePolicyProvided = RuntimePolicy.layerFromProjectStore.pipe(
   Layer.provide(ProjectStore.layer),
 );
-
 const layerEventStoreProvided = EventStore.layerFromOrchestrationEventStore.pipe(
   Layer.provide(layerEventInfrastructure),
 );
 const layerCommandReceiptStoreProvided = CommandReceiptStore.layerFromApplicationReceipts.pipe(
   Layer.provide(layerEventInfrastructure),
 );
-
 const layerStores = Layer.mergeAll(
   layerEventInfrastructure,
   layerEventStoreProvided,
@@ -82,7 +80,6 @@ const layerStores = Layer.mergeAll(
   EffectOutbox.layer,
   TurnItemPositionStore.layer,
 );
-
 export const layerEventSink = EventSink.layerFromStores.pipe(Layer.provide(layerStores));
 const layerEventSinkProvided = layerEventSink;
 const layerProjectionMaintenanceProvided = ProjectionMaintenance.layer.pipe(
@@ -91,7 +88,6 @@ const layerProjectionMaintenanceProvided = ProjectionMaintenance.layer.pipe(
 const layerLegacyV1ThreadImporterProvided = LegacyV1ThreadImporter.layer.pipe(
   Layer.provide(layerEventSinkProvided),
 );
-
 export const layerProjectService = ProjectService.layer.pipe(
   Layer.provide(
     Layer.mergeAll(
@@ -103,7 +99,6 @@ export const layerProjectService = ProjectService.layer.pipe(
     ),
   ),
 );
-
 const layerProviderEventIngestorProvided = ProviderEventIngestor.layer.pipe(
   Layer.provide(
     Layer.mergeAll(
@@ -115,24 +110,20 @@ const layerProviderEventIngestorProvided = ProviderEventIngestor.layer.pipe(
     ),
   ),
 );
-
 const layerCheckpointServiceProvided = CheckpointService.layer.pipe(
   Layer.provide(IdAllocator.layer),
 );
 const layerContextHandoffServiceProvided = ContextHandoffService.layer.pipe(
   Layer.provide(IdAllocator.layer),
 );
-
 const layerProviderAdapterRegistryProvided =
   ProviderAdapterRegistry.layerFromProviderInstanceRegistry;
 const layerProviderSwitchServiceProvided = ProviderSwitchService.layer.pipe(
   Layer.provide(layerProviderAdapterRegistryProvided),
 );
-
 const layerCommandOutputHubProvided = CommandOutputHub.layer.pipe(
   Layer.provide(Layer.merge(layerEventSinkProvided, ProjectionStore.layer)),
 );
-
 const layerProviderSessionManagerProvided = ProviderSessionManager.layer.pipe(
   Layer.provide(
     Layer.mergeAll(
@@ -145,11 +136,9 @@ const layerProviderSessionManagerProvided = ProviderSessionManager.layer.pipe(
     ),
   ),
 );
-
 const layerProviderAuthServiceProvided = ProviderAuthService.layer.pipe(
   Layer.provide(Layer.merge(ProjectionStore.layer, layerProviderSessionManagerProvided)),
 );
-
 const layerRunExecutionServiceProvided = RunExecutionService.layer.pipe(
   Layer.provide(
     Layer.mergeAll(
@@ -163,7 +152,6 @@ const layerRunExecutionServiceProvided = RunExecutionService.layer.pipe(
     ),
   ),
 );
-
 const layerProviderTurnStartServiceProvided = ProviderTurnStartService.layer.pipe(
   Layer.provide(
     Layer.mergeAll(
@@ -178,7 +166,6 @@ const layerProviderTurnStartServiceProvided = ProviderTurnStartService.layer.pip
     ),
   ),
 );
-
 const layerProviderTurnControlServiceProvided = ProviderTurnControlService.layer.pipe(
   Layer.provide(Layer.merge(ProjectionStore.layer, layerProviderSessionManagerProvided)),
 );
@@ -212,8 +199,8 @@ const layerCheckpointCaptureServiceProvided = CheckpointCaptureService.layer.pip
 const layerRunFinalizationServiceProvided = RunFinalizationService.layer.pipe(
   Layer.provide(Layer.merge(layerCheckpointCaptureServiceProvided, ProjectionStore.layer)),
 );
-
 const layerOrchestratorProvided = Orchestrator.layer.pipe(
+  Layer.provide(ClaudeUsageProtection.layer),
   Layer.provide(
     Layer.mergeAll(
       layerCheckpointServiceProvided,
@@ -225,7 +212,8 @@ const layerOrchestratorProvided = Orchestrator.layer.pipe(
       IdAllocator.layer,
       ProjectStore.layer,
       layerProviderAdapterRegistryProvided,
-      // Reuse the continuation worker's layer reference so memoization shares one request queue.
+      // Same layer reference as the continuation worker and the adapter
+      // infrastructure so layer memoization yields one shared request queue.
       ProviderContinuationRequests.layer,
       layerProviderEventIngestorProvided,
       layerRuntimePolicyProvided,
@@ -236,7 +224,6 @@ const layerOrchestratorProvided = Orchestrator.layer.pipe(
     ),
   ),
 );
-
 const layerAgentSessionImporterProvided = AgentSessionImporter.layer.pipe(
   Layer.provide(
     Layer.mergeAll(
@@ -249,7 +236,6 @@ const layerAgentSessionImporterProvided = AgentSessionImporter.layer.pipe(
     ),
   ),
 );
-
 const layerThreadManagementProvided = ThreadManagementService.layerWithLegacyImporter.pipe(
   Layer.provide(
     Layer.mergeAll(
@@ -336,7 +322,6 @@ const layerProviderRuntimeRecoveryProvided = ProviderRuntimeRecoveryService.laye
     ),
   ),
 );
-
 const layerMcpAppRequestsProvided = McpAppRequests.layer.pipe(
   Layer.provide(
     Layer.mergeAll(
@@ -347,7 +332,6 @@ const layerMcpAppRequestsProvided = McpAppRequests.layer.pipe(
     ),
   ),
 );
-
 export const layer = Layer.mergeAll(
   layerCommandOutputHubProvided,
   layerOrchestratorProvided,
@@ -360,7 +344,6 @@ export const layer = Layer.mergeAll(
   layerProjectionMaintenanceProvided,
   layerLegacyV1ThreadImporterProvided,
 );
-
 export const layerProduction = Layer.mergeAll(
   layer.pipe(Layer.provide(layerProjectService)),
   layerProjectService,
@@ -380,6 +363,9 @@ export const layerProduction = Layer.mergeAll(
         layerOrchestratorProvided,
       ),
     ),
+  ),
+  ClaudeUsageProtectionWorker.layer.pipe(
+    Layer.provide(Layer.mergeAll(ClaudeUsageProtection.layer, layerOrchestratorProvided)),
   ),
   layerProviderContinuationWorkerProvided,
   layerAgentSessionImporterProvided,

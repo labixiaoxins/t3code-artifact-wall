@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { SettingsGroup } from "./SettingsGroup";
 import { AuthSettingsWriteScope } from "@t3tools/contracts";
 import { usePrimaryEnvironmentId, usePrimaryEnvironment } from "../../state/environments";
@@ -7,7 +8,6 @@ import { DEFAULT_SERVER_SETTINGS, type ServerSettings } from "@t3tools/contracts
 import * as Equal from "effect/Equal";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { createContext, type ComponentPropsWithoutRef, type ReactNode, useContext } from "react";
-
 import {
   PRIMARY_SETTINGS_UNAVAILABLE_MESSAGE,
   usePrimarySettingsAvailable,
@@ -31,28 +31,23 @@ import {
   type SettingInheritanceState,
   type SettingOverridingProject,
 } from "./SettingInheritance";
-
 const EMPTY_SETTING_KEYS: readonly (keyof ServerSettings)[] = [];
-
 declare module "@tanstack/react-router" {
   interface HistoryState {
     settingsTargetHighlight?: boolean;
   }
 }
-
 interface SettingsSearchTargetContextValue {
   readonly targetId: string | null;
   readonly highlightTarget: boolean;
   readonly onTargetHandled: () => void;
 }
-
 const noop = () => undefined;
 const SettingsSearchTargetContext = createContext<SettingsSearchTargetContextValue>({
   targetId: null,
   highlightTarget: true,
   onTargetHandled: noop,
 });
-
 function SettingsSearchTargetProvider({
   targetId,
   highlightTarget = true,
@@ -67,9 +62,7 @@ function SettingsSearchTargetProvider({
   const value = { targetId, highlightTarget, onTargetHandled };
   return <SettingsSearchTargetContext value={value}>{children}</SettingsSearchTargetContext>;
 }
-
 let pendingTargetScroll: AbortController | undefined;
-
 function scrollAndFocusSettingsTarget(target: HTMLElement, highlight = true): void {
   pendingTargetScroll?.abort();
   const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -82,7 +75,6 @@ function scrollAndFocusSettingsTarget(target: HTMLElement, highlight = true): vo
     (target.tagName === "SECTION" && target.firstElementChild
       ? (target.firstElementChild as HTMLElement)
       : target);
-
   const scroll = () =>
     scrollTarget.scrollIntoView({
       behavior: prefersReducedMotion ? "auto" : "smooth",
@@ -146,11 +138,9 @@ function scrollAndFocusSettingsTarget(target: HTMLElement, highlight = true): vo
     once: true,
   });
 }
-
 export function useSettingsSearchTargetId(): string | null {
   return useContext(SettingsSearchTargetContext).targetId;
 }
-
 export function useSettingsSearchTarget<T extends HTMLElement>(id: string | undefined) {
   const { targetId, highlightTarget, onTargetHandled } = useContext(SettingsSearchTargetContext);
   const isSearchTarget = id !== undefined && id === targetId;
@@ -160,10 +150,8 @@ export function useSettingsSearchTarget<T extends HTMLElement>(id: string | unde
       onTargetHandled();
     }
   };
-
   return targetRef;
 }
-
 export function SettingsSearchTarget({
   children,
   ...targetProps
@@ -175,18 +163,20 @@ export function SettingsSearchTarget({
     </div>
   );
 }
-
 // Settings pickers reuse composer controls but match the bordered selects beside them.
 export const SETTINGS_PICKER_TRIGGER_CLASSNAME =
   "min-w-0 max-w-none shrink-0 border-input bg-background font-normal text-foreground shadow-xs/5 hover:bg-accent/50 dark:bg-input/32 [&_svg[data-composer-control-chevron]]:stroke-[1.75] [&_svg[data-composer-control-chevron]]:opacity-70";
-
 export function PolicyTooltip({ children }: { readonly children: string }) {
   return (
     <Tooltip>
       <TooltipTrigger
         delay={200}
         render={
-          <Button size="icon-micro" variant="ghost-muted" aria-label="Background policy details">
+          <Button
+            size="icon-micro"
+            variant="ghost-muted"
+            aria-label={uiText("Background policy details")}
+          >
             <InfoIcon className="size-3.5" />
           </Button>
         }
@@ -195,7 +185,6 @@ export function PolicyTooltip({ children }: { readonly children: string }) {
     </Tooltip>
   );
 }
-
 export function SettingsSection({
   title,
   hideTitle = false,
@@ -216,7 +205,6 @@ export function SettingsSection({
   children: ReactNode;
 }) {
   const targetRef = useSettingsSearchTarget<HTMLElement>(sectionProps.id);
-
   return (
     <section
       {...sectionProps}
@@ -232,7 +220,7 @@ export function SettingsSection({
           className="flex min-h-7 items-start justify-between gap-4 px-3 sm:px-4"
         >
           <div className="flex min-w-0 items-center gap-1">
-            <h2 className="flex min-h-7 items-center gap-2 text-base font-semibold text-foreground">
+            <h2 className="flex min-h-7 items-center gap-2 text-sm font-semibold text-foreground">
               {icon}
               {title}
             </h2>
@@ -247,7 +235,6 @@ export function SettingsSection({
     </section>
   );
 }
-
 export function SettingsUnavailableGroup({
   children,
   message,
@@ -256,7 +243,6 @@ export function SettingsUnavailableGroup({
   message?: ReactNode;
 }) {
   if (message === undefined) return children;
-
   return (
     <div className="border-border/60 bg-muted/20 py-1.5">
       <div className="flex items-start gap-2 px-3 py-2 text-xs leading-relaxed text-muted-foreground sm:px-4">
@@ -267,7 +253,6 @@ export function SettingsUnavailableGroup({
     </div>
   );
 }
-
 function projectOverrides(
   context: ReturnType<typeof useOptionalSettingsScope>,
   scopedKeys: ReadonlyArray<keyof ServerSettings>,
@@ -293,7 +278,6 @@ function projectOverrides(
     ];
   });
 }
-
 export function SettingsRow({
   title,
   description,
@@ -364,8 +348,8 @@ export function SettingsRow({
   const renderedReset = unavailable ? null : isProjectScope && scopedKeys.length > 0 ? (
     source === "project" || source === "mixed" ? (
       <SettingResetButton
-        label={typeof title === "string" ? title : "override"}
-        tooltip="Reset to inherited value"
+        label={typeof title === "string" ? title : uiText("override")}
+        tooltip={uiText("Reset to inherited value")}
         onClick={() => (onResetOverride ? onResetOverride() : clearOverrides(scopedKeys))}
       />
     ) : null
@@ -422,7 +406,10 @@ export function SettingsRow({
         );
       }),
     );
-  const inheritance: { state: SettingInheritanceState; summary: string } = mixed
+  const inheritance: {
+    state: SettingInheritanceState;
+    summary: string;
+  } = mixed
     ? { state: "mixed", summary: "Mixed across selected environments" }
     : source === "project"
       ? { state: "overridden", summary: "Overridden for this project" }
@@ -451,7 +438,6 @@ export function SettingsRow({
       />
     ) : null;
   const renderedStatus = status;
-
   return (
     <div
       {...rowProps}
@@ -510,7 +496,6 @@ export function SettingsRow({
     </div>
   );
 }
-
 export function SettingResetButton({
   label,
   tooltip = "Reset to default",
@@ -529,7 +514,7 @@ export function SettingResetButton({
           <Button
             size="icon-micro"
             variant="ghost-muted"
-            aria-label={`Reset ${label} to default`}
+            aria-label={uiText("Reset {0} to default", { "0": label })}
             disabled={disabled}
             onClick={(event) => {
               event.stopPropagation();
@@ -544,7 +529,6 @@ export function SettingResetButton({
     </Tooltip>
   );
 }
-
 export function SettingsPageContainer({
   children,
   className,
@@ -569,7 +553,6 @@ export function SettingsPageContainer({
       state: { settingsTargetHighlight: true },
     });
   };
-
   return (
     <SettingsSearchTargetProvider
       targetId={targetId}
@@ -588,10 +571,13 @@ export function SettingsPageContainer({
     </SettingsSearchTargetProvider>
   );
 }
-
 export function scrollToSettingsTarget(
   targetId: string,
-  { highlight = true }: { readonly highlight?: boolean } = {},
+  {
+    highlight = true,
+  }: {
+    readonly highlight?: boolean;
+  } = {},
 ): boolean {
   const target = document.getElementById(targetId);
   if (!target) return false;

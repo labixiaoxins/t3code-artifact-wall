@@ -1,4 +1,11 @@
 import {
+  StorageActionInput,
+  StorageInspection,
+  StorageInspectInput,
+  StorageOperation,
+  StorageManagementError,
+} from "./storageManagement.ts";
+import {
   OrchestrationV2SearchThreadError,
   OrchestrationV2SearchThreadInput,
   OrchestrationV2SearchThreadResult,
@@ -335,6 +342,7 @@ import {
   ProviderConsumeResetCreditResult,
 } from "./providerUsageLimits.ts";
 import { UsagePricing, UsageReadError, UsageSummary, UsageSummaryInput } from "./usage.ts";
+import { DiskSpaceInput, DiskSpaceReport } from "./diskSpace.ts";
 import {
   StorageCleanupReport,
   DatabaseStorageStatus,
@@ -486,6 +494,9 @@ export const WS_METHODS = {
   serverRunStorageCleanup: "server.runStorageCleanup",
   serverGetStorageCleanupReport: "server.getStorageCleanupReport",
   serverGetDatabaseStorage: "server.getDatabaseStorage",
+  serverGetDiskSpace: "server.getDiskSpace",
+  serverInspectStorage: "server.inspectStorage",
+  serverManageStorage: "server.manageStorage",
   serverGetSettings: "server.getSettings",
   serverUpdateSettings: "server.updateSettings",
   serverDiscoverSourceControl: "server.discoverSourceControl",
@@ -765,6 +776,23 @@ const WsServerGetDatabaseStorageRpc = Rpc.make(WS_METHODS.serverGetDatabaseStora
   payload: Schema.Struct({}),
   success: Schema.NullOr(DatabaseStorageStatus),
   stream: true,
+  error: EnvironmentAuthorizationError,
+});
+
+const WsServerInspectStorageRpc = Rpc.make(WS_METHODS.serverInspectStorage, {
+  payload: StorageInspectInput,
+  success: StorageInspection,
+  error: Schema.Union([StorageManagementError, EnvironmentAuthorizationError]),
+});
+const WsServerManageStorageRpc = Rpc.make(WS_METHODS.serverManageStorage, {
+  payload: StorageActionInput,
+  success: StorageOperation,
+  error: Schema.Union([StorageManagementError, EnvironmentAuthorizationError]),
+});
+
+const WsServerGetDiskSpaceRpc = Rpc.make(WS_METHODS.serverGetDiskSpace, {
+  payload: DiskSpaceInput,
+  success: DiskSpaceReport,
   error: EnvironmentAuthorizationError,
 });
 
@@ -1943,6 +1971,9 @@ export const WsRpcGroup = RpcGroup.make(
   WsServerRunStorageCleanupRpc,
   WsServerGetStorageCleanupReportRpc,
   WsServerGetDatabaseStorageRpc,
+  WsServerGetDiskSpaceRpc,
+  WsServerInspectStorageRpc,
+  WsServerManageStorageRpc,
   WsServerGetSettingsRpc,
   WsServerUpdateSettingsRpc,
   WsServerDiscoverSourceControlRpc,

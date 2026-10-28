@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   capitalizeTerm,
   sourceControlClients,
@@ -20,12 +21,10 @@ import {
   MessageSquareIcon,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
-
 import { cn } from "~/lib/utils";
 import { readLocalApi } from "~/localApi";
 import { pullRequestEnvironment } from "~/state/pullRequests";
 import { RelativeTime } from "~/components/RelativeTime";
-
 import { Button } from "../ui/button";
 import { PullRequestEditButton } from "./PullRequestEditButton";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "../ui/collapsible";
@@ -56,7 +55,6 @@ import {
   pullRequestReviewOutcomeToneClassName,
 } from "./pullRequestPresentation";
 import { PullRequestGlyph } from "./pullRequestIcons";
-
 interface ReactionSurface {
   readonly canReact: boolean;
   readonly environmentId: EnvironmentId;
@@ -64,7 +62,6 @@ interface ReactionSurface {
   readonly reference: PullRequestRef;
   readonly onRefresh: () => void;
 }
-
 function TimelineBody({
   body,
   markdown,
@@ -93,11 +90,9 @@ function TimelineBody({
     </div>
   );
 }
-
 function ActorName({ actor }: { actor: PullRequestActor | null }) {
-  return <span className="font-semibold text-foreground">{actor?.login ?? "ghost"}</span>;
+  return <span className="font-semibold text-foreground">{actor?.login ?? uiText("ghost")}</span>;
 }
-
 function TimelineMarker({
   children,
   className,
@@ -116,7 +111,6 @@ function TimelineMarker({
     </span>
   );
 }
-
 function IconMarker({ icon, className }: { icon: ReactNode; className?: string | undefined }) {
   return (
     <TimelineMarker className={className}>
@@ -126,7 +120,6 @@ function IconMarker({ icon, className }: { icon: ReactNode; className?: string |
     </TimelineMarker>
   );
 }
-
 function ActorTimelineMarker({
   actors,
   className,
@@ -153,32 +146,28 @@ function ActorTimelineMarker({
     </TimelineMarker>
   );
 }
-
 function friendlyReviewState(value: string): string {
   const words = value.toLowerCase().replaceAll("_", " ").replaceAll("-", " ");
   return words.replace(/^\w/u, (letter) => letter.toUpperCase());
 }
-
 function ReviewStateBadge({ state }: { state: string }) {
   return (
     <span className="text-3xs font-medium text-muted-foreground">{friendlyReviewState(state)}</span>
   );
 }
-
 function OpenOnHostButton({ url, onOpen }: { url: string | null; onOpen: (url: string) => void }) {
   return url === null ? null : (
     <Button
       size="icon-xs"
       variant="ghost-muted"
       className="-mr-1 shrink-0"
-      aria-label="Open activity on host"
+      aria-label={uiText("Open activity on host")}
       onClick={() => onOpen(url)}
     >
       <ExternalLinkIcon className="size-3" />
     </Button>
   );
 }
-
 function ConversationCard({
   event,
   editable,
@@ -199,7 +188,6 @@ function ConversationCard({
   const updateComment = useAtomCommand(pullRequestEnvironment.updateComment, {
     reportFailure: false,
   });
-
   const save = async (body: string) => {
     if (editable === null || saving || editable.kind === "review") return;
     setSaving(true);
@@ -209,13 +197,12 @@ function ConversationCard({
     });
     setSaving(false);
     if (result._tag === "Failure") {
-      toastManager.add({ type: "error", title: "Could not save the comment" });
+      toastManager.add({ type: "error", title: uiText("Could not save the comment") });
       return;
     }
     setEditing(false);
     reactions.onRefresh();
   };
-
   return (
     <article className="group py-2">
       <div className="px-2">
@@ -239,7 +226,10 @@ function ConversationCard({
             </PullRequestMetaLine>
           </div>
           {editable !== null && !editing ? (
-            <PullRequestEditButton aria-label="Edit comment" onClick={() => setEditing(true)} />
+            <PullRequestEditButton
+              aria-label={uiText("Edit comment")}
+              onClick={() => setEditing(true)}
+            />
           ) : null}
           {reactions.canReact || event.reactions.length > 0 ? (
             <PullRequestReactionBar
@@ -262,7 +252,7 @@ function ConversationCard({
             cwd={cwd}
             environmentId={reactions.environmentId}
             threadRef={reactions.threadRef}
-            label="Edit comment"
+            label={uiText("Edit comment")}
             saving={saving}
             onSave={(body) => void save(body)}
             onCancel={() => setEditing(false)}
@@ -282,7 +272,6 @@ function ConversationCard({
     </article>
   );
 }
-
 function uniqueConversationActors(events: ReadonlyArray<PullRequestTimelineEvent>) {
   const actors = new Map<string, PullRequestActor>();
   for (const event of events) {
@@ -291,7 +280,6 @@ function uniqueConversationActors(events: ReadonlyArray<PullRequestTimelineEvent
   }
   return [...actors.values()];
 }
-
 function ConversationGroup({
   events,
   editable,
@@ -309,7 +297,6 @@ function ConversationGroup({
   const actors = uniqueConversationActors(events);
   const first = events[0];
   if (first === undefined) return null;
-
   return (
     <div className="relative mb-5 pl-12 [contain-intrinsic-block-size:48px] [content-visibility:auto]">
       <ActorTimelineMarker
@@ -328,11 +315,13 @@ function ConversationGroup({
           >
             <span className="min-w-0 flex-1">
               <span className="block text-xs font-semibold">
-                {events.length.toLocaleString()} {events.length === 1 ? "comment" : "comments"}
+                {events.length.toLocaleString()}{" "}
+                {events.length === 1 ? uiText("comment") : uiText("comments")}
               </span>
               <span className="block truncate text-3xs text-muted-foreground">
-                {actors.length.toLocaleString()} {actors.length === 1 ? "author" : "authors"} ·{" "}
-                <RelativeTime timestamp={first.at} />
+                {actors.length.toLocaleString()}{" "}
+                {actors.length === 1 ? uiText("author") : uiText("authors")}
+                {" \u00B7"} <RelativeTime timestamp={first.at} />
               </span>
             </span>
             <ChevronDownIcon
@@ -365,7 +354,6 @@ function ConversationGroup({
     </div>
   );
 }
-
 function ReviewThreadEvent({
   event,
   thread,
@@ -384,7 +372,6 @@ function ReviewThreadEvent({
   const dismissed = pullRequestReviewOutcome(event.reviewState) === "dismissed";
   const [expanded, setExpanded] = useState(!thread.isResolved && !dismissed);
   const replyCount = thread.replies.length + thread.moreReplies;
-
   return (
     <div className="group relative mb-5 pl-12 [contain-intrinsic-block-size:48px] [content-visibility:auto]">
       <ActorTimelineMarker
@@ -406,18 +393,24 @@ function ReviewThreadEvent({
         {thread.isResolved ? (
           <span className="inline-flex shrink-0 items-center gap-1 font-medium text-success-foreground">
             <CircleCheckIcon aria-hidden className="size-3" />
-            Resolved
+            {uiText("Resolved")}
           </span>
         ) : null}
-        {dismissed ? <span className="shrink-0 font-medium">Review dismissed</span> : null}
-        {thread.isOutdated ? <span className="shrink-0 font-medium">Outdated</span> : null}
+        {dismissed ? (
+          <span className="shrink-0 font-medium">{uiText("Review dismissed")}</span>
+        ) : null}
+        {thread.isOutdated ? (
+          <span className="shrink-0 font-medium">{uiText("Outdated")}</span>
+        ) : null}
         {expanded ? null : (
           <span className="shrink-0">
-            · {event.actor?.login ?? "ghost"}
+            {"\u00B7 "}
+            {event.actor?.login ?? uiText("ghost")}
             {replyCount > 0 ? (
               <>
                 {" "}
-                · {replyCount.toLocaleString()} {replyCount === 1 ? "reply" : "replies"}
+                {"\u00B7 "}
+                {replyCount.toLocaleString()} {replyCount === 1 ? "reply" : "replies"}
               </>
             ) : null}
           </span>
@@ -462,7 +455,6 @@ function ReviewThreadEvent({
     </div>
   );
 }
-
 function CommitEvent({
   event,
   onOpen,
@@ -474,7 +466,7 @@ function CommitEvent({
     <button
       type="button"
       className="group relative mb-5 block w-full cursor-pointer rounded-sm pl-12 text-left outline-none [contain-intrinsic-block-size:48px] [content-visibility:auto] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-      aria-label={`View commit ${event.id}`}
+      aria-label={uiText("View commit {0}", { "0": event.id })}
       onClick={() => onOpen(event.id)}
     >
       <ActorTimelineMarker
@@ -484,7 +476,7 @@ function CommitEvent({
       <div className="flex min-w-0 items-center gap-2.5 py-1.5">
         <div className="min-w-0 flex-1">
           <div className="truncate text-xs font-semibold text-foreground transition-colors group-hover:text-primary">
-            {event.body ?? "Untitled commit"}
+            {event.body ?? uiText("Untitled commit")}
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-3xs text-muted-foreground">
             <code className="font-mono">{event.id.slice(0, 7)}</code>
@@ -504,7 +496,6 @@ function CommitEvent({
     </button>
   );
 }
-
 function LifecycleEvent({ event, term }: { event: PullRequestTimelineEvent; term: string }) {
   const title = capitalizeTerm(term);
   const presentation =
@@ -522,7 +513,6 @@ function LifecycleEvent({ event, term }: { event: PullRequestTimelineEvent; term
             icon: <PullRequestGlyph.closed className="size-3.5" />,
             label: `${title} closed`,
           };
-
   return (
     <div className="relative mb-5 pl-12 [contain-intrinsic-block-size:48px] [content-visibility:auto]">
       <IconMarker icon={presentation.icon} />
@@ -538,7 +528,6 @@ function LifecycleEvent({ event, term }: { event: PullRequestTimelineEvent; term
     </div>
   );
 }
-
 function ReviewVerdictEvent({
   event,
   outcome,
@@ -579,7 +568,9 @@ function ReviewVerdictEvent({
                 }
               >
                 {pullRequestReviewOutcomeLabel(outcome)}
-                {stale ? <span className="sr-only">, before the latest commits</span> : null}
+                {stale ? (
+                  <span className="sr-only">{uiText(", before the latest commits")}</span>
+                ) : null}
               </TooltipTrigger>
               <TooltipPopup>{pullRequestReviewOutcomeStaleLabel(outcome)}</TooltipPopup>
             </Tooltip>
@@ -623,7 +614,6 @@ function ReviewVerdictEvent({
     </div>
   );
 }
-
 export function PullRequestTimelineTab({
   scrollerRef,
   detail,
@@ -665,7 +655,6 @@ export function PullRequestTimelineTab({
   const openOnHost = (url: string) => {
     void readLocalApi()?.shell.openExternal(url);
   };
-
   return (
     <div ref={scrollerRef} className="scrollbar-gutter-both h-full overflow-y-auto px-4 py-5">
       <div className="mx-auto max-w-3xl">
@@ -718,11 +707,10 @@ export function PullRequestTimelineTab({
             return <LifecycleEvent key={event.id} event={event} term={term} />;
           })}
         </div>
-
         {events.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
             <PullRequestGlyph.pullRequest className="mb-2 size-5" />
-            <p className="text-xs">No activity yet.</p>
+            <p className="text-xs">{uiText("No activity yet.")}</p>
           </div>
         ) : null}
       </div>

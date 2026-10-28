@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   defaultInstanceIdForDriver,
   PROVIDER_DISPLAY_NAMES,
@@ -42,7 +43,7 @@ interface ProviderUpdateSidebarPillOptions {
   readonly dismissedKeys?: ReadonlySet<string>;
 }
 
-const PROVIDER_UPDATE_SUCCESS_VISIBLE_MS = 3_000;
+const PROVIDER_UPDATE_SUCCESS_VISIBLE_MS = 3000;
 
 function formatVersion(value: string): string {
   return value.startsWith("v") ? value : `v${value}`;
@@ -373,9 +374,10 @@ export function getProviderUpdateSidebarPillView(
         unchangedProviders.length === 1
           ? `${unchangedProviderName} still needs an update`
           : `${unchangedProviders.length} providers still need updates`,
-      description: `${formatProviderList(unchangedProviders)} ${
-        unchangedProviders.length === 1 ? "still appears" : "still appear"
-      } outdated. Review provider settings for details.`,
+      description: uiText("{0} {1} outdated. Review provider settings for details.", {
+        "0": formatProviderList(unchangedProviders),
+        "1": unchangedProviders.length === 1 ? "still appears" : "still appear",
+      }),
       dismissible: true,
     });
   }
@@ -433,5 +435,7 @@ function getFailedProviderUpdateDescription(providers: ReadonlyArray<ServerProvi
       return provider.updateState.message;
     }
   }
-  return `${formatProviderList(providers)} failed to update. Check provider settings for details.`;
+  return uiText("{0} failed to update. Check provider settings for details.", {
+    "0": formatProviderList(providers),
+  });
 }

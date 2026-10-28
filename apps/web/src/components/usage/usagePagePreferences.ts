@@ -5,7 +5,7 @@ import { getLocalStorageItem, setLocalStorageItem } from "../../hooks/useLocalSt
 
 const STORAGE_KEY = "t3code:usage-page-preferences:v1";
 const UsagePagePreferencesSchema = Schema.Struct({
-  metric: Schema.Literals(["cost", "tokens", "limits"]),
+  metric: Schema.Literals(["cost", "tokens", "limits", "disk"]),
   windowDays: Schema.Literals([1, 7, 30, 90]),
   hiddenProviders: Schema.optional(Schema.Array(UsageProviderKind)),
 });

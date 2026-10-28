@@ -1,5 +1,5 @@
+import { uiText } from "~/i18n";
 import { Spinner } from "~/components/ui/spinner";
-
 import {
   AlertTriangleIcon,
   CheckIcon,
@@ -29,7 +29,6 @@ import {
   type ServerProvider,
   type ServerProviderModel,
 } from "@t3tools/contracts";
-
 import {
   type CustomModelDefinition,
   readCustomModelEntries,
@@ -74,9 +73,7 @@ import {
   getProviderSummary,
   getProviderVersionLabel,
 } from "./providerStatus";
-
 const ENVIRONMENT_VARIABLE_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
-
 function ProviderStatusDiagnostic({
   detail,
   children,
@@ -92,10 +89,8 @@ function ProviderStatusDiagnostic({
     </Tooltip>
   );
 }
-
 let environmentVariableDraftId = 0;
 const nextEnvironmentVariableDraftId = () => `provider-env-${environmentVariableDraftId++}`;
-
 type EnvironmentDraftRow = {
   readonly id: string;
   readonly name: string;
@@ -103,7 +98,6 @@ type EnvironmentDraftRow = {
   readonly sensitive: boolean;
   readonly valueRedacted?: boolean;
 };
-
 function makeEnvironmentDraftRow(
   variable: ProviderInstanceEnvironmentVariable,
   index: number,
@@ -116,10 +110,8 @@ function makeEnvironmentDraftRow(
     ...(variable.valueRedacted !== undefined ? { valueRedacted: variable.valueRedacted } : {}),
   };
 }
-
 const toEnvironmentDraftRows = (environment: ReadonlyArray<ProviderInstanceEnvironmentVariable>) =>
   environment.map(makeEnvironmentDraftRow);
-
 function providerEnvironmentsEqual(
   left: ReadonlyArray<ProviderInstanceEnvironmentVariable>,
   right: ReadonlyArray<ProviderInstanceEnvironmentVariable>,
@@ -138,13 +130,11 @@ function providerEnvironmentsEqual(
     })
   );
 }
-
 function readConfigString(config: unknown, key: string): string | null {
   if (config === null || typeof config !== "object") return null;
   const value = (config as Record<string, unknown>)[key];
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
-
 /** Preserve explicit empty arrays/objects; clearing a custom list differs from selecting driver defaults. */
 function nextConfigBlobWithValue(
   config: unknown,
@@ -156,7 +146,6 @@ function nextConfigBlobWithValue(
   base[key] = value;
   return base;
 }
-
 export function deriveProviderModelsForDisplay(input: {
   readonly liveModels: ReadonlyArray<ServerProviderModel> | undefined;
   readonly customModels: ReadonlyArray<CustomModelDefinition>;
@@ -183,11 +172,9 @@ export function deriveProviderModelsForDisplay(input: {
   );
   return [...serverModels, ...customModels];
 }
-
 function ProviderAuthEmail(props: { readonly email: string | undefined }) {
   const email = props.email?.trim();
   if (!email) return null;
-
   return (
     <RedactedSensitiveText
       value={email}
@@ -198,21 +185,18 @@ function ProviderAuthEmail(props: { readonly email: string | undefined }) {
     />
   );
 }
-
 function readProviderEnvironmentVariable(
   environment: ReadonlyArray<ProviderInstanceEnvironmentVariable> | undefined,
   name: string,
 ): ProviderInstanceEnvironmentVariable | undefined {
   return environment?.find((variable) => variable.name === name);
 }
-
 function providerEnvironmentWithoutNames(
   environment: ReadonlyArray<ProviderInstanceEnvironmentVariable> | undefined,
   names: ReadonlySet<string>,
 ): ReadonlyArray<ProviderInstanceEnvironmentVariable> {
   return (environment ?? []).filter((variable) => !names.has(variable.name));
 }
-
 export function nextProviderEnvironmentWithFieldValue(
   environment: ReadonlyArray<ProviderInstanceEnvironmentVariable> | undefined,
   field: ProviderEnvironmentField,
@@ -221,7 +205,6 @@ export function nextProviderEnvironmentWithFieldValue(
   const trimmed = value.trim();
   const next: ProviderInstanceEnvironmentVariable[] = [];
   let found = false;
-
   for (const variable of environment ?? []) {
     if (variable.name !== field.name) {
       next.push(variable);
@@ -236,7 +219,6 @@ export function nextProviderEnvironmentWithFieldValue(
       });
     }
   }
-
   if (!found && trimmed.length > 0) {
     next.push({
       name: field.name,
@@ -244,10 +226,8 @@ export function nextProviderEnvironmentWithFieldValue(
       sensitive: field.sensitive ?? true,
     });
   }
-
   return next;
 }
-
 function ProviderEnvironmentFieldRow(props: {
   readonly field: ProviderEnvironmentField;
   readonly variable: ProviderInstanceEnvironmentVariable | undefined;
@@ -257,11 +237,10 @@ function ProviderEnvironmentFieldRow(props: {
 }) {
   const inputId = `${props.idPrefix}-environment-${props.field.name}`;
   const value = props.variable?.valueRedacted ? "" : (props.variable?.value ?? "");
-
   return (
     <SettingsRow
       title={<label htmlFor={inputId}>{props.field.label}</label>}
-      description={props.field.description}
+      description={props.field.description ? props.field.description : undefined}
       control={
         <div className="flex w-full min-w-0 items-center gap-2 @min-[32rem]/settings-row:w-56">
           {props.field.sensitive === false ? (
@@ -293,7 +272,7 @@ function ProviderEnvironmentFieldRow(props: {
               size="icon-sm"
               variant="ghost-destructive"
               onClick={() => props.onRemove(props.field)}
-              aria-label={`Clear ${props.field.label}`}
+              aria-label={uiText("Clear {0}", { "0": props.field.label })}
             >
               <XIcon className="size-3.5" />
             </Button>
@@ -303,7 +282,6 @@ function ProviderEnvironmentFieldRow(props: {
     />
   );
 }
-
 export function ProviderEnvironmentSection(props: {
   readonly environment: ReadonlyArray<ProviderInstanceEnvironmentVariable>;
   readonly onChange: (environment: ReadonlyArray<ProviderInstanceEnvironmentVariable>) => void;
@@ -321,7 +299,6 @@ export function ProviderEnvironmentSection(props: {
   const rows = draft.rows;
   const setRows = (nextRows: ReadonlyArray<EnvironmentDraftRow>) =>
     setDraft({ ...draft, rows: nextRows });
-
   const publishRows = (nextRows: ReadonlyArray<EnvironmentDraftRow>) => {
     const published: ProviderInstanceEnvironmentVariable[] = [];
     for (const row of nextRows) {
@@ -343,7 +320,6 @@ export function ProviderEnvironmentSection(props: {
     setDraft({ rows: nextRows, seen: draft.seen, lastPublished: published });
     props.onChange(published);
   };
-
   const updateVariable = (id: string, patch: Partial<Omit<EnvironmentDraftRow, "id">>) => {
     const nextRows = rows.map((row) =>
       row.id === id
@@ -357,13 +333,11 @@ export function ProviderEnvironmentSection(props: {
     setRows(nextRows);
     publishRows(nextRows);
   };
-
   const removeVariable = (id: string) => {
     const nextRows = rows.filter((row) => row.id !== id);
     setRows(nextRows);
     publishRows(nextRows);
   };
-
   const addVariable = () =>
     setRows([
       ...rows,
@@ -374,15 +348,14 @@ export function ProviderEnvironmentSection(props: {
         sensitive: true,
       },
     ]);
-
   return (
     <SettingsRow
-      title="Variables"
-      description="API keys, base URLs, and other per-instance CLI settings."
+      title={uiText("Variables")}
+      description={uiText("API keys, base URLs, and other per-instance CLI settings.")}
       control={
         <Button type="button" size="sm" variant="outline" onClick={addVariable}>
           <PlusIcon className="size-3" />
-          Add variable
+          {uiText("Add variable")}
         </Button>
       }
     >
@@ -398,10 +371,10 @@ export function ProviderEnvironmentSection(props: {
                 onCommit={(name) => updateVariable(variable.id, { name: name.trim() })}
                 placeholder="VARIABLE_NAME"
                 spellCheck={false}
-                aria-label={`Environment variable name ${index + 1}`}
+                aria-label={uiText("Environment variable name {0}", { "0": index + 1 })}
               />
               <span className="hidden text-xs text-muted-foreground sm:inline" aria-hidden>
-                =
+                {"="}
               </span>
               {variable.sensitive ? (
                 <SecretInput
@@ -410,10 +383,10 @@ export function ProviderEnvironmentSection(props: {
                   className="min-w-0 flex-1"
                   value={variable.valueRedacted ? "" : variable.value}
                   onCommit={(value) => updateVariable(variable.id, { value })}
-                  placeholder="value"
+                  placeholder={uiText("value")}
                   configured={variable.valueRedacted === true}
                   spellCheck={false}
-                  aria-label={`Environment variable value ${index + 1}`}
+                  aria-label={uiText("Environment variable value {0}", { "0": index + 1 })}
                 />
               ) : (
                 <DraftInput
@@ -423,9 +396,9 @@ export function ProviderEnvironmentSection(props: {
                   value={variable.valueRedacted ? "" : variable.value}
                   onCommit={(value) => updateVariable(variable.id, { value })}
                   autoComplete="off"
-                  placeholder="value"
+                  placeholder={uiText("value")}
                   spellCheck={false}
-                  aria-label={`Environment variable value ${index + 1}`}
+                  aria-label={uiText("Environment variable value {0}", { "0": index + 1 })}
                 />
               )}
               <Tooltip>
@@ -445,7 +418,9 @@ export function ProviderEnvironmentSection(props: {
                         });
                       }}
                       aria-pressed={variable.sensitive}
-                      aria-label={`Mark environment variable ${variable.name || index + 1} as sensitive`}
+                      aria-label={uiText("Mark environment variable {0} as sensitive", {
+                        "0": variable.name || index + 1,
+                      })}
                     >
                       <MorphIcon
                         className="size-3"
@@ -455,7 +430,9 @@ export function ProviderEnvironmentSection(props: {
                   }
                 />
                 <TooltipPopup side="top">
-                  {variable.sensitive ? "Sensitive, stored separately" : "Plain text"}
+                  {variable.sensitive
+                    ? uiText("Sensitive, stored separately")
+                    : uiText("Plain text")}
                 </TooltipPopup>
               </Tooltip>
               <Button
@@ -463,21 +440,22 @@ export function ProviderEnvironmentSection(props: {
                 size="icon-micro"
                 variant="ghost-destructive"
                 onClick={() => removeVariable(variable.id)}
-                aria-label={`Remove environment variable ${variable.name || index + 1}`}
+                aria-label={uiText("Remove environment variable {0}", {
+                  "0": variable.name || index + 1,
+                })}
               >
                 <XIcon className="size-3" />
               </Button>
             </div>
           ))}
           <p className="text-xs text-muted-foreground">
-            Sensitive values are stored separately and never returned to the app.
+            {uiText("Sensitive values are stored separately and never returned to the app.")}
           </p>
         </div>
       ) : null}
     </SettingsRow>
   );
 }
-
 function ProjectOverrideInheritance({
   projectEnabled,
   deviceEnabled,
@@ -486,8 +464,8 @@ function ProjectOverrideInheritance({
   readonly deviceEnabled: boolean;
 }) {
   const layers = [
-    { key: "project", label: "Project", enabled: projectEnabled, effective: true },
-    { key: "device", label: "Device", enabled: deviceEnabled, effective: false },
+    { key: "project", label: uiText("Project"), enabled: projectEnabled, effective: true },
+    { key: "device", label: uiText("Device"), enabled: deviceEnabled, effective: false },
   ];
   return (
     <Popover>
@@ -499,7 +477,9 @@ function ProjectOverrideInheritance({
                 <Button
                   size="icon-micro"
                   variant="ghost-muted"
-                  aria-label="Overridden for this project. Show where this value comes from"
+                  aria-label={uiText(
+                    "Overridden for this project. Show where this value comes from",
+                  )}
                 />
               }
             />
@@ -507,7 +487,7 @@ function ProjectOverrideInheritance({
         >
           <LayersIcon className="size-3 text-primary" />
         </TooltipTrigger>
-        <TooltipPopup side="top">Overridden for this project</TooltipPopup>
+        <TooltipPopup side="top">{uiText("Overridden for this project")}</TooltipPopup>
       </Tooltip>
       <PopoverPopup align="end" width="md" padding="none">
         <ol role="list" className="px-3 py-2.5 text-sm">
@@ -533,7 +513,7 @@ function ProjectOverrideInheritance({
                   layer.effective ? "text-foreground" : "text-muted-foreground",
                 )}
               >
-                {layer.enabled ? "On" : "Off"}
+                {layer.enabled ? uiText("On") : uiText("Off")}
                 {layer.effective ? (
                   <CheckIcon aria-hidden className="size-3.5 shrink-0 text-primary" />
                 ) : (
@@ -547,14 +527,12 @@ function ProjectOverrideInheritance({
     </Popover>
   );
 }
-
 interface ProjectOverrideControl {
   readonly value: boolean | undefined;
   readonly effectiveEnabled: boolean;
   readonly onChange: (next: boolean) => void;
   readonly onReset: () => void;
 }
-
 interface ProviderInstanceCardProps {
   readonly instanceId: ProviderInstanceId;
   readonly instance: ProviderInstanceConfig;
@@ -594,10 +572,8 @@ interface ProviderInstanceCardProps {
       }>
     | undefined;
 }
-
 const EMPTY_ACP_PROJECTS: NonNullable<ProviderInstanceCardProps["acpProjects"]> = [];
 const NO_CUSTOM_MODELS: ReadonlyArray<CustomModelDefinition> = [];
-
 /** Unknown drivers stay read-only to preserve fork config. projectOverride switches affect only the
  * project, not instance.enabled. */
 export function ProviderInstanceCard({
@@ -676,25 +652,26 @@ export function ProviderInstanceCard({
     instance.displayName?.trim() || driverOption?.label || String(instance.driver);
   const accentColor = normalizeProviderAccentColor(instance.accentColor);
   const redesign = useClientSettings((settings) => settings.redesignEnabled);
-  const { copyToClipboard } = useCopyToClipboard<{ providerName: string }>({
+  const { copyToClipboard } = useCopyToClipboard<{
+    providerName: string;
+  }>({
     onCopy: ({ providerName }) => {
       toastManager.add({
         type: "success",
-        title: `${providerName} update command copied`,
-        description: "Run it in a terminal when you are ready to update.",
+        title: uiText("{0} update command copied", { "0": providerName }),
+        description: uiText("Run it in a terminal when you are ready to update."),
       });
     },
     onError: (error, { providerName }) => {
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: `Could not copy ${providerName} update command`,
+          title: uiText("Could not copy {0} update command", { "0": providerName }),
           description: error.message,
         }),
       );
     },
   });
-
   const driverKind: ProviderDriverKind | null = isProviderDriverKind(instance.driver)
     ? instance.driver
     : null;
@@ -719,7 +696,6 @@ export function ProviderInstanceCard({
         : (rest as ProviderInstanceConfig),
     );
   };
-
   const updateEnabled = (value: boolean) => {
     if (projectOverride) {
       projectOverride.onChange(value);
@@ -727,7 +703,6 @@ export function ProviderInstanceCard({
     }
     onUpdate({ ...instance, enabled: value });
   };
-
   const updateAccentColor = (value: string) => {
     const normalized = normalizeProviderAccentColor(value);
     const { accentColor: _omit, ...rest } = instance;
@@ -737,7 +712,6 @@ export function ProviderInstanceCard({
         : (rest as ProviderInstanceConfig),
     );
   };
-
   const updateConfig = (nextConfig: Record<string, unknown> | undefined) => {
     const { config: _omit, ...rest } = instance;
     onUpdate(
@@ -746,7 +720,6 @@ export function ProviderInstanceCard({
         : (rest as ProviderInstanceConfig),
     );
   };
-
   const updateCustomModels = useStableCallback((next: ReadonlyArray<CustomModelDefinition>) => {
     const nextConfig = nextConfigBlobWithValue(
       instance.config,
@@ -756,7 +729,6 @@ export function ProviderInstanceCard({
     const { config: _omit, ...rest } = instance;
     onUpdate({ ...rest, config: nextConfig } as ProviderInstanceConfig);
   });
-
   const updateEnvironment = (environment: ReadonlyArray<ProviderInstanceEnvironmentVariable>) => {
     const cleaned = environment.filter((variable) => variable.name.trim().length > 0);
     const { environment: _omit, ...rest } = instance;
@@ -786,7 +758,6 @@ export function ProviderInstanceCard({
   const removeEnvironmentField = (field: ProviderEnvironmentField) => {
     updateEnvironment(providerEnvironmentWithoutNames(instance.environment, new Set([field.name])));
   };
-
   const titleIconNode = (
     <ProviderInstanceIcon
       driverKind={driverKind ?? instance.driver}
@@ -808,15 +779,12 @@ export function ProviderInstanceCard({
       badgeClassName="right-[-0.125rem] bottom-[-0.125rem] h-3 min-w-3 px-0.5 text-5xs"
     />
   );
-
   const titleTailNode = headerAction ? (
     <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center">{headerAction}</span>
   ) : null;
-
   const versionCodeNode = versionLabel ? (
     <code className="text-xs text-muted-foreground">{versionLabel}</code>
   ) : null;
-
   const statusDotNode =
     statusKey === "warning" || statusKey === "error" ? (
       <span className={cn("size-1.5 shrink-0 rounded-full", statusStyle.dot)} aria-hidden />
@@ -834,11 +802,19 @@ export function ProviderInstanceCard({
     isAuthenticated && authEmail ? (
       <>
         {needsAttention ? statusDotNode : null}
-        <span>Authenticated as</span>
+        <span>{uiText("Authenticated as")}</span>
         <ProviderAuthEmail email={authEmail} />
-        {authLabel ? <span>· {authLabel}</span> : null}
+        {authLabel ? (
+          <span>
+            {"\u00B7 "}
+            {authLabel}
+          </span>
+        ) : null}
         {inlineStatusDetail ? (
-          <span className="min-w-0 [overflow-wrap:anywhere]">· {inlineStatusDetail}</span>
+          <span className="min-w-0 [overflow-wrap:anywhere]">
+            {"\u00B7 "}
+            {inlineStatusDetail}
+          </span>
         ) : null}
       </>
     ) : (
@@ -846,7 +822,10 @@ export function ProviderInstanceCard({
         {statusDotNode}
         <span>{summary.headline}</span>
         {inlineStatusDetail ? (
-          <span className="min-w-0 [overflow-wrap:anywhere]">· {inlineStatusDetail}</span>
+          <span className="min-w-0 [overflow-wrap:anywhere]">
+            {"\u00B7 "}
+            {inlineStatusDetail}
+          </span>
         ) : null}
       </>
     );
@@ -880,7 +859,7 @@ export function ProviderInstanceCard({
           }
         />
         <TooltipPopup side="top">
-          {updateProgress ? "Updating" : versionAdvisory.title}
+          {updateProgress ? uiText("Updating") : versionAdvisory.title}
         </TooltipPopup>
       </Tooltip>
       <PopoverPopup side="bottom" align="end" width="md" aria-label={versionAdvisory.title}>
@@ -909,10 +888,12 @@ export function ProviderInstanceCard({
             >
               {isUpdating ? <Spinner /> : <DownloadIcon />}
               {isUpdating
-                ? "Updating"
+                ? uiText("Updating")
                 : versionAdvisory.targetVersion
-                  ? `Install ${getProviderVersionLabel(versionAdvisory.targetVersion)}`
-                  : "Update now"}
+                  ? uiText("Install {0}", {
+                      "0": getProviderVersionLabel(versionAdvisory.targetVersion),
+                    })
+                  : uiText("Update now")}
             </Button>
           ) : null}
           {updateProgress || updateProblem ? (
@@ -929,7 +910,7 @@ export function ProviderInstanceCard({
           {onRunVersionAction && updateCommand ? (
             <div className="flex items-center gap-2 text-3xs font-medium uppercase tracking-wider text-muted-foreground">
               <span aria-hidden className="h-px flex-1 bg-border" />
-              or, update manually using
+              {uiText("or, update manually using")}
               <span aria-hidden className="h-px flex-1 bg-border" />
             </div>
           ) : null}
@@ -947,13 +928,13 @@ export function ProviderInstanceCard({
                       variant="ghost-muted"
                       className="shrink-0"
                       onClick={() => copyToClipboard(updateCommand, { providerName: displayName })}
-                      aria-label="Copy update command"
+                      aria-label={uiText("Copy update command")}
                     >
                       <CopyIcon className="size-3" />
                     </Button>
                   }
                 />
-                <TooltipPopup side="top">Copy command</TooltipPopup>
+                <TooltipPopup side="top">{uiText("Copy command")}</TooltipPopup>
               </Tooltip>
             </div>
           ) : null}
@@ -961,7 +942,6 @@ export function ProviderInstanceCard({
       </PopoverPopup>
     </Popover>
   ) : null;
-
   if (mode === "list") {
     return (
       <div
@@ -981,7 +961,7 @@ export function ProviderInstanceCard({
             type="button"
             className="pointer-events-auto absolute inset-0 cursor-pointer rounded-md outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
             onClick={onSelect}
-            aria-label={`Select ${displayName}`}
+            aria-label={uiText("Select {0}", { "0": displayName })}
             aria-pressed={selected}
           />
           {titleIconNode}
@@ -1026,8 +1006,8 @@ export function ProviderInstanceCard({
                 deviceEnabled={resolveProviderInstanceEnabled(instance)}
               />
               <SettingResetButton
-                label={`${displayName} enablement`}
-                tooltip="Reset to the device setting"
+                label={uiText("{0} enablement", { "0": displayName })}
+                tooltip={uiText("Reset to the device setting")}
                 disabled={readOnly || !canWriteSettings}
                 onClick={projectOverride.onReset}
               />
@@ -1037,13 +1017,12 @@ export function ProviderInstanceCard({
             checked={enabled}
             disabled={readOnly || (projectOverride !== undefined && !canWriteSettings)}
             onCheckedChange={(checked) => updateEnabled(Boolean(checked))}
-            aria-label={`Enable ${displayName}`}
+            aria-label={uiText("Enable {0}", { "0": displayName })}
           />
         </span>
       </div>
     );
   }
-
   const editorHeaderAction = (
     <div className="flex shrink-0 items-center gap-1.5">
       {driverOption?.badgeLabel ? (
@@ -1067,7 +1046,7 @@ export function ProviderInstanceCard({
             variant="ghost-destructive"
             disabled={readOnly}
             onClick={onDelete}
-            aria-label={`Delete instance ${instanceId}`}
+            aria-label={uiText("Delete instance {0}", { "0": instanceId })}
           >
             <Trash2Icon />
           </Button>
@@ -1075,7 +1054,6 @@ export function ProviderInstanceCard({
       </span>
     </div>
   );
-
   // The New design gives provider status its own row instead of hanging it under the name field.
   const statusContent = (
     <>
@@ -1106,13 +1084,12 @@ export function ProviderInstanceCard({
             disabled={readOnly}
           >
             <ExternalLinkIcon />
-            Continue authentication
+            {uiText("Continue authentication")}
           </Button>
         </div>
       ) : null}
     </>
   );
-
   const runtimeFields = driverOption ? (
     <ProviderSettingsForm
       definition={driverOption}
@@ -1123,22 +1100,22 @@ export function ProviderInstanceCard({
     />
   ) : (
     <SettingsRow
-      title="Driver"
+      title={uiText("Driver")}
       description={
         <span>
-          This instance uses <code className="text-foreground">{String(instance.driver)}</code>,
-          which is not available in this build. Its configuration is preserved.
+          {"This instance uses "}
+          <code className="text-foreground">{String(instance.driver)}</code>
+          {uiText(", which is not available in this build. Its configuration is preserved.")}
         </span>
       }
     />
   );
-
   return (
     <>
       <SettingsSection title={displayName} icon={titleIconNode} headerAction={editorHeaderAction}>
         {redesign ? <SettingsRow title="Status" status={statusContent} /> : null}
         <SettingsRow
-          title="Display name"
+          title={uiText("Display name")}
           {...(redesign ? {} : { status: statusContent })}
           control={
             <div
@@ -1168,9 +1145,8 @@ export function ProviderInstanceCard({
           }
         />
       </SettingsSection>
-
       {setup || environmentFields.length > 0 ? (
-        <SettingsSection title="Setup">
+        <SettingsSection title={uiText("Setup")}>
           {setup}
           {environmentFields.length > 0 ? (
             <div
@@ -1192,7 +1168,6 @@ export function ProviderInstanceCard({
           ) : null}
         </SettingsSection>
       ) : null}
-
       {instance.driver === "codex" && readCodexSetupMode(instance.config) === "managed" ? (
         <div
           inert={readOnly}
@@ -1202,7 +1177,7 @@ export function ProviderInstanceCard({
           <FoldedSettingsSection
             key={instanceId}
             id={`provider-instance-${instanceId}-runtime`}
-            title="Runtime"
+            title={uiText("Runtime")}
             headerPlacement="outside"
           >
             {runtime ?? runtimeFields}
@@ -1210,7 +1185,7 @@ export function ProviderInstanceCard({
         </div>
       ) : !driverOption || deriveProviderSettingsFields(driverOption).length > 0 ? (
         <SettingsSection
-          title="Runtime"
+          title={uiText("Runtime")}
           inert={readOnly}
           aria-disabled={readOnly || undefined}
           className={readOnly ? "opacity-50 select-none" : undefined}
@@ -1218,9 +1193,8 @@ export function ProviderInstanceCard({
           {runtimeFields}
         </SettingsSection>
       ) : null}
-
       <SettingsSection
-        title="Environment"
+        title={uiText("Environment")}
         inert={readOnly}
         aria-disabled={readOnly || undefined}
         className={readOnly ? "opacity-50 select-none" : undefined}
@@ -1239,13 +1213,13 @@ export function ProviderInstanceCard({
           readOnly={readOnly}
         />
       ) : null}
-
       {driverOption !== undefined ? (
-        <SettingsSection title="Models">
+        <SettingsSection title={uiText("Models")}>
           <div className="px-3 py-3 sm:px-4">
             <p className="mb-3 text-xs text-muted-foreground">
-              Model preferences and custom models are saved on the selected environment and shared
-              across connected devices.
+              {uiText(
+                "Model preferences and custom models are saved on the selected environment and shared across connected devices.",
+              )}
             </p>
             <ProviderModelsSection
               canManageCustomModels={!readOnly}

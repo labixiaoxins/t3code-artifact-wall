@@ -1,3 +1,4 @@
+import * as StorageManagement from "../../../storageManagement.ts";
 import { OrchestratorMcpFailure, type ServerSettings } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Environment from "../../../environment/ServerEnvironment.ts";
@@ -41,6 +42,19 @@ const access = Effect.gen(function* () {
   return { ...context, descriptor, settings: yield* Settings.ServerSettingsService };
 });
 export const layer = McpToolAccess.toLayer(EnvironmentToolkit, {
+  storage_inspect: McpToolAccess.reads((input) =>
+    Effect.gen(function* () {
+      const storage = yield* StorageManagement.StorageManagement;
+      return yield* storage.inspect(input).pipe(Effect.mapError(unavailable));
+    }),
+  ),
+  storage_manage: McpToolAccess.writesEnvironment(({ input }, check) =>
+    Effect.gen(function* () {
+      yield* check;
+      const storage = yield* StorageManagement.StorageManagement;
+      return yield* storage.manage(input).pipe(Effect.mapError(unavailable));
+    }),
+  ),
   t3_environment_read: McpToolAccess.reads(() =>
     Effect.gen(function* () {
       const { descriptor, settings } = yield* access;

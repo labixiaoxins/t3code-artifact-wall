@@ -10,6 +10,7 @@ import * as FileSystem from "effect/FileSystem";
 
 import { RotatingFileSink, makeAsyncRotatingFileSink } from "./logging.ts";
 
+const windowsHost = process.platform === "win32";
 const tempDirectories: string[] = [];
 
 const makeTempDirectory = (): string => {
@@ -108,4 +109,25 @@ describe("RotatingFileSink", () => {
     expect(thrown).toMatchObject({ operation: "rotate", filePath });
     expect(NodeFS.readFileSync(filePath, "utf8")).toBe("oversized");
   });
+
+  it.skipIf(windowsHost)(
+    "protects existing logs and backups and preserves permissions through rotation",
+    () => {
+      const directory = makeTempDirectory();
+      const filePath = NodePath.join(directory, "private.ndjson");
+      NodeFS.writeFileSync(filePath, "prior");
+      NodeFS.writeFileSync(`${filePath}.1`, "older");
+      NodeFS.chmodSync(filePath, 0o644);
+      NodeFS.chmodSync(`${filePath}.1`, 0o644);
+      const sink = new RotatingFileSink({ filePath, maxBytes: 5, maxFiles: 2, throwOnError: true });
+      expect(NodeFS.statSync(filePath).mode & 0o777).toBe(0o600);
+      expect(NodeFS.statSync(`${filePath}.1`).mode & 0o777).toBe(0o600);
+      sink.write("new");
+      for (const target of [filePath, `${filePath}.1`, `${filePath}.2`]) {
+        expect(NodeFS.statSync(target).mode & 0o777).toBe(0o600);
+      }
+      expect(NodeFS.readFileSync(`${filePath}.1`, "utf8")).toBe("prior");
+      expect(NodeFS.readFileSync(`${filePath}.2`, "utf8")).toBe("older");
+    },
+  );
 });

@@ -12,6 +12,14 @@ import { contextBridge, ipcRenderer, webFrame, webUtils } from "electron";
 
 import * as IpcChannels from "./ipc/channels.ts";
 import { mergeLegacyLocalStorage } from "./legacyLocalStorageMerge.ts";
+import { createLocalBootstrapCache } from "./localBootstrapCache.ts";
+const localBootstraps = createLocalBootstrapCache(() => {
+  const result = ipcRenderer.sendSync(IpcChannels.GET_LOCAL_ENVIRONMENT_BOOTSTRAPS_CHANNEL);
+  return Array.isArray(result) ? result : [];
+});
+ipcRenderer.on(IpcChannels.LOCAL_ENVIRONMENT_BOOTSTRAPS_CHANGED_CHANNEL, (_event, entries) => {
+  if (Array.isArray(entries)) localBootstraps.update(entries);
+});
 
 const SNAP_SHOT_EVENT_TYPES = new Set([
   "requested",
@@ -22,7 +30,10 @@ const SNAP_SHOT_EVENT_TYPES = new Set([
 ]);
 function isSnapShotEvent(value: unknown): value is DesktopSnapShotEvent {
   if (typeof value !== "object" || value === null) return false;
-  const { type, id } = value as { type?: unknown; id?: unknown };
+  const { type, id } = value as {
+    type?: unknown;
+    id?: unknown;
+  };
   return (
     typeof type === "string" &&
     SNAP_SHOT_EVENT_TYPES.has(type) &&
@@ -102,13 +113,8 @@ contextBridge.exposeInMainWorld("desktopBridge", {
     const result = ipcRenderer.sendSync(IpcChannels.GET_SYSTEM_LOCALE_CHANNEL);
     return typeof result === "string" ? result : null;
   },
-  getLocalEnvironmentBootstraps: () => {
-    const result = ipcRenderer.sendSync(IpcChannels.GET_LOCAL_ENVIRONMENT_BOOTSTRAPS_CHANNEL);
-    if (!Array.isArray(result)) {
-      return [];
-    }
-    return result as ReturnType<DesktopBridge["getLocalEnvironmentBootstraps"]>;
-  },
+  getLocalEnvironmentBootstraps: localBootstraps.read,
+  onLocalEnvironmentBootstrapsChanged: localBootstraps.subscribe,
   getLocalEnvironmentBearerToken: () =>
     ipcRenderer.invoke(IpcChannels.GET_LOCAL_ENVIRONMENT_BEARER_TOKEN_CHANNEL),
   getLocalEnvironmentEnabled: () =>

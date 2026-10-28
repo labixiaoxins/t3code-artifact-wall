@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   formatFilePathForClipboard,
   type MediaActionId,
@@ -129,7 +130,7 @@ export function MediaActions({
     if (!api || menuOpen.current) return;
     menuOpen.current = true;
     setTooltipOpen(false);
-    let failureTitle = "Could not open media menu";
+    let failureTitle = uiText("Could not open media menu");
     let progressToast: ReturnType<typeof toastManager.add> | undefined;
     const result = await settlePromise(async () => {
       const noun = source.kind === "image" ? "image" : "video";
@@ -140,19 +141,23 @@ export function MediaActions({
         typeof ClipboardItem !== "undefined";
       const items: ContextMenuItem<MediaActionId>[] = [];
       if (reference?.kind === "file") {
-        items.push({ id: "copy-full-path", label: "Copy full path" });
+        items.push({ id: "copy-full-path", label: uiText("Copy full path") });
         if (reference.relativePath)
-          items.push({ id: "copy-relative-path", label: "Copy relative path" });
+          items.push({ id: "copy-relative-path", label: uiText("Copy relative path") });
       } else if (reference?.kind === "url") {
-        items.push({ id: "copy-url", label: "Copy URL" });
+        items.push({ id: "copy-url", label: uiText("Copy URL") });
       }
       if (source.onOpenFile)
-        items.push({ id: "open-file", label: "Open in file viewer", disabled: !canReadMedia });
-      items.push({ id: "save", label: `Save ${noun}`, disabled: unavailable });
+        items.push({
+          id: "open-file",
+          label: uiText("Open in file viewer"),
+          disabled: !canReadMedia,
+        });
+      items.push({ id: "save", label: uiText("Save {0}", { "0": noun }), disabled: unavailable });
       if (source.kind === "image") {
         items.push({
           id: "copy-image",
-          label: "Copy image",
+          label: uiText("Copy image"),
           disabled: unavailable || !canCopyImage,
         });
       }

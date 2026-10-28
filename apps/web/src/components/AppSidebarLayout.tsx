@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useAtomValue } from "@effect/atom-react";
 import * as Schema from "effect/Schema";
 import {
@@ -8,7 +9,9 @@ import {
   type ReactNode,
 } from "react";
 import { useLocation, useRouter, type AnyRouter } from "@tanstack/react-router";
-
+import { SettingsSidebarNav } from "./settings/SettingsSidebarNav";
+import { SidebarChromeHeader } from "./sidebar/SidebarChrome";
+import { ManualClipboardDialog } from "./ManualClipboardDialog";
 import { isCommandPaletteOpen } from "../commandPaletteBus";
 import { isElectron } from "../env";
 import {
@@ -63,26 +66,20 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import { registerCommands, registerMenuAction } from "../shortcuts/dispatcher";
 import { resolveThreadRouteRef } from "../threadRoutes";
-
 const MACOS_TRAFFIC_LIGHTS_LEFT_INSET = "var(--desktop-window-controls-inset, 90px)";
-
 function subscribeToViewportWidth(onChange: () => void): () => void {
   window.addEventListener("resize", onChange);
   return () => window.removeEventListener("resize", onChange);
 }
-
 function readViewportWidth(): number {
   return window.innerWidth;
 }
-
 // Cache the synchronous fullscreen IPC read until subscription.
 let windowFullscreenSnapshot: boolean | null = null;
-
 function macosDesktopBridge() {
   if (!isElectron || !isMacPlatform(navigator.platform)) return null;
   return window.desktopBridge ?? null;
 }
-
 function subscribeToWindowFullscreen(onChange: () => void): () => void {
   const bridge = macosDesktopBridge();
   if (
@@ -102,7 +99,6 @@ function subscribeToWindowFullscreen(onChange: () => void): () => void {
     windowFullscreenSnapshot = null;
   };
 }
-
 function readWindowFullscreen(): boolean {
   if (windowFullscreenSnapshot === null) {
     const getWindowFullscreenState = macosDesktopBridge()?.getWindowFullscreenState;
@@ -111,7 +107,6 @@ function readWindowFullscreen(): boolean {
   }
   return windowFullscreenSnapshot;
 }
-
 function readInitialThreadSidebarWidth(): number {
   try {
     return resolveInitialThreadSidebarWidth(
@@ -123,15 +118,12 @@ function readInitialThreadSidebarWidth(): number {
     return resolveInitialThreadSidebarWidth(null, window.innerWidth);
   }
 }
-
 function readUsagePageOpen(router: AnyRouter) {
   return router.state.location.pathname === "/usage";
 }
-
 function isKeybindingCaptureTarget(event: KeyboardEvent) {
   return event.target instanceof HTMLElement && event.target.closest("[data-keybinding-capture]");
 }
-
 function readRoutePanelsOpen(router: AnyRouter) {
   const routeThreadRef = resolveThreadRouteRef(router.state.matches.at(-1)?.params ?? {});
   if (!routeThreadRef) return { terminalOpen: false, previewOpen: false };
@@ -145,7 +137,6 @@ function readRoutePanelsOpen(router: AnyRouter) {
       "preview",
   };
 }
-
 export function registerNavigationHistoryCommands(router: AnyRouter): () => void {
   return registerCommands(
     {
@@ -169,7 +160,6 @@ export function registerNavigationHistoryCommands(router: AnyRouter): () => void
     },
   );
 }
-
 // Escape leaves the pull requests page when no scope (a selection, a dialog,
 // a drag) claimed it, so it observes after every other scope.
 function registerPullRequestsEscapeCommand(router: AnyRouter): () => void {
@@ -191,13 +181,10 @@ function registerPullRequestsEscapeCommand(router: AnyRouter): () => void {
     },
   );
 }
-
 const MODIFIER_KEYS = new Set(["Alt", "Control", "Meta", "Shift"]);
-
 // A held key undoes once. Module state: undoing an archive navigates, and the
 // hold must survive whatever that re-renders.
 let heldUndoKey: string | null = null;
-
 // Undoes the thread actions in the sidebar's notice. Settings and Usage own
 // mod+z while open. Captured so mod+z reaches it before the composer's own
 // undo handler consumes the key.
@@ -261,7 +248,6 @@ function registerThreadUndoCommands(
     window.removeEventListener("input", onInput, true);
   };
 }
-
 /** Keyboard and menu commands that live as long as the app shell. */
 function registerAppShellCommands(router: AnyRouter, shellElement: Element): () => void {
   // The provider mirrors the visibility it renders onto its wrapper, so the
@@ -282,7 +268,6 @@ function registerAppShellCommands(router: AnyRouter, shellElement: Element): () 
     for (const dispose of disposers) dispose();
   };
 }
-
 function SidebarControl() {
   const router = useRouter();
   const usagePageOpen = useLocation({ select: (location) => location.pathname === "/usage" });
@@ -296,7 +281,6 @@ function SidebarControl() {
   const shortcutLabel = shortcutLabelForCommand(keybindings, "sidebar.toggle", {
     context: { usagePageOpen },
   });
-
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
@@ -320,12 +304,10 @@ function SidebarControl() {
         "sidebar.toggle"
       )
         return;
-
       event.preventDefault();
       event.stopPropagation();
       toggleSidebar();
     };
-
     window.addEventListener("keydown", onKeyDown, true);
     const unsubscribe = window.desktopBridge?.onMenuAction((action) => {
       if (action === "sidebar.toggle") toggleSidebar();
@@ -335,14 +317,12 @@ function SidebarControl() {
       unsubscribe?.();
     };
   }, [keybindings, toggleSidebar, usagePageOpen]);
-
   // The control lives as long as the shell, so it carries the shell's commands. Created
   // once so re-renders never re-register them.
   const [appShellCommandsRef] = useState(
     () => (node: HTMLDivElement | null) =>
       node === null ? undefined : registerAppShellCommands(router, node),
   );
-
   return (
     <div
       ref={appShellCommandsRef}
@@ -361,18 +341,18 @@ function SidebarControl() {
                 "pointer-events-auto",
                 isSidebarVisible && stageBackdropVariant && "relative top-auto translate-y-0",
               )}
-              aria-label="Toggle main sidebar"
+              aria-label={uiText("Toggle main sidebar")}
             />
           }
         />
         <TooltipPopup side="bottom">
-          Toggle main sidebar{shortcutLabel ? ` (${shortcutLabel})` : ""}
+          {uiText("Toggle main sidebar")}
+          {shortcutLabel ? ` (${shortcutLabel})` : ""}
         </TooltipPopup>
       </Tooltip>
     </div>
   );
 }
-
 export function AppSidebarLayout({ children }: { children: ReactNode }) {
   const legacySidebarEnabled = useLegacySidebarEnabled();
   const [sidebarRouteReveal] = useState<SidebarRouteReveal>(() => ({
@@ -413,7 +393,6 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
     "--panel-animation-duration": `${panelAnimationDurationMs}ms`,
     ...windowControlsInsetStyle,
   } as CSSProperties;
-
   return (
     <PanelAnimationSuppressionProvider value={panelAnimationsSuppressed}>
       <SidebarProvider
@@ -428,7 +407,7 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
           collapsible="offcanvas"
           data-app-sidebar=""
           role="navigation"
-          aria-label="Threads"
+          aria-label={uiText("Threads")}
           resizable={{
             maxWidth: sidebarMaximumWidth,
             minWidth: sidebarMinimumWidth,
@@ -440,7 +419,12 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
           }}
           style={windowControlsInsetStyle}
         >
-          {legacySidebarEnabled ? (
+          {pathname.startsWith("/settings") ? (
+            <>
+              <SidebarChromeHeader isElectron={isElectron} />
+              <SettingsSidebarNav pathname={pathname} />
+            </>
+          ) : legacySidebarEnabled ? (
             <LegacyThreadSidebar routeReveal={sidebarRouteReveal} />
           ) : (
             <ThreadSidebar routeReveal={sidebarRouteReveal} />
@@ -450,6 +434,7 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
         {children}
         <BackgroundThreadAnnouncer />
         <SidebarControl />
+        <ManualClipboardDialog />
       </SidebarProvider>
     </PanelAnimationSuppressionProvider>
   );

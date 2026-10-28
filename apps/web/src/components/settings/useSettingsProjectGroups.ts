@@ -17,6 +17,7 @@ export function useSettingsProjectGroups() {
   const labels = new Map(environments.map((entry) => [entry.environmentId, entry.label]));
   return buildSidebarProjectSnapshots({
     projects,
+    workspaceCollections: false,
     settings: { sidebarProjectGroupingMode, sidebarProjectGroupingOverrides },
     primaryEnvironmentId,
     resolveEnvironmentLabel: (id) => labels.get(id) ?? null,

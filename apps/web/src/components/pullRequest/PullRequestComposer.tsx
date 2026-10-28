@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   capitalizeTerm,
   sourceControlClients,
@@ -5,7 +6,6 @@ import {
 import type { EnvironmentId, PullRequestDetailView, PullRequestRef } from "@t3tools/contracts";
 import { MessageSquareIcon, Trash2Icon, XIcon } from "lucide-react";
 import { useRef, useState } from "react";
-
 import { Button } from "../ui/button";
 import { Popover, PopoverClose, PopoverPopup, PopoverTitle, PopoverTrigger } from "../ui/popover";
 import { Toggle, ToggleGroup } from "../ui/toggle-group";
@@ -16,7 +16,6 @@ import {
   usePendingReviewComments,
   usePullRequestReviewStore,
 } from "./pullRequestReviewStore";
-
 export function PullRequestComposer({
   environmentId,
   reference,
@@ -34,7 +33,9 @@ export function PullRequestComposer({
   onCommentAction: (
     body: string,
     action: "close" | "reopen",
-  ) => Promise<{ readonly commentPosted: boolean }>;
+  ) => Promise<{
+    readonly commentPosted: boolean;
+  }>;
   onCommented: () => void;
   onReviewSubmitted: () => void;
   openReviewRequest?: number | undefined;
@@ -59,15 +60,12 @@ export function PullRequestComposer({
     setRequestedMode("review");
     setOpen(true);
   }
-
   const canComment = detail.capabilities.comment && detail.viewerPermissions.comment;
   const verdicts = detail.capabilities.review.verdicts.filter((verdict) =>
     detail.viewerPermissions.verdicts.includes(verdict),
   );
   if (!canComment && verdicts.length === 0) return null;
-
   const mode = canComment ? (verdicts.length === 0 ? "comment" : requestedMode) : "review";
-
   return (
     <Popover
       open={open}
@@ -108,7 +106,7 @@ export function PullRequestComposer({
         <div className="mb-3 flex items-center justify-between gap-2">
           {canComment && verdicts.length > 0 ? (
             <ToggleGroup
-              aria-label="Composer mode"
+              aria-label={uiText("Composer mode")}
               variant="segmented"
               value={[mode]}
               onValueChange={(next) => {
@@ -116,9 +114,11 @@ export function PullRequestComposer({
                 if (value === "comment" || value === "review") setRequestedMode(value);
               }}
             >
-              <Toggle value="comment">Comment</Toggle>
+              <Toggle value="comment">{uiText("Comment")}</Toggle>
               <Toggle value="review">
-                {pendingComments.length > 0 ? `Review (${pendingComments.length})` : "Review"}
+                {pendingComments.length > 0
+                  ? uiText("Review ({0})", { "0": pendingComments.length })
+                  : uiText("Review")}
               </Toggle>
             </ToggleGroup>
           ) : (
@@ -131,8 +131,8 @@ export function PullRequestComposer({
               <Button
                 size="icon-xs"
                 variant="ghost"
-                aria-label="Discard pending line comments"
-                title="Discard pending line comments"
+                aria-label={uiText("Discard pending line comments")}
+                title={uiText("Discard pending line comments")}
                 disabled={reviewPending}
                 onClick={() => clearComments(reviewKey)}
               >
@@ -141,7 +141,7 @@ export function PullRequestComposer({
             ) : null}
             <PopoverClose
               render={<Button size="icon-xs" variant="ghost" />}
-              aria-label="Close composer"
+              aria-label={uiText("Close composer")}
             >
               <XIcon className="size-3.5" />
             </PopoverClose>

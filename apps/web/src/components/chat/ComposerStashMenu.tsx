@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { BookmarkIcon, FileIcon, FileTextIcon } from "lucide-react";
 import { memo, useEffect, useEffectEvent, useRef, useState, type RefObject } from "react";
 import { assistantCitationsToPlainText } from "@t3tools/shared/assistantCitations";
@@ -123,32 +124,39 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
   }, []);
 
   return (
-    <ComposerBanner.Root ref={drawerRef} data-composer-stash-drawer="true">
+    <ComposerBanner.Root ref={drawerRef} data-composer-stash-drawer={"true"}>
       <ComposerBanner.Row
-        render={<button type="button" />}
-        aria-label="Close stash"
-        aria-expanded="true"
+        render={<button type={"button"} />}
+        aria-label={uiText("Close stash")}
+        aria-expanded={"true"}
         onPointerDown={(event) => event.preventDefault()}
         onClick={onClose}
       >
         <ComposerBanner.Icon>
           <BookmarkIcon />
         </ComposerBanner.Icon>
-        <ComposerBanner.Content className="text-muted-foreground">Stash</ComposerBanner.Content>
+        <ComposerBanner.Content className={"text-muted-foreground"}>
+          {uiText("Stash")}
+        </ComposerBanner.Content>
         <ComposerBanner.Actions>
           <ComposerBanner.Count>{entries.length}</ComposerBanner.Count>
           <ComposerBanner.ToggleIcon expanded />
         </ComposerBanner.Actions>
       </ComposerBanner.Row>
       <ComposerBanner.Scroll>
-        <ComposerBanner.Children render={<ul role="list" />} aria-label="Stashed prompts">
+        <ComposerBanner.Children
+          render={<ul role={"list"} />}
+          aria-label={uiText("Stashed prompts")}
+        >
           {entries.length === 0 ? (
             <ComposerBanner.Row render={<li />}>
               <ComposerBanner.Icon />
-              <ComposerBanner.Content className="text-muted-foreground">
-                Nothing stashed yet.
+              <ComposerBanner.Content className={"text-muted-foreground"}>
+                {uiText("Nothing stashed yet.")}
                 {stashShortcutLabel
-                  ? ` Press ${stashShortcutLabel} with a prompt in the composer to stash it.`
+                  ? uiText(" Press {0} with a prompt in the composer to stash it.", {
+                      "0": stashShortcutLabel,
+                    })
                   : null}
               </ComposerBanner.Content>
             </ComposerBanner.Row>
@@ -173,10 +181,14 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
                 </ComposerBanner.Icon>
                 <ComposerBanner.Content>
                   <button
-                    type="button"
-                    className="min-w-0 flex-1 cursor-pointer truncate text-left text-foreground/80 outline-none before:absolute before:inset-0 before:rounded-sm focus-visible:before:ring-2 focus-visible:before:ring-inset focus-visible:before:ring-ring"
+                    type={"button"}
+                    className={
+                      "min-w-0 flex-1 cursor-pointer truncate text-left text-foreground/80 outline-none before:absolute before:inset-0 before:rounded-sm focus-visible:before:ring-2 focus-visible:before:ring-inset focus-visible:before:ring-ring"
+                    }
                     data-stash-restore={entry.id}
-                    aria-label={`Restore stashed prompt: ${stashEntrySnippet(entry)}`}
+                    aria-label={uiText("Restore stashed prompt: {0}", {
+                      "0": stashEntrySnippet(entry),
+                    })}
                     onPointerDown={(event) => event.preventDefault()}
                     onClick={() => onRestore(entry)}
                   >
@@ -185,44 +197,49 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
                 </ComposerBanner.Content>
                 <ComposerBanner.Actions>
                   {entry.pendingImageCount ? (
-                    <span className="shrink-0 text-muted-foreground">
-                      saving {entry.pendingImageCount} image
-                      {entry.pendingImageCount === 1 ? "" : "s"}…
+                    <span className={"shrink-0 text-muted-foreground"}>
+                      {uiText("saving")}
+                      {entry.pendingImageCount}
+                      {uiText("image")}
+                      {entry.pendingImageCount === 1 ? "" : "s"}
+                      {"\u2026"}
                     </span>
                   ) : missingImageCount(entry) > 0 ? (
-                    <span className="shrink-0 text-warning-foreground">
-                      {missingImageCount(entry)} image
-                      {missingImageCount(entry) === 1 ? "" : "s"} dropped
+                    <span className={"shrink-0 text-warning-foreground"}>
+                      {missingImageCount(entry)}
+                      {uiText("image")}
+                      {missingImageCount(entry) === 1 ? "" : "s"}
+                      {uiText("dropped")}
                     </span>
                   ) : null}
                   {entry.attachments.length > 0 ? (
-                    <span className="flex shrink-0 items-center -space-x-1.5">
+                    <span className={"flex shrink-0 items-center -space-x-1.5"}>
                       {entry.attachments.slice(0, 3).map((attachment) => (
                         <img
                           key={attachment.id}
                           src={attachment.dataUrl}
-                          alt=""
-                          aria-hidden="true"
-                          className="size-4 rounded border border-border/70 object-cover"
+                          alt={""}
+                          aria-hidden={"true"}
+                          className={"size-4 rounded border border-border/70 object-cover"}
                         />
                       ))}
                     </span>
                   ) : null}
                   {(entry.files?.length ?? 0) > 0 ? (
-                    <span className="flex shrink-0 items-center gap-1 text-muted-foreground">
-                      <FileIcon className="size-3" aria-hidden />
+                    <span className={"flex shrink-0 items-center gap-1 text-muted-foreground"}>
+                      <FileIcon className={"size-3"} aria-hidden />
                       {entry.files!.length}
                     </span>
                   ) : null}
                   <time
                     dateTime={entry.createdAt}
-                    className="shrink-0 text-muted-foreground tabular-nums max-sm:hidden"
+                    className={"shrink-0 text-muted-foreground tabular-nums max-sm:hidden"}
                   >
                     <RelativeTime timestamp={entry.createdAt} />
                   </time>
                   <ComposerBanner.Dismiss
-                    className="z-10"
-                    aria-label="Delete stashed prompt"
+                    className={"z-10"}
+                    aria-label={uiText("Delete stashed prompt")}
                     onPointerDown={(event) => event.preventDefault()}
                     onClick={() => onDelete(entry)}
                   />

@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { InlineAudioPreview } from "../files/InlineAudioPreview";
 import { filePreviewKind } from "@t3tools/shared/filePreview";
 import { findRevealRef } from "./markdownFindContext";
@@ -74,7 +75,6 @@ import {
 } from "./TimelineRowParts";
 import { UserMessageContextReferenceChip } from "./UserMessageContextChips";
 import { resolvePreviewAnnotationImage } from "./TimelineUserMessageRow.logic";
-
 function UserVideoAttachment({ file }: { readonly file: ChatFileAttachment }) {
   const ctx = use(TimelineRowCtx);
   // Row updates rebuild attachment objects, so the asset follows only the
@@ -89,7 +89,6 @@ function UserVideoAttachment({ file }: { readonly file: ChatFileAttachment }) {
   const assetUrl = useAssetUrlState(ctx.activeThreadEnvironmentId, resource);
   const refreshAssetUrl = useAssetUrlRefresh(ctx.activeThreadEnvironmentId, resource);
   const src = assetUrl._tag === "Success" ? assetUrl.url : (file.previewUrl ?? null);
-
   if (asset === null && src === null) {
     return (
       <div className="flex aspect-[4/3] w-full items-center justify-center rounded-lg border border-border/80 bg-black px-2 py-3 text-center text-2xs text-white/70">
@@ -97,7 +96,6 @@ function UserVideoAttachment({ file }: { readonly file: ChatFileAttachment }) {
       </div>
     );
   }
-
   return (
     <MediaVideoPlayer
       src={src}
@@ -118,8 +116,16 @@ function UserVideoAttachment({ file }: { readonly file: ChatFileAttachment }) {
     />
   );
 }
-
-export function UserMessageRow({ row }: { row: Extract<TimelineRow, { kind: "message" }> }) {
+export function UserMessageRow({
+  row,
+}: {
+  row: Extract<
+    TimelineRow,
+    {
+      kind: "message";
+    }
+  >;
+}) {
   const ctx = use(TimelineRowCtx);
   return ctx.workflowOpening?.messageId === row.message.id ? (
     <WorkflowOpeningBlock
@@ -133,9 +139,17 @@ export function UserMessageRow({ row }: { row: Extract<TimelineRow, { kind: "mes
     <UserTimelineRow row={row} />
   );
 }
-
 /** Automation prompts are long, repeated runbooks; a folded bubble keeps them out of the way. */
-function AutomationMessageRow({ row }: { row: Extract<TimelineRow, { kind: "message" }> }) {
+function AutomationMessageRow({
+  row,
+}: {
+  row: Extract<
+    TimelineRow,
+    {
+      kind: "message";
+    }
+  >;
+}) {
   const ctx = use(TimelineRowCtx);
   const [expanded, setExpanded] = useState(false);
   const revealRef = findRevealRef(() => setExpanded(true));
@@ -150,12 +164,10 @@ function AutomationMessageRow({ row }: { row: Extract<TimelineRow, { kind: "mess
   );
   const taskTitle = tasksQuery.data?.tasks.find((task) => task.id === scheduledTaskId)?.title;
   const summary = taskTitle ?? text.trim().split(/\r?\n/, 1)[0] ?? "";
-
   const revertTurnCount = row.revertTurnCount;
   const promptLink = promptLinkFor(text);
   // Find reads the DOM, so a folded prompt stays mounted but hidden while find is open.
   const bodyMounted = expanded || ctx.findActive;
-
   return (
     <div className="group flex flex-col items-end gap-1" data-user-message-attribution="automation">
       {row.message.inputIntent === "steer" ||
@@ -168,7 +180,7 @@ function AutomationMessageRow({ row }: { row: Extract<TimelineRow, { kind: "mess
           expanded && "w-full",
         )}
       >
-        <MessageAuthorHeading>Automation</MessageAuthorHeading>
+        <MessageAuthorHeading>{"Automation"}</MessageAuthorHeading>
         <FoldedMessageHeader
           icon={CalendarClockIcon}
           label="Automation"
@@ -198,7 +210,7 @@ function AutomationMessageRow({ row }: { row: Extract<TimelineRow, { kind: "mess
                 search={{ environmentId: ctx.activeThreadEnvironmentId, taskId: scheduledTaskId }}
                 className="rounded-sm text-xs text-muted-foreground hover:underline focus-visible:outline-2 focus-visible:outline-ring"
               >
-                Open automation
+                {"Open automation"}
               </Link>
             ) : null}
             <TimelineRowTimestamp
@@ -214,7 +226,7 @@ function AutomationMessageRow({ row }: { row: Extract<TimelineRow, { kind: "mess
               {promptLink !== null && (
                 <MessageCopyButton
                   text={promptLink}
-                  label="Copy prompt link"
+                  label={uiText("Copy prompt link")}
                   icon={LinkIconNode}
                   variant="ghost"
                 />
@@ -226,7 +238,6 @@ function AutomationMessageRow({ row }: { row: Extract<TimelineRow, { kind: "mess
     </div>
   );
 }
-
 function FoldedMessageHeader(props: {
   icon: LucideIcon;
   label: string;
@@ -255,8 +266,16 @@ function FoldedMessageHeader(props: {
     </button>
   );
 }
-
-function UserMessageProjectedStatus({ row }: { row: Extract<TimelineRow, { kind: "message" }> }) {
+function UserMessageProjectedStatus({
+  row,
+}: {
+  row: Extract<
+    TimelineRow,
+    {
+      kind: "message";
+    }
+  >;
+}) {
   const status = row.projectedItem?.item.status;
   if (
     status === undefined ||
@@ -273,8 +292,16 @@ function UserMessageProjectedStatus({ row }: { row: Extract<TimelineRow, { kind:
     </div>
   );
 }
-
-function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" }> }) {
+function UserTimelineRow({
+  row,
+}: {
+  row: Extract<
+    TimelineRow,
+    {
+      kind: "message";
+    }
+  >;
+}) {
   const ctx = use(TimelineRowCtx);
   const { onImageExpand, onFileOpen } = ctx;
   const senderThreadId = row.message.senderThreadId;
@@ -427,7 +454,6 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
       </span>
     );
   };
-
   return (
     <div
       className="group flex flex-col items-end gap-1"
@@ -438,7 +464,7 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
           className="me-1 text-2xs text-muted-foreground/70"
           data-user-message-attribution="t3code"
         >
-          Sent by T3 Code
+          {uiText("Sent by T3 Code")}
         </p>
       ) : null}
       {/* The row's heading already names the guest for screen readers. */}
@@ -464,7 +490,7 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
           {folded
             ? senderLabel
             : userMessage.guestName === undefined
-              ? "You"
+              ? uiText("You")
               : `${userMessage.guestName} (guest)`}
         </MessageAuthorHeading>
         {folded ? (
@@ -502,7 +528,7 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
                       <button
                         type="button"
                         className="block h-full w-full cursor-zoom-in"
-                        aria-label={`Preview ${image.name}`}
+                        aria-label={uiText("Preview {0}", { "0": image.name })}
                         onClick={() => {
                           const preview = buildExpandedImagePreview(regularImages, image.id);
                           if (!preview) return;
@@ -571,7 +597,7 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
                       <div key={file.id} className="flex min-w-0 items-center gap-1">
                         <button
                           type="button"
-                          aria-label={`Preview ${file.name}`}
+                          aria-label={uiText("Preview {0}", { "0": file.name })}
                           onClick={() => ctx.onFileOpen(file)}
                           className="focus-visible:ring-ring/70 flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md py-1 text-left text-sm hover:underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:outline-none"
                         >
@@ -584,19 +610,21 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
                               <Button
                                 size="icon-xs"
                                 variant="ghost-muted"
-                                aria-label={`Download ${file.name}`}
+                                aria-label={uiText("Download {0}", { "0": file.name })}
                                 onClick={() => ctx.onFileDownload(file)}
                               />
                             }
                           >
                             <DownloadIcon />
                           </TooltipTrigger>
-                          <TooltipPopup side="top">Download {file.name}</TooltipPopup>
+                          <TooltipPopup side="top">
+                            {"Download "}
+                            {file.name}
+                          </TooltipPopup>
                         </Tooltip>
                       </div>
                     );
                   }
-
                   return (
                     <div key={file.id} className="flex min-w-0 items-center gap-2 py-1 text-sm">
                       {fileIdentity}
@@ -633,7 +661,7 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
           <div className="flex shrink-0 items-center gap-2">
             {folded && senderThreadId ? (
               <InlineButton onClick={() => ctx.onOpenThread(senderThreadId)} tone="muted">
-                Open thread
+                {uiText("Open thread")}
               </InlineButton>
             ) : null}
             <Tooltip>
@@ -664,7 +692,7 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
               {promptLink !== null && (
                 <MessageCopyButton
                   text={promptLink}
-                  label="Copy prompt link"
+                  label={uiText("Copy prompt link")}
                   icon={LinkIconNode}
                   variant="ghost"
                 />
@@ -676,7 +704,6 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
     </div>
   );
 }
-
 function UserMessageIntentMarker({
   intent,
 }: {
@@ -693,17 +720,16 @@ function UserMessageIntentMarker({
         }
       >
         <Redo2Icon aria-hidden="true" className="size-3" />
-        Steer
+        {uiText("Steer")}
       </TooltipTrigger>
       <TooltipPopup side="top">
         {intent === "promoted_queued_to_steer"
-          ? "Originally queued, then promoted to steer the active turn"
-          : "Steered the active turn"}
+          ? uiText("Originally queued, then promoted to steer the active turn")
+          : uiText("Steered the active turn")}
       </TooltipPopup>
     </Tooltip>
   );
 }
-
 function RevertUserMessageButton({
   turnCount,
   messageId,
@@ -713,7 +739,6 @@ function RevertUserMessageButton({
 }) {
   const ctx = use(TimelineRowCtx);
   const activity = use(TimelineRowActivityCtx);
-
   return (
     <Tooltip>
       <TooltipTrigger
@@ -724,21 +749,18 @@ function RevertUserMessageButton({
             variant="ghost"
             disabled={activity.isRevertingCheckpoint || activity.isWorking}
             onClick={() => ctx.onRevertToTurnCount(turnCount, messageId)}
-            aria-label="Edit from here"
+            aria-label={uiText("Edit from here")}
           />
         }
       >
         <Undo2Icon className="size-3" />
       </TooltipTrigger>
-      <TooltipPopup side="top">Edit from here</TooltipPopup>
+      <TooltipPopup side="top">{uiText("Edit from here")}</TooltipPopup>
     </Tooltip>
   );
 }
-
 const COLLAPSED_USER_MESSAGE_FADE_HEIGHT_REM = 1.75;
-
 const COLLAPSED_USER_MESSAGE_FADE_MASK = `linear-gradient(to bottom, black calc(100% - ${COLLAPSED_USER_MESSAGE_FADE_HEIGHT_REM}rem), transparent)`;
-
 const CollapsibleUserMessageBody = memo(function CollapsibleUserMessageBody(props: {
   text: string;
   renderContextReference: (reference: ChatMarkdownContextReference) => ReactNode;
@@ -755,7 +777,6 @@ const CollapsibleUserMessageBody = memo(function CollapsibleUserMessageBody(prop
     props.collapsible !== false && hasVisibleBody && shouldCollapseUserMessage(props.text);
   const isCollapsed = canCollapse && !expanded;
   const showCollapseControl = canCollapse;
-
   return (
     <div>
       {hasVisibleBody ? (
@@ -803,7 +824,7 @@ const CollapsibleUserMessageBody = memo(function CollapsibleUserMessageBody(prop
               onClick={() => setExpanded((value) => !value)}
               className="-ml-1"
             >
-              {expanded ? "Show less" : "Show full message"}
+              {expanded ? uiText("Show less") : uiText("Show full message")}
             </Button>
           ) : null}
           {props.footer ? (
@@ -814,7 +835,6 @@ const CollapsibleUserMessageBody = memo(function CollapsibleUserMessageBody(prop
     </div>
   );
 });
-
 const UserMessageBody = memo(function UserMessageBody(props: {
   text: string;
   renderContextReference?: (reference: ChatMarkdownContextReference) => ReactNode;

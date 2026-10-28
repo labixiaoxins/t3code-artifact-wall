@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type {
   ChatAttachment,
   ChatFileAttachment,
@@ -8,7 +9,6 @@ import type {
 import { formatAttachmentSize } from "@t3tools/client-runtime/state/attachments";
 import { CircleAlertIcon, PaperclipIcon, PlayIcon, XIcon } from "lucide-react";
 import { type ComponentProps, useLayoutEffect, useRef } from "react";
-
 import {
   type ComposerFileAttachment,
   type ComposerImageAttachment,
@@ -46,13 +46,11 @@ import {
   SnapShotAttachmentDetails,
 } from "./SnapShotAttachmentDetails";
 import { prepareVideoFirstFrame } from "../../lib/videoFirstFrame";
-
 function ComposerVideoThumbnail({ file }: { file: File }) {
   const setVideo = (video: HTMLVideoElement | null) => {
     if (!video) return;
     return attachVideoThumbnail(video, file);
   };
-
   return (
     <video
       ref={setVideo}
@@ -65,7 +63,6 @@ function ComposerVideoThumbnail({ file }: { file: File }) {
     />
   );
 }
-
 function SnapShotAttachmentFrame({
   animationId,
   animationSource,
@@ -80,18 +77,15 @@ function SnapShotAttachmentFrame({
   readonly animateArrival?: boolean | undefined;
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
-
   useLayoutEffect(() => {
     const frame = frameRef.current;
     if (!frame || (!animationId && !arrival)) return;
     frame.scrollIntoView({ block: "nearest", inline: "nearest" });
     if (!animationId) return;
-
     return scheduleSnapShotAnimationDestination(animationId, () =>
       setSnapShotAnimationDestination(animationId, frame, animationSource),
     );
   }, [animationId, animationSource, arrival]);
-
   return (
     <div
       ref={frameRef}
@@ -105,7 +99,6 @@ function SnapShotAttachmentFrame({
     />
   );
 }
-
 /** Image, SnapShot and video tiles above the composer editor. */
 export function ComposerAttachmentMediaRow({
   images,
@@ -160,7 +153,7 @@ export function ComposerAttachmentMediaRow({
       )}
     >
       {/* A preparing image renders through the same tile, keyed by the id its compressed image
-          takes, so the thumbnail element survives the swap. */}
+            takes, so the thumbnail element survives the swap. */}
       {[
         ...expandedImages.map((image) => ({ image, ready: image })),
         ...preparingImages.map((image) => ({ image, ready: null })),
@@ -195,7 +188,7 @@ export function ComposerAttachmentMediaRow({
                 <button
                   type="button"
                   className={cn("h-full w-full", ready && "cursor-zoom-in")}
-                  aria-label={`Preview ${image.name}`}
+                  aria-label={uiText("Preview {0}", { "0": image.name })}
                   disabled={!ready}
                   onClick={() => {
                     const preview = buildExpandedImagePreview(images, image.id);
@@ -244,7 +237,7 @@ export function ComposerAttachmentMediaRow({
                     render={
                       <span
                         role="img"
-                        aria-label="Draft attachment may not persist"
+                        aria-label={uiText("Draft attachment may not persist")}
                         className="absolute left-1 top-1 inline-flex items-center justify-center rounded bg-background/85 p-0.5 text-warning-foreground"
                       >
                         <CircleAlertIcon className="size-3" />
@@ -252,7 +245,9 @@ export function ComposerAttachmentMediaRow({
                     }
                   />
                   <TooltipPopup side="top">
-                    Draft attachment could not be saved locally and may be lost on navigation.
+                    {uiText(
+                      "Draft attachment could not be saved locally and may be lost on navigation.",
+                    )}
                   </TooltipPopup>
                 </Tooltip>
               )}
@@ -279,7 +274,7 @@ export function ComposerAttachmentMediaRow({
                           })
                         }
                         disabled={!canOperateThread}
-                        aria-label={`Retry upload for ${image.name}`}
+                        aria-label={uiText("Retry upload for {0}", { "0": image.name })}
                       />
                     }
                   >
@@ -299,7 +294,7 @@ export function ComposerAttachmentMediaRow({
                   variant="media-close"
                   size="icon-xs"
                   onClick={() => onRemoveImage(image.id)}
-                  aria-label={`Remove ${image.name}`}
+                  aria-label={uiText("Remove {0}", { "0": image.name })}
                 >
                   <XIcon />
                 </Button>
@@ -337,7 +332,7 @@ export function ComposerAttachmentMediaRow({
             <button
               type="button"
               className="flex h-full w-full cursor-zoom-in flex-col items-center justify-center gap-1 px-1 text-white"
-              aria-label={`Play ${file.name}`}
+              aria-label={uiText("Play {0}", { "0": file.name })}
               onClick={() => {
                 if (file.file !== null) {
                   const preview = buildExpandedImagePreview([file], file.id);
@@ -377,7 +372,7 @@ export function ComposerAttachmentMediaRow({
                         })
                       }
                       disabled={!canOperateThread}
-                      aria-label={`Retry upload for ${file.name}`}
+                      aria-label={uiText("Retry upload for {0}", { "0": file.name })}
                     />
                   }
                 >
@@ -391,7 +386,7 @@ export function ComposerAttachmentMediaRow({
               size="icon-xs"
               className="absolute right-1 top-1"
               onClick={() => onRemoveFile(file.id)}
-              aria-label={`Remove ${file.name}`}
+              aria-label={uiText("Remove {0}", { "0": file.name })}
             >
               <XIcon />
             </Button>
@@ -401,7 +396,6 @@ export function ComposerAttachmentMediaRow({
     </div>
   );
 }
-
 /** Non-media file attachments, listed under the media row. */
 export function ComposerAttachmentFileList({
   files,
@@ -454,8 +448,8 @@ export function ComposerAttachmentFileList({
             <span className="shrink-0 text-xs text-secondary-label">
               {needsReattach
                 ? canReattachFile
-                  ? "Attach again"
-                  : "Remove to send"
+                  ? uiText("Attach again")
+                  : uiText("Remove to send")
                 : upload?.status === "uploading"
                   ? formatAttachmentUploadProgress(upload.progress)
                   : formatAttachmentSize(file.sizeBytes)}
@@ -475,7 +469,7 @@ export function ComposerAttachmentFileList({
                         })
                       }
                       disabled={!canOperateThread}
-                      aria-label={`Retry upload for ${file.name}`}
+                      aria-label={uiText("Retry upload for {0}", { "0": file.name })}
                     />
                   }
                 >
@@ -488,7 +482,7 @@ export function ComposerAttachmentFileList({
               variant="ghost"
               size="icon-xs"
               onClick={() => onRemoveFile(file.id)}
-              aria-label={`Remove ${file.name}`}
+              aria-label={uiText("Remove {0}", { "0": file.name })}
             >
               <XIcon />
             </Button>
@@ -498,7 +492,6 @@ export function ComposerAttachmentFileList({
     </div>
   );
 }
-
 export function ComposerFilePreviewDialog({
   file,
   onRemove,
@@ -547,7 +540,6 @@ export function ComposerFilePreviewDialog({
     </Dialog>
   );
 }
-
 /** Thumbnails beside the single-line prompt while the composer rests. */
 export function ComposerRestingImagePreviews({
   images,
@@ -571,7 +563,7 @@ export function ComposerRestingImagePreviews({
           key={image.id}
           type="button"
           className="relative size-7 shrink-0 cursor-zoom-in overflow-hidden rounded-md border border-border/70 bg-muted/60"
-          aria-label={`Preview ${image.name}`}
+          aria-label={uiText("Preview {0}", { "0": image.name })}
           onPointerDown={(event) => event.preventDefault()}
           onClick={() => {
             const preview = buildExpandedImagePreview(allImages, image.id);
@@ -620,13 +612,13 @@ export function ComposerRestingImagePreviews({
           onPointerDown={(event) => event.preventDefault()}
           onClick={onShowMore}
         >
-          +{counts.overflowCount}
+          {"+"}
+          {counts.overflowCount}
         </button>
       ) : null}
     </div>
   );
 }
-
 /** Attachments of the queued message being edited; they are already uploaded. */
 export function ComposerQueuedAttachmentRow({
   attachments,
@@ -657,7 +649,7 @@ export function ComposerQueuedAttachmentRow({
             size="icon-xs"
             className="absolute right-1 top-1"
             onClick={() => onRemove(attachment.id)}
-            aria-label={`Remove ${attachment.name}`}
+            aria-label={uiText("Remove {0}", { "0": attachment.name })}
           >
             <XIcon />
           </Button>
@@ -666,7 +658,6 @@ export function ComposerQueuedAttachmentRow({
     </div>
   );
 }
-
 export function ComposerAttachButton({
   addComposerAttachments,
   focusComposer,
@@ -702,13 +693,13 @@ export function ComposerAttachButton({
               size="icon-sm"
               onPointerDown={(event) => event.preventDefault()}
               onClick={() => inputRef.current?.click()}
-              aria-label="Attach files"
+              aria-label={uiText("Attach files")}
             />
           }
         >
           <PaperclipIcon />
         </TooltipTrigger>
-        <TooltipPopup>Attach files</TooltipPopup>
+        <TooltipPopup>{uiText("Attach files")}</TooltipPopup>
       </Tooltip>
     </>
   );

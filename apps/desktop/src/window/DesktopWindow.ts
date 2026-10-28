@@ -15,6 +15,7 @@ import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import { makeComponentLogger } from "../app/DesktopObservability.ts";
 import * as DesktopState from "../app/DesktopState.ts";
 import * as ElectronMenu from "../electron/ElectronMenu.ts";
+import * as ElectronDialog from "../electron/ElectronDialog.ts";
 import { getDesktopUrl } from "../electron/ElectronProtocol.ts";
 import * as ElectronShell from "../electron/ElectronShell.ts";
 import * as ElectronTheme from "../electron/ElectronTheme.ts";
@@ -56,10 +57,10 @@ const TITLEBAR_COLOR = "#01000000"; // #00000000 does not work correctly on Linu
 const TITLEBAR_LIGHT_SYMBOL_COLOR = "#1f2937";
 const TITLEBAR_DARK_SYMBOL_COLOR = "#f8fafc";
 const MAIN_WINDOW_BOUNDS_PERSIST_DEBOUNCE_MS = 500;
-const DEVELOPMENT_LOAD_RETRY_DELAYS_MS = [100, 250, 500, 1_000, 2_000] as const;
+const DEVELOPMENT_LOAD_RETRY_DELAYS_MS = [100, 250, 500, 1000, 2000] as const;
 const RENDERER_RECOVERY_RELOAD_DELAY_MS = 500;
 const RENDERER_RECOVERY_MAX_ATTEMPTS = 3;
-const RENDERER_RECOVERY_WINDOW_MS = 60_000;
+const RENDERER_RECOVERY_WINDOW_MS = 60000;
 const DEVELOPMENT_RETRYABLE_LOAD_ERROR_CODES = new Set([-2, -7, -9, -102, -105, -106, -118]);
 
 type WindowTitleBarOptions = Pick<
@@ -97,13 +98,16 @@ export class DesktopWindow extends Context.Service<
     readonly activate: Effect.Effect<void, DesktopWindowError>;
     readonly createMainIfBackendReady: Effect.Effect<void, DesktopWindowError>;
     readonly showConnectingSplash: Effect.Effect<void>;
+    readonly prepareForShutdown: Effect.Effect<boolean>;
     readonly handleBackendReady: (httpBaseUrl: URL) => Effect.Effect<void, DesktopWindowError>;
     readonly handleBackendNotReady: Effect.Effect<void>;
     readonly flushMainWindowBounds: Effect.Effect<void>;
     readonly prepareCaptureReveal: Effect.Effect<void>;
     readonly dispatchMenuAction: (
       action: string,
-      options?: { readonly reveal?: boolean },
+      options?: {
+        readonly reveal?: boolean;
+      },
     ) => Effect.Effect<void, DesktopWindowError>;
     readonly dispatchSnapShotEvent: (
       event: DesktopSnapShotEvent,
@@ -121,7 +125,11 @@ const { logInfo: logWindowInfo, logWarning: logWindowWarning } =
 function getIconOption(
   iconPaths: DesktopAssets.DesktopIconPaths,
   platform: NodeJS.Platform,
-): { icon: string } | Record<string, never> {
+):
+  | {
+      icon: string;
+    }
+  | Record<string, never> {
   if (platform === "darwin") return {};
   const ext = platform === "win32" ? "ico" : "png";
   return Option.match(iconPaths[ext], {
@@ -172,13 +180,28 @@ export function resolveInitialMainWindowBounds(
   }
   return DesktopAppSettings.DEFAULT_MAIN_WINDOW_SIZE;
 }
-
-function buildConnectingSplashDataUrl(shouldUseDarkColors: boolean): string {
+// A self-contained "Connecting to WSL" splash, shown immediately in wsl-only
+// mode while the WSL backend (which serves the renderer) cold-boots. Inlined as
+// a data URL so it needs no bundled asset and no backend — pure CSS, no JS.
+export function buildConnectingSplashDataUrl(
+  shouldUseDarkColors: boolean,
+  mode: "local" | "wsl" | "closing" = "wsl",
+): string {
   const background = getInitialWindowBackgroundColor(shouldUseDarkColors);
   const label = shouldUseDarkColors ? "#9ca3af" : "#6b7280";
   const accent = shouldUseDarkColors ? "#f8fafc" : "#1f2937";
   const track = shouldUseDarkColors ? "rgba(248,250,252,0.18)" : "rgba(31,41,55,0.18)";
-  const html = `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><style>html,body{margin:0;height:100%}body{background:${background};color:${label};font-family:system-ui,-apple-system,'Segoe UI',sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;-webkit-user-select:none;user-select:none;-webkit-app-region:drag}.spinner{width:26px;height:26px;border:3px solid ${track};border-top-color:${accent};border-radius:50%;animation:spin .8s linear infinite}.label{font-size:13px}@keyframes spin{to{transform:rotate(360deg)}}</style></head><body><div class="spinner"></div><div class="label">Connecting to WSL…</div></body></html>`;
+  const message =
+    mode === "closing"
+      ? "Closing T3 Code…"
+      : mode === "wsl"
+        ? "Connecting to WSL…"
+        : "Starting T3 Code…";
+  const detail =
+    mode === "closing"
+      ? "Stopping local services. Running local tasks will be interrupted."
+      : "Opening your workspace. Your history stays on this device.";
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><style>html,body{margin:0;height:100%}body{background:${background};color:${label};font-family:system-ui,-apple-system,'Segoe UI',sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;-webkit-user-select:none;user-select:none;-webkit-app-region:drag}.mark{width:26px;height:26px;border:3px solid ${track};border-top-color:${accent};border-radius:50%}.label{font-size:14px;color:${accent}}.detail{font-size:12px;line-height:1.5;text-align:center;max-width:280px;padding:0 20px}</style></head><body><main role="status" aria-live="polite" style="display:contents"><div class="mark" aria-hidden="true"></div><div class="label">${message}</div><div class="detail">${detail}</div></main></body></html>`;
   return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 }
 
@@ -708,7 +731,7 @@ export const make = Effect.gen(function* () {
         developmentLoadRetryIndex,
         DEVELOPMENT_LOAD_RETRY_DELAYS_MS.length - 1,
       );
-      const retryInMs = DEVELOPMENT_LOAD_RETRY_DELAYS_MS[retryIndex] ?? 2_000;
+      const retryInMs = DEVELOPMENT_LOAD_RETRY_DELAYS_MS[retryIndex] ?? 2000;
       developmentLoadRetryIndex += 1;
       developmentLoadRetryFiber = runFork(
         Effect.sleep(retryInMs).pipe(
@@ -913,7 +936,13 @@ export const make = Effect.gen(function* () {
         splash.show();
       }
     });
-    void splash.loadURL(buildConnectingSplashDataUrl(shouldUseDarkColors));
+    const settings = yield* desktopSettings.get;
+    void splash.loadURL(
+      buildConnectingSplashDataUrl(
+        shouldUseDarkColors,
+        settings.wslOnly === true && settings.wslBackendEnabled === true ? "wsl" : "local",
+      ),
+    );
     yield* logWindowInfo("connecting splash shown");
   }).pipe(
     Effect.catch((error) =>
@@ -925,7 +954,11 @@ export const make = Effect.gen(function* () {
   const dispatchRendererEvent = Effect.fn("desktop.window.dispatchRendererEvent")(function* (
     channel: string,
     payload: unknown,
-    { reveal = true }: { readonly reveal?: boolean } = {},
+    {
+      reveal = true,
+    }: {
+      readonly reveal?: boolean;
+    } = {},
   ) {
     if (yield* Ref.get(desktopState.quitting)) return;
     const existingWindow = yield* reveal ? focusedMainWindow : electronWindow.main;
@@ -984,6 +1017,49 @@ export const make = Effect.gen(function* () {
     handleBackendNotReady: Ref.set(backendReadyRef, false).pipe(
       Effect.withSpan("desktop.window.handleBackendNotReady"),
     ),
+    prepareForShutdown: Effect.gen(function* () {
+      const main = yield* currentMainWindow;
+      if (Option.isNone(main) || main.value.isDestroyed()) return true;
+      const window = main.value;
+      const canClose = yield* Effect.tryPromise(() =>
+        window.webContents.executeJavaScript(
+          "window.dispatchEvent(new Event('t3:prepare-shutdown', {cancelable: true}))",
+        ),
+      ).pipe(
+        Effect.timeout("3 seconds"),
+        Effect.catchCause((cause) =>
+          logWindowWarning("could not verify renderer draft flush", { cause }).pipe(
+            Effect.as(false),
+          ),
+        ),
+      );
+      if (!canClose) {
+        window.setOpacity(1);
+        yield* electronWindow.reveal(window);
+        const dialog = yield* Effect.serviceOption(ElectronDialog.ElectronDialog);
+        if (Option.isNone(dialog)) return false;
+        const choice = yield* dialog.value
+          .showMessageBox({
+            type: "warning",
+            title: "Drafts are not saved",
+            message: "Quit without saving draft changes?",
+            detail:
+              "Keep T3 Code open to retry saving or export drafts from the composer. Quitting now can lose unsaved input and attachments.",
+            buttons: ["Keep T3 Code open", "Quit without saving"],
+            defaultId: 0,
+            cancelId: 0,
+            noLink: true,
+          })
+          .pipe(Effect.option);
+        if (Option.isNone(choice) || choice.value.response !== 1) return false;
+      }
+      const dark = yield* electronTheme.shouldUseDarkColors;
+      window.setOpacity(1);
+      yield* Effect.tryPromise(() =>
+        window.loadURL(buildConnectingSplashDataUrl(dark, "closing")),
+      ).pipe(Effect.timeout("3 seconds"), Effect.ignore);
+      return true;
+    }),
     flushMainWindowBounds: Effect.suspend(() => flushMainWindowBounds).pipe(
       Effect.withSpan("desktop.window.flushMainWindowBounds"),
     ),

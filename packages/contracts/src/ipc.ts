@@ -34,8 +34,13 @@ export interface ContextMenuItem<T extends string = string> {
 }
 
 export type QuitShortcutHintEvent =
-  | { readonly state: "down"; readonly mode: Exclude<QuitConfirmationMode, "direct"> }
-  | { readonly state: "up" };
+  | {
+      readonly state: "down";
+      readonly mode: Exclude<QuitConfirmationMode, "direct">;
+    }
+  | {
+      readonly state: "up";
+    };
 
 export interface ContextMenuItemSchemaType {
   readonly id: string;
@@ -554,9 +559,19 @@ export const DesktopWslStateSchema = Schema.Struct({
 });
 
 export type DesktopPreviewNavStatus =
-  | { kind: "Idle" }
-  | { kind: "Loading"; url: string; title: string }
-  | { kind: "Success"; url: string; title: string }
+  | {
+      kind: "Idle";
+    }
+  | {
+      kind: "Loading";
+      url: string;
+      title: string;
+    }
+  | {
+      kind: "Success";
+      url: string;
+      title: string;
+    }
   | {
       kind: "LoadFailed";
       url: string;
@@ -571,7 +586,7 @@ export const DesktopPreviewColorSchemeSchema: Schema.Codec<DesktopPreviewColorSc
   Schema.Literals(["system", "light", "dark"]);
 
 export const FAVICON_DATA_URL_MAX_LENGTH = 8192;
-export const FAVICON_CAPTURED_AT_MAX = 8_640_000_000_000_000;
+export const FAVICON_CAPTURED_AT_MAX = 8640000000000000;
 
 export interface DesktopPreviewFavicon {
   dataUrl: string;
@@ -940,7 +955,12 @@ export const DesktopPreviewCreateTabInputSchema = Schema.Struct({
 export interface DesktopPreviewTabDefaults {
   readonly zoomFactor?: number | undefined;
   readonly colorScheme?: DesktopPreviewColorScheme | undefined;
-  readonly serverTab?: { readonly threadId: string; readonly tabId: string } | undefined;
+  readonly serverTab?:
+    | {
+        readonly threadId: string;
+        readonly tabId: string;
+      }
+    | undefined;
 }
 
 export const DesktopPreviewRegisterWebviewInputSchema = Schema.Struct({
@@ -1023,6 +1043,7 @@ export interface DesktopBridge {
    */
   getSystemLocale?: () => string | null;
   getLocalEnvironmentBootstraps: () => readonly DesktopEnvironmentBootstrap[];
+  onLocalEnvironmentBootstrapsChanged?: (listener: () => void) => () => void;
   getLocalEnvironmentEnabled?: () => boolean;
   setLocalEnvironmentEnabled?: (enabled: boolean) => Promise<void>;
   getLocalEnvironmentBearerToken: () => Promise<string>;
@@ -1053,7 +1074,9 @@ export interface DesktopBridge {
   acknowledgeSnapShot?: (id: string) => Promise<void>;
   ensureSshEnvironment: (
     target: DesktopSshEnvironmentTarget,
-    options?: { issuePairingToken?: boolean },
+    options?: {
+      issuePairingToken?: boolean;
+    },
   ) => Promise<DesktopSshEnvironmentBootstrap>;
   disconnectSshEnvironment: (target: DesktopSshEnvironmentTarget) => Promise<void>;
   fetchSshEnvironmentDescriptor: (httpBaseUrl: string) => Promise<ExecutionEnvironmentDescriptor>;
@@ -1085,7 +1108,10 @@ export interface DesktopBridge {
   setTheme: (theme: DesktopTheme) => Promise<void>;
   showContextMenu: <T extends string>(
     items: readonly ContextMenuItem<T>[],
-    position?: { x: number; y: number },
+    position?: {
+      x: number;
+      y: number;
+    },
   ) => Promise<T | null>;
   receiveProviderAuthCallback?: (authorizationUrl: string) => Promise<string>;
   cancelProviderAuthCallback?: (authorizationUrl: string) => Promise<void>;
@@ -1206,7 +1232,10 @@ export interface LocalApi {
   contextMenu: {
     show: <T extends string>(
       items: readonly ContextMenuItem<T>[],
-      position?: { x: number; y: number },
+      position?: {
+        x: number;
+        y: number;
+      },
     ) => Promise<T | null>;
     close: () => Promise<void>;
   };

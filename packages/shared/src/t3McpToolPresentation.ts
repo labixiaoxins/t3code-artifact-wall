@@ -65,6 +65,8 @@ export type T3McpToolSummaryAction =
   | "browser"
   | "device"
   | "html-preview"
+  | "artifact-list"
+  | "artifact-check"
   | "html-render";
 
 export interface T3McpToolDefinition {
@@ -343,6 +345,11 @@ const T3_MCP_TOOLS: Readonly<Record<string, T3McpToolDefinition>> = {
   t3_thread_send_attachments: tool(["Send", "Sending", "Sent", "attachments"], "attachment-send"),
   html_preview: tool(["Preview", "Previewing", "Previewed", "an HTML page"], "html-preview"),
   html_render: tool(["Render", "Rendering", "Rendered", "an HTML page"], "html-render"),
+  artifact_list: tool(["List", "Listing", "Listed", "deliverable files"], "artifact-list"),
+  artifact_record_check: tool(
+    ["Record", "Recording", "Recorded", "a deliverable check"],
+    "artifact-check",
+  ),
 };
 
 export const T3_MCP_TOOL_NAMES: ReadonlySet<string> = new Set(Object.keys(T3_MCP_TOOLS));

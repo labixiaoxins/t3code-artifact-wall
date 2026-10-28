@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useAtomValue } from "@effect/atom-react";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { isWindowsAbsolutePath } from "@t3tools/shared/path";
@@ -77,12 +78,12 @@ export function ProjectFaviconPickerDialog(props: {
     <CommandDialog open={props.open} onOpenChange={props.onOpenChange}>
       {props.open ? (
         <CommandDialogPopup
-          aria-label="Choose project icon"
+          aria-label={uiText("Choose project icon")}
           className="overflow-hidden"
           onBackdropPointerDown={() => props.onOpenChange(false)}
         >
           <CommandPaletteContent
-            aria-label="Choose project icon"
+            aria-label={uiText("Choose project icon")}
             autoHighlight="always"
             escapeLabel="Close"
             footerActionLabel="Select icon"
@@ -101,7 +102,7 @@ export function ProjectFaviconPickerDialog(props: {
                       .catch((error: unknown) => {
                         toastManager.add({
                           type: "error",
-                          title: "Could not open image picker",
+                          title: uiText("Could not open image picker"),
                           description:
                             error instanceof Error ? error.message : "An error occurred.",
                         });
@@ -109,11 +110,11 @@ export function ProjectFaviconPickerDialog(props: {
                       .finally(() => setIsPickingExternal(false));
                   }}
                 >
-                  {`Open in ${fileManagerName}`}
+                  {uiText("Open in {0}", { "0": fileManagerName })}
                 </CommandFooterAction>
               ) : null
             }
-            inputProps={{ placeholder: "Search image files…" }}
+            inputProps={{ placeholder: uiText("Search image files…") }}
             mode="none"
             onItemHighlighted={(value) => {
               setHighlightedItemValue(typeof value === "string" ? value : null);

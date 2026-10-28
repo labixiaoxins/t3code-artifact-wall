@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useAtomValue } from "@effect/atom-react";
 import {
   isTerminalSubagentStatus,
@@ -133,7 +134,7 @@ function WorkflowMemberRow(props: {
             ) : (
               <button
                 type="button"
-                aria-label={`Open ${member.title}`}
+                aria-label={uiText("Open {0}", { "0": member.title })}
                 aria-description={member.status}
                 onClick={() => props.onOpenThread(threadId)}
                 className={cn(
@@ -229,7 +230,7 @@ function WorkflowScript(props: { readonly script: string }) {
             data-scroll-anchor-ignore
             onClick={() => setExpanded((value) => !value)}
           >
-            {expanded ? "Show less" : "Show full script"}
+            {expanded ? uiText("Show less") : "Show full script"}
           </Button>
         </div>
       ) : null}

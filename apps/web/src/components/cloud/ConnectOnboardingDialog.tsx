@@ -1,9 +1,9 @@
+import { uiText } from "~/i18n";
 import { useAuth } from "@clerk/react";
 import { useAtomValue } from "@effect/atom-react";
 import { AuthRelayReadScope, AuthRelayWriteScope, type AuthSessionState } from "@t3tools/contracts";
 import { AsyncResult, Atom } from "effect/reactivity";
 import { useState } from "react";
-
 import {
   CONNECT_ONBOARDING_OPT_OUT_STORAGE_KEY,
   ConnectOnboardingOptOutSchema,
@@ -26,17 +26,12 @@ import { Dialog } from "../ui/dialog";
 import { Switch } from "../ui/switch";
 import { toastManager } from "../ui/toast";
 import { WizardSteps, WizardPopup, WizardHeader, WizardPanel, WizardFooter } from "../ui/wizard";
-
 export function ConnectOnboardingDialog() {
   if (!hasCloudPublicConfig()) return null;
-
   return <ConfiguredConnectOnboardingDialog />;
 }
-
 type OnboardingStep = "publish" | "devices";
-
 const EMPTY_SESSION_STATE_ATOM = Atom.make(AsyncResult.initial<AuthSessionState>());
-
 function ConfiguredConnectOnboardingDialog() {
   // Pending Clerk sessions must not look signed out or activation would look like a new sign-in.
   const { isLoaded, isSignedIn, userId } = useAuth({ treatPendingAsSignedOut: false });
@@ -45,7 +40,6 @@ function ConfiguredConnectOnboardingDialog() {
     EMPTY_CONNECT_ONBOARDING_OPT_OUT_STATE,
     ConnectOnboardingOptOutSchema,
   );
-
   const { environments, isReady: environmentsReady } = useEnvironments();
   // The empty hosted home already adds account computers after sign-in.
   const homeScreenAddsComputers =
@@ -61,13 +55,11 @@ function ConfiguredConnectOnboardingDialog() {
   const canManageRelay = canReadRelay && canWriteRelay;
   const sessionScopesKnown =
     primaryEnvironmentId === null ? environmentsReady : primarySessionState._tag !== "Initial";
-
   const controller = useCloudLinkController();
   const showPublishStep = canManageRelay && controller.linkState.target !== null;
   const steps: ReadonlyArray<OnboardingStep> = showPublishStep
     ? ["publish", "devices"]
     : ["devices"];
-
   const [requestedAccount, setRequestedAccount] = useState<string | null>(null);
   const [openForAccount, setOpenForAccount] = useState<string | null>(null);
   const [step, setStep] = useState<OnboardingStep>("devices");
@@ -78,13 +70,10 @@ function ConfiguredConnectOnboardingDialog() {
   const [prefilledFromLinkState, setPrefilledFromLinkState] = useState(false);
   // Start undefined so an existing account never looks like a fresh sign-in.
   const [observedAccount, setObservedAccount] = useState<string | null | undefined>(undefined);
-
   if (step === "publish" && sessionScopesKnown && !showPublishStep && !isApplying) {
     setStep("devices");
   }
-
   const optOutAccounts = optOutState.optOutAccounts;
-
   // A signed-in snapshot without userId is incomplete; recording signed-out would fake a fresh sign-in.
   if (isLoaded && !(isSignedIn && !userId)) {
     const nextAccount = isSignedIn && userId ? userId : null;
@@ -95,18 +84,15 @@ function ConfiguredConnectOnboardingDialog() {
       }
     }
   }
-
   if (openForAccount !== null && (!isSignedIn || userId !== openForAccount)) {
     setOpenForAccount(null);
   }
   if (requestedAccount !== null && (!isSignedIn || userId !== requestedAccount)) {
     setRequestedAccount(null);
   }
-
   // Wait for the publish target before opening; otherwise the wizard can freeze on devices before publish
   // becomes available.
   const publishStepDecided = !canManageRelay || controller.linkState.target !== null;
-
   if (requestedAccount !== null && openForAccount === null) {
     if (homeScreenAddsComputers || optOutAccounts.includes(requestedAccount)) {
       setRequestedAccount(null);
@@ -120,7 +106,6 @@ function ConfiguredConnectOnboardingDialog() {
       setOpenForAccount(requestedAccount);
     }
   }
-
   const linkStateData = controller.linkState.data;
   if (openForAccount !== null && !prefilledFromLinkState && linkStateData !== null) {
     setPrefilledFromLinkState(true);
@@ -133,7 +118,6 @@ function ConfiguredConnectOnboardingDialog() {
       setPublishAgentActivity(linkStateData.publishAgentActivity);
     }
   }
-
   const complete = () => {
     if (isApplying) return;
     const account = openForAccount;
@@ -146,7 +130,6 @@ function ConfiguredConnectOnboardingDialog() {
       );
     }
   };
-
   const applyPublishSelection = async () => {
     if (isApplying) return;
     if (
@@ -172,14 +155,13 @@ function ConfiguredConnectOnboardingDialog() {
     if (!ok) return;
     toastManager.add({
       type: "success",
-      title: "T3 Connect enabled",
+      title: uiText("T3 Connect enabled"),
       description: exposeEnvironment
         ? "This environment is available to your other devices through T3 Connect."
         : "This environment publishes agent activity to your mobile clients.",
     });
     setStep("devices");
   };
-
   return (
     <Dialog
       open={openForAccount !== null}
@@ -189,11 +171,12 @@ function ConfiguredConnectOnboardingDialog() {
     >
       <WizardPopup>
         <WizardHeader
-          title="Set up T3 Connect"
+          title={uiText("Set up T3 Connect")}
           description={
             <>
-              Mesh your devices together. Publish this environment and connect the rest, all in one
-              place.
+              {
+                "Mesh your devices together. Publish this environment and connect the rest, all in one place."
+              }
             </>
           }
         >
@@ -251,25 +234,25 @@ function ConfiguredConnectOnboardingDialog() {
                 checked={dontShowAgain}
                 onCheckedChange={(checked) => setDontShowAgain(checked === true)}
               />
-              Don&apos;t show this again
+              {uiText("Don&apos;t show this again")}
             </label>
           }
         >
           {step === "publish" ? (
             <>
               <Button variant="ghost" disabled={isApplying} onClick={() => setStep("devices")}>
-                Not now
+                {uiText("Not now")}
               </Button>
               <Button
                 disabled={isApplying || !canManageRelay || linkStateData === null}
                 onClick={() => void applyPublishSelection()}
               >
-                {isApplying ? "Enabling…" : "Continue"}
+                {isApplying ? uiText("Enabling…") : uiText("Continue")}
               </Button>
             </>
           ) : (
             <Button disabled={isApplying} onClick={complete}>
-              Done
+              {uiText("Done")}
             </Button>
           )}
         </WizardFooter>
@@ -277,12 +260,10 @@ function ConfiguredConnectOnboardingDialog() {
     </Dialog>
   );
 }
-
 const STEP_LABELS: Record<OnboardingStep, string> = {
-  publish: "Publish",
-  devices: "Connect devices",
+  publish: uiText("Publish"),
+  devices: uiText("Connect devices"),
 };
-
 function PublishStep({
   exposeEnvironment,
   publishAgentActivity,
@@ -302,15 +283,19 @@ function PublishStep({
     <div className="space-y-3">
       <div className="rounded-lg border">
         <OnboardingToggleRow
-          title="Publish this environment"
-          description="Make this environment available to your other devices through T3 Connect."
+          title={uiText("Publish this environment")}
+          description={uiText(
+            "Make this environment available to your other devices through T3 Connect.",
+          )}
           checked={exposeEnvironment}
           disabled={disabled}
           onCheckedChange={onExposeEnvironmentChange}
         />
         <OnboardingToggleRow
-          title="Publish agent activity"
-          description="Send activity from this environment to your mobile clients for push notifications and Live Activities."
+          title={uiText("Publish agent activity")}
+          description={uiText(
+            "Send activity from this environment to your mobile clients for push notifications and Live Activities.",
+          )}
           checked={publishAgentActivity}
           disabled={disabled}
           onCheckedChange={onPublishAgentActivityChange}
@@ -320,7 +305,6 @@ function PublishStep({
     </div>
   );
 }
-
 function OnboardingToggleRow({
   title,
   description,
@@ -349,14 +333,12 @@ function OnboardingToggleRow({
     </div>
   );
 }
-
 function DevicesStep() {
   const { environments } = useEnvironments();
   const primaryEnvironment = usePrimaryEnvironment();
   const savedEnvironments = environments.filter(
     (environment) => environment.entry.target._tag !== "PrimaryConnectionTarget",
   );
-
   return (
     <div className="overflow-hidden rounded-lg border">
       <CloudEnvironmentConnectRows
@@ -365,8 +347,9 @@ function DevicesStep() {
         showSavedEnvironments
         empty={
           <p className="px-4 py-6 text-center text-sm text-muted-foreground">
-            No other environments are published to your account yet. Publish one from another device
-            and it will show up here.
+            {uiText(
+              "No other environments are published to your account yet. Publish one from another device and it will show up here.",
+            )}
           </p>
         }
       />

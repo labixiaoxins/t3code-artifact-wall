@@ -325,6 +325,36 @@ describe("parseCodexLine", () => {
     expect(codexUsageFormat.readMalformedRecords?.(state)).toBe(1);
   });
 
+  it.each([false, true])(
+    "accepts the post-compaction context marker without a malformed record (prior request: %s)",
+    (priorRequest) => {
+      const state = initialCodexScanState();
+      parseCodexLine(turnContext, state);
+      if (priorRequest) parseCodexLine(counted(counters(100, 20), counters(100, 20)), state);
+      const marker = counted({ ...counters(0, 0), total_tokens: 26387 }, counters(0, 0), {
+        model_context_window: 475000,
+      });
+      expect(parseCodexLine(marker, state)).toBeNull();
+      expect(
+        parseCodexLine(counted(counters(30, 5), counters(30, 5)), state)?.totals.outputTokens,
+      ).toBe(5);
+      expect(codexUsageFormat.readMalformedRecords?.(state)).toBe(0);
+    },
+  );
+
+  it("bills the first request after a resume restarts the cumulative counters", () => {
+    const state = initialCodexScanState();
+    parseCodexLine(turnContext, state);
+    parseCodexLine(counted(counters(100, 20), counters(100, 20)), state);
+    expect(
+      parseCodexLine(counted(counters(30, 5), counters(30, 5)), state)?.totals.outputTokens,
+    ).toBe(5);
+    expect(
+      parseCodexLine(counted(counters(10, 2), counters(40, 7)), state)?.totals.outputTokens,
+    ).toBe(2);
+    expect(codexUsageFormat.readMalformedRecords?.(state)).toBe(0);
+  });
+
   it("does not bill a context-window estimate or lose the following real request", () => {
     const state = initialCodexScanState();
     parseCodexLine(turnContext, state);

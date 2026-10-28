@@ -1,17 +1,15 @@
+import { uiText } from "~/i18n";
 import { InfoIcon } from "lucide-react";
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
-
 import { Button } from "../ui/button";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import { ComposerBanner, type ComposerBannerVariant } from "./ComposerBanner";
 import { observeResize } from "~/lib/observeResize";
-
 /**
  * Where a notice sits above the composer. The machine comes first, then what needs you; the
  * order is fixed so rows never trade places as notices come and go.
  */
 export type ComposerBannerGroup = "environment" | "attention";
-
 export interface ComposerBannerStackItem {
   readonly id: string;
   readonly variant: ComposerBannerVariant;
@@ -24,9 +22,7 @@ export interface ComposerBannerStackItem {
   readonly dismissLabel?: string;
   readonly onDismiss?: () => void;
 }
-
 const GROUPS = ["environment", "attention"] as const;
-
 /**
  * Notices about sending from this composer, each its own attached card. Consecutive cards join
  * edge to edge, and the last joins the composer or the drawer below it.
@@ -48,7 +44,6 @@ export function ComposerBannerStack({
     </ComposerBanner.Attachment>
   ));
 }
-
 export function NoticeText({
   children,
   className,
@@ -61,7 +56,6 @@ export function NoticeText({
   const textRef = useRef<HTMLSpanElement>(null);
   const detailsRef = useRef<HTMLButtonElement>(null);
   const [showDetails, setShowDetails] = useState(false);
-
   useLayoutEffect(() => {
     const text = textRef.current;
     if (!text) return;
@@ -86,7 +80,6 @@ export function NoticeText({
       mutations.disconnect();
     };
   }, []);
-
   return (
     <span className="contents">
       <span ref={textRef} className={className}>
@@ -109,7 +102,7 @@ export function NoticeText({
             <InfoIcon />
           </PopoverTrigger>
           <PopoverPopup
-            aria-label="Notice details"
+            aria-label={uiText("Notice details")}
             tooltipStyle
             side="top"
             className="max-w-[min(30rem,calc(100vw-2rem))] whitespace-normal wrap-anywhere [--inline-button-text-align:start] [--inline-button-white-space:normal] [&_[data-slot=inline-button]]:max-w-full"
@@ -123,7 +116,6 @@ export function NoticeText({
     </span>
   );
 }
-
 function NoticeCard({ item }: { readonly item: ComposerBannerStackItem }) {
   return (
     <ComposerBanner.Root
@@ -165,7 +157,7 @@ function NoticeCard({ item }: { readonly item: ComposerBannerStackItem }) {
             {item.actions}
             {item.onDismiss ? (
               <ComposerBanner.Dismiss
-                aria-label={item.dismissLabel ?? "Dismiss warning"}
+                aria-label={item.dismissLabel ?? uiText("Dismiss warning")}
                 onClick={item.onDismiss}
               />
             ) : null}

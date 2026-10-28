@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type { DesktopSnapShotState } from "@t3tools/contracts";
 
 export type CaptureSetupStep = "access" | "shortcut";
@@ -58,10 +59,11 @@ export function captureSetupCheckMessage(state: DesktopSnapShotState): string {
     (backend === "kde" && state.kdeHelper?.status === "error") ||
     (backend === "hyprland" && state.hyprlandHelper?.status === "error")
   )
-    return "Still unable to check access. See Advanced for help.";
-  if (captureSetupBackend(state) === "picker") return "Ready. You'll choose a window each time.";
+    return uiText("Still unable to check access. See Advanced for help.");
+  if (captureSetupBackend(state) === "picker")
+    return uiText("Ready. You'll choose a window each time.");
   if (gnome && state.gnomeExtension?.status === "restart-required")
-    return "Still waiting for you to sign out and back in.";
+    return uiText("Still waiting for you to sign out and back in.");
   return captureSetupAccessReady(state)
     ? "Ready. Continue to choose your shortcut."
     : "Not ready yet. Finish the step above.";

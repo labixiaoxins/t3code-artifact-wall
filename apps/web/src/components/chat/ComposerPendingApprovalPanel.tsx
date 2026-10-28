@@ -8,13 +8,11 @@ import { InlineButton } from "../ui/button";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import { composerFloatingLayerProps } from "./composerEventScope";
 import { cn } from "~/lib/utils";
-
 interface ComposerPendingApprovalPanelProps {
   approval: PendingApproval;
   pendingCount: number;
   className?: string;
 }
-
 export const ComposerPendingApprovalPanel = memo(function ComposerPendingApprovalPanel({
   approval,
   pendingCount,
@@ -41,7 +39,6 @@ export const ComposerPendingApprovalPanel = memo(function ComposerPendingApprova
           : approval.requestKind === "permission"
             ? "Permission request"
             : "File change";
-
   return (
     <span
       aria-label={fallbackLabel}
@@ -68,7 +65,10 @@ export const ComposerPendingApprovalPanel = memo(function ComposerPendingApprova
           </Popover>
         ) : null}
         {pendingCount > 1 ? (
-          <span className="ml-auto shrink-0 tabular-nums">1/{pendingCount}</span>
+          <span className="ml-auto shrink-0 tabular-nums">
+            {"1/"}
+            {pendingCount}
+          </span>
         ) : null}
       </span>
       <Detail

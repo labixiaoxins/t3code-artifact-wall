@@ -3,8 +3,9 @@
 T3 Code transfers conversation context when you switch providers, continue through a portable
 restart, or use a fork that the provider cannot resume itself.
 
-Short conversations transfer intact. For longer conversations, T3 Code favors recent requests and
-answers, the original request, and relevant activity such as command outcomes. Selected messages
+Short conversations transfer intact. For longer conversations, T3 Code favors your original request
+and later corrections before assistant answers and long tool logs. Recent file changes and unresolved
+work come next. Selected messages
 keep their full text, order, and user or assistant role, including partial work from failed or
 interrupted turns. Your new request stays separate and is never shortened to make history fit.
 
@@ -14,8 +15,22 @@ copy the outgoing provider's reasoning, tool-call state, or attachments.
 
 The handoff includes references to omitted history. The agent can use T3 Code's thread-reading tool
 to retrieve saved messages and activity, including the remainder of a long item. For an important
-constraint, you can still repeat it in your next message. A handoff is a budgeted selection, not an
-agent-written summary.
+constraint omitted by the budget, the receiving agent is directed to retrieve the saved request
+before continuing. The handoff also identifies recent plans and file changes, without treating
+plans as authorization or files as acceptance. A handoff is a budgeted selection, not an
+agent-written summary. When work resumes after interruption, inspect external results before
+retrying: cancellation does not undo a submission or publication.
+
+## Checking deliverables
+
+The artifact wall distinguishes files without a recorded check, commands that passed or failed,
+and files changed since their last check. A passed command covers the named check; it does not
+mean you accepted the deliverable or that it was deployed.
+
+Agents can use `artifact_list` to find the current file revision, run a relevant check, and use
+`artifact_record_check` with the completed command's item ID from thread history. The record must
+belong to this thread and finish after the file's last modification. Later changes invalidate it.
+Existing files start without a recorded check; no old success is inferred from conversation text.
 
 ## Context limits
 

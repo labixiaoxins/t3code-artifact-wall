@@ -38,7 +38,7 @@ import * as DesktopRendererHistory from "../telemetry/DesktopRendererHistory.ts"
 import * as HostProcess from "@t3tools/shared/HostProcess";
 
 const DEFAULT_DESKTOP_BACKEND_PORT = 3773;
-const MAX_TCP_PORT = 65_535;
+const MAX_TCP_PORT = 65535;
 const DESKTOP_BACKEND_PORT_PROBE_HOSTS = ["127.0.0.1", "0.0.0.0", "::"] as const;
 
 const makeDesktopRunId = Crypto.Crypto.pipe(
@@ -239,9 +239,7 @@ const bootstrap = Effect.gen(function* () {
   }
 
   if (!(yield* Ref.get(state.quitting))) {
-    if (settings.wslOnly === true && settings.wslBackendEnabled === true) {
       yield* desktopWindow.showConnectingSplash;
-    }
     yield* primaryBackend.start;
     yield* logBootstrapInfo("bootstrap backend start requested");
     yield* appActivation.start.pipe(

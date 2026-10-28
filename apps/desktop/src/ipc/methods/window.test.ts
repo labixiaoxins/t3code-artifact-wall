@@ -6,6 +6,8 @@ import * as Path from "effect/Path";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as Queue from "effect/Queue";
+import * as TestClock from "effect/testing/TestClock";
 import { vi } from "vite-plus/test";
 
 const { focusedWebContents, ownerWindow } = vi.hoisted(() => ({
@@ -25,6 +27,7 @@ import * as ElectronDialog from "../../electron/ElectronDialog.ts";
 import * as ElectronWindow from "../../electron/ElectronWindow.ts";
 import {
   getLocalEnvironmentBootstraps,
+  installLocalBootstrapForwarding,
   getRelayTelemetryEnabled,
   pickProjectFavicon,
   probeRemoteEditors,
@@ -176,6 +179,45 @@ describe("getLocalEnvironmentBootstraps", () => {
     }).pipe(Effect.provide(bootstrapsLayer([stoppedInstance])));
   });
 });
+it.effect(
+  "pushes topology changes from the main process, without repeating unchanged snapshots",
+  () => {
+    let runningDistro = "Ubuntu";
+    let pushes = 0;
+    return Effect.gen(function* () {
+      const delivered = yield* Queue.make<readonly unknown[]>();
+      yield* installLocalBootstrapForwarding().pipe(
+        Effect.provide(
+          Layer.merge(
+            bootstrapsLayer([
+              {
+                ...defaultWslInstance,
+                currentConfig: Effect.sync(() => Option.some({ ...readyWslConfig, runningDistro })),
+              },
+            ]),
+            Layer.mock(ElectronWindow.ElectronWindow)({
+              sendAll: (_channel, ...args) =>
+                Effect.gen(function* () {
+                  pushes += 1;
+                  yield* Queue.offer(delivered, args);
+                }),
+            }),
+          ),
+        ),
+      );
+      yield* Queue.take(delivered);
+      assert.equal(pushes, 1);
+      yield* TestClock.adjust("2 seconds");
+      yield* Effect.yieldNow;
+      assert.equal(pushes, 1);
+      runningDistro = "Debian";
+      yield* TestClock.adjust("2 seconds");
+      const changed = yield* Queue.take(delivered);
+      assert.include(JSON.stringify(changed), "WSL (Debian)");
+      assert.equal(pushes, 2);
+    }).pipe(Effect.scoped);
+  },
+);
 
 describe("getRelayTelemetryEnabled", () => {
   it.effect("reads the desktop host opt-out before returning the renderer policy", () =>

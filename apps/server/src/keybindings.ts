@@ -113,6 +113,11 @@ const LATE_DEFAULT_KEYBINDINGS: ReadonlyArray<{
       when: "composerFocus && draftThreadRoute",
     },
   },
+  {
+    id: "threadPanel.toggle:mod+alt+i",
+    alongside: { key: "mod+shift+b", command: "threadPanel.toggle", when: "!terminalFocus" },
+    rule: { key: "mod+alt+i", command: "threadPanel.toggle", when: "!terminalFocus" },
+  },
 ];
 
 function keybindingShortcutContext(rule: KeybindingRule): string | null {

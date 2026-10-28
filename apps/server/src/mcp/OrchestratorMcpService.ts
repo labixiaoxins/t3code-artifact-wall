@@ -85,7 +85,6 @@ import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
-
 import * as ProviderAdapterRegistry from "../orchestration-v2/ProviderAdapterRegistry.ts";
 import {
   subagentResultForRun,
@@ -113,9 +112,8 @@ import {
 } from "./McpInvocationContext.ts";
 import * as Metrics from "../observability/Metrics.ts";
 import * as SecretRequests from "../secrets/SecretRequests.ts";
-
-const DEFAULT_WAIT_TIMEOUT_MS = 10 * 60 * 1_000;
-const MAX_WAIT_TIMEOUT_MS = 60 * 60 * 1_000;
+const DEFAULT_WAIT_TIMEOUT_MS = 10 * 60 * 1000;
+const MAX_WAIT_TIMEOUT_MS = 60 * 60 * 1000;
 const TASK_WAKE_EVENTS = [
   { thread: "parent", eventType: "subagent.updated" },
   { thread: "child", eventType: "run.updated" },
@@ -127,18 +125,15 @@ const SECRET_REQUEST_POLL_INTERVAL_MS = 500;
 const DEFAULT_THREAD_LIST_LIMIT = 50;
 const DEFAULT_THREAD_READ_LIMIT = 50;
 const DEFAULT_THREAD_RUN_LIMIT = 10;
-const DEFAULT_THREAD_ITEM_MAX_CHARS = 20_000;
-
+const DEFAULT_THREAD_ITEM_MAX_CHARS = 20000;
 interface ResolvedTarget {
   readonly modelSelection: ModelSelection;
   readonly supportedRuntimeModes: ReadonlyArray<RuntimeMode> | undefined;
 }
-
 type TerminalTaskStatus = Extract<
   OrchestratorMcpDelegateTaskResult["status"],
   "completed" | "failed" | "cancelled" | "interrupted"
 >;
-
 export interface OrchestratorMcpServiceShape {
   readonly capabilities: (
     scope: McpInvocationScope,
@@ -202,18 +197,14 @@ export interface OrchestratorMcpServiceShape {
     input: OrchestratorMcpThreadInterruptInput,
   ) => Effect.Effect<OrchestratorMcpThreadInterruptResult, OrchestratorMcpFailure>;
 }
-
 export class OrchestratorMcpService extends Context.Service<
   OrchestratorMcpService,
   OrchestratorMcpServiceShape
 >()("t3/mcp/OrchestratorMcpService") {}
-
 const isThreadManagementError = Schema.is(ThreadManagementService.ThreadManagementError);
-
 function failure(code: OrchestratorMcpFailure["code"], message: string): OrchestratorMcpFailure {
   return new OrchestratorMcpFailure({ code, message });
 }
-
 /** Background subagents retain credentials until provider exit; archived threads and other instances cannot act. */
 export const isLiveCallerShell = (
   shell: Pick<
@@ -230,7 +221,6 @@ export const isLiveCallerShell = (
       (task) => task.kind === "subagent" && task.providerInstanceId === providerInstanceId,
     ) ??
       false));
-
 /**
  * Threads an agent starts over MCP are `mcp:<uuid>`, and agents often paste the
  * bare uuid. The id is never rewritten, so permission checks keyed on it still
@@ -250,7 +240,6 @@ export const threadNotFound = Effect.fn("OrchestratorMcpService.threadNotFound")
       : `${message} Did you mean \`${prefixed}\`?`,
   );
 });
-
 function threadManagementFailure(error: unknown): OrchestratorMcpFailure {
   if (!isThreadManagementError(error)) return failure("orchestration_error", errorMessage(error));
   switch (error._tag) {
@@ -271,16 +260,13 @@ function threadManagementFailure(error: unknown): OrchestratorMcpFailure {
       return failure("invalid_request", error.message);
   }
 }
-
 // Without a reason, a Stop reads as the user's (see RunExecutionService.USER_STOP_REASON).
 function agentStopReason(reason: string | undefined): string {
   return reason === undefined ? "Stopped by an agent" : `Stopped by an agent: ${reason}`;
 }
-
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
-
 function scheduledTaskWorkspaceStrategy(
   boundToThread: boolean,
 ): ScheduledTask["workspaceStrategy"] {
@@ -288,7 +274,6 @@ function scheduledTaskWorkspaceStrategy(
     ? { type: "root" }
     : { type: "worktree", baseRef: "main", startFromOrigin: true };
 }
-
 function scheduledTaskSummary(task: ScheduledTask, mayRun: boolean): OrchestratorMcpScheduledTask {
   return {
     scheduledTaskId: task.id,
@@ -306,7 +291,6 @@ function scheduledTaskSummary(task: ScheduledTask, mayRun: boolean): Orchestrato
       : { webhookSignature: task.webhook.hasSecret ? "set" : "none" }),
   };
 }
-
 /**
  * Large catalogs (OpenCode, Cursor, Pi) can list hundreds of models, so agents
  * get a short list by default and search for the rest. These providers have
@@ -314,7 +298,6 @@ function scheduledTaskSummary(task: ScheduledTask, mayRun: boolean): Orchestrato
  */
 const FULL_CATALOG_DRIVERS: ReadonlySet<string> = new Set(["codex", "claudeAgent", "muse", "grok"]);
 const LISTED_MODEL_LIMIT = 8;
-
 /**
  * Picks the models orchestrator_capabilities shows for one provider. Hidden
  * models never appear. With search terms, lists matches; otherwise lists pinned
@@ -324,7 +307,10 @@ const LISTED_MODEL_LIMIT = 8;
 function listCapabilityModels(input: {
   readonly provider: ServerProvider;
   readonly preferences:
-    | { readonly hiddenModels: ReadonlyArray<string>; readonly modelOrder: ReadonlyArray<string> }
+    | {
+        readonly hiddenModels: ReadonlyArray<string>;
+        readonly modelOrder: ReadonlyArray<string>;
+      }
     | undefined;
   readonly isPinned: (model: ServerProviderModel) => boolean;
   readonly searchTerms: ReadonlyArray<string>;
@@ -350,7 +336,6 @@ function listCapabilityModels(input: {
   const listed = visible.filter((model) => input.isPinned(model) || shown.has(model));
   return { listed, omitted: visible.length - listed.length };
 }
-
 /** Option ids and allowed values are all a delegating agent needs; labels are UI copy. */
 function capabilityModelOption(descriptor: ProviderOptionDescriptor): OrchestratorMcpModelOption {
   const defaultValue = getProviderOptionCurrentValue(descriptor);
@@ -361,7 +346,6 @@ function capabilityModelOption(descriptor: ProviderOptionDescriptor): Orchestrat
     ...(defaultValue === undefined ? {} : { default: defaultValue }),
   };
 }
-
 function providerConstraints(
   provider: ServerProvider | undefined,
   supportsOrchestrationV2: boolean,
@@ -388,7 +372,6 @@ function providerConstraints(
   }
   return constraints;
 }
-
 /** Skip checks without descriptors; reject duplicate IDs because consumers disagree on precedence. */
 function invalidOptionSelections(
   selections: ReadonlyArray<ProviderOptionSelection>,
@@ -423,7 +406,6 @@ function invalidOptionSelections(
   }
   return problems;
 }
-
 function taskStatusForRun(
   run: Pick<OrchestrationV2Run, "status" | "restartCancelledBackgroundWork"> | undefined,
 ): OrchestratorMcpDelegateTaskResult["status"] {
@@ -448,7 +430,6 @@ function taskStatusForRun(
       return "running";
   }
 }
-
 function delegatedTaskRun(
   childProjection: Pick<OrchestrationV2ThreadProjection, "runs" | "contextTransfers">,
   task: OrchestrationV2Subagent,
@@ -468,7 +449,6 @@ function delegatedTaskRun(
     ? undefined
     : childProjection.runs.find((run) => run.id === spawnTransfer.targetRunId);
 }
-
 function hasPendingChildRuns(
   childProjection: Pick<OrchestrationV2ThreadProjection, "runs">,
   delegatedRun: OrchestrationV2Run | undefined,
@@ -480,7 +460,6 @@ function hasPendingChildRuns(
       (delegatedRun === undefined || run.ordinal > delegatedRun.ordinal),
   );
 }
-
 function isTerminalTaskStatus(
   status: OrchestratorMcpDelegateTaskResult["status"],
 ): status is TerminalTaskStatus {
@@ -491,7 +470,6 @@ function isTerminalTaskStatus(
     status === "interrupted"
   );
 }
-
 function endsTaskWait(result: OrchestratorMcpDelegateTaskResult): boolean {
   return (
     result.hasPendingQuestion ||
@@ -499,9 +477,7 @@ function endsTaskWait(result: OrchestratorMcpDelegateTaskResult): boolean {
     isTerminalTaskStatus(result.status)
   );
 }
-
 const isApprovalRequestKind = Schema.is(ProviderRequestKind);
-
 function pendingTaskApproval(
   child: Pick<OrchestrationV2ThreadProjection, "runs" | "nodes" | "runtimeRequests">,
   taskId: NodeId,
@@ -538,7 +514,6 @@ function pendingTaskApproval(
   }
   return approval;
 }
-
 function directAppOwnedChildTasks(
   parent: Pick<OrchestrationV2ThreadProjection, "thread" | "subagents">,
   target: Pick<OrchestrationV2ThreadProjection, "thread" | "runs">,
@@ -570,7 +545,6 @@ function directAppOwnedChildTasks(
       task.childThreadId === target.thread.id,
   );
 }
-
 function taskResultTransfer(
   parent: Pick<OrchestrationV2ThreadProjection, "thread" | "contextTransfers">,
   child: Pick<OrchestrationV2ThreadProjection, "runs" | "contextTransfers">,
@@ -596,7 +570,6 @@ function taskResultTransfer(
         (transfer.sourcePoint.runId === undefined && originalRun?.delegatedTaskId === undefined)),
   );
 }
-
 function pageIncludesTerminalTaskResult(input: {
   readonly parent: Pick<OrchestrationV2ThreadProjection, "thread" | "contextTransfers">;
   readonly page: ReadonlyArray<OrchestrationV2ThreadProjection["visibleTurnItems"][number]>;
@@ -614,10 +587,8 @@ function pageIncludesTerminalTaskResult(input: {
       ? delegatedTaskRun(input.target, input.task)
       : input.target.runs.find((run) => run.id === transfer.sourcePoint.runId);
   if (run === undefined || !isTerminalTaskStatus(taskStatusForRun(run))) return false;
-
   const result = subagentResultForRun(input.target, run);
   if (result.messageId === null && result.turnItemId === null) return false;
-
   return input.page.some((row) => {
     if (row.sourceThreadId !== input.target.thread.id) return false;
     const matchesResult =
@@ -626,12 +597,10 @@ function pageIncludesTerminalTaskResult(input: {
         row.item.type === "assistant_message" &&
         row.item.messageId === result.messageId);
     if (!matchesResult) return false;
-
     const text = turnItemText(row.item);
     return text !== null && text.length <= input.maxChars;
   });
 }
-
 function latestTerminalResultRun(
   projection: Pick<OrchestrationV2ThreadProjection, "messages" | "runs">,
   delegatedRun: OrchestrationV2Run | undefined,
@@ -654,13 +623,11 @@ function latestTerminalResultRun(
       undefined,
     );
 }
-
 function canExposeTaskRunResult(run: OrchestrationV2Run | undefined): run is OrchestrationV2Run {
   return (
     run !== undefined && run.status !== "rolled_back" && isTerminalTaskStatus(taskStatusForRun(run))
   );
 }
-
 function runtimeModeRank(mode: RuntimeMode): number {
   switch (mode) {
     case "approval-required":
@@ -673,11 +640,9 @@ function runtimeModeRank(mode: RuntimeMode): number {
       return 3;
   }
 }
-
 function interactionModeRank(mode: ProviderInteractionMode): number {
   return mode === "plan" ? 0 : 1;
 }
-
 export function resolveRuntimeMode(
   parentMode: RuntimeMode,
   requested: OrchestratorMcpRuntimeMode | undefined,
@@ -712,7 +677,6 @@ export function resolveRuntimeMode(
       "approval-required",
   );
 }
-
 export function resolveInteractionMode(
   parentMode: ProviderInteractionMode,
   requested: OrchestratorMcpInteractionMode | undefined,
@@ -727,11 +691,9 @@ export function resolveInteractionMode(
       )
     : Effect.succeed(resolved);
 }
-
 function stablePart(value: string): string {
   return encodeURIComponent(value);
 }
-
 function stableCommandId(input: {
   readonly scope: McpInvocationScope;
   readonly requestKey: string;
@@ -749,7 +711,6 @@ function stableCommandId(input: {
     ].join(":"),
   );
 }
-
 function stableThreadId(input: {
   readonly scope: McpInvocationScope;
   readonly requestKey: string;
@@ -765,7 +726,6 @@ function stableThreadId(input: {
     ].join(":"),
   );
 }
-
 function stableMessageId(input: {
   readonly scope: McpInvocationScope;
   readonly requestKey: string;
@@ -781,7 +741,6 @@ function stableMessageId(input: {
     ].join(":"),
   );
 }
-
 function stableOperationMessageId(input: {
   readonly scope: McpInvocationScope;
   readonly requestKey: string;
@@ -797,7 +756,6 @@ function stableOperationMessageId(input: {
     ].join(":"),
   );
 }
-
 function threadTitle(input: {
   readonly parentTitle: string;
   readonly prompt: string | undefined;
@@ -808,13 +766,11 @@ function threadTitle(input: {
   if (!detail) return `${input.parentTitle} thread ${input.index + 1}`;
   return detail.length > 80 ? `${detail.slice(0, 77)}...` : detail;
 }
-
 export function taskPrompt(input: OrchestratorMcpDelegateTaskInput): string {
   return input.role === undefined || input.role === "general"
     ? input.task
     : `Act as the ${input.role} sub-agent for this task.\n\n${input.task}`;
 }
-
 function threadSettlement(
   thread: Pick<OrchestrationV2ThreadShell, "settledOverride" | "settledAt">,
 ): Pick<OrchestratorMcpThreadListItem, "settled" | "settledAt"> {
@@ -824,7 +780,6 @@ function threadSettlement(
     settledAt: settled && thread.settledAt !== null ? DateTime.formatIso(thread.settledAt) : null,
   };
 }
-
 function threadSnooze(
   thread: Parameters<typeof isSnoozed>[0],
   nowMs: number,
@@ -836,7 +791,6 @@ function threadSnooze(
       snoozed && thread.snoozedUntil != null ? DateTime.formatIso(thread.snoozedUntil) : null,
   };
 }
-
 function threadPullRequests(
   links: OrchestrationV2ThreadShell["pullRequests"],
 ): OrchestratorMcpThreadPullRequest[] {
@@ -849,7 +803,6 @@ function threadPullRequests(
     state: link.snapshot?.state ?? null,
   }));
 }
-
 function listItemFromShell(
   shell: OrchestrationV2ThreadShell,
   nowMs: number,
@@ -877,7 +830,6 @@ function listItemFromShell(
     updatedAt: DateTime.formatIso(shell.updatedAt),
   };
 }
-
 function threadDetail(
   projection: Pick<OrchestrationV2ThreadProjection, "thread" | "runs" | "runtimeRequests">,
   itemCount: number,
@@ -926,7 +878,6 @@ function threadDetail(
     updatedAt: DateTime.formatIso(projection.thread.updatedAt),
   };
 }
-
 function threadRun(run: OrchestrationV2Run): OrchestratorMcpThreadRun {
   return {
     runId: run.id,
@@ -939,7 +890,6 @@ function threadRun(run: OrchestrationV2Run): OrchestratorMcpThreadRun {
     completedAt: run.completedAt === null ? null : DateTime.formatIso(run.completedAt),
   };
 }
-
 function jsonText(value: unknown): string {
   try {
     return JSON.stringify(value, null, 2);
@@ -947,7 +897,6 @@ function jsonText(value: unknown): string {
     return String(value);
   }
 }
-
 function turnItemText(item: OrchestrationV2TurnItem): string | null {
   switch (item.type) {
     case "notification":
@@ -1010,7 +959,6 @@ function turnItemText(item: OrchestrationV2TurnItem): string | null {
       return jsonText({ toolName: item.toolName, input: item.input, output: item.output });
   }
 }
-
 function timelineItem(input: {
   readonly row: OrchestrationV2ThreadProjection["visibleTurnItems"][number];
   readonly maxChars: number;
@@ -1051,7 +999,6 @@ function timelineItem(input: {
     updatedAt: DateTime.formatIso(input.row.item.updatedAt),
   };
 }
-
 const make = Effect.gen(function* () {
   const crypto = yield* Crypto.Crypto;
   const threadManagement = yield* ThreadManagementService.ThreadManagementService;
@@ -1062,7 +1009,6 @@ const make = Effect.gen(function* () {
   const threadLaunch = yield* ThreadLaunchService.ThreadLaunchService;
   const gitDriver = yield* GitVcsDriver.GitVcsDriver;
   const serverSettings = yield* ServerSettings.ServerSettingsService;
-
   const requireProject = (projectId: ProjectId) =>
     projects.getById(projectId).pipe(
       Effect.mapError((error) =>
@@ -1076,7 +1022,6 @@ const make = Effect.gen(function* () {
         }),
       ),
     );
-
   const projectDefaultModelSelection = (
     project: Effect.Success<ReturnType<typeof requireProject>>,
   ) =>
@@ -1089,7 +1034,6 @@ const make = Effect.gen(function* () {
         )
       : Effect.succeed(project.defaultModelSelection);
   const secretRequests = yield* SecretRequests.SecretRequests;
-
   const requireCapability = (scope: McpInvocationScope) =>
     scope.capabilities.has("orchestration")
       ? Effect.void
@@ -1099,7 +1043,6 @@ const make = Effect.gen(function* () {
             "This MCP credential does not grant orchestration capabilities.",
           ),
         );
-
   const loadProjection = (threadId: ThreadId) =>
     threadManagement
       .getThreadRecords(
@@ -1124,7 +1067,6 @@ const make = Effect.gen(function* () {
           ),
         ),
       );
-
   const loadProjectThread = (
     projectId: OrchestrationV2ThreadProjection["thread"]["projectId"],
     threadId: ThreadId,
@@ -1145,7 +1087,6 @@ const make = Effect.gen(function* () {
         { turnItemTypes: [], messageRoles: ["user"] },
       )
       .pipe(Effect.mapError(threadManagementFailure));
-
   const loadCaller = Effect.fn("OrchestratorMcpService.loadCaller")(function* (
     scope: McpInvocationScope,
   ) {
@@ -1156,7 +1097,10 @@ const make = Effect.gen(function* () {
         limits: {
           runtimeMode: clientRuntimeModeCeiling(scope.client),
           interactionMode: "default",
-        } satisfies { runtimeMode: RuntimeMode; interactionMode: ProviderInteractionMode },
+        } satisfies {
+          runtimeMode: RuntimeMode;
+          interactionMode: ProviderInteractionMode;
+        },
       } as const;
     }
     const parent = yield* loadProjection(scope.thread.threadId);
@@ -1168,7 +1112,6 @@ const make = Effect.gen(function* () {
       },
     } as const;
   });
-
   const loadThreadCaller = Effect.fn("OrchestratorMcpService.loadThreadCaller")(function* (
     scope: McpInvocationScope,
     operation: string,
@@ -1178,7 +1121,6 @@ const make = Effect.gen(function* () {
     const parent = yield* loadProjection(threadScope.thread.threadId);
     return { scope: threadScope, parent } as const;
   });
-
   const resolveProjectTarget = (
     parent: Pick<OrchestrationV2ThreadProjection, "thread"> | undefined,
     projectId: ProjectId | undefined,
@@ -1193,7 +1135,6 @@ const make = Effect.gen(function* () {
               "Pass projectId: this MCP client is not running inside a T3 thread.",
             ),
           );
-
   const loadTargetThread = Effect.fn("OrchestratorMcpService.loadTargetThread")(function* (
     threadId: ThreadId,
   ) {
@@ -1205,7 +1146,6 @@ const make = Effect.gen(function* () {
     }
     return yield* loadProjectThread(shell.projectId, threadId);
   });
-
   const loadScopedThread = Effect.fn("OrchestratorMcpService.loadScopedThread")(function* (
     scope: McpInvocationScope,
     threadId: ThreadId,
@@ -1217,7 +1157,6 @@ const make = Effect.gen(function* () {
         : yield* loadTargetThread(threadId);
     return { ...caller, target } as const;
   });
-
   /** Cross-thread writes require a live caller run; stale session credentials cannot authorize them. */
   const assertLiveCallerForOtherThread = (
     scope: McpInvocationScope,
@@ -1227,7 +1166,6 @@ const make = Effect.gen(function* () {
     parent === undefined || target.thread.id === parent.thread.id
       ? Effect.void
       : assertLiveCaller(scope, parent);
-
   const assertLiveCallerForOtherProject = (
     scope: McpInvocationScope,
     parent: Pick<OrchestrationV2ThreadProjection, "thread" | "runs"> | undefined,
@@ -1236,7 +1174,6 @@ const make = Effect.gen(function* () {
     parent === undefined || projectId === parent.thread.projectId
       ? Effect.void
       : assertLiveCaller(scope, parent);
-
   const assertLiveCaller = (
     scope: McpInvocationScope,
     parent: Pick<OrchestrationV2ThreadProjection, "thread" | "runs">,
@@ -1263,7 +1200,6 @@ const make = Effect.gen(function* () {
       ? Effect.fail(notActive)
       : Effect.void;
   };
-
   const loadReadableThread = Effect.fn("OrchestratorMcpService.loadReadableThread")(function* (
     scope: McpInvocationScope,
     threadId: ThreadId,
@@ -1288,12 +1224,9 @@ const make = Effect.gen(function* () {
       .pipe(Effect.mapError(threadManagementFailure));
     return { parent, target, shell } as const;
   });
-
   const loadProviders = providerRegistry.getProviders;
-
   const loadOrchestrationCapableInstanceIds = () =>
     providerAdapters.list().pipe(Effect.map((instanceIds) => new Set(instanceIds)));
-
   /** Background agents miss foreground-only health probes; re-probe once before refusing. */
   const assertTargetEnabledForProject = (
     parent: Pick<OrchestrationV2ThreadProjection, "thread">,
@@ -1307,7 +1240,6 @@ const make = Effect.gen(function* () {
         instanceId: target.modelSelection.instanceId,
       })
       .pipe(Effect.mapError(threadManagementFailure));
-
   const resolveTargetRechecking = (input: Parameters<typeof resolveTarget>[0]) => {
     const instanceId =
       input.target?.providerInstanceId ??
@@ -1326,7 +1258,6 @@ const make = Effect.gen(function* () {
       ),
     );
   };
-
   const resolveTarget = Effect.fn("OrchestratorMcpService.resolveTarget")(function* (input: {
     readonly parent: Pick<OrchestrationV2ThreadProjection, "thread">;
     readonly target: OrchestratorMcpTarget | undefined;
@@ -1338,7 +1269,6 @@ const make = Effect.gen(function* () {
     const requestedDriver = input.target?.driverKind;
     const orchestrationCapableInstanceIds = yield* loadOrchestrationCapableInstanceIds();
     let instanceId = requestedInstanceId;
-
     if (instanceId === undefined && requestedDriver !== undefined) {
       const candidates = input.providers.filter(
         (provider) =>
@@ -1383,7 +1313,6 @@ const make = Effect.gen(function* () {
       }
     }
     instanceId ??= input.parent.thread.modelSelection.instanceId;
-
     const provider = input.providers.find((candidate) => candidate.instanceId === instanceId);
     if (provider === undefined) {
       return yield* failure(
@@ -1407,7 +1336,6 @@ const make = Effect.gen(function* () {
         `Provider ${instanceId} cannot run a child task: ${constraints.join(" ")}`,
       );
     }
-
     const inheritedSelection = input.parent.thread.modelSelection;
     const requestedModel = input.target?.model;
     const model =
@@ -1432,7 +1360,6 @@ const make = Effect.gen(function* () {
         `Model ${requestedModel} is not advertised by provider ${instanceId}.`,
       );
     }
-
     const requestedOptions = input.target?.options;
     if (requestedOptions !== undefined) {
       const descriptors = provider.models.find((candidate) => candidate.slug === model)
@@ -1445,7 +1372,6 @@ const make = Effect.gen(function* () {
         );
       }
     }
-
     const inheritsOptions =
       instanceId === inheritedSelection.instanceId && model === inheritedSelection.model;
     let options = inheritsOptions ? inheritedSelection.options : undefined;
@@ -1466,12 +1392,10 @@ const make = Effect.gen(function* () {
       supportedRuntimeModes: provider.supportedRuntimeModes,
     };
   });
-
   const requestKey = (clientRequestId: string | undefined): Effect.Effect<string> =>
     clientRequestId === undefined
       ? crypto.randomUUIDv4().pipe(Effect.orDie)
       : Effect.succeed(clientRequestId);
-
   const readTask = Effect.fn("OrchestratorMcpService.readTask")(function* (
     scope: McpThreadInvocationScope,
     taskId: NodeId,
@@ -1672,7 +1596,6 @@ const make = Effect.gen(function* () {
     }
     return response;
   });
-
   const waitForTask = Effect.fn("OrchestratorMcpService.waitForTask")(
     function* (scope: McpThreadInvocationScope, taskId: NodeId, _timeoutMs: number) {
       const streamError = (error: unknown) =>
@@ -1708,7 +1631,6 @@ const make = Effect.gen(function* () {
     (effect, _scope, _taskId, timeoutMs) =>
       effect.pipe(Effect.timeoutOption(Duration.millis(timeoutMs)), Effect.map(Option.flatten)),
   );
-
   const scheduledTaskRunModes = Effect.fn("OrchestratorMcpService.scheduledTaskRunModes")(
     function* (task: ScheduledTask) {
       const modes = [{ runtimeMode: task.runtimeMode, interactionMode: task.interactionMode }];
@@ -1719,17 +1641,18 @@ const make = Effect.gen(function* () {
       return bound === null || bound.deletedAt !== null ? modes : [...modes, bound];
     },
   );
-
   const withinLimits = (
     limits: {
       readonly runtimeMode: RuntimeMode;
       readonly interactionMode: ProviderInteractionMode;
     },
-    modes: { readonly runtimeMode: RuntimeMode; readonly interactionMode: ProviderInteractionMode },
+    modes: {
+      readonly runtimeMode: RuntimeMode;
+      readonly interactionMode: ProviderInteractionMode;
+    },
   ) =>
     runtimeModeRank(modes.runtimeMode) <= runtimeModeRank(limits.runtimeMode) &&
     interactionModeRank(modes.interactionMode) <= interactionModeRank(limits.interactionMode);
-
   /**
    * Its webhook URL starts runs, so only a caller that may start one sees it: never a client
    * approved for read-only access, and a thread caller only with a live turn, at modes covering
@@ -1760,7 +1683,6 @@ const make = Effect.gen(function* () {
       );
     },
   );
-
   /**
    * A scheduled task the caller may change: one whose runs execute at modes no
    * broader than the caller's own, so editing its prompt cannot run work above
@@ -1790,7 +1712,6 @@ const make = Effect.gen(function* () {
     }
     return task;
   });
-
   return OrchestratorMcpService.of({
     scheduleTask: Effect.fn("OrchestratorMcpService.scheduleTask")(function* (scope, input) {
       const { parent, limits } = yield* loadCaller(scope);
@@ -1989,7 +1910,6 @@ const make = Effect.gen(function* () {
           Effect.logWarning("Could not close a secret request card", { error: error.message }),
         ),
       );
-
       const answered = yield* Effect.gen(function* () {
         while (true) {
           const projection = yield* threadManagement
@@ -2063,7 +1983,6 @@ const make = Effect.gen(function* () {
       }
       return { status, secretRef: secretRef.value };
     }),
-
     capabilities: Effect.fn("OrchestratorMcpService.capabilities")(function* (scope, input = {}) {
       const { parent, limits } = yield* loadCaller(scope);
       const providers = yield* loadProviders;
@@ -2260,7 +2179,6 @@ const make = Effect.gen(function* () {
           runId: childRunEvent.event.payload.id,
         });
       }
-
       if (input.mode !== "wait") {
         return yield* readTask(scope, taskId, false, true);
       }
@@ -2377,7 +2295,7 @@ const make = Effect.gen(function* () {
             commandId,
             threadId: current.childThreadId,
             stopDelegatedTasks: false,
-            reason,
+            ...(reason === undefined ? {} : { reason }),
           })
           .pipe(
             Effect.mapError((error) =>
@@ -2817,7 +2735,6 @@ const make = Effect.gen(function* () {
       yield* assertLiveCallerForOtherThread(scope, parent, target);
       yield* resolveRuntimeMode(limits.runtimeMode, target.thread.runtimeMode);
       yield* resolveInteractionMode(limits.interactionMode, target.thread.interactionMode);
-
       const mode = input.mode ?? "auto";
       const key = yield* requestKey(input.clientRequestId);
       const messageId = stableOperationMessageId({
@@ -2947,7 +2864,6 @@ const make = Effect.gen(function* () {
     }),
   });
 });
-
 export const layer: Layer.Layer<
   OrchestratorMcpService,
   never,

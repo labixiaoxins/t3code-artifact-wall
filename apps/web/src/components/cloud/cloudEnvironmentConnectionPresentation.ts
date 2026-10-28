@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   connectionStatusText,
   type EnvironmentConnectionPresentation,
@@ -15,43 +16,43 @@ export function presentSavedCloudEnvironmentConnection(
   switch (connection.phase) {
     case "connected":
       return {
-        buttonLabel: "Connected",
+        buttonLabel: uiText("Connected"),
         statusText: connectionStatusText(connection),
         tone: "connected",
       };
     case "connecting":
       return {
-        buttonLabel: "Connecting…",
+        buttonLabel: uiText("Connecting…"),
         statusText: connectionStatusText(connection),
         tone: "connecting",
       };
     case "reconnecting":
       return {
-        buttonLabel: "Reconnecting…",
+        buttonLabel: uiText("Reconnecting…"),
         statusText: connectionStatusText(connection),
         tone: "connecting",
       };
     case "unsupported":
       return {
-        buttonLabel: "Client not supported",
+        buttonLabel: uiText("Client not supported"),
         statusText: connectionStatusText(connection),
         tone: "idle",
       };
     case "error":
       return {
-        buttonLabel: "Connection failed",
+        buttonLabel: uiText("Connection failed"),
         statusText: connectionStatusText(connection),
         tone: "error",
       };
     case "offline":
       return {
-        buttonLabel: "Offline",
+        buttonLabel: uiText("Offline"),
         statusText: connectionStatusText(connection),
         tone: "idle",
       };
     case "available":
       return {
-        buttonLabel: "Not connected",
+        buttonLabel: uiText("Not connected"),
         statusText: connectionStatusText(connection),
         tone: "idle",
       };

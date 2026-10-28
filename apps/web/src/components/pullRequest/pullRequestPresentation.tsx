@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { Spinner } from "~/components/ui/spinner";
 import type {
   PullRequestActor,
@@ -21,9 +22,7 @@ import {
   UserRoundXIcon,
 } from "lucide-react";
 import { Children, type CSSProperties, isValidElement, type ReactNode, useState } from "react";
-
 import { cn } from "~/lib/utils";
-
 import { Badge } from "../ui/badge";
 import { InlineButton } from "../ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -35,7 +34,6 @@ import {
   type PullRequestStatePresentation,
   type PullRequestGlyphIcon,
 } from "./pullRequestIcons";
-
 export function PullRequestLabelChip({
   label,
   size = "sm",
@@ -60,30 +58,28 @@ export function PullRequestLabelChip({
     </Badge>
   );
 }
-
 function reviewDecisionPresentation(decision: PullRequestReviewDecision) {
   switch (decision) {
     case "approved":
       return {
         Icon: UserCheckIcon,
-        label: "Approved",
+        label: uiText("Approved"),
         toneClassName: CHECK_STATUS_PRESENTATION.success.toneClassName,
       };
     case "changes-requested":
       return {
         Icon: UserRoundXIcon,
-        label: "Changes requested",
+        label: uiText("Changes requested"),
         toneClassName: "text-amber-600/90 dark:text-amber-400/80",
       };
     case "review-required":
       return {
         Icon: UserRoundIcon,
-        label: "Awaiting review",
+        label: uiText("Awaiting review"),
         toneClassName: "text-muted-foreground/60",
       };
   }
 }
-
 export function PullRequestReviewDecisionGlyph({
   decision,
 }: {
@@ -100,7 +96,6 @@ export function PullRequestReviewDecisionGlyph({
     </Tooltip>
   );
 }
-
 export function resolvePullRequestState(input: {
   readonly state: PullRequestState;
   readonly isDraft: boolean;
@@ -108,13 +103,11 @@ export function resolvePullRequestState(input: {
   const key = input.state === "open" && input.isDraft ? "draft" : input.state;
   return PULL_REQUEST_STATE_PRESENTATION[key];
 }
-
 export interface PullRequestConflictPresentation {
   readonly label: string;
   readonly toneClassName: string;
   readonly Icon: PullRequestGlyphIcon;
 }
-
 function resolvePullRequestConflict(input: {
   readonly state: PullRequestState;
   readonly isDraft: boolean;
@@ -130,7 +123,6 @@ function resolvePullRequestConflict(input: {
     Icon: PullRequestGlyph.conflicting,
   };
 }
-
 export function PullRequestStateGlyph({
   state,
   isDraft,
@@ -154,7 +146,6 @@ export function PullRequestStateGlyph({
     </Tooltip>
   );
 }
-
 export function PullRequestConflictGlyph({
   state,
   isDraft,
@@ -188,28 +179,38 @@ export function PullRequestConflictGlyph({
     </Tooltip>
   );
 }
-
 const CHECK_STATUS_PRESENTATION = {
-  pending: { label: "Running", Icon: Spinner, toneClassName: "text-amber-500" },
+  pending: { label: uiText("Running"), Icon: Spinner, toneClassName: "text-amber-500" },
   "action-required": {
-    label: "Awaiting action",
+    label: uiText("Awaiting action"),
     Icon: CircleDotIcon,
     toneClassName: "text-amber-600 dark:text-amber-400/90",
   },
   success: {
-    label: "Passed",
+    label: uiText("Passed"),
     Icon: CircleCheckIcon,
     toneClassName: "text-emerald-600 dark:text-emerald-300/90",
   },
-  failure: { label: "Failed", Icon: CircleXIcon, toneClassName: "text-destructive" },
-  cancelled: { label: "Cancelled", Icon: CircleXIcon, toneClassName: "text-destructive" },
-  skipped: { label: "Skipped", Icon: CircleSlashIcon, toneClassName: "text-muted-foreground/70" },
-  neutral: { label: "Neutral", Icon: CircleDashedIcon, toneClassName: "text-muted-foreground/70" },
+  failure: { label: uiText("Failed"), Icon: CircleXIcon, toneClassName: "text-destructive" },
+  cancelled: { label: uiText("Cancelled"), Icon: CircleXIcon, toneClassName: "text-destructive" },
+  skipped: {
+    label: uiText("Skipped"),
+    Icon: CircleSlashIcon,
+    toneClassName: "text-muted-foreground/70",
+  },
+  neutral: {
+    label: uiText("Neutral"),
+    Icon: CircleDashedIcon,
+    toneClassName: "text-muted-foreground/70",
+  },
 } as const satisfies Record<
   PullRequestCheckStatus,
-  { label: string; Icon: typeof CircleCheckIcon | typeof Spinner; toneClassName: string }
+  {
+    label: string;
+    Icon: typeof CircleCheckIcon | typeof Spinner;
+    toneClassName: string;
+  }
 >;
-
 function isWorkflowApprovalCheck(check: Pick<PullRequestCheck, "status" | "url">): boolean {
   return (
     check.status === "action-required" &&
@@ -217,7 +218,6 @@ function isWorkflowApprovalCheck(check: Pick<PullRequestCheck, "status" | "url">
     /\/actions\/runs\/\d+(?:\/|$)/u.test(check.url)
   );
 }
-
 export function pullRequestCheckStatusLabel(
   check: Pick<PullRequestCheck, "status" | "url">,
 ): string {
@@ -225,7 +225,6 @@ export function pullRequestCheckStatusLabel(
     ? "Awaiting approval"
     : CHECK_STATUS_PRESENTATION[check.status].label;
 }
-
 export function PullRequestCheckStatusIcon({ status }: { status: PullRequestCheckStatus }) {
   const presentation = CHECK_STATUS_PRESENTATION[status];
   return (
@@ -235,32 +234,33 @@ export function PullRequestCheckStatusIcon({ status }: { status: PullRequestChec
     />
   );
 }
-
 const CHECKS_STATE_PRESENTATION = {
   passing: {
-    label: "All checks have passed",
+    label: uiText("All checks have passed"),
     Icon: CircleCheckIcon,
     toneClassName: CHECK_STATUS_PRESENTATION.success.toneClassName,
   },
   failing: {
-    label: "Some checks were not successful",
+    label: uiText("Some checks were not successful"),
     Icon: CircleXIcon,
     toneClassName: "text-destructive",
   },
   pending: {
-    label: "Some checks haven't completed yet",
+    label: uiText("Some checks haven't completed yet"),
     Icon: CircleDotIcon,
     toneClassName: "text-amber-600 dark:text-amber-400/90",
   },
 } as const satisfies Record<
   PullRequestChecksState,
-  { label: string; Icon: typeof CircleCheckIcon; toneClassName: string }
+  {
+    label: string;
+    Icon: typeof CircleCheckIcon;
+    toneClassName: string;
+  }
 >;
-
 export function pullRequestChecksStatePresentation(state: PullRequestChecksState) {
   return CHECKS_STATE_PRESENTATION[state];
 }
-
 export function pullRequestChecksState(
   checks: ReadonlyArray<PullRequestCheck>,
 ): PullRequestChecksState | null {
@@ -270,10 +270,9 @@ export function pullRequestChecksState(
   if (statuses.has("pending") || statuses.has("action-required")) return "pending";
   return statuses.has("success") ? "passing" : null;
 }
-
 const REVIEW_OUTCOME_PRESENTATION = {
   approved: {
-    label: "Approved",
+    label: uiText("Approved"),
     Icon: CircleCheckIcon,
     toneClassName: "text-emerald-600 dark:text-emerald-300/90",
     ringClassName: "ring-2 ring-emerald-500 dark:ring-emerald-400",
@@ -282,7 +281,7 @@ const REVIEW_OUTCOME_PRESENTATION = {
     badgeVariant: "success",
   },
   "changes-requested": {
-    label: "Changes requested",
+    label: uiText("Changes requested"),
     Icon: CircleXIcon,
     toneClassName: "text-destructive",
     ringClassName: "ring-2 ring-destructive",
@@ -290,7 +289,7 @@ const REVIEW_OUTCOME_PRESENTATION = {
     badgeVariant: "error",
   },
   dismissed: {
-    label: "Review dismissed",
+    label: uiText("Review dismissed"),
     Icon: CircleDashedIcon,
     toneClassName: "text-muted-foreground/70",
     ringClassName: "ring-2 ring-muted-foreground/60",
@@ -309,11 +308,9 @@ const REVIEW_OUTCOME_PRESENTATION = {
     badgeVariant: "success" | "error" | "outline";
   }
 >;
-
 export function pullRequestReviewOutcomeToneClassName(outcome: PullRequestReviewOutcome): string {
   return REVIEW_OUTCOME_PRESENTATION[outcome].toneClassName;
 }
-
 // Mix rings with the background to prevent avatars showing through their overlap.
 export function pullRequestReviewOutcomeRingClassName(
   outcome: PullRequestReviewOutcome,
@@ -322,11 +319,9 @@ export function pullRequestReviewOutcomeRingClassName(
   const presentation = REVIEW_OUTCOME_PRESENTATION[outcome];
   return stale ? presentation.staleRingClassName : presentation.ringClassName;
 }
-
 export function pullRequestReviewOutcomeStaleLabel(outcome: PullRequestReviewOutcome): string {
-  return `${REVIEW_OUTCOME_PRESENTATION[outcome].label} earlier changes`;
+  return uiText("{0} earlier changes", { "0": REVIEW_OUTCOME_PRESENTATION[outcome].label });
 }
-
 export function PullRequestReviewOutcomeIcon({
   outcome,
   className,
@@ -342,11 +337,9 @@ export function PullRequestReviewOutcomeIcon({
     />
   );
 }
-
 export function pullRequestReviewOutcomeLabel(outcome: PullRequestReviewOutcome): string {
   return REVIEW_OUTCOME_PRESENTATION[outcome].label;
 }
-
 export function PullRequestReviewOutcomeBadge({
   outcome,
   className,
@@ -364,7 +357,6 @@ export function PullRequestReviewOutcomeBadge({
     </Badge>
   );
 }
-
 export function PullRequestActorAvatar({
   actor,
   className,
@@ -396,7 +388,6 @@ export function PullRequestActorAvatar({
     />
   );
 }
-
 export function PullRequestActorLabel({
   actor,
   className,
@@ -433,7 +424,7 @@ export function PullRequestActorLabel({
                   href={profileUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label={`Open ${login}'s profile`}
+                  aria-label={uiText("Open {0}'s profile", { "0": login })}
                 />
               }
             />
@@ -446,12 +437,11 @@ export function PullRequestActorLabel({
       </TooltipTrigger>
       <TooltipPopup side="top">
         {actor?.name && actor.name !== login ? `${actor.name} (@${login})` : login}
-        {profileUrl ? " · Open profile" : ""}
+        {profileUrl ? uiText("· Open profile") : ""}
       </TooltipPopup>
     </Tooltip>
   );
 }
-
 export function PullRequestDiffStat({
   additions,
   deletions,
@@ -466,16 +456,20 @@ export function PullRequestDiffStat({
   }
   return (
     <span className={cn("inline-flex items-baseline gap-1 tabular-nums", className)}>
-      <span className="text-diff-addition-foreground">+{formatDiffCount(additions)}</span>
-      <span className="text-diff-deletion">-{formatDiffCount(deletions)}</span>
+      <span className="text-diff-addition-foreground">
+        {"+"}
+        {formatDiffCount(additions)}
+      </span>
+      <span className="text-diff-deletion">
+        {"-"}
+        {formatDiffCount(deletions)}
+      </span>
     </span>
   );
 }
-
 function separatorKey(segment: ReactNode): string {
   return `separator:${isValidElement(segment) ? String(segment.key) : String(segment)}`;
 }
-
 export function PullRequestMetaLine({
   children,
   className,
@@ -495,7 +489,7 @@ export function PullRequestMetaLine({
                 className="shrink-0 text-muted-foreground/50"
                 key={separatorKey(segment)}
               >
-                ·
+                {"\u00B7"}
               </span>,
               segment,
             ],
@@ -503,7 +497,6 @@ export function PullRequestMetaLine({
     </span>
   );
 }
-
 export function summarizePullRequestChecks(checks: ReadonlyArray<PullRequestCheck>): string {
   if (checks.length === 0) return "No checks reported";
   const actionRequired = checks.filter((check) => check.status === "action-required");

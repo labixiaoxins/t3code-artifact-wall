@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   DEFAULT_SERVER_SETTINGS,
   PROJECT_FILE_BACKED_SETTINGS,
@@ -32,9 +33,9 @@ interface InheritanceLayer {
 }
 
 const WRITING_STYLE_LABELS: Record<string, string> = {
-  repo_conventions: "Repository conventions",
+  repo_conventions: uiText("Repository conventions"),
   conventional_commits: "Conventional Commits",
-  custom: "Custom instructions",
+  custom: uiText("Custom instructions"),
 };
 
 function formatValue(key: keyof ServerSettings, value: unknown): string {
@@ -97,7 +98,7 @@ export function settingInheritanceLayers(
   if (target.projectId !== null && isProjectScopedSettingKey(key)) {
     layers.push({
       key: "project",
-      label: "Project",
+      label: uiText("Project"),
       value: source === "project" ? formatValue(key, target.settings[key]) : "Inherits",
       effective: source === "project",
       set: source === "project",
@@ -125,7 +126,7 @@ export function settingInheritanceLayers(
     : DEFAULT_SERVER_SETTINGS[key];
   layers.push({
     key: "built-in",
-    label: "Default",
+    label: uiText("Default"),
     value: formatValue(key, builtIn),
     effective: source === "environment" && !environmentSet,
     set: true,
@@ -239,7 +240,9 @@ export function SettingInheritance({
                 <Button
                   size="icon-micro"
                   variant="ghost-muted"
-                  aria-label={`${overrideSummary}. Show where this value comes from`}
+                  aria-label={uiText("{0}. Show where this value comes from", {
+                    "0": overrideSummary,
+                  })}
                 />
               }
             />
@@ -277,7 +280,7 @@ export function SettingInheritance({
                         layer.effective ? "font-medium text-foreground" : "text-muted-foreground",
                       )}
                     >
-                      {layer.key === "environment" ? "Environment" : layer.label}
+                      {layer.key === "environment" ? uiText("Environment") : layer.label}
                     </span>
                     <span
                       className={cn(
@@ -330,7 +333,7 @@ export function SettingInheritance({
                           </span>
                           <span className="text-xs text-muted-foreground">
                             {winningLayer?.key === "environment"
-                              ? "Environment"
+                              ? uiText("Environment")
                               : winningLayer?.label}
                           </span>
                           <ChevronRightIcon
@@ -383,14 +386,15 @@ export function SettingInheritance({
                             aria-hidden
                             className="size-3 [[data-panel-open]_&]:rotate-90"
                           />
-                          Overridden by
+                          {uiText("Overridden by") + " "}
                         </CollapsibleTrigger>
                       ) : (
-                        <span>Overridden by</span>
+                        <span>{uiText("Overridden by")}</span>
                       )}
                       {onClearOverrides ? (
                         <InlineButton onClick={() => onClearOverrides(overriding)}>
-                          Reset {overriding.length === 1 ? "it" : "all"}
+                          {uiText("Reset") + " "}
+                          {overriding.length === 1 ? uiText("it") : uiText("all")}
                         </InlineButton>
                       ) : null}
                     </div>

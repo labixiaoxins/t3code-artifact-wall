@@ -15,6 +15,14 @@ const validPreload = `
 `;
 
 describe("desktop preload bundle verifier", () => {
+  it("accepts DOM listener registration during preload startup", () => {
+    assert.doesNotThrow(() =>
+      verifyPreloadBundle(
+        `${validPreload}\nwindow.addEventListener("DOMContentLoaded", () => {});`,
+      ),
+    );
+  });
+
   it("rejects required API names that only appear in strings", () => {
     assert.throws(
       () =>

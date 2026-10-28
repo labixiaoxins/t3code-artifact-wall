@@ -918,3 +918,45 @@ describe("returning from file and content search", () => {
     expect(reduceCommandPaletteUiState(closed, { _tag: "SetOpen", open: true })).toEqual(root);
   });
 });
+
+describe("linked pull request thread navigation", () => {
+  it("keeps archived relations searchable and routes them through the PR environment", async () => {
+    const environmentId = EnvironmentId.make("remote");
+    const id = ThreadId.make("archived-thread");
+    const runThread = vi.fn(async () => {});
+    const query = "https://github.com/acme/web/pull/42";
+    const linkedThreads = {
+      environmentId,
+      threads: [
+        {
+          id,
+          projectId: ProjectId.make("project"),
+          title: "Completed work",
+          archivedAt: "2026-09-01T00:00:00.000Z",
+        },
+      ],
+    };
+    const state = reduceCommandPaletteUiState(
+      { open: false, mode: "command", openIntent: null, session: 0 },
+      {
+        _tag: "OpenSearch",
+        query,
+        linkedThreads,
+      },
+    );
+    expect(state.openIntent).toEqual({ kind: "search", query, linkedThreads });
+    const items = buildLinkedThreadActionItems({ ...linkedThreads, query, icon: null, runThread });
+    const groups = filterCommandPaletteGroups({
+      activeGroups: [],
+      query,
+      isInSubmenu: false,
+      projectSearchItems: [],
+      settingsSearchItems: [],
+      threadSearchItems: items,
+    });
+    expect(groups.flatMap((group) => group.items)).toEqual(items);
+    expect(items[0]?.description).toBe("Archived thread");
+    await items[0]?.run();
+    expect(runThread).toHaveBeenCalledWith({ environmentId, id });
+  });
+});

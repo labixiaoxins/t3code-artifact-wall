@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type {
   DiffLineAnnotation,
   FileDiffContentsLoader,
@@ -48,7 +49,10 @@ const EXCERPT_UNSAFE_CSS = `${DIFF_VIEW_UNSAFE_CSS}
 
 export interface ExcerptNoteMarker {
   readonly line: number;
-  readonly markers: ReadonlyArray<{ readonly marker: string; readonly title: string }>;
+  readonly markers: ReadonlyArray<{
+    readonly marker: string;
+    readonly title: string;
+  }>;
 }
 
 export interface ExcerptCommenting {
@@ -145,9 +149,9 @@ export function GuideExcerpt({
   const slice = excerptSlice(file, excerpt);
 
   return (
-    <figure className="flex min-w-0 flex-col gap-1.5">
+    <figure className={"flex min-w-0 flex-col gap-1.5"}>
       {excerpt.caption.trim() !== "" ? (
-        <figcaption className="text-xs text-muted-foreground">
+        <figcaption className={"text-xs text-muted-foreground"}>
           <GuideProse text={excerpt.caption} plain />
         </figcaption>
       ) : null}
@@ -164,17 +168,27 @@ export function GuideExcerpt({
           onOpenFile={onOpenFile}
         />
       ) : loading ? (
-        <p className="rounded-lg border border-border/60 px-3 py-2 text-xs text-muted-foreground">
-          Loading {excerpt.path}...
+        <p className={"rounded-lg border border-border/60 px-3 py-2 text-xs text-muted-foreground"}>
+          {uiText("Loading")}
+          {excerpt.path}
+          {"..."}
         </p>
       ) : (
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2 text-xs text-muted-foreground">
-          <span className="min-w-0 truncate">
-            <span className="font-mono text-foreground">{excerpt.path}</span> lines {excerpt.start}-
-            {excerpt.end} are not in the loaded diff.
+        <div
+          className={
+            "flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2 text-xs text-muted-foreground"
+          }
+        >
+          <span className={"min-w-0 truncate"}>
+            <span className={"font-mono text-foreground"}>{excerpt.path}</span>
+            {uiText("lines")}
+            {excerpt.start}
+            {"-"}
+            {excerpt.end}
+            {uiText("are not in the loaded diff.")}
           </span>
-          <Button size="xs" variant="outline" onClick={() => onOpenFile(excerpt.path)}>
-            Open in Code
+          <Button size={"xs"} variant={"outline"} onClick={() => onOpenFile(excerpt.path)}>
+            {uiText("Open in Code")}
           </Button>
         </div>
       )}
@@ -293,20 +307,20 @@ function ExcerptDiff({
   };
 
   return (
-    <div className="min-w-0 overflow-hidden rounded-lg border border-border/60">
+    <div className={"min-w-0 overflow-hidden rounded-lg border border-border/60"}>
       <FileDiff<ExcerptAnnotation>
         fileDiff={slice.fileDiff}
         options={options}
         lineAnnotations={annotations}
         selectedLines={draft?.range ?? null}
         renderAnnotation={(annotation) => (
-          <div className="font-sans">
+          <div className={"font-sans"}>
             {annotation.metadata.markers.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1 text-xs">
+              <div className={"flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1 text-xs"}>
                 {annotation.metadata.markers.map((entry) => (
-                  <span key={entry.marker} className="inline-flex items-center gap-1.5">
+                  <span key={entry.marker} className={"inline-flex items-center gap-1.5"}>
                     <GuideNoteMarker marker={entry.marker} />
-                    <span className="text-foreground">{entry.title}</span>
+                    <span className={"text-foreground"}>{entry.title}</span>
                   </span>
                 ))}
               </div>
@@ -320,17 +334,19 @@ function ExcerptDiff({
             ))}
             {annotation.metadata.draft && draft !== null && commenting !== null ? (
               <DiffCommentAnnotation
-                kind="draft"
+                kind={"draft"}
                 rangeLabel={`${excerpt.path}:${getReviewPositionAnchor(draft.position).line}`}
-                text=""
+                text={""}
                 placeholder={
-                  commenting.canComment ? "Add a comment…" : "Ask the agent about these lines…"
+                  commenting.canComment
+                    ? uiText("Add a comment…")
+                    : uiText("Ask the agent about these lines…")
                 }
-                submitLabel={commenting.canComment ? "Add to review" : "Ask agent"}
+                submitLabel={commenting.canComment ? uiText("Add to review") : uiText("Ask agent")}
                 {...(commenting.canComment && onAskAgent !== null
                   ? {
                       secondaryAction: {
-                        label: "Ask agent",
+                        label: uiText("Ask agent"),
                         onAction: (text: string) => askAgent(text),
                       },
                     }
@@ -355,15 +371,19 @@ function ExcerptDiff({
           </div>
         )}
         renderHeaderMetadata={() => (
-          <span className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="tabular-nums">
-              {excerpt.side === "old" ? "removed code, " : ""}showing {slice.shown} of {slice.total}{" "}
-              diff lines
+          <span className={"flex items-center gap-2 text-xs text-muted-foreground"}>
+            <span className={"tabular-nums"}>
+              {excerpt.side === "old" ? uiText("removed code,") : ""}
+              {uiText("showing")}
+              {slice.shown}
+              {uiText("of")}
+              {slice.total}
+              {uiText("diff lines")}
             </span>
             <Button
-              size="icon-xs"
-              variant="ghost-muted"
-              aria-label={`Open ${excerpt.path} in Code`}
+              size={"icon-xs"}
+              variant={"ghost-muted"}
+              aria-label={uiText("Open {0} in Code", { "0": excerpt.path })}
               onClick={() => onOpenFile(excerpt.path)}
             >
               <ArrowUpRightIcon aria-hidden />

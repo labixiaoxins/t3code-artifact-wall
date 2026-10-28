@@ -499,6 +499,7 @@ describe("deriveMessagesTimelineRows", () => {
         label: "Compacting context",
       });
       expect(runningRows.some((row) => row.kind === "thinking")).toBe(false);
+    expect(runningRows.some((row) => row.kind === "working")).toBe(false);
 
       const completedRows = deriveMessagesTimelineRows({
         ...input,

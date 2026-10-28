@@ -3,6 +3,7 @@ import { normalizeClaudeTurnTokenUsage } from "./ClaudeTurnTokenUsage.ts";
 import {
   accumulateCodexTurnTokenUsage,
   completeCodexTurnTokenUsage,
+  snapshotCodexTurnTokenUsage,
   getCodexTurnAccumulator,
   makeCodexTurnTokenUsageState,
 } from "./CodexTurnTokenUsage.ts";
@@ -17,10 +18,28 @@ const breakdown = (input: number, cached: number, output: number) => ({
 const update = (total: ReturnType<typeof breakdown>, last = total) => ({
   total,
   last,
-  modelContextWindow: 200_000,
+  modelContextWindow: 200000,
 });
 
 describe("billable native turn usage", () => {
+  it("live snapshots are partial, survive repeated reads and preserve final accounting", () => {
+    const state = makeCodexTurnTokenUsageState();
+    state.activeTurnId = "turn";
+    expect(snapshotCodexTurnTokenUsage(state, "turn").usageStatus).toBe("unavailable");
+    accumulateCodexTurnTokenUsage(state, "turn", update(breakdown(10, 2, 3)));
+    expect(snapshotCodexTurnTokenUsage(state, "turn")).toMatchObject({
+      usageStatus: "partial",
+      outputTokens: 3,
+    });
+    expect(snapshotCodexTurnTokenUsage(state, "turn").outputTokens).toBe(3);
+    expect(state.activeTurnId).toBe("turn");
+    accumulateCodexTurnTokenUsage(state, "turn", update(breakdown(20, 4, 8)));
+    expect(completeCodexTurnTokenUsage(state, "turn", true)).toMatchObject({
+      usageStatus: "complete",
+      outputTokens: 8,
+    });
+    expect(snapshotCodexTurnTokenUsage(state, "turn").usageStatus).toBe("unavailable");
+  });
   it("adds each Codex response once and excludes the prior resumed history", () => {
     const state = makeCodexTurnTokenUsageState();
     state.activeTurnId = "turn";

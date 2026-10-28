@@ -1,9 +1,9 @@
+import { uiText } from "~/i18n";
 import { Outlet, createFileRoute, redirect, useLocation } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { RotateCcwIcon } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { useSettingsRestore } from "../components/settings/SettingsPanels";
-
 import { AppRouteModal, AppRouteModalClose } from "../components/AppRouteModal";
 import { SettingsBreadcrumb } from "../components/settings/SettingsBreadcrumb";
 import { SettingsSidebarNav } from "../components/settings/SettingsSidebarNav";
@@ -25,7 +25,6 @@ import {
   isSettingsSearchScopeAvailable,
   movedSettingsPath,
 } from "../components/settings/settingsSearch";
-
 function RestoreDeviceDefaultsButton({ onRestored }: { onRestored: () => void }) {
   const { changedSettingLabels, restoreDefaults } = useSettingsRestore(onRestored);
   return (
@@ -36,11 +35,10 @@ function RestoreDeviceDefaultsButton({ onRestored }: { onRestored: () => void })
       onClick={() => void restoreDefaults()}
     >
       <RotateCcwIcon className="mx-1 size-3.5" />
-      <span className="max-sm:sr-only">Restore device defaults</span>
+      <span className="max-sm:sr-only">{uiText("Restore device defaults")}</span>
     </Button>
   );
 }
-
 function SettingsScopeBoundary({ pathname, children }: { pathname: string; children: ReactNode }) {
   const { scope, connectedEnvironments } = useSettingsScope();
   const { environments } = useEnvironments();
@@ -62,8 +60,13 @@ function SettingsScopeBoundary({ pathname, children }: { pathname: string; child
         eligibleEnvironmentIds={autoSettlementAvailability.eligibleEnvironmentIds}
       >
         {autoSettlementAvailability.eligibleEnvironmentIds.length > 0
-          ? `${searchTarget.title} requires a supporting environment. Choose one to continue.`
-          : `${searchTarget.title} requires a supporting environment. Connect or update an environment to continue.`}
+          ? uiText("{0} requires a supporting environment. Choose one to continue.", {
+              "0": searchTarget.title,
+            })
+          : uiText(
+              "{0} requires a supporting environment. Connect or update an environment to continue.",
+              { "0": searchTarget.title },
+            )}
       </SettingsScopeNotice>
     );
   }
@@ -80,7 +83,10 @@ function SettingsScopeBoundary({ pathname, children }: { pathname: string; child
         : "all";
     return (
       <SettingsScopeNotice target={target} targetId={hash}>
-        {`${searchTarget.title} is not available for the selected target. Choose its owning scope to continue.`}
+        {uiText(
+          "{0} is not available for the selected target. Choose its owning scope to continue.",
+          { "0": searchTarget.title },
+        )}
       </SettingsScopeNotice>
     );
   }
@@ -97,14 +103,15 @@ function SettingsScopeBoundary({ pathname, children }: { pathname: string; child
     return (
       <SettingsPageContainer>
         <p className="text-sm text-muted-foreground">
-          Reconnect {scope.label} to change its settings.
+          {"Reconnect "}
+          {scope.label}
+          {" to change its settings."}
         </p>
       </SettingsPageContainer>
     );
   }
   return children;
 }
-
 function SettingsContentLayout() {
   const location = useLocation();
   const { search, environment } = useSettingsScope();
@@ -113,7 +120,6 @@ function SettingsContentLayout() {
       ? environment?.environmentId
       : JSON.stringify(search);
   const [restoreSignal, setRestoreSignal] = useState(0);
-
   return (
     <AppRouteModal label="Settings">
       <div className="relative flex min-h-0 flex-1">
@@ -140,7 +146,6 @@ function SettingsContentLayout() {
     </AppRouteModal>
   );
 }
-
 function SettingsRouteLayout() {
   const rawSearch = Route.useSearch();
   const navigate = Route.useNavigate();
@@ -167,7 +172,6 @@ function SettingsRouteLayout() {
     </SettingsScopeProvider>
   );
 }
-
 export const Route = createFileRoute("/_chat/settings")({
   validateSearch: validateSettingsRouteSearch,
   search: { middlewares: [retainSettingsScope] },

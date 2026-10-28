@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   lazy,
   Suspense,
@@ -32,7 +33,6 @@ import {
   XIcon,
 } from "lucide-react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
-
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { Kbd } from "../ui/kbd";
@@ -56,7 +56,6 @@ import {
 } from "./settingsSearch";
 import { useAvailableSettingsSearchItems } from "./useAvailableSettingsSearchItems";
 import { validateSettingsScopeSearch } from "./settingsScope";
-
 const SnapShotIcon = createLucideIcon("snap-shot", [
   [
     "path",
@@ -68,7 +67,6 @@ const SnapShotIcon = createLucideIcon("snap-shot", [
   ["rect", { width: "10", height: "8", x: "7", y: "8", rx: "2", key: "window" }],
   ["circle", { cx: "12", cy: "12", r: "1.5", key: "lens" }],
 ]);
-
 const T3ConnectSidebarSignIn = lazy(() =>
   import("../clerk/T3ConnectSidebarSignIn").then((module) => ({
     default: module.T3ConnectSidebarSignIn,
@@ -79,9 +77,13 @@ const T3ConnectSidebarAvatar = lazy(() =>
     default: module.T3ConnectSidebarAvatar,
   })),
 );
-
 const SETTINGS_SECTION_ICONS: Readonly<
-  Record<SettingsPath, ComponentType<{ className?: string }>>
+  Record<
+    SettingsPath,
+    ComponentType<{
+      className?: string;
+    }>
+  >
 > = {
   "/settings/general": Settings2Icon,
   "/settings/diagnostics": WrenchIcon,
@@ -105,23 +107,19 @@ const SETTINGS_SECTION_ICONS: Readonly<
   "/settings/about": InfoIcon,
   "/settings/archived": ArchiveIcon,
 };
-
 // Detail pages without a nav entry highlight the page that links to them.
 const SETTINGS_DETAIL_PAGE_PARENTS: Readonly<Record<string, SettingsPath>> = {
   "/settings/diagnostics": "/settings/maintenance",
   "/settings/open-source-licenses": "/settings/about",
 };
-
 // Attached only to the highlighted result, so it runs whenever the highlight lands on a row.
 function scrollResultIntoView(row: HTMLElement | null) {
   row?.scrollIntoView({ block: "nearest" });
 }
-
 function SettingsSectionIcon({ to }: { to: SettingsPath }) {
   const Icon = SETTINGS_SECTION_ICONS[to];
   return <Icon className="size-4 shrink-0 text-(--sidebar-icon-color)" />;
 }
-
 export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   const navigate = useNavigate();
   const currentHash = useLocation({ select: (location) => location.hash });
@@ -142,7 +140,6 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   if (activeResultIndex > maxResultIndex) {
     setActiveResultIndex(maxResultIndex);
   }
-
   useEffect(() => {
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.defaultPrevented || event.isComposing) return;
@@ -154,7 +151,6 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
       const isSlashShortcut =
         event.key === "/" && !event.metaKey && !event.ctrlKey && !event.altKey;
       if (!isFindShortcut && !isSlashShortcut) return;
-
       const target = event.target;
       if (
         target instanceof HTMLElement &&
@@ -168,7 +164,6 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
       ) {
         return;
       }
-
       event.preventDefault();
       setCompactSearchOpen(true);
       searchInputRef.current?.focus();
@@ -177,11 +172,9 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
-
   useEffect(() => {
     if (compactSearchOpen) searchInputRef.current?.focus();
   }, [compactSearchOpen]);
-
   const handleSectionClick = (to: SettingsPath) => {
     void navigate({
       to,
@@ -190,7 +183,6 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
       hashScrollIntoView: false,
     });
   };
-
   const clearSearch = () => {
     setQuery("");
     setActiveResultIndex(0);
@@ -212,7 +204,6 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
       state: { settingsTargetHighlight: true },
     });
   };
-
   const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Escape" && isSearching) {
       event.preventDefault();
@@ -237,7 +228,6 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
       if (result) handleSearchResultClick(result);
     }
   };
-
   return (
     <nav
       aria-label="Settings sections"
@@ -271,8 +261,8 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
                 onBlur={() => {
                   if (!isSearching) setCompactSearchOpen(false);
                 }}
-                placeholder="Search"
-                aria-label="Search settings"
+                placeholder={uiText("Search")}
+                aria-label={uiText("Search settings")}
                 role="combobox"
                 aria-autocomplete="list"
                 aria-expanded={isSearching && hasResults}
@@ -290,7 +280,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
                   size="icon-micro"
                   variant="ghost-muted"
                   className="shrink-0"
-                  aria-label="Clear settings search"
+                  aria-label={uiText("Clear settings search")}
                   onClick={() => {
                     clearSearch();
                     searchInputRef.current?.focus();
@@ -299,7 +289,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
                   <XIcon className="size-3" />
                 </Button>
               ) : (
-                <Kbd>/</Kbd>
+                <Kbd>{"/"}</Kbd>
               )}
             </div>
             {isSearching && results.length === 0 ? (
@@ -307,14 +297,14 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
                 role="status"
                 className="px-2 py-6 text-center text-xs text-sidebar-muted-foreground"
               >
-                No settings found
+                {uiText("No settings found")}
               </p>
             ) : null}
             {isSearching ? (
               <SidebarMenu
                 id={hasResults ? "settings-search-results" : undefined}
                 role={hasResults ? "listbox" : undefined}
-                aria-label={hasResults ? "Settings search results" : undefined}
+                aria-label={hasResults ? uiText("Settings search results") : undefined}
               >
                 {results.map((item, index) => (
                   <SidebarMenuItem
@@ -352,7 +342,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
                   <SidebarMenu className="md:hidden">
                     <SidebarMenuItem>
                       <SidebarMenuButton
-                        aria-label="Search settings"
+                        aria-label={uiText("Search settings")}
                         onClick={() => setCompactSearchOpen(true)}
                       >
                         <SearchIcon />

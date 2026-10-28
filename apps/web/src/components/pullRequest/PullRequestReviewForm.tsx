@@ -1,11 +1,10 @@
+import { uiText } from "~/i18n";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { capitalizeTerm } from "@t3tools/client-runtime/source-control-clients";
 import type { EnvironmentId, PullRequestRef, PullRequestReviewVerdict } from "@t3tools/contracts";
 import { CheckIcon, MessageSquareIcon, XCircleIcon } from "lucide-react";
 import { useState, type ReactNode, type RefObject } from "react";
-
 import { pullRequestEnvironment } from "~/state/pullRequests";
-
 import { Button } from "../ui/button";
 import { Select, SelectItem, SelectPopup, SelectTrigger } from "../ui/select";
 import { Textarea } from "../ui/textarea";
@@ -15,7 +14,6 @@ import {
   usePendingReviewComments,
   usePullRequestReviewStore,
 } from "./pullRequestReviewStore";
-
 const VERDICTS: ReadonlyArray<{
   readonly value: PullRequestReviewVerdict;
   readonly label: string;
@@ -24,24 +22,23 @@ const VERDICTS: ReadonlyArray<{
 }> = [
   {
     value: "comment",
-    label: "Comment",
+    label: uiText("Comment"),
     sent: () => "Review submitted",
     icon: <MessageSquareIcon className="size-3" />,
   },
   {
     value: "approve",
-    label: "Approve",
+    label: uiText("Approve"),
     sent: (term) => `${capitalizeTerm(term)} approved`,
     icon: <CheckIcon className="size-3" />,
   },
   {
     value: "request-changes",
-    label: "Request changes",
+    label: uiText("Request changes"),
     sent: () => "Changes requested",
     icon: <XCircleIcon className="size-3" />,
   },
 ];
-
 export function PullRequestReviewForm({
   environmentId,
   reference,
@@ -74,11 +71,9 @@ export function PullRequestReviewForm({
   const submitReview = useAtomCommand(pullRequestEnvironment.submitReview, {
     reportFailure: false,
   });
-
   const offered = VERDICTS.filter((verdict) => verdicts.includes(verdict.value));
   const selectedVerdict =
     offered.find((verdict) => verdict.value === requestedVerdict) ?? offered[0];
-
   const submit = async (verdict: (typeof VERDICTS)[number]) => {
     if (pending) return;
     const submittedBody = body;
@@ -95,7 +90,7 @@ export function PullRequestReviewForm({
     });
     onPendingChange(false);
     if (result._tag === "Failure") {
-      toastManager.add({ type: "error", title: "The review could not be submitted" });
+      toastManager.add({ type: "error", title: uiText("The review could not be submitted") });
       return;
     }
     // Preserve comments and summary edits made during submission.
@@ -107,7 +102,6 @@ export function PullRequestReviewForm({
     toastManager.add({ type: "success", title: verdict.sent(term) });
     onSubmitted();
   };
-
   // Forgejo requires a summary when requesting changes, even with inline comments.
   const canSubmit = (verdict: PullRequestReviewVerdict, summary: string) =>
     verdict === "request-changes" && requestChangesSummaryRequired
@@ -119,7 +113,6 @@ export function PullRequestReviewForm({
       : selectedVerdict.value === "request-changes" && requestChangesSummaryRequired
         ? "Summarize your review (required to request changes)"
         : "Summarize your review or add line comments";
-
   return (
     <>
       <Textarea
@@ -127,7 +120,7 @@ export function PullRequestReviewForm({
         rows={3}
         value={body}
         placeholder={placeholder}
-        aria-label="Review summary"
+        aria-label={uiText("Review summary")}
         onChange={(event) => setSummary(reviewKey, event.target.value)}
       />
       <div className="mt-2 flex justify-end gap-2">
@@ -139,7 +132,11 @@ export function PullRequestReviewForm({
               if (value !== null) setRequestedVerdict(value);
             }}
           >
-            <SelectTrigger size="xs" className="mr-auto w-auto min-w-0" aria-label="Review verdict">
+            <SelectTrigger
+              size="xs"
+              className="mr-auto w-auto min-w-0"
+              aria-label={uiText("Review verdict")}
+            >
               <span className="flex items-center gap-1.5">
                 {selectedVerdict?.icon}
                 {selectedVerdict?.label}
@@ -166,7 +163,7 @@ export function PullRequestReviewForm({
             if (selectedVerdict !== undefined) void submit(selectedVerdict);
           }}
         >
-          {pending ? "Submitting..." : "Submit review"}
+          {pending ? uiText("Submitting...") : uiText("Submit review")}
         </Button>
       </div>
     </>

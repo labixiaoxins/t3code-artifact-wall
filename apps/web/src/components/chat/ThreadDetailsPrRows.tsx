@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { ThreadDetailsControl } from "./ThreadDetailsControl";
 import type { EnvironmentId, ScopedThreadRef, ThreadPullRequestLink } from "@t3tools/contracts";
 import {
@@ -8,20 +9,15 @@ import {
 } from "@t3tools/client-runtime/thread-pull-requests";
 import { ChevronDown, ChevronUp, Minus, Plus } from "lucide";
 import { useState, type ComponentProps, type MouseEvent as ReactMouseEvent } from "react";
-
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { findProjectOnChangeRequestHost } from "@t3tools/client-runtime/change-request-links";
-
 import { useProjects } from "~/state/entities";
 import { threadEnvironment } from "~/state/threads";
 import { useAtomCommand } from "~/state/use-atom-command";
-
 import { MorphIcon } from "~/components/MorphIcon";
 import { useClientSettings } from "~/hooks/useSettings";
 import { linkedPullRequestSnapshotStatus, prStatusIndicator } from "../ThreadStatusIndicators";
-
 import { ThreadDetailsPrRow } from "./ThreadDetailsPrRow";
-
 function ThreadDetailsPrLinkRow({
   environmentId,
   link,
@@ -62,7 +58,6 @@ function ThreadDetailsPrLinkRow({
     />
   );
 }
-
 export function ThreadDetailsPrRows({
   threadRef,
   links,
@@ -101,7 +96,6 @@ export function ThreadDetailsPrRows({
           .map((line) => line.link)
           .filter((link) => threadPullRequestKeyOf(link) !== threadPullRequestKeyOf(currentLink));
   if (rest.length === 0) return currentRow;
-
   return (
     <>
       {currentRow}
@@ -132,7 +126,7 @@ export function ThreadDetailsPrRows({
           className="size-4 shrink-0"
           icon={expanded ? (redesign ? ChevronUp : Minus) : redesign ? ChevronDown : Plus}
         />
-        {expanded ? "Show less" : `Show ${rest.length} more`}
+        {expanded ? uiText("Show less") : uiText("Show {0} more", { "0": rest.length })}
       </ThreadDetailsControl>
     </>
   );

@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   DndContext,
   type DragEndEvent,
@@ -94,7 +95,7 @@ export function EnvironmentRoutesList({
   };
 
   return (
-    <div className="mt-2 border-t border-border/50 py-2">
+    <div className={"mt-2 border-t border-border/50 py-2"}>
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -102,7 +103,7 @@ export function EnvironmentRoutesList({
         onDragEnd={handleDragEnd}
       >
         <SortableContext items={order} strategy={verticalListSortingStrategy}>
-          <ol aria-label={`Routes to ${environment.label}, preferred first`}>
+          <ol aria-label={uiText("Routes to {0}, preferred first", { "0": environment.label })}>
             {routes.map((route, index) => (
               <SortableRouteRow
                 key={connectionRouteId(route.target)}
@@ -116,10 +117,10 @@ export function EnvironmentRoutesList({
           </ol>
         </SortableContext>
       </DndContext>
-      <div className="-ml-1.5 pt-1">
-        <Button size="xs" variant="ghost-muted" onClick={onAddRoute}>
-          <PlusIcon className="size-3" />
-          Add route
+      <div className={"-ml-1.5 pt-1"}>
+        <Button size={"xs"} variant={"ghost-muted"} onClick={onAddRoute}>
+          <PlusIcon className={"size-3"} />
+          {uiText("Add route")}
         </Button>
       </div>
     </div>
@@ -161,48 +162,54 @@ function SortableRouteRow({
         isDragging && "relative z-10 rounded-md bg-background shadow-md",
       )}
     >
-      <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+      <div className={"min-w-0 flex-1"}>
+        <p className={"flex items-center gap-1.5 text-xs font-medium text-foreground"}>
           {label}
           {inUse ? (
-            <span className="rounded-sm bg-success/12 px-1 text-2xs font-normal text-success-foreground">
-              In use
+            <span
+              className={
+                "rounded-sm bg-success/12 px-1 text-2xs font-normal text-success-foreground"
+              }
+            >
+              {uiText("In use")}
             </span>
           ) : null}
         </p>
         {address !== null ? (
-          <p className="truncate text-2xs text-muted-foreground">
+          <p className={"truncate text-2xs text-muted-foreground"}>
             {address}
-            {isLearned(route) ? " · found automatically" : ""}
+            {isLearned(route) ? uiText("· found automatically") : ""}
           </p>
         ) : null}
       </div>
       <button
-        type="button"
+        type={"button"}
         ref={setActivatorNodeRef}
         {...attributes}
         {...listeners}
-        aria-label={`Reorder ${label}, position ${position}`}
-        className="flex size-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-muted-foreground/70 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:cursor-grabbing"
+        aria-label={uiText("Reorder {0}, position {1}", { "0": label, "1": position })}
+        className={
+          "flex size-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-muted-foreground/70 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:cursor-grabbing"
+        }
       >
-        <GripVerticalIcon className="size-3.5" />
+        <GripVerticalIcon className={"size-3.5"} />
       </button>
       {removable ? (
         <Tooltip>
           <TooltipTrigger
             render={
               <Button
-                type="button"
-                variant="ghost-muted"
-                size="icon-xs"
-                aria-label={`Remove ${label} route`}
+                type={"button"}
+                variant={"ghost-muted"}
+                size={"icon-xs"}
+                aria-label={uiText("Remove {0} route", { "0": label })}
                 onClick={onRemove}
               />
             }
           >
-            <XIcon className="size-3" />
+            <XIcon className={"size-3"} />
           </TooltipTrigger>
-          <TooltipPopup side="top">Remove route</TooltipPopup>
+          <TooltipPopup side={"top"}>{uiText("Remove route")}</TooltipPopup>
         </Tooltip>
       ) : null}
     </li>

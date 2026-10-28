@@ -5513,7 +5513,7 @@ describe("ClaudeAdapterV2 background wake turns", () => {
         assert.equal(
           terminal.failure.resetAt,
           DateTime.formatIso(
-            DateTime.makeUnsafe(DateTime.toEpochMillis(now) + input.seconds * 1_000),
+            DateTime.makeUnsafe(DateTime.toEpochMillis(now) + input.seconds * 1000),
           ),
         );
       } else {
@@ -5758,7 +5758,7 @@ describe("ClaudeAdapterV2 background wake turns", () => {
             ? [event.providerTurn.tokenUsage.autoCompactThreshold]
             : [],
         ),
-        [150_000, 150_000, 150_000, 150_000],
+        [150000, 150000, 150000, 150000],
       );
     }).pipe(
       Effect.provide(
@@ -6206,7 +6206,7 @@ describe("ClaudeAdapterV2 background wake turns", () => {
   );
 
   it.effect.each([
-    { outcome: "result", turnStatus: "completed", itemStatus: "failed" },
+    { outcome: "result", turnStatus: "completed", itemStatus: "interrupted" },
     { outcome: "interrupt", turnStatus: "interrupted", itemStatus: "interrupted" },
     { outcome: "query_exit", turnStatus: "failed", itemStatus: "failed" },
   ] as const)(
@@ -6267,6 +6267,10 @@ describe("ClaudeAdapterV2 background wake turns", () => {
         const [running, settled] = updates;
         assert.equal(running?.status, "running");
         assert.equal(settled?.status, itemStatus);
+        if (outcome === "result") {
+          assert.equal(settled?.completionConfirmed, false);
+          assert.equal(settled?.title, "Context compaction result unconfirmed");
+        }
         assert.equal(settled?.id, running?.id);
         assert.equal(settled?.ordinal, running?.ordinal);
         assert.deepEqual(settled?.startedAt, running?.startedAt);

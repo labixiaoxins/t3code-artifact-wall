@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { type RuntimeRequestId, type ScopedThreadRef } from "@t3tools/contracts";
 import { memo, use, useEffect, useEffectEvent, useRef, useState } from "react";
 import { BackgroundThreadContext } from "./backgroundThread";
@@ -13,7 +14,6 @@ import { Kbd } from "../ui/kbd";
 import { cn } from "~/lib/utils";
 import { ComposerBanner } from "./ComposerBanner";
 import ChatMarkdown from "../ChatMarkdown";
-
 interface PendingUserInputPanelProps {
   pendingUserInputs: PendingUserInput[];
   cwd: string | undefined;
@@ -26,7 +26,6 @@ interface PendingUserInputPanelProps {
   onAdvance: () => void;
   onDismiss: (requestId: RuntimeRequestId) => void;
 }
-
 export const ComposerPendingUserInputPanel = memo(function ComposerPendingUserInputPanel({
   pendingUserInputs,
   cwd,
@@ -42,7 +41,6 @@ export const ComposerPendingUserInputPanel = memo(function ComposerPendingUserIn
   if (pendingUserInputs.length === 0) return null;
   const activePrompt = pendingUserInputs[0];
   if (!activePrompt) return null;
-
   return (
     <ComposerPendingUserInputCard
       key={activePrompt.requestId}
@@ -59,7 +57,6 @@ export const ComposerPendingUserInputPanel = memo(function ComposerPendingUserIn
     />
   );
 });
-
 const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard({
   prompt,
   cwd,
@@ -103,7 +100,6 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
       !customAnswerActive && progress.selectedOptionValues.includes(option.value ?? option.label),
   );
   const isCollapsed = collapsedQuestionId !== null && collapsedQuestionId === activeQuestion?.id;
-
   if (
     optimisticSingleSelect &&
     activeQuestion &&
@@ -114,7 +110,6 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
   ) {
     setOptimisticSingleSelect(null);
   }
-
   useEffect(() => {
     const clearAutoAdvance = () => {
       if (autoAdvanceTimerRef.current !== null) {
@@ -125,7 +120,6 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
     if (disabled || activeQuestion?.id === undefined) clearAutoAdvance();
     return clearAutoAdvance;
   }, [activeQuestion?.id, disabled]);
-
   const handleOptionSelection = (questionId: string, optionValue: string) => {
     if (disabled || isResponding) return;
     if (activeQuestion?.multiSelect) {
@@ -142,10 +136,8 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
       advance();
     }, 200);
   };
-
   const selectOptionFromShortcut = useEffectEvent(handleOptionSelection);
   const backgroundThread = use(BackgroundThreadContext);
-
   useEffect(() => {
     if (!activeQuestion || responseDisabled || isCollapsed || backgroundThread) return;
     const handler = (event: globalThis.KeyboardEvent) => {
@@ -172,11 +164,9 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [activeQuestion, backgroundThread, isCollapsed, responseDisabled]);
-
   if (!activeQuestion) {
     return null;
   }
-
   return (
     <Collapsible
       open={!isCollapsed}
@@ -187,7 +177,9 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
       <CollapsibleTrigger
         render={<ComposerBanner.Row render={<button type="button" />} />}
         title={
-          isCollapsed ? "Show the question and its options" : "Hide the question and its options"
+          isCollapsed
+            ? uiText("Show the question and its options")
+            : uiText("Hide the question and its options")
         }
         data-pending-user-input-toggle={isCollapsed ? "collapsed" : "expanded"}
         className="px-4 pt-1.5"
@@ -206,15 +198,17 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
         <ComposerBanner.Actions className="gap-0">
           {prompt.questions.length > 1 ? (
             <ComposerBanner.Count>
-              {questionIndex + 1}/{prompt.questions.length}
+              {questionIndex + 1}
+              {"/"}
+              {prompt.questions.length}
             </ComposerBanner.Count>
           ) : null}
           <ComposerBanner.ToggleIcon expanded={!isCollapsed} />
           {prompt.dismissible ? (
             <ComposerBanner.Dismiss
               render={<span role="button" tabIndex={0} />}
-              aria-label="Dismiss question without answering"
-              title="Dismiss question without answering"
+              aria-label={uiText("Dismiss question without answering")}
+              title={uiText("Dismiss question without answering")}
               disabled={isResponding}
               data-pending-user-input-dismiss
               onClick={(event) => {
@@ -301,7 +295,6 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
     </Collapsible>
   );
 });
-
 // Drawn with ui/radio-group's look instead of using its Radio: Radio only checks inside a
 // RadioGroup, whose arrow keys select options and would trip the single-select auto-advance.
 function OptionRadio({ checked }: { checked: boolean }) {

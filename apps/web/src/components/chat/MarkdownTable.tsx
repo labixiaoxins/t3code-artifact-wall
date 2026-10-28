@@ -1,6 +1,7 @@
+import { uiText } from "~/i18n";
+
 import { Check, Copy, Maximize2, Minimize2 } from "lucide";
 import { useRef, useState, type ComponentProps } from "react";
-
 import { useCopyToClipboard } from "../../hooks/useCopyToClipboard";
 import { getClientSettings } from "../../hooks/useSettings";
 import { observeResize } from "../../lib/observeResize";
@@ -14,7 +15,6 @@ import { Menu, MenuItem, MenuPopup, MenuTrigger } from "../ui/menu";
 import { ScrollArea } from "../ui/scroll-area";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { reportMarkdownActionFailure } from "./markdownActionFailure";
-
 /**
  * Whether any cell is clipped in the unwrapped layout. Only then does the wrap
  * toggle change anything, so short tables hide it. Measures with the container
@@ -39,7 +39,6 @@ function tableHasClippedCells(container: HTMLElement, table: HTMLTableElement): 
     if (viewport && scrollLeft > 0) viewport.scrollLeft = scrollLeft;
   }
 }
-
 export function MarkdownTable({ children, ...props }: ComponentProps<"table">) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [expanded, setExpanded] = useState(() => getClientSettings().wordWrap);
@@ -51,7 +50,6 @@ export function MarkdownTable({ children, ...props }: ComponentProps<"table">) {
   });
   const expandLabel = expanded ? "Collapse table cells" : "Expand table cells";
   const copyLabel = copied ? "Copied" : "Copy table";
-
   // React calls this with null when a previous attach returned no cleanup.
   const attachContainer = (container: HTMLDivElement | null) => {
     containerRef.current = container;
@@ -70,7 +68,6 @@ export function MarkdownTable({ children, ...props }: ComponentProps<"table">) {
       containerRef.current = null;
     };
   };
-
   const handleCopy = (format: "markdown" | "csv") => {
     const table = containerRef.current?.querySelector("table");
     if (!table) return;
@@ -81,7 +78,6 @@ export function MarkdownTable({ children, ...props }: ComponentProps<"table">) {
       format,
     );
   };
-
   return (
     <div
       ref={attachContainer}
@@ -135,8 +131,8 @@ export function MarkdownTable({ children, ...props }: ComponentProps<"table">) {
             <TooltipPopup side="top">{copyLabel}</TooltipPopup>
           </Tooltip>
           <MenuPopup align="end">
-            <MenuItem onClick={() => handleCopy("markdown")}>Copy as Markdown</MenuItem>
-            <MenuItem onClick={() => handleCopy("csv")}>Copy as CSV</MenuItem>
+            <MenuItem onClick={() => handleCopy("markdown")}>{uiText("Copy as Markdown")}</MenuItem>
+            <MenuItem onClick={() => handleCopy("csv")}>{uiText("Copy as CSV")}</MenuItem>
           </MenuPopup>
         </Menu>
       </div>

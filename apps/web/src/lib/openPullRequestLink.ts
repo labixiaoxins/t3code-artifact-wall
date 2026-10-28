@@ -1,23 +1,20 @@
+import { uiText } from "~/i18n";
 import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
 import { useAtomValue } from "@effect/atom-react";
 import { useNavigate } from "@tanstack/react-router";
 import { type MouseEvent } from "react";
-
 import {
   resolveChangeRequestLinkTarget,
   resolvePullRequestPreviewTarget,
 } from "@t3tools/client-runtime/change-request-links";
-
 import { useOpenLink } from "../browser/useOpenLink";
 import { useClientSettings } from "../hooks/useSettings";
 import { stackedThreadToast, toastManager } from "../components/ui/toast";
 import { useRightPanelStore } from "../rightPanelStore";
-
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import { readProjects, useProjects } from "../state/entities";
 import { environmentServerConfigsAtom, serverEnvironment } from "../state/server";
 import { usePrimaryEnvironmentId } from "../state/environments";
-
 export function usePullRequestPreviewTarget(environmentId: EnvironmentId | null, url: string) {
   const projects = useProjects();
   const serverConfig = useAtomValue(serverEnvironment.configValueAtom(environmentId));
@@ -28,14 +25,12 @@ export function usePullRequestPreviewTarget(environmentId: EnvironmentId | null,
     url,
   });
 }
-
 function shouldOpenPullRequestExternally(
   event: Pick<MouseEvent<HTMLElement>, "metaKey" | "ctrlKey"> &
     Partial<Pick<MouseEvent<HTMLElement>, "button">>,
 ): boolean {
   return event.metaKey || event.ctrlKey || event.button === 1;
 }
-
 export function useOpenChangeRequestLink(
   threadRef?: ScopedThreadRef,
   panelRef?: ScopedThreadRef,
@@ -111,7 +106,6 @@ export function useOpenChangeRequestLink(
     return true;
   };
 }
-
 export function useOpenPrLink(threadRef?: ScopedThreadRef) {
   const openChangeRequest = useOpenChangeRequestLink(threadRef);
   const openLink = useOpenLink(threadRef);
@@ -123,16 +117,14 @@ export function useOpenPrLink(threadRef?: ScopedThreadRef) {
       event.currentTarget instanceof HTMLAnchorElement && event.currentTarget.href.length > 0;
     // Native links handle modified clicks; buttons still need openExternal.
     if (openInBrowser && isAnchor) return false;
-
     event.preventDefault();
     if (!openInBrowser && openChangeRequest(event, prUrl, targetThreadRef)) return true;
-
     void openLink(prUrl, { event, threadRef: targetThreadRef }).catch((error: unknown) => {
       console.error(error);
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: "Unable to open pull request link",
+          title: uiText("Unable to open pull request link"),
           description: error instanceof Error ? error.message : "An error occurred.",
         }),
       );

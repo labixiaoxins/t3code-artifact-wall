@@ -1,3 +1,5 @@
+import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
+import { uiText } from "~/i18n";
 import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
 import type { ThreadPreviewState } from "../../previewStateStore";
 import { formatFilePathForClipboard } from "@t3tools/client-runtime/media-actions";
@@ -117,7 +119,7 @@ export function useRightPanelActions(input: RightPanelActionsInput) {
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Unable to open browser",
+            title: uiText("Unable to open browser"),
             description: error.message,
           }),
         );
@@ -238,26 +240,15 @@ export function useRightPanelActions(input: RightPanelActionsInput) {
   };
   const moveRightPanelSurfaceStable = useStableCallback(moveRightPanelSurface);
   const copyRightPanelFilePath = (relativePath: string) => {
-    if (typeof window === "undefined" || !navigator.clipboard?.writeText) {
-      toastManager.add(
-        stackedThreadToast({
-          type: "error",
-          title: "Failed to copy path",
-          description: "Clipboard API unavailable.",
-        }),
-      );
-      return;
-    }
-
     const clipboardPath = formatFilePathForClipboard(
       relativePath,
       resolvePathLinkTarget(relativePath, gitCwd ?? activeProjectCwd ?? ""),
     );
-    void navigator.clipboard.writeText(clipboardPath).then(
+    void writeTextToClipboard(clipboardPath, "path").then(
       () => {
         toastManager.add({
           type: "success",
-          title: "Path copied",
+          title: uiText("Path copied"),
           description: clipboardPath,
         });
       },
@@ -265,8 +256,8 @@ export function useRightPanelActions(input: RightPanelActionsInput) {
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Failed to copy path",
-            description: error instanceof Error ? error.message : "An error occurred.",
+            title: uiText("Failed to copy path"),
+            description: error instanceof Error ? error.message : uiText("An error occurred."),
           }),
         );
       },

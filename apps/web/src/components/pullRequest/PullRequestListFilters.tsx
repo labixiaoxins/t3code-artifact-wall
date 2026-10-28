@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { Spinner } from "~/components/ui/spinner";
 import type {
   EnvironmentId,
@@ -22,14 +23,12 @@ import {
   UserRoundIcon,
 } from "lucide-react";
 import { type ElementType, useState } from "react";
-
 import { getSourceControlPresentationForKind } from "~/sourceControlPresentation";
 import { useDebouncedValue } from "~/state/queries";
 import { type EnvironmentQueryTarget, usePullRequestFilterOptions } from "~/state/pullRequests";
 import { ProjectFavicon, type ProjectFaviconProject } from "../ProjectFavicon";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "../ui/input-group";
 import { Button } from "../ui/button";
-
 import {
   Menu,
   MenuCheckboxItem,
@@ -57,15 +56,15 @@ import {
 } from "./pullRequestList.logic";
 import { PullRequestActorAvatar } from "./pullRequestPresentation";
 import { PullRequestGlyph } from "./pullRequestIcons";
-
 export interface PullRequestFilterOption<Value extends string> {
   readonly value: Value;
   readonly label: string;
-  readonly Icon: ElementType<{ className?: string }>;
+  readonly Icon: ElementType<{
+    className?: string;
+  }>;
   readonly project?: ProjectFaviconProject;
   readonly unavailable?: string | undefined;
 }
-
 export function PullRequestFilterOptionIcon<Value extends string>({
   option,
 }: {
@@ -77,22 +76,25 @@ export function PullRequestFilterOptionIcon<Value extends string>({
     <option.Icon aria-hidden className="size-3.5" />
   );
 }
-
 export interface PullRequestExpectedHost {
   readonly host: string;
   readonly kind: SourceControlProviderKind;
 }
-
 export function pullRequestHostLabel(
-  entries: ReadonlyArray<{ readonly host: string; readonly kind: SourceControlProviderKind }>,
-  entry: { readonly host: string; readonly kind: SourceControlProviderKind },
+  entries: ReadonlyArray<{
+    readonly host: string;
+    readonly kind: SourceControlProviderKind;
+  }>,
+  entry: {
+    readonly host: string;
+    readonly kind: SourceControlProviderKind;
+  },
 ): string {
   const sharing = entries.filter((candidate) => candidate.kind === entry.kind);
   return sharing.length > 1
     ? entry.host
     : getSourceControlPresentationForKind(entry.kind).providerName;
 }
-
 export function PullRequestSearchInput({
   value,
   busy,
@@ -127,13 +129,12 @@ export function PullRequestSearchInput({
             onSubmit(event.currentTarget.value);
           }
         }}
-        placeholder="Search pull requests, or label:bug"
-        aria-label="Search pull requests"
+        placeholder={uiText("Search pull requests, or label:bug")}
+        aria-label={uiText("Search pull requests")}
       />
     </InputGroup>
   );
 }
-
 const ALL_PROJECTS_VALUE = "all";
 const ALL_HOSTS_VALUE = "";
 const ALL_SERVERS_VALUE = "";
@@ -143,27 +144,23 @@ export const pullRequestProjectKey = (project: {
   readonly id: ProjectId;
   readonly environmentId: EnvironmentId;
 }) => JSON.stringify([project.environmentId, project.id]);
-
 const DRAFT_OPTIONS = [
-  { value: UNFILTERED_VALUE, label: "All", Icon: LayersIcon },
-  { value: "only", label: "Drafts only", Icon: PullRequestGlyph.draft },
-  { value: "hide", label: "Hide drafts", Icon: EyeOffIcon },
+  { value: UNFILTERED_VALUE, label: uiText("All"), Icon: LayersIcon },
+  { value: "only", label: uiText("Drafts only"), Icon: PullRequestGlyph.draft },
+  { value: "hide", label: uiText("Hide drafts"), Icon: EyeOffIcon },
 ] as const satisfies ReadonlyArray<PullRequestFilterOption<string>>;
-
 const REVIEW_OPTIONS = [
-  { value: UNFILTERED_VALUE, label: "All", Icon: LayersIcon },
-  { value: "approved", label: "Approved", Icon: CircleCheckIcon },
-  { value: "changes-requested", label: "Changes requested", Icon: CircleXIcon },
-  { value: "review-required", label: "Review required", Icon: CircleDashedIcon },
-  { value: "none", label: "No reviews", Icon: CircleSlashIcon },
+  { value: UNFILTERED_VALUE, label: uiText("All"), Icon: LayersIcon },
+  { value: "approved", label: uiText("Approved"), Icon: CircleCheckIcon },
+  { value: "changes-requested", label: uiText("Changes requested"), Icon: CircleXIcon },
+  { value: "review-required", label: uiText("Review required"), Icon: CircleDashedIcon },
+  { value: "none", label: uiText("No reviews"), Icon: CircleSlashIcon },
 ] as const satisfies ReadonlyArray<PullRequestFilterOption<string>>;
-
 const CHECKS_OPTIONS = [
-  { value: UNFILTERED_VALUE, label: "All", Icon: LayersIcon },
-  { value: "passing", label: "Passing", Icon: CircleCheckIcon },
-  { value: "failing", label: "Failing", Icon: CircleXIcon },
+  { value: UNFILTERED_VALUE, label: uiText("All"), Icon: LayersIcon },
+  { value: "passing", label: uiText("Passing"), Icon: CircleCheckIcon },
+  { value: "failing", label: uiText("Failing"), Icon: CircleXIcon },
 ] as const satisfies ReadonlyArray<PullRequestFilterOption<string>>;
-
 function PullRequestFilterRadioGroup<Value extends string>({
   label,
   value,
@@ -194,7 +191,9 @@ function PullRequestFilterRadioGroup<Value extends string>({
             <span className="flex min-w-0 items-center gap-2">
               <PullRequestFilterOptionIcon option={option} />
               <span className="min-w-0 flex-1 truncate">{option.label}</span>
-              {option.unavailable ? <span className="shrink-0">· Unavailable</span> : null}
+              {option.unavailable ? (
+                <span className="shrink-0">{uiText("· Unavailable")}</span>
+              ) : null}
               <MenuRadioItemIndicator />
             </span>
           </MenuRadioItem>
@@ -210,7 +209,6 @@ function PullRequestFilterRadioGroup<Value extends string>({
     </MenuRadioGroup>
   );
 }
-
 function PullRequestFilterRadioSubmenu<Value extends string>({
   label,
   value,
@@ -244,14 +242,11 @@ function PullRequestFilterRadioSubmenu<Value extends string>({
     </MenuSub>
   );
 }
-
 /** The listing's own scope, which the pickers search the host within. */
 export type PullRequestFilterOptionScope = EnvironmentQueryTarget<
   Omit<PullRequestFilterOptionsInput, "kind" | "query">
 >;
-
 const OPTION_SEARCH_DEBOUNCE_MS = 250;
-
 function useHostedFilterOptions(
   scope: ReadonlyArray<PullRequestFilterOptionScope>,
   kind: PullRequestFilterOptionsInput["kind"],
@@ -268,7 +263,6 @@ function useHostedFilterOptions(
   // Until the search catches up with the typing, the host's answers are for older text.
   return sent === typed ? hosted : { labels: [], authors: [], error: null, isPending: true };
 }
-
 function PullRequestAuthorChoices({
   value,
   options,
@@ -298,14 +292,14 @@ function PullRequestAuthorChoices({
         busy={hosted.isPending}
         value={query}
         onChange={(event) => setQuery(event.currentTarget.value)}
-        placeholder="Search authors"
-        aria-label="Search authors"
+        placeholder={uiText("Search authors")}
+        aria-label={uiText("Search authors")}
       />
       <MenuRadioGroup value={selected?.actor.login ?? value ?? ""} onValueChange={select}>
         <MenuRadioItem value="">
           <span className="flex min-w-0 items-center gap-2">
             <LayersIcon aria-hidden className="size-3.5" />
-            Anyone
+            {uiText("Anyone")}
           </span>
         </MenuRadioItem>
         {visible.map((option) => (
@@ -315,7 +309,8 @@ function PullRequestAuthorChoices({
               <span className="min-w-0 flex-1 truncate">{option.actor.login}</span>
               {option.mergedCount > 0 ? (
                 <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                  {option.mergedCount} merges loaded
+                  {option.mergedCount}
+                  {" merges loaded"}
                 </span>
               ) : null}
             </span>
@@ -323,14 +318,15 @@ function PullRequestAuthorChoices({
         ))}
         {visible.length === 0 && !hosted.isPending ? (
           <MenuItem disabled>
-            {hosted.error === null ? "No authors found" : "Couldn't search authors on the host"}
+            {hosted.error === null
+              ? uiText("No authors found")
+              : "Couldn't search authors on the host"}
           </MenuItem>
         ) : null}
       </MenuRadioGroup>
     </>
   );
 }
-
 function PullRequestAuthorFilter({
   value,
   options,
@@ -346,9 +342,9 @@ function PullRequestAuthorFilter({
     <MenuSub>
       <MenuSubTrigger>
         <UserRoundIcon aria-hidden className="size-3.5" />
-        <span className="flex-1">Author</span>
+        <span className="flex-1">{uiText("Author")}</span>
         <span className="min-w-0 max-w-32 truncate text-xs text-muted-foreground">
-          {value ?? "Anyone"}
+          {value ?? uiText("Anyone")}
         </span>
       </MenuSubTrigger>
       <MenuSubPopup>
@@ -362,7 +358,6 @@ function PullRequestAuthorFilter({
     </MenuSub>
   );
 }
-
 function PullRequestLabelChoices({
   value,
   options,
@@ -433,7 +428,6 @@ function PullRequestLabelChoices({
     </>
   );
 }
-
 function PullRequestLabelFilter({
   value,
   options,
@@ -449,9 +443,9 @@ function PullRequestLabelFilter({
     <MenuSub>
       <MenuSubTrigger>
         <TagIcon aria-hidden className="size-3.5" />
-        <span className="flex-1">Labels</span>
+        <span className="flex-1">{uiText("Labels")}</span>
         <span className="text-xs text-muted-foreground">
-          {value.length === 0 ? "Any" : `${value.length} selected`}
+          {value.length === 0 ? uiText("Any") : uiText("{0} selected", { "0": value.length })}
         </span>
       </MenuSubTrigger>
       <MenuSubPopup>
@@ -465,7 +459,6 @@ function PullRequestLabelFilter({
     </MenuSub>
   );
 }
-
 export function PullRequestFiltersMenu({
   onOpenChange,
   state,
@@ -509,7 +502,11 @@ export function PullRequestFiltersMenu({
   server: EnvironmentId | undefined;
   serverOptions: ReadonlyArray<PullRequestFilterOption<string>>;
   onServer: (server: EnvironmentId | undefined) => void;
-  projects: ReadonlyArray<ProjectFaviconProject & { readonly id: ProjectId }>;
+  projects: ReadonlyArray<
+    ProjectFaviconProject & {
+      readonly id: ProjectId;
+    }
+  >;
   projectId: ProjectId | undefined;
   projectEnvironmentId: EnvironmentId | undefined;
   unavailable: ReadonlyMap<string, string>;
@@ -543,7 +540,7 @@ export function PullRequestFiltersMenu({
       ? ALL_PROJECTS_VALUE
       : pullRequestProjectKey({ id: projectId, environmentId: projectEnvironmentId });
   const projectOptions: ReadonlyArray<PullRequestFilterOption<string>> = [
-    { value: ALL_PROJECTS_VALUE, label: "All projects", Icon: LayersIcon },
+    { value: ALL_PROJECTS_VALUE, label: uiText("All projects"), Icon: LayersIcon },
     ...projects
       .toSorted(
         (left, right) =>
@@ -564,7 +561,7 @@ export function PullRequestFiltersMenu({
     <Menu onOpenChange={onOpenChange}>
       <MenuTrigger render={<Button variant="outline" />}>
         <ListFilterIcon className="size-4" />
-        <span>Filters</span>
+        <span>{uiText("Filters")}</span>
         {filterCount > 0 ? (
           <span className="rounded-full bg-muted px-1.5 text-xs text-muted-foreground tabular-nums">
             {filterCount}
@@ -573,13 +570,13 @@ export function PullRequestFiltersMenu({
       </MenuTrigger>
       <MenuPopup align="end" side="bottom">
         <PullRequestFilterRadioSubmenu
-          label="State"
+          label={uiText("State")}
           value={state}
           options={stateOptions}
           onChange={onState}
         />
         <PullRequestFilterRadioSubmenu
-          label="Involvement"
+          label={uiText("Involvement")}
           value={involvement}
           options={involvementOptions}
           onChange={onInvolvement}
@@ -602,19 +599,19 @@ export function PullRequestFiltersMenu({
           }
         />
         <PullRequestFilterRadioSubmenu
-          label="Draft"
+          label={uiText("Draft")}
           value={filters.draft ?? UNFILTERED_VALUE}
           options={DRAFT_OPTIONS}
           onChange={(draft) => updateFilter("draft", draft)}
         />
         <PullRequestFilterRadioSubmenu
-          label="Review"
+          label={uiText("Review")}
           value={filters.review ?? UNFILTERED_VALUE}
           options={REVIEW_OPTIONS}
           onChange={(review) => updateFilter("review", review)}
         />
         <PullRequestFilterRadioSubmenu
-          label="Checks"
+          label={uiText("Checks")}
           value={filters.checks ?? UNFILTERED_VALUE}
           options={CHECKS_OPTIONS}
           onChange={(checks) => updateFilter("checks", checks)}
@@ -623,7 +620,7 @@ export function PullRequestFiltersMenu({
           <>
             <MenuSeparator />
             <PullRequestFilterRadioSubmenu
-              label="Host"
+              label={uiText("Host")}
               value={host ?? ALL_HOSTS_VALUE}
               options={hostOptions}
               onChange={(next) => onHost(next === ALL_HOSTS_VALUE ? undefined : next)}
@@ -634,7 +631,7 @@ export function PullRequestFiltersMenu({
           <>
             <MenuSeparator />
             <PullRequestFilterRadioSubmenu
-              label="Server"
+              label={uiText("Server")}
               value={server ?? ALL_SERVERS_VALUE}
               options={serverOptions}
               onChange={(next) =>
@@ -645,7 +642,7 @@ export function PullRequestFiltersMenu({
         ) : null}
         <MenuSeparator />
         <PullRequestFilterRadioSubmenu
-          label="Project"
+          label={uiText("Project")}
           value={projectValue}
           options={projectOptions}
           onChange={(next) => {

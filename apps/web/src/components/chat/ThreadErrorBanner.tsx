@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type { OrchestrationV2ProviderFailureClass } from "@t3tools/contracts";
 import {
   CHATGPT_USAGE_LIMIT_CODE,
@@ -95,7 +96,7 @@ export const ThreadErrorBanner = memo(function ThreadErrorBanner({
         <AlertDescription>
           {chatGptLimit ? (
             <div className="space-y-1">
-              <p className="font-medium">ChatGPT usage limit reached</p>
+              <p className="font-medium">{uiText("ChatGPT usage limit reached")}</p>
               <p>
                 {workspaceLimit
                   ? "You've reached your workspace's limit for using your ChatGPT plan in other apps. Copy a request to ask your workspace admin for increased usage limits."
@@ -116,7 +117,12 @@ export const ThreadErrorBanner = memo(function ThreadErrorBanner({
               <ChatGptUsageButton variant="default" size="sm" />
             ) : null}
             {onDismiss ? (
-              <Button variant="ghost" size="icon-xs" aria-label="Dismiss error" onClick={onDismiss}>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label={uiText("Dismiss error")}
+                onClick={onDismiss}
+              >
                 <XIcon />
               </Button>
             ) : null}

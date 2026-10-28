@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { LoaderCircleIcon } from "lucide-react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { observeVisibleAnimation } from "~/lib/visibleAnimation";
@@ -28,7 +29,7 @@ function Spinner({
 }: React.ComponentPropsWithoutRef<typeof LoaderCircleIcon> & VariantProps<typeof spinnerVariants>) {
   return (
     <LoaderCircleIcon
-      aria-label="Loading"
+      aria-label={uiText("Loading")}
       ref={observeVisibleAnimation}
       className={cn(spinnerVariants({ size, tone }), className)}
       role="status"

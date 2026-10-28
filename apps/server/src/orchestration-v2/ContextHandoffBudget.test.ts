@@ -146,6 +146,66 @@ describe("handoff budget", () => {
       }),
     );
     assert.equal(historyResponseItems([command!], "Activity")[1]?.type, "message");
+    const tool = historicalMessage({
+      ...base,
+      type: "dynamic_tool",
+      toolName: "publish_asset",
+      input: { token: "never-copy-this-secret" },
+      output: { image: "large-payload" },
+    });
+    assert.include(tool!.text, "publish_asset");
+    assert.include(tool!.text, "outcome is uncertain");
+    assert.include(tool!.text, base.id);
+    assert.notInclude(tool!.text, "never-copy-this-secret");
+    assert.notInclude(tool!.text, "large-payload");
+  });
+  it.each(
+    ["code", "visual", "slides", "research", "mock-publication"].flatMap((task) =>
+      [4000, 8000, 16000].map((budget) => ({ task, budget })),
+    ),
+  )("keeps user corrections ahead of noisy logs: $task, $budget bytes", ({ task, budget }) => {
+    const original = message(
+      `${task}:original`,
+      "user",
+      "Keep the original files and preserve existing authorization scope.",
+    );
+    const correction = message(
+      `${task}:correction`,
+      "user",
+      "Use final-v3; do not publish. The previous v2 is obsolete.",
+    );
+    const latest = message(`${task}:latest`, "user", "Continue the remaining work.");
+    const file = {
+      ...message(`${task}:file`, "assistant", `File change: /fixture/${task}/final-v3.pdf`),
+      kind: "file_change",
+    };
+    const candidates = [
+      original,
+      correction,
+      {
+        ...message(`${task}:log`, "assistant", "irrelevant log ".repeat(20000)),
+        kind: "command_execution",
+        status: "completed",
+      },
+      file,
+      latest,
+      message(`${task}:answer`, "assistant", "Partial progress. ".repeat(500)),
+    ];
+    const selected = selectHistory({
+      messages: candidates,
+      coverage: "Read source items before retrying uncertain operations",
+      budget,
+    });
+    assert.deepEqual(
+      selected.messages.filter((m) => m.role === "user"),
+      [original, correction, latest],
+    );
+    assert.include(
+      selected.messages.map((m) => m.itemId),
+      file.itemId,
+    );
+    assert.include(selected.omittedItemIds, `${task}:log`);
+    assert.isAtMost(historyCost(selected.messages, selected.context), budget);
   });
 
   it("omits oversized multilingual items whole, preserves original constraints and recent work", () => {
@@ -243,7 +303,7 @@ describe("handoff budget", () => {
             contextUsage: { usedTokens: 0, maxTokens: 1_000_000 },
           },
         }),
-        64_000,
+        64000,
       );
     }
     assert.equal(handoffBudget({ ...base, tokenCap: 2_000 }), 2_000);
@@ -279,7 +339,7 @@ describe("handoff budget", () => {
         reuseTelemetry: true,
         previousUsage: previous,
       }),
-      { usedTokens: 37_321, maxTokens: 258_400 },
+      { usedTokens: 37321, maxTokens: 258400 },
     );
     assert.deepEqual(
       contextUsageForHandoff({
@@ -288,7 +348,7 @@ describe("handoff budget", () => {
         reuseTelemetry: false,
         previousUsage: previous,
       }),
-      { usedTokens: 37_321, maxTokens: 258_400 },
+      { usedTokens: 37321, maxTokens: 258400 },
     );
     assert.deepEqual(
       contextUsageForHandoff({
@@ -298,7 +358,7 @@ describe("handoff budget", () => {
         previousUsage: { usedTokens: 30_000, maxTokens: 32_000, autoCompactThreshold: 31_000 },
         knownModelWindow: 1_000_000,
       }),
-      { usedTokens: 30_000, maxTokens: 1_000_000 },
+      { usedTokens: 30000, maxTokens: 1000000 },
     );
 
     const preserved = contextUsageForHandoff({
@@ -331,7 +391,7 @@ describe("handoff budget", () => {
         nativeContextEstimate: 0,
         modelContextWindow: preserved?.maxTokens,
       }),
-      16_000,
+      16000,
     );
     assert.equal(
       handoffBudget({

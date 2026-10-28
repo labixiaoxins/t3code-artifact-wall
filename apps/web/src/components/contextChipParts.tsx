@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type { EnvironmentId, PullRequestContextMetadata } from "@t3tools/contracts";
 import { CircleDashedIcon, FilmIcon, ImageIcon } from "lucide-react";
 import {
@@ -10,7 +11,6 @@ import {
 } from "react";
 import { useAssetUrlState } from "~/assets/assetUrls";
 import { documentIconColorForFileName } from "~/pierre-icons";
-
 import { PULL_REQUEST_STATE_PRESENTATION } from "~/components/pullRequest/pullRequestIcons";
 import type { PullRequestContextDisplayState } from "~/lib/composerContextRecords";
 import { PierreEntryIcon } from "./chat/PierreEntryIcon";
@@ -21,7 +21,6 @@ import { Popover, PopoverPopup, PopoverTitle, PopoverTrigger } from "./ui/popove
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import { PullRequestLinkPreview } from "./pullRequest/PullRequestLinkPreview";
 import { usePullRequestPreviewTarget } from "~/lib/openPullRequestLink";
-
 export const PULL_REQUEST_CHIP_KINDS = {
   open: "pr-open",
   draft: "pr-draft",
@@ -29,7 +28,6 @@ export const PULL_REQUEST_CHIP_KINDS = {
   closed: "pr-closed",
   unknown: "pull-request",
 } as const satisfies Record<PullRequestContextDisplayState | "unknown", ContextChipKind>;
-
 export function ContextChipShell({
   icon,
   label,
@@ -60,7 +58,6 @@ export function ContextChipShell({
     </Tooltip>
   );
 }
-
 export function ContextChipPopover(props: {
   kind: ContextChipKind;
   icon: ReactNode;
@@ -76,7 +73,7 @@ export function ContextChipPopover(props: {
           <ContextChip
             kind={props.kind}
             render={<button type="button" />}
-            aria-label={`${props.accessibleLabel}. Show details`}
+            aria-label={uiText("{0}. Show details", { "0": props.accessibleLabel })}
             data-markdown-copy={props.copyMarkdown}
           />
         }
@@ -91,7 +88,6 @@ export function ContextChipPopover(props: {
     </Popover>
   );
 }
-
 export function PullRequestChip(props: {
   metadata: PullRequestContextMetadata;
   environmentId: EnvironmentId | null;
@@ -109,7 +105,11 @@ export function PullRequestChip(props: {
     <ContextChip
       kind={props.kind}
       render={<button type="button" />}
-      aria-label={`Open ${props.kindLabel} ${props.label}: ${props.metadata.title}`}
+      aria-label={uiText("Open {0} {1}: {2}", {
+        "0": props.kindLabel,
+        "1": props.label,
+        "2": props.metadata.title,
+      })}
       data-markdown-copy={props.copyMarkdown}
       onClick={(event) => props.onOpen(event, props.metadata.url)}
       onAuxClick={(event) => props.onOpen(event, props.metadata.url)}
@@ -138,7 +138,6 @@ export function PullRequestChip(props: {
     </Tooltip>
   );
 }
-
 function averageImageColor(image: HTMLImageElement): string | undefined {
   try {
     const canvas = document.createElement("canvas");
@@ -164,7 +163,6 @@ function averageImageColor(image: HTMLImageElement): string | undefined {
     return;
   }
 }
-
 export function ImageChipButton({
   name,
   previewUrl,
@@ -182,14 +180,17 @@ export function ImageChipButton({
   disabled?: boolean | undefined;
   onPreviewError?: (() => void) | undefined;
 }) {
-  const [sample, setSample] = useState<{ url: string; color: string | undefined }>();
+  const [sample, setSample] = useState<{
+    url: string;
+    color: string | undefined;
+  }>();
   const [corsFailedUrl, setCorsFailedUrl] = useState<string>();
   const accent = sample?.url === previewUrl ? sample?.color : undefined;
   return (
     <ContextChip
       kind="image"
       render={<button type="button" disabled={disabled} />}
-      aria-label={`Image attachment, ${name}, ${size}`}
+      aria-label={uiText("Image attachment, {0}, {1}", { "0": name, "1": size })}
       style={{ ...style, ...(accent ? { "--context-chip-accent": accent } : {}) } as CSSProperties}
       {...props}
     >
@@ -219,7 +220,6 @@ export function ImageChipButton({
     </ContextChip>
   );
 }
-
 export function FileChip(props: {
   name: string;
   size: string;
@@ -282,10 +282,12 @@ export function FileChip(props: {
     </Tooltip>
   );
 }
-
 function SvgFileChip(props: ComponentProps<typeof FileChip>) {
   const preview = props.svgPreview;
-  const [local, setLocal] = useState<{ file: Blob; url: string }>();
+  const [local, setLocal] = useState<{
+    file: Blob;
+    url: string;
+  }>();
   const [failedPreviewUrl, setFailedPreviewUrl] = useState<string>();
   const asset = useAssetUrlState(
     preview?.file ? null : (preview?.environmentId ?? null),
@@ -341,7 +343,6 @@ function SvgFileChip(props: ComponentProps<typeof FileChip>) {
     </Tooltip>
   );
 }
-
 function FileChipContent(props: {
   name: string;
   size: string;
@@ -364,14 +365,13 @@ function FileChipContent(props: {
     </>
   );
 }
-
 export function UnresolvedChip(props: { label: string; tooltip: string; copyMarkdown?: string }) {
   return (
     <ContextChipShell
       icon={<CircleDashedIcon />}
       label={props.label}
       state="unresolved"
-      aria-label={`Unavailable context, ${props.label}`}
+      aria-label={uiText("Unavailable context, {0}", { "0": props.label })}
       data-markdown-copy={props.copyMarkdown}
       tooltip={props.tooltip}
     />

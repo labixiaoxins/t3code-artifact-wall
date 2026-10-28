@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   CommandId,
   type EnvironmentId,
@@ -108,7 +109,7 @@ export async function startFanoutThread(input: {
     const failureToastId = toastManager.add(
       stackedThreadToast({
         type: "error",
-        title: `Could not start ${input.model}`,
+        title: uiText("Could not start {0}", { "0": input.model }),
         description: error instanceof Error ? error.message : "Failed to send message.",
         ...(retainedThreadId
           ? {
@@ -137,7 +138,7 @@ export async function startFanoutThread(input: {
                 },
               },
               actionProps: {
-                children: "Open thread",
+                children: uiText("Open thread"),
                 onClick: () => input.openThread(retainedThreadId),
               },
             }
@@ -187,7 +188,7 @@ export async function rewindToMessage(input: {
       throw new Error("Wait for attachments to finish preparing before rewinding.");
     }
     const connection = readPreparedConnection(environmentId);
-    if (!connection) throw new Error("The environment is not connected.");
+    if (!connection) throw new Error(uiText("The environment is not connected."));
     const files = await prepareRevertedMessageAttachments({
       message,
       environmentId,

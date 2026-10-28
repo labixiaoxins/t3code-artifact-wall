@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { filePreviewDelimiter } from "@t3tools/shared/delimitedPreview";
 import type { AssetResource, EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
 import { formatAttachmentSize } from "@t3tools/client-runtime/state/attachments";
@@ -13,7 +14,6 @@ import {
 import { ChevronRightIcon, DownloadIcon, Trash2Icon, WrapTextIcon, XIcon } from "lucide-react";
 import { Check, Code2, Copy, Eye, Table2 } from "lucide";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-
 import { useAssetUrlRefresh } from "~/assets/assetUrls";
 import ChatMarkdown from "~/components/ChatMarkdown";
 import { MorphIcon } from "~/components/MorphIcon";
@@ -22,7 +22,6 @@ import { toastManager } from "~/components/ui/toast";
 import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
 import { useClientSettings, updateClientSettings } from "~/hooks/useSettings";
 import { cn } from "~/lib/utils";
-
 import { BinaryFilePreview } from "./BinaryFilePreview";
 import { PreviewImage } from "./PreviewImage";
 import { AudioPreview } from "./AudioPreview";
@@ -35,25 +34,18 @@ import {
   FileSurfaceLoading,
   FileSurfaceNotice,
 } from "./fileSurfaceChrome";
-
 const LargeTextViewer = lazy(() => import("./LargeTextViewer"));
-
 const OfficeFilePreview = lazy(() =>
   import("./OfficeFilePreview").then((module) => ({ default: module.OfficeFilePreview })),
 );
-
 const FontFilePreview = lazy(() =>
   import("./FontFilePreview").then((module) => ({ default: module.FontFilePreview })),
 );
-
 const MermaidFilePreview = lazy(() =>
   import("./MermaidFilePreview").then((module) => ({ default: module.MermaidFilePreview })),
 );
-
 const SourcePreview = lazy(() => import("./ReadOnlySourcePreview"));
-
-const STALE_URL_MS = 5 * 60_000;
-
+const STALE_URL_MS = 5 * 60000;
 export function ReadOnlySourcePreview(props: { name: string; text: string }) {
   return (
     <Suspense fallback={<FileSurfaceLoading className="p-4" />}>
@@ -61,7 +53,6 @@ export function ReadOnlySourcePreview(props: { name: string; text: string }) {
     </Suspense>
   );
 }
-
 function renderedToggleLabel(
   mode: "markdown" | "mermaid" | "html" | "table",
   rendered: boolean,
@@ -71,17 +62,24 @@ function renderedToggleLabel(
   if (mode === "table") return rendered ? "Show source" : "Show table";
   return rendered ? "Show HTML source" : "Show rendered page";
 }
-
 export function AttachmentFilePreview(props: {
   name: string;
   mimeType: string;
   sizeBytes: number;
   file?: Blob | null;
   asset?:
-    | { environmentId: EnvironmentId; attachmentId: string }
     | {
         environmentId: EnvironmentId;
-        resource: Extract<AssetResource, { _tag: "media-file" | "draft-workspace-file" }>;
+        attachmentId: string;
+      }
+    | {
+        environmentId: EnvironmentId;
+        resource: Extract<
+          AssetResource,
+          {
+            _tag: "media-file" | "draft-workspace-file";
+          }
+        >;
       };
   htmlRender?: boolean;
   threadRef?: ScopedThreadRef;
@@ -133,7 +131,10 @@ export function AttachmentFilePreview(props: {
   const [remoteUrl, setRemoteUrl] = useState<string | null>(null);
   const [rendered, setRendered] = useState(true);
   const [revision, setRevision] = useState(0);
-  const [content, setContent] = useState<{ text: string; truncated: boolean } | null>(null);
+  const [content, setContent] = useState<{
+    text: string;
+    truncated: boolean;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [contentError, setContentError] = useState<string | null>(null);
   const copyContents = useRef<(() => Promise<string>) | null>(null);
@@ -217,7 +218,6 @@ export function AttachmentFilePreview(props: {
     (content !== null || streamsText) &&
     !(delimiter && rendered) &&
     !((kind === "markdown" || kind === "mermaid") && rendered);
-
   const save = () => {
     setSaving(true);
     void settlePromise(async () => {
@@ -232,7 +232,7 @@ export function AttachmentFilePreview(props: {
       // Blob downloads keep desktop's custom app scheme from navigating to an external browser.
       const downloadUrl = URL.createObjectURL(file);
       // Scheduled before the click so the URL is revoked even if the click throws.
-      setTimeout(() => URL.revokeObjectURL(downloadUrl), 30_000);
+      setTimeout(() => URL.revokeObjectURL(downloadUrl), 30000);
       const anchor = document.createElement("a");
       anchor.href = downloadUrl;
       anchor.download = props.name;
@@ -242,14 +242,13 @@ export function AttachmentFilePreview(props: {
         const cause = Cause.squash(result.cause);
         toastManager.add({
           type: "error",
-          title: "Could not save file",
+          title: uiText("Could not save file"),
           description: cause instanceof Error ? cause.message : "Please try again.",
         });
       }
       setSaving(false);
     });
   };
-
   const body = failure ? (
     <FileSurfaceFailure
       message={failure}
@@ -338,20 +337,19 @@ export function AttachmentFilePreview(props: {
     />
   ) : (
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-1 px-6 text-center">
-      <p className="text-sm font-medium">No preview for this file</p>
+      <p className="text-sm font-medium">{uiText("No preview for this file")}</p>
       <p className="max-w-sm text-xs leading-relaxed text-muted-foreground">
-        Save it to open in an app that supports {props.name.split(".").at(-1) || "this format"}{" "}
-        files.
+        {"Save it to open in an app that supports "}
+        {props.name.split(".").at(-1) || uiText("this format")} {uiText("files.")}
       </p>
     </div>
   );
-
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <div className={cn(FILE_SURFACE_SUBHEADER_CLASS)} data-surface-subheader>
         <div className="flex min-w-0 flex-1 items-center text-xs">
           <span className="shrink-0 px-0.5 text-muted-foreground">
-            {props.origin ?? "Attachment"}
+            {props.origin ?? uiText("Attachment")}
           </span>
           <ChevronRightIcon className="mx-1 size-3.5 shrink-0 text-muted-foreground/60" />
           <span aria-current="page" className="min-w-0 truncate px-0.5 font-medium text-foreground">
@@ -377,7 +375,7 @@ export function AttachmentFilePreview(props: {
         ) : null}
         {showsRawText ? (
           <FileSurfaceAction
-            label={wordWrap ? "Disable word wrap" : "Enable word wrap"}
+            label={wordWrap ? uiText("Disable word wrap") : uiText("Enable word wrap")}
             pressed={wordWrap}
             onPress={() => updateClientSettings({ wordWrap: !wordWrap })}
           >
@@ -386,7 +384,13 @@ export function AttachmentFilePreview(props: {
         ) : null}
         {content || streamsText ? (
           <FileSurfaceAction
-            label={isCopied ? "Copied" : content?.truncated ? "Copy preview" : "Copy contents"}
+            label={
+              isCopied
+                ? uiText("Copied")
+                : content?.truncated
+                  ? uiText("Copy preview")
+                  : uiText("Copy contents")
+            }
             onPress={() => {
               if (content) {
                 void copyToClipboard(content.text, undefined);
@@ -417,7 +421,7 @@ export function AttachmentFilePreview(props: {
         ) : null}
         {url ? (
           <FileSurfaceAction
-            label={saving ? "Preparing file…" : "Save file"}
+            label={saving ? uiText("Preparing file…") : uiText("Save file")}
             disabled={saving}
             onPress={save}
           >
@@ -425,21 +429,23 @@ export function AttachmentFilePreview(props: {
           </FileSurfaceAction>
         ) : null}
         {props.onRemove ? (
-          <FileSurfaceAction label="Remove from draft" onPress={props.onRemove}>
+          <FileSurfaceAction label={uiText("Remove from draft")} onPress={props.onRemove}>
             <Trash2Icon className="size-3.5" />
           </FileSurfaceAction>
         ) : null}
         {props.onClose ? (
-          <FileSurfaceAction label="Close" onPress={props.onClose}>
+          <FileSurfaceAction label={uiText("Close")} onPress={props.onClose}>
             <XIcon className="size-3.5" />
           </FileSurfaceAction>
         ) : null}
       </div>
       {content?.truncated ? (
         <FileSurfaceNotice>
-          Preview limited to the first 1 MB
-          {props.sizeBytes > 0 ? ` of a ${props.sizeBytes.toLocaleString()} byte file` : ""}. Save
-          the file to read it in full.
+          {uiText("Preview limited to the first 1 MB")}
+          {props.sizeBytes > 0
+            ? uiText(" of a {0} byte file", { "0": props.sizeBytes.toLocaleString() })
+            : ""}
+          {". Save the file to read it in full."}
         </FileSurfaceNotice>
       ) : null}
       {body}

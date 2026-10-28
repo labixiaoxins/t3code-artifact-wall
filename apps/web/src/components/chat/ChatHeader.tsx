@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   AuthOrchestrationOperateScope,
   type EnvironmentId,
@@ -40,30 +41,38 @@ import { cn } from "~/lib/utils";
 import { textDirection } from "~/textDirection";
 import { useClientSettings } from "../../hooks/useSettings";
 import { GuestShareIndicator } from "./GuestShareControls";
-
+import { QuotaTopbar } from "../usage/QuotaTopbar";
 interface ChatHeaderProps {
   activeThreadEnvironmentId: EnvironmentId;
   activeThreadId: ThreadId;
   activeThreadTitle: string;
   isServerThread: boolean;
   activeProject: EnvironmentProject | null;
-  parentThreadLink: { threadId: ThreadId; title: string } | null;
+  parentThreadLink: {
+    threadId: ThreadId;
+    title: string;
+  } | null;
   onOpenThread: (threadId: ThreadId) => void;
   rightPanelOpen: boolean;
   onNewThreadInProject: () => void;
   onOpenProjectSettings?: (() => void) | undefined;
 }
-
-function resolveRenameCommit(input: {
-  readonly title: string;
-  readonly originalTitle: string;
-}): { action: "commit"; title: string } | { action: "reject-empty" } | { action: "noop" } {
+function resolveRenameCommit(input: { readonly title: string; readonly originalTitle: string }):
+  | {
+      action: "commit";
+      title: string;
+    }
+  | {
+      action: "reject-empty";
+    }
+  | {
+      action: "noop";
+    } {
   const trimmed = input.title.trim();
   if (trimmed.length === 0) return { action: "reject-empty" };
   if (trimmed === input.originalTitle) return { action: "noop" };
   return { action: "commit", title: trimmed };
 }
-
 // Delay the input-swallowing native menu through the double-click rename interval.
 const TITLE_MENU_OPEN_DELAY_MS = 500;
 export const ChatHeader = memo(function ChatHeader({
@@ -78,7 +87,7 @@ export const ChatHeader = memo(function ChatHeader({
   onNewThreadInProject,
   onOpenProjectSettings,
 }: ChatHeaderProps) {
-  const activeProjectName = activeProject?.isScratch ? "No project" : activeProject?.title;
+  const activeProjectName = activeProject?.isScratch ? uiText("No project") : activeProject?.title;
   const activeProjectCwd = activeProject?.workspaceRoot ?? null;
   const interfaceFont = useClientSettings((settings) => settings.fontFamilySans);
   const breadcrumbContainerRef = useRef<HTMLDivElement>(null);
@@ -170,7 +179,7 @@ export const ChatHeader = memo(function ChatHeader({
     if (!readEnvironmentScope(activeThreadEnvironmentId, AuthOrchestrationOperateScope)) return;
     const resolution = resolveRenameCommit({ title, originalTitle: activeThreadTitle });
     if (resolution.action === "reject-empty") {
-      toastManager.add({ type: "warning", title: "Thread title cannot be empty" });
+      toastManager.add({ type: "warning", title: uiText("Thread title cannot be empty") });
       return;
     }
     if (resolution.action === "noop") return;
@@ -182,8 +191,8 @@ export const ChatHeader = memo(function ChatHeader({
         const error = squashAtomCommandFailure(result);
         toastManager.add({
           type: "error",
-          title: "Failed to rename thread",
-          description: error instanceof Error ? error.message : "An error occurred.",
+          title: uiText("Failed to rename thread"),
+          description: error instanceof Error ? error.message : uiText("An error occurred."),
         });
       }
     });
@@ -246,7 +255,7 @@ export const ChatHeader = memo(function ChatHeader({
       const api = readLocalApi();
       if (!api) return;
       void api.contextMenu
-        .show([{ id: "project-settings", label: "Project settings", icon: "settings" }], {
+        .show([{ id: "project-settings", label: uiText("Project settings"), icon: "settings" }], {
           x: event.clientX,
           y: event.clientY,
         })
@@ -270,9 +279,11 @@ export const ChatHeader = memo(function ChatHeader({
   return (
     <div
       ref={breadcrumbContainerRef}
+      data-liquid-chat-header=""
       className={cn(
-        "flex min-w-0 flex-1 items-center gap-2 sm:gap-3",
+        "@container/quota-header flex min-w-0 flex-1 items-center gap-2 sm:gap-3",
         rightPanelOpen ? "pr-10" : "pr-24",
+        "max-md:pr-36",
       )}
       onContextMenu={handleHeaderContextMenu}
     >
@@ -288,7 +299,7 @@ export const ChatHeader = memo(function ChatHeader({
                   render={
                     <button
                       type="button"
-                      aria-label={`New thread in ${activeProjectName}`}
+                      aria-label={uiText("New thread in {0}", { "0": activeProjectName })}
                       onClick={onNewThreadInProject}
                       className="inline-flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                     />
@@ -299,11 +310,14 @@ export const ChatHeader = memo(function ChatHeader({
                     {activeProjectName}
                   </WorkspaceBreadcrumbText>
                 </TooltipTrigger>
-                <TooltipPopup side="top">New thread in {activeProjectName}</TooltipPopup>
+                <TooltipPopup side="top">
+                  {uiText("New thread in")}
+                  {activeProjectName}
+                </TooltipPopup>
               </Tooltip>
             </WorkspaceBreadcrumbItem>
             <WorkspaceBreadcrumbSeparator>
-              <WorkspaceBreadcrumbText>/</WorkspaceBreadcrumbText>
+              <WorkspaceBreadcrumbText>{"/"}</WorkspaceBreadcrumbText>
             </WorkspaceBreadcrumbSeparator>
           </>
         ) : null}
@@ -315,7 +329,9 @@ export const ChatHeader = memo(function ChatHeader({
                   render={
                     <button
                       type="button"
-                      aria-label={`Open parent thread: ${parentThreadLink.title}`}
+                      aria-label={uiText("Open parent thread: {0}", {
+                        "0": parentThreadLink.title,
+                      })}
                       onClick={() => onOpenThread(parentThreadLink.threadId)}
                       className="inline-flex min-w-0 max-w-full cursor-pointer items-center rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                     />
@@ -329,7 +345,7 @@ export const ChatHeader = memo(function ChatHeader({
                   </WorkspaceBreadcrumbText>
                   {collapseParentTitle ? (
                     <span aria-hidden data-parent-breadcrumb-ellipsis>
-                      ...
+                      {"..."}
                     </span>
                   ) : null}
                 </TooltipTrigger>
@@ -337,7 +353,7 @@ export const ChatHeader = memo(function ChatHeader({
               </Tooltip>
             </WorkspaceBreadcrumbItem>
             <WorkspaceBreadcrumbSeparator>
-              <WorkspaceBreadcrumbText>/</WorkspaceBreadcrumbText>
+              <WorkspaceBreadcrumbText>{"/"}</WorkspaceBreadcrumbText>
             </WorkspaceBreadcrumbSeparator>
           </>
         ) : null}
@@ -346,7 +362,7 @@ export const ChatHeader = memo(function ChatHeader({
             <input
               autoFocus
               dir="auto"
-              aria-label="Thread title"
+              aria-label={uiText("Thread title")}
               className="min-w-0 flex-1 rounded-sm bg-transparent text-sm font-medium text-foreground outline-none ring-1 ring-inset ring-ring/50 focus:ring-ring"
               defaultValue={renamingTitle}
               onBlur={(event) => {
@@ -370,7 +386,7 @@ export const ChatHeader = memo(function ChatHeader({
                   <button
                     ref={titleButtonRef}
                     type="button"
-                    aria-label={`Thread actions for ${activeThreadTitle}`}
+                    aria-label={uiText("Thread actions for {0}", { "0": activeThreadTitle })}
                     aria-haspopup="menu"
                     onClick={openMenuFromTitle}
                     onDoubleClick={canOperateThread ? handleTitleDoubleClick : undefined}
@@ -409,6 +425,7 @@ export const ChatHeader = memo(function ChatHeader({
         </WorkspaceBreadcrumbItem>
       </WorkspaceBreadcrumb>
       {isServerThread ? <GuestShareIndicator threadRef={activeThreadRef} /> : null}
+      <QuotaTopbar />
     </div>
   );
 });

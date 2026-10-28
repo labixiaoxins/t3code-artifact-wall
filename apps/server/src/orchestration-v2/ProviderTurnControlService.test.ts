@@ -209,6 +209,7 @@ it.effect(
         ProjectionStore.ProjectionStoreV2,
         ProjectionStore.ProjectionStoreV2.of({
           apply: () => Effect.void,
+          getArchiveBlockReason: () => Effect.succeed("unavailable" as const),
           getLimitRecoveryCandidates: () => Effect.die("unused getLimitRecoveryCandidates"),
           getShellSnapshot: () => Effect.die("unused getShellSnapshot"),
           listActiveSubagentThreadIds: () => Effect.die("unused listActiveSubagentThreadIds"),

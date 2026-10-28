@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { resolvePullRequestDetailChecks } from "@t3tools/client-runtime/pull-request-checks";
 import {
   capitalizeTerm,
@@ -19,7 +20,6 @@ import {
 } from "lucide-react";
 import { AsyncResult } from "effect/reactivity";
 import { useState, type MouseEvent as ReactMouseEvent } from "react";
-
 import { useLiveRefresh } from "~/hooks/useLiveRefresh";
 import { usePullRequestChecksRefresh } from "~/hooks/usePullRequestChecksRefresh";
 import { cn } from "~/lib/utils";
@@ -31,7 +31,6 @@ import {
   useEnvironmentQueryRefresh,
   useEnvironmentQuerySelector,
 } from "~/state/query";
-
 import {
   buildFixFindingsHandoff,
   buildResolveConflictsPrompt,
@@ -76,11 +75,9 @@ import {
   THREAD_DETAILS_PANEL_SPLIT_GROUP_CLASS,
   THREAD_DETAILS_PANEL_SPLIT_SEPARATOR_CLASS,
 } from "./threadDetailsPanelStyles";
-
 // A null checks response is settled; polling cannot find checks.
 const isSettledWithoutChecks = (result: AsyncResult.AsyncResult<unknown, unknown>) =>
   result._tag === "Success" && result.value === null;
-
 export function ThreadDetailsPrRow({
   environmentId,
   pr,
@@ -148,7 +145,7 @@ export function ThreadDetailsPrRow({
     () => {
       if (!detailQuery.isPending()) detailQuery.refresh();
     },
-    { enabled: open, key: `workspace-pr:${refreshKey}`, intervalMs: 10 * 60_000 },
+    { enabled: open, key: `workspace-pr:${refreshKey}`, intervalMs: 10 * 60000 },
   );
   usePullRequestChecksRefresh({
     refresh: () => {
@@ -158,7 +155,6 @@ export function ThreadDetailsPrRow({
     key: `workspace-pr-checks:${refreshKey}`,
     checks: detail?.checks ?? [],
   });
-
   const { actionPending, perform } = usePullRequestActionRunner({
     environmentId,
     reference,
@@ -176,7 +172,6 @@ export function ThreadDetailsPrRow({
     (project?.id as ProjectId | undefined) ?? null,
   );
   const [confirmingMerge, setConfirmingMerge] = useState(false);
-
   const rowAction = resolveThreadPanelPullRequestAction(detail);
   if (confirmingMerge && rowAction !== "merge") {
     setConfirmingMerge(false);
@@ -190,7 +185,6 @@ export function ThreadDetailsPrRow({
     resolveProjectDefaultMergeMethod(),
     lastSelectedMergeMethod,
   );
-
   const startResolveConflicts = () => {
     if (detail === null) return;
     void startHandoff("conflicts", {
@@ -202,7 +196,6 @@ export function ThreadDetailsPrRow({
       }),
     });
   };
-
   const startFixChecks = () => {
     if (detail === null) return;
     void startHandoff(
@@ -220,7 +213,6 @@ export function ThreadDetailsPrRow({
       }),
     );
   };
-
   const statePresentation =
     detail === null
       ? null
@@ -241,7 +233,6 @@ export function ThreadDetailsPrRow({
   ) : (
     <PullRequestGlyph.pullRequest className={THREAD_DETAILS_PANEL_ICON_CLASS} />
   );
-
   const rowTooltip =
     detail === null || statePresentation === null ? (
       <TooltipPopup side="top">
@@ -258,7 +249,10 @@ export function ThreadDetailsPrRow({
         <div className="flex min-w-0 max-w-80 flex-col gap-2 px-1 py-2">
           <div className="flex min-w-0 items-baseline gap-1.5 text-xs leading-none">
             <span className="min-w-0 truncate font-medium text-foreground">{detail.title}</span>
-            <span className="shrink-0 text-muted-foreground">#{detail.number}</span>
+            <span className="shrink-0 text-muted-foreground">
+              {"#"}
+              {detail.number}
+            </span>
           </div>
           <div className="grid gap-1.5 pl-0.5 text-xs text-muted-foreground">
             <div className="flex min-w-0 items-center gap-2">
@@ -271,7 +265,9 @@ export function ThreadDetailsPrRow({
             <div className="flex min-w-0 items-center gap-2">
               <GitBranchIcon className="size-3 shrink-0 stroke-muted-foreground" />
               <div className="min-w-0 truncate text-foreground/75">
-                {detail.baseBranch} ← {detail.headBranch}
+                {detail.baseBranch}
+                {" \u2190 "}
+                {detail.headBranch}
               </div>
             </div>
             {detail.state === "open" && checksState !== "none" ? (
@@ -294,7 +290,8 @@ export function ThreadDetailsPrRow({
               <div className="flex min-w-0 items-start gap-2 text-destructive">
                 <TriangleAlertIcon aria-hidden className="mt-0.5 size-3 shrink-0 stroke-current" />
                 <div className="min-w-0 flex-1 wrap-break-word">
-                  Merge conflicts with {detail.baseBranch}
+                  {"Merge conflicts with "}
+                  {detail.baseBranch}
                 </div>
               </div>
             ) : null}
@@ -302,7 +299,7 @@ export function ThreadDetailsPrRow({
               <FileDiffIcon className="size-3 shrink-0 stroke-muted-foreground" />
               <div className="min-w-0 flex items-baseline gap-1 truncate text-foreground/75">
                 {detail.changedFiles.toLocaleString()}{" "}
-                {detail.changedFiles === 1 ? "file" : "files"}
+                {detail.changedFiles === 1 ? uiText("file") : uiText("files")}
                 <PullRequestDiffStat additions={detail.additions} deletions={detail.deletions} />
               </div>
             </div>
@@ -317,21 +314,20 @@ export function ThreadDetailsPrRow({
         </div>
       </TooltipPopup>
     );
-
   const trailingAction =
     rowAction === "resolve"
       ? {
-          label: "Resolve",
+          label: uiText("Resolve"),
           pendingLabel: "Preparing...",
           pending: handoff === "conflicts",
           destructive: true,
           suffix: <ArrowUpRightIcon aria-hidden className="size-3 shrink-0" />,
-          tooltip: "Check the branch out and resolve the conflicts in a new thread",
+          tooltip: uiText("Check the branch out and resolve the conflicts in a new thread"),
           onClick: startResolveConflicts,
         }
       : rowAction === "ready"
         ? {
-            label: "Ready",
+            label: uiText("Ready"),
             pendingLabel: "Marking...",
             pending: actionPending,
             destructive: false,
@@ -341,17 +337,17 @@ export function ThreadDetailsPrRow({
           }
         : rowAction === "fix"
           ? {
-              label: "Fix",
+              label: uiText("Fix"),
               pendingLabel: "Preparing...",
               pending: handoff === "findings",
               destructive: true,
               suffix: <ArrowUpRightIcon aria-hidden className="size-3 shrink-0" />,
-              tooltip: "Fix the failing checks in a new thread",
+              tooltip: uiText("Fix the failing checks in a new thread"),
               onClick: startFixChecks,
             }
           : rowAction === "merge"
             ? {
-                label: "Merge",
+                label: uiText("Merge"),
                 pendingLabel: "Merging...",
                 pending: actionPending,
                 destructive: false,
@@ -360,7 +356,6 @@ export function ThreadDetailsPrRow({
                 onClick: () => setConfirmingMerge(true),
               }
             : null;
-
   const watching =
     onStopWatching !== undefined && (detail?.state ?? pr?.state ?? "open") === "open";
   const watchControl = (part: "secondary" | "icon") =>
@@ -374,7 +369,7 @@ export function ThreadDetailsPrRow({
               size="sm"
               part={part}
               className="group/watch"
-              aria-label={`Stop watching #${number}`}
+              aria-label={uiText("Stop watching #{0}", { "0": number })}
               onClick={onStopWatching}
             />
           }
@@ -392,12 +387,12 @@ export function ThreadDetailsPrRow({
           />
         </TooltipTrigger>
         <TooltipPopup side="top">
-          Watching: the agent wakes when checks finish, someone comments, or the branch conflicts.
-          Click to stop.
+          {uiText(
+            "Watching: the agent wakes when checks finish, someone comments, or the branch conflicts. Click to stop.",
+          )}
         </TooltipPopup>
       </Tooltip>
     ) : null;
-
   // The title row wraps to two lines; a conventional-commit prefix eats most of one line.
   const openRow = (text: string, part: "row" | "primary", wrap = false) => (
     <Tooltip>
@@ -431,16 +426,17 @@ export function ThreadDetailsPrRow({
       {rowTooltip}
     </Tooltip>
   );
-
   const showChecks = detail !== null && checksRollup !== null && !conflicting && !detail.isDraft;
-
   return (
     <>
       {detail !== null && (showChecks || trailingAction !== null || watching) ? (
         <div className="pb-1.5">
           {openRow(detail.title, "row", true)}
           <div className="flex h-5 min-w-0 items-center gap-0.5 ps-9 pe-1 text-xs text-muted-foreground redesign:pe-2.5">
-            <span className="me-1 shrink-0 tabular-nums">#{number}</span>
+            <span className="me-1 shrink-0 tabular-nums">
+              {"#"}
+              {number}
+            </span>
             {showChecks && checksRollup !== null ? (
               <PullRequestChecksPopover
                 checksState={checksRollup}
@@ -487,14 +483,22 @@ export function ThreadDetailsPrRow({
         <AlertDialog open={confirmingMerge} onOpenChange={(open) => setConfirmingMerge(open)}>
           <AlertDialogPopup>
             <AlertDialogHeader>
-              <AlertDialogTitle>Merge {terminology.singular}?</AlertDialogTitle>
+              <AlertDialogTitle>
+                {"Merge "}
+                {terminology.singular}
+                {"?"}
+              </AlertDialogTitle>
               <AlertDialogDescription>
-                This merges #{number} using {selectedMergeMethod}.
+                {uiText("This merges #")}
+                {number}
+                {" using "}
+                {selectedMergeMethod}
+                {"."}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogClose render={<Button variant="outline" size="sm" />}>
-                Cancel
+                {uiText("Cancel")}
               </AlertDialogClose>
               <Button
                 size="sm"
@@ -504,7 +508,7 @@ export function ThreadDetailsPrRow({
                   void perform("merge", selectedMergeMethod);
                 }}
               >
-                Merge
+                {uiText("Merge")}
               </Button>
             </AlertDialogFooter>
           </AlertDialogPopup>

@@ -1,3 +1,9 @@
+import {
+  filterKeybindingRows,
+  buildKeybindingCommandOptions,
+  commandLabel,
+} from "./KeybindingsSettings.logic";
+import { DEFAULT_RESOLVED_KEYBINDINGS } from "@t3tools/shared/keybindings";
 import { assert, describe, expect, it } from "vite-plus/test";
 import type { ResolvedKeybindingsConfig } from "@t3tools/contracts";
 import {
@@ -265,5 +271,21 @@ describe("KeybindingsSettings.logic", () => {
         when: "",
       }),
     ).toEqual(["Chat: New Local"]);
+  });
+
+  it("exposes inbox.next as a searchable editable command without shortcut conflicts", () => {
+    expect(
+      filterKeybindingRows(buildKeybindingRows(DEFAULT_RESOLVED_KEYBINDINGS), "待我处理"),
+    ).toContainEqual(
+      expect.objectContaining({
+        command: "inbox.next",
+        key: "mod+shift+i",
+        when: "!terminalFocus",
+        source: "Default",
+        conflicts: [],
+      }),
+    );
+    expect(buildKeybindingCommandOptions(DEFAULT_RESOLVED_KEYBINDINGS)).toContain("inbox.next");
+    expect(commandLabel("inbox.next")).toBe("待我处理：下一条");
   });
 });

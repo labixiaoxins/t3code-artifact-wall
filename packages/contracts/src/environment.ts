@@ -1,6 +1,5 @@
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
-
 import {
   EnvironmentId,
   ForwardCompatibleOptional,
@@ -9,12 +8,10 @@ import {
   TrimmedNonEmptyString,
 } from "./baseSchemas.ts";
 import { SourceControlProviderKind } from "./sourceControl.ts";
-
 export const ORCHESTRATION_PROTOCOL_VERSION = 2;
 export const ORCHESTRATION_PROTOCOL_VERSION_TEXT = "2";
 export const ORCHESTRATION_PROTOCOL_QUERY_PARAM = "orchestrationProtocol";
 export const ORCHESTRATION_PROTOCOL_HEADER = "x-t3-orchestration-protocol";
-
 export const ExecutionEnvironmentPlatformOs = Schema.Literals([
   "darwin",
   "linux",
@@ -22,10 +19,8 @@ export const ExecutionEnvironmentPlatformOs = Schema.Literals([
   "unknown",
 ]);
 export type ExecutionEnvironmentPlatformOs = typeof ExecutionEnvironmentPlatformOs.Type;
-
 export const ExecutionEnvironmentPlatformArch = Schema.Literals(["arm64", "x64", "other"]);
 export type ExecutionEnvironmentPlatformArch = typeof ExecutionEnvironmentPlatformArch.Type;
-
 export const ENVIRONMENT_MACHINE_KINDS = [
   "server",
   "cloud",
@@ -38,37 +33,30 @@ export const ENVIRONMENT_MACHINE_KINDS = [
 export const EnvironmentMachineKind = Schema.Literals(ENVIRONMENT_MACHINE_KINDS);
 export type EnvironmentMachineKind = typeof EnvironmentMachineKind.Type;
 export const isEnvironmentMachineKind = Schema.is(EnvironmentMachineKind);
-
 export const ExecutionEnvironmentPlatform = Schema.Struct({
   os: ExecutionEnvironmentPlatformOs,
   arch: ExecutionEnvironmentPlatformArch,
   machine: ForwardCompatibleOptional(EnvironmentMachineKind),
 });
-
 // Kept outside settings.ts to avoid an orchestration import cycle.
 export const ThreadEnvMode = Schema.Literals(["local", "worktree"]);
 export type ThreadEnvMode = typeof ThreadEnvMode.Type;
-
 export const WorktreeSubmodules = Schema.Literals(["recursive", "top-level", "none"]);
 export type WorktreeSubmodules = typeof WorktreeSubmodules.Type;
 export type ExecutionEnvironmentPlatform = typeof ExecutionEnvironmentPlatform.Type;
-
 export const ServerSelfUpdateMethod = Schema.Literals(["boot-service", "respawn", "desktop-app"]);
 export type ServerSelfUpdateMethod = typeof ServerSelfUpdateMethod.Type;
-
 export const ServerInstallation = Schema.Union([
   Schema.Struct({ kind: Schema.Literals(["npx", "pnpm-dlx", "bunx"]) }),
   Schema.Struct({ kind: Schema.Literal("npm-global"), prefix: TrimmedNonEmptyString }),
 ]);
 export type ServerInstallation = typeof ServerInstallation.Type;
-
 export const ServerSelfUpdateCapability = Schema.Literals([
   "boot-service",
   "respawn",
   "desktop-managed",
 ]);
 export type ServerSelfUpdateCapability = typeof ServerSelfUpdateCapability.Type;
-
 export const ExecutionEnvironmentCapabilities = Schema.Struct({
   repositoryIdentity: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   connectionProbe: Schema.optionalKey(Schema.Boolean),
@@ -85,10 +73,15 @@ export const ExecutionEnvironmentCapabilities = Schema.Struct({
   inlineMessageContext: Schema.optionalKey(Schema.Boolean),
   requiredWorktreeBootstrap: Schema.optionalKey(Schema.Boolean),
   threadSettlement: Schema.optionalKey(Schema.Boolean),
+  /** Safe single-thread archive rejects active work and enabled bound schedules. */
+  threadArchiveSafety: Schema.optionalKey(Schema.Boolean),
   threadAutoSettlement: Schema.optionalKey(Schema.Boolean),
   storageCleanup: Schema.optionalKey(Schema.Boolean),
   storageCleanupRun: Schema.optionalKey(Schema.Boolean),
   databaseStorage: Schema.optionalKey(Schema.Boolean),
+  /** Server reports on-disk usage by area (backups, workspaces, agent history) for Usage → Disk. */
+  diskSpace: Schema.optionalKey(Schema.Boolean),
+  /** Server checks OTLP endpoints for the telemetry export settings. */
   otlpEndpointCheck: Schema.optionalKey(Schema.Boolean),
   projectWorktreeCleanup: Schema.optionalKey(Schema.Boolean),
   settledWorktreeCleanup: Schema.optionalKey(Schema.Boolean),
@@ -136,7 +129,6 @@ export const ExecutionEnvironmentCapabilities = Schema.Struct({
   serverBrowser: Schema.optionalKey(Schema.Boolean),
 });
 export type ExecutionEnvironmentCapabilities = typeof ExecutionEnvironmentCapabilities.Type;
-
 export const ExecutionEnvironmentDescriptor = Schema.Struct({
   environmentId: EnvironmentId,
   label: TrimmedNonEmptyString,
@@ -146,21 +138,18 @@ export const ExecutionEnvironmentDescriptor = Schema.Struct({
   capabilities: ExecutionEnvironmentCapabilities,
 });
 export type ExecutionEnvironmentDescriptor = typeof ExecutionEnvironmentDescriptor.Type;
-
 export const RepositoryIdentityLocator = Schema.Struct({
   source: Schema.Literal("git-remote"),
   remoteName: TrimmedNonEmptyString,
   remoteUrl: TrimmedNonEmptyString,
 });
 export type RepositoryIdentityLocator = typeof RepositoryIdentityLocator.Type;
-
 export const RepositoryOrigin = Schema.Struct({
   canonicalKey: TrimmedNonEmptyString,
   remoteUrl: Schema.optionalKey(TrimmedNonEmptyString),
   displayName: Schema.optionalKey(TrimmedNonEmptyString),
 });
 export type RepositoryOrigin = typeof RepositoryOrigin.Type;
-
 export const RepositoryIdentity = Schema.Struct({
   canonicalKey: TrimmedNonEmptyString,
   locator: RepositoryIdentityLocator,
@@ -174,23 +163,19 @@ export const RepositoryIdentity = Schema.Struct({
   origin: Schema.optionalKey(RepositoryOrigin),
 });
 export type RepositoryIdentity = typeof RepositoryIdentity.Type;
-
 export function repositoryGroupingKeyOf(identity: RepositoryIdentity): string {
   return identity.origin?.canonicalKey ?? identity.canonicalKey;
 }
-
 export function repositoryGroupingDisplayNameOf(identity: RepositoryIdentity): string | undefined {
   return identity.origin
     ? (identity.origin.displayName ?? identity.origin.canonicalKey)
     : identity.displayName;
 }
-
 export const ScopedProjectRef = Schema.Struct({
   environmentId: EnvironmentId,
   projectId: ProjectId,
 });
 export type ScopedProjectRef = typeof ScopedProjectRef.Type;
-
 export const ScopedThreadRef = Schema.Struct({
   environmentId: EnvironmentId,
   threadId: ThreadId,

@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { type ServerLifecycleWelcomePayload } from "@t3tools/contracts";
 import { scopedProjectKey, scopeProjectRef } from "@t3tools/client-runtime/environment";
 import {
@@ -12,7 +13,6 @@ import {
 } from "@tanstack/react-router";
 import { Check, Copy } from "lucide";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-
 import { APP_DISPLAY_NAME, APP_VERSION } from "../branding";
 import { AppSidebarLayout } from "../components/AppSidebarLayout";
 import { CommandPalette } from "../components/CommandPalette";
@@ -55,10 +55,8 @@ import { isLocalEnvironmentDisabled } from "../localEnvironment";
 import { useAtomValue } from "@effect/atom-react";
 import { primaryServerConfigAtom, primaryServerWelcomeAtom } from "../state/server";
 import { readProject } from "../state/entities";
-
 import { getDesktopSnapShotBridge } from "../lib/desktopSnapShot";
 import { shouldResumeSnapShotSetupOnStartup } from "../lib/snapShotSetupResume";
-
 export const Route = createRootRoute({
   beforeLoad: async ({ location }) => {
     // Guest links open on the owner's tunnel host in a browser with no T3 session, and must
@@ -70,7 +68,6 @@ export const Route = createRootRoute({
         } as const,
       };
     }
-
     if (location.pathname === "/pair" && hasHostedPairingRequest(new URL(window.location.href))) {
       return {
         authGateState: {
@@ -78,7 +75,6 @@ export const Route = createRootRoute({
         } as const,
       };
     }
-
     if (isLocalEnvironmentDisabled() || isHostedStaticApp(new URL(window.location.href))) {
       return {
         authGateState: {
@@ -86,7 +82,6 @@ export const Route = createRootRoute({
         } as const,
       };
     }
-
     const authGateState = await resolveInitialServerAuthGateState();
     if (authGateState.status === "authenticated") {
       // Idempotent, so every navigation can ask for it.
@@ -111,22 +106,21 @@ export const Route = createRootRoute({
     meta: [{ name: "title", content: APP_DISPLAY_NAME }],
   }),
 });
-
 function RootRouteNotFoundView() {
   return (
     <main className="flex min-h-0 min-w-0 flex-1 items-center justify-center p-6">
       <div className="flex max-w-sm flex-col items-center gap-4 text-center">
-        <h1 className="text-lg font-medium text-foreground">Page not found</h1>
+        <h1 className="text-lg font-medium text-foreground">{uiText("Page not found")}</h1>
         <p className="text-sm text-muted-foreground">
-          This link doesn't point to a page in {APP_DISPLAY_NAME}. Go home to choose a project or
-          start a thread.
+          {"This link doesn't point to a page in "}
+          {APP_DISPLAY_NAME}
+          {". Go home to choose a project or start a thread."}
         </p>
-        <Button render={<Link to="/" replace />}>Go home</Button>
+        <Button render={<Link to="/" replace />}>{uiText("Go home")}</Button>
       </div>
     </main>
   );
 }
-
 function RootRouteView() {
   // Above every branch: app services raise toasts for the whole page, so the surface they write to
   // must not unmount when the root switches branches (for example /welcome to the app shell).
@@ -138,7 +132,6 @@ function RootRouteView() {
     </ToastProvider>
   );
 }
-
 function RootRouteBranch() {
   const pathname = useLocation({ select: (location) => location.pathname });
   const { authGateState } = Route.useRouteContext();
@@ -149,18 +142,14 @@ function RootRouteBranch() {
   const hostedPromptLinkLanding = useHostedPromptLinkLanding(
     authGateState.status === "hosted-static",
   );
-
   if (pathname === GUEST_PAGE_PATH) return <Outlet />;
-
   if (pathname === "/pair" || pathname === "/connect" || pathname === "/connect-agent") {
     return <Outlet />;
   }
-
   // Handle links before onboarding redirects lose them.
   if (hostedPromptLinkLanding !== null) {
     return hostedPromptLinkLanding;
   }
-
   if (pathname === "/welcome") {
     return (
       <>
@@ -174,11 +163,9 @@ function RootRouteBranch() {
       </>
     );
   }
-
   if (authGateState.status !== "authenticated" && authGateState.status !== "hosted-static") {
     return <Outlet />;
   }
-
   const appShell = (
     <CommandPalette>
       <AppSidebarLayout>
@@ -186,7 +173,6 @@ function RootRouteBranch() {
       </AppSidebarLayout>
     </CommandPalette>
   );
-
   return (
     <>
       <ChatGptWelcomeCoordinator />
@@ -217,34 +203,32 @@ function RootRouteBranch() {
     </>
   );
 }
-
 function RootRouteErrorView({ error }: ErrorComponentProps) {
   const router = useRouter();
   const message = errorMessage(error);
   // Router pathname rather than window.location: desktop uses hash history, where the window path is always "/".
   const pathname = useLocation({ select: (location) => location.pathname });
   const report = errorReport(error, pathname);
-
   return (
     <StandalonePage tone="error">
       <StandalonePageHeader
         eyebrow={APP_DISPLAY_NAME}
-        title="Something went wrong."
+        title={uiText("Something went wrong.")}
         description={message}
       />
-
       <div className="mt-5 flex flex-wrap gap-2">
         <Button size="sm" onClick={() => void router.invalidate()}>
-          Try again
+          {uiText("Try again")}
         </Button>
         <Button size="sm" variant="outline" onClick={() => window.location.reload()}>
-          Reload app
+          {uiText("Reload app")}
         </Button>
         <CopyErrorButton report={report} />
       </div>
-
       <div className="mt-5 overflow-hidden rounded-lg border border-border/70 bg-background/55">
-        <p className="px-3 py-1.5 text-xs font-medium text-muted-foreground">Error report</p>
+        <p className="px-3 py-1.5 text-xs font-medium text-muted-foreground">
+          {uiText("Error report")}
+        </p>
         <pre className="max-h-64 overflow-auto border-t border-border/70 bg-background/80 px-3 py-2 text-xs whitespace-pre-wrap text-foreground/85">
           {report}
         </pre>
@@ -252,48 +236,38 @@ function RootRouteErrorView({ error }: ErrorComponentProps) {
     </StandalonePage>
   );
 }
-
 function CopyErrorButton({ report }: { report: string }) {
   const { copyToClipboard, isCopied } = useCopyToClipboard({ target: "error-report" });
-
   return (
     <Button size="sm" variant="outline" onClick={() => copyToClipboard(report)}>
       <MorphIcon className={cn(isCopied && "text-success")} icon={isCopied ? Check : Copy} />
-      {isCopied ? "Copied" : "Copy error"}
+      {isCopied ? uiText("Copied") : uiText("Copy error")}
     </Button>
   );
 }
-
 function errorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim().length > 0) {
     return error.message;
   }
-
   if (typeof error === "string" && error.trim().length > 0) {
     return error;
   }
-
-  return "An unexpected router error occurred.";
+  return uiText("An unexpected router error occurred.");
 }
-
 function errorDetails(error: unknown): string {
   if (error instanceof Error) {
     return error.stack ?? error.message;
   }
-
   if (typeof error === "string") {
     return error;
   }
-
   try {
     return JSON.stringify(error, null, 2);
   } catch {
     return "No additional error details are available.";
   }
 }
-
 const MAX_ERROR_CAUSE_DEPTH = 5;
-
 // Use only pathname to keep query tokens off the clipboard.
 function errorReport(error: unknown, pathname: string): string {
   const lines = [
@@ -310,7 +284,6 @@ function errorReport(error: unknown, pathname: string): string {
   }
   return lines.join("\n");
 }
-
 function EventRouter({
   skipInitialBootstrapNavigation,
 }: {
@@ -324,10 +297,8 @@ function EventRouter({
   const readPathname = useEffectEvent(() => pathname);
   const handledBootstrapThreadIdRef = useRef<string | null>(null);
   const skipInitialBootstrapNavigationRef = useRef(skipInitialBootstrapNavigation);
-
   const handleWelcome = useEffectEvent((payload: ServerLifecycleWelcomePayload | null) => {
     if (!payload) return;
-
     void (async () => {
       if (!payload.bootstrapProjectId || !payload.bootstrapThreadId) {
         return;
@@ -346,7 +317,6 @@ function EventRouter({
           scopeProjectRef(payload.environment.environmentId, payload.bootstrapProjectId),
         );
       useUiStateStore.getState().setProjectExpanded(bootstrapProjectKey, true);
-
       if (readPathname() !== "/") {
         return;
       }
@@ -369,10 +339,8 @@ function EventRouter({
       handledBootstrapThreadIdRef.current = payload.bootstrapThreadId;
     })().catch(() => undefined);
   });
-
   useEffect(() => {
     handleWelcome(serverWelcome);
   }, [serverWelcome]);
-
   return null;
 }

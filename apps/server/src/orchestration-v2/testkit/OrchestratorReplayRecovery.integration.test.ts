@@ -137,7 +137,10 @@ const readClaudeCancelledSubagentResumeTranscript = Effect.fn(
             message: {
               ...frame.message.message,
               content: [
+                "Current task workspace: <dynamic-workspace>. Historical paths may belong to earlier workspaces; verify the current files and running instance before editing or testing.",
+                "",
                 "Note: the T3 server restarted, and this background work was cancelled before it finished. It will not report back on its own, so resume or restart what you still need and wait for its result:",
+                "Cancellation does not undo side effects. Inspect existing files and target receipts before restarting work; do not repeat a completed external write or assume an interrupted write never happened. Continue remaining work within the existing user authorization.",
                 "- subagent: Audit src/math.ts (id a44c0ed810da9e4f3)",
                 "",
                 "User message:",

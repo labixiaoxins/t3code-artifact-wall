@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { PROVIDER_SEND_TURN_MAX_INPUT_CHARS } from "@t3tools/contracts";
 import { expandAssistantCitationsForProvider } from "@t3tools/shared/assistantCitations";
 
@@ -19,7 +20,14 @@ export function getComposerPromptLengthValidationMessage(prompt: string): string
   if (excessCharacters <= 0) return null;
 
   const characterLabel = excessCharacters === 1 ? "character" : "characters";
-  return `Prompt is ${excessCharacters.toLocaleString("en-US")} ${characterLabel} over the ${PROVIDER_SEND_TURN_MAX_INPUT_CHARS.toLocaleString("en-US")}-character limit. Shorten or split it before sending.`;
+  return uiText(
+    "Prompt is {0} {1} over the {2}-character limit. Shorten or split it before sending.",
+    {
+      "0": excessCharacters.toLocaleString("en-US"),
+      "1": characterLabel,
+      "2": PROVIDER_SEND_TURN_MAX_INPUT_CHARS.toLocaleString("en-US"),
+    },
+  );
 }
 
 export function getComposerSubmissionValidationMessage(

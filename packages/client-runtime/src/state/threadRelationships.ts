@@ -81,6 +81,18 @@ export function deriveThreadRelationshipGraph(input: {
   };
 
   for (const thread of threads) {
+    if (
+      thread.continuedFromThreadId != null &&
+      thread.lineage.relationshipToParent == null &&
+      thread.forkedFrom == null
+    ) {
+      addEdge({
+        sourceThreadId: thread.continuedFromThreadId,
+        targetThreadId: thread.id,
+        kind: "transfer",
+        status: thread.activityRunStatus ?? thread.status,
+      });
+    }
     const parentThreadId =
       thread.forkedFrom?.type === "run"
         ? thread.forkedFrom.threadId
@@ -141,9 +153,10 @@ export function walkThreadRelationships(
   threadId: ThreadId,
 ): ReadonlyArray<ThreadRelationshipWalkRow> {
   const visited = new Set<ThreadId>([threadId]);
-  const pending: Array<{ readonly threadId: ThreadId; readonly depth: number }> = [
-    { threadId, depth: 0 },
-  ];
+  const pending: Array<{
+    readonly threadId: ThreadId;
+    readonly depth: number;
+  }> = [{ threadId, depth: 0 }];
   const rows: ThreadRelationshipWalkRow[] = [];
 
   for (let index = 0; index < pending.length; index += 1) {

@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { documentIconColorForFileName } from "~/pierre-icons";
 import { isSvgAttachment } from "@t3tools/shared/image";
 import { useRenderedAppearance } from "../../hooks/useTheme";
@@ -59,9 +60,13 @@ import {
   type ReviewCommentContext,
 } from "../../reviewCommentContext";
 import { TimelineRowCtx } from "./timelineRowContext";
-
 function UserMessageMentionChip(props: {
-  record: Extract<KnownComposerContextRecord, { kind: "mention" }>;
+  record: Extract<
+    KnownComposerContextRecord,
+    {
+      kind: "mention";
+    }
+  >;
   copyMarkdown: string;
 }) {
   const ctx = use(TimelineRowCtx);
@@ -74,7 +79,7 @@ function UserMessageMentionChip(props: {
             kind="mention"
             style={accent ? ({ "--context-chip-accent": accent } as CSSProperties) : undefined}
             render={<button type="button" />}
-            aria-label={`Preview ${props.record.path}`}
+            aria-label={uiText("Preview {0}", { "0": props.record.path })}
             data-markdown-copy={props.copyMarkdown}
             onClick={() => {
               if (ctx.threadRef)
@@ -101,9 +106,13 @@ function UserMessageMentionChip(props: {
     </Tooltip>
   );
 }
-
 function UserMessageSkillChip(props: {
-  record: Extract<KnownComposerContextRecord, { kind: "skill" }>;
+  record: Extract<
+    KnownComposerContextRecord,
+    {
+      kind: "skill";
+    }
+  >;
   copyMarkdown: string;
 }) {
   const { skills, threadRef } = use(TimelineRowCtx);
@@ -117,9 +126,13 @@ function UserMessageSkillChip(props: {
     />
   );
 }
-
 function UserMessagePullRequestContextChip(props: {
-  record: Extract<KnownComposerContextRecord, { kind: "review-comment" }>;
+  record: Extract<
+    KnownComposerContextRecord,
+    {
+      kind: "review-comment";
+    }
+  >;
   copyMarkdown: string;
   kind: ContextChipKind;
 }) {
@@ -138,9 +151,13 @@ function UserMessagePullRequestContextChip(props: {
     />
   );
 }
-
 function UserMessagePreviewAnnotationDetails(props: {
-  record: Extract<KnownComposerContextRecord, { kind: "preview-annotation" }>;
+  record: Extract<
+    KnownComposerContextRecord,
+    {
+      kind: "preview-annotation";
+    }
+  >;
   image: ChatImageAttachment | null;
 }) {
   const ctx = use(TimelineRowCtx);
@@ -151,7 +168,7 @@ function UserMessagePreviewAnnotationDetails(props: {
         <button
           type="button"
           className="block max-h-64 w-full cursor-zoom-in overflow-hidden border-b border-border/70 bg-muted"
-          aria-label={`Preview ${props.image.name}`}
+          aria-label={uiText("Preview {0}", { "0": props.image.name })}
           onClick={() => {
             if (!props.image) return;
             const preview = buildExpandedImagePreview([props.image], props.image.id);
@@ -160,13 +177,13 @@ function UserMessagePreviewAnnotationDetails(props: {
         >
           <img
             src={props.image.previewUrl}
-            alt="Annotated preview crop"
+            alt={uiText("Annotated preview crop")}
             className="max-h-64 w-full object-contain"
           />
         </button>
       ) : (
         <div className="border-b border-border/70 bg-muted/40 px-3 py-2 text-secondary-label text-xs">
-          Screenshot unavailable
+          {uiText("Screenshot unavailable")}
         </div>
       )}
       <div className="min-w-0 px-3 py-2.5">
@@ -219,8 +236,8 @@ function UserMessagePreviewAnnotationDetails(props: {
             })}
             {(props.record.elements?.length ?? 0) > visibleElements.length ? (
               <div className="text-secondary-label text-3xs">
-                {(props.record.elements?.length ?? 0) - visibleElements.length} more selected
-                elements
+                {(props.record.elements?.length ?? 0) - visibleElements.length}
+                {" more selected elements"}
               </div>
             ) : null}
           </div>
@@ -229,11 +246,15 @@ function UserMessagePreviewAnnotationDetails(props: {
     </div>
   );
 }
-
 function UserMessageElementDetails({
   record,
 }: {
-  record: Extract<KnownComposerContextRecord, { kind: "element" }>;
+  record: Extract<
+    KnownComposerContextRecord,
+    {
+      kind: "element";
+    }
+  >;
 }) {
   const sourceLabel = record.source?.fileName
     ? `${record.source.fileName}${record.source.lineNumber === null ? "" : `:${record.source.lineNumber}`}`
@@ -269,7 +290,6 @@ function UserMessageElementDetails({
     </div>
   );
 }
-
 interface UserMessageContextRenderContext {
   environmentId: import("@t3tools/contracts").EnvironmentId;
   reference: ChatMarkdownContextReference;
@@ -281,17 +301,15 @@ interface UserMessageContextRenderContext {
   onExpandVideo: (file: ChatFileAttachment) => void;
   onOpenFile: (file: ChatFileAttachment) => void;
 }
-
 function UnavailableUserMessageContextChip(props: UserMessageContextRenderContext) {
   return (
     <UnresolvedChip
       label={props.reference.label}
       copyMarkdown={props.copyMarkdown}
-      tooltip="This context is no longer available."
+      tooltip={uiText("This context is no longer available.")}
     />
   );
 }
-
 const userMessageContextPresentationRegistry = createContextPresentationRegistry<
   KnownComposerContextRecord,
   UserMessageContextRenderContext,
@@ -501,7 +519,6 @@ const userMessageContextPresentationRegistry = createContextPresentationRegistry
   ],
   fallback: (_kind, _record, context) => <UnavailableUserMessageContextChip {...context} />,
 });
-
 export function UserMessageContextReferenceChip(props: {
   reference: ChatMarkdownContextReference;
   record: KnownComposerContextRecord | undefined;
@@ -529,7 +546,6 @@ export function UserMessageContextReferenceChip(props: {
     onOpenFile: props.onOpenFile,
   });
 }
-
 function UserMessageReviewCommentCard({ comment }: { comment: ReviewCommentContext }) {
   const renderedAppearance = useRenderedAppearance();
   const ctx = use(TimelineRowCtx);
@@ -538,7 +554,6 @@ function UserMessageReviewCommentCard({ comment }: { comment: ReviewCommentConte
     buildReviewCommentRenderablePatch(comment),
     `review-comment:${comment.id}`,
   );
-
   return (
     <div className="space-y-2 rounded-lg border border-border/70 bg-background/70 p-3">
       <div className="space-y-1">
@@ -546,7 +561,9 @@ function UserMessageReviewCommentCard({ comment }: { comment: ReviewCommentConte
           {formatWorkspaceRelativePath(comment.filePath, ctx.workspaceRoot)}
         </div>
         <div className="text-2xs text-muted-foreground">
-          {comment.sectionTitle} · {comment.rangeLabel}
+          {comment.sectionTitle}
+          {" \u00B7 "}
+          {comment.rangeLabel}
         </div>
       </div>
       {comment.text.length > 0 && (

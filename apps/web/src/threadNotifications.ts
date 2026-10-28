@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import type { ClientSettings } from "@t3tools/contracts/settings";
 
@@ -6,10 +7,10 @@ import inputUrl from "./assets/notification-input.mp3";
 
 type NotificationMode = ClientSettings["notificationMode"];
 export const NOTIFICATION_MODE_LABELS = {
-  off: "Off",
-  notifications: "Notifications only",
-  sound: "Sound only",
-  "notifications-and-sound": "Notifications with sound",
+  off: uiText("Off"),
+  notifications: uiText("Notifications only"),
+  sound: uiText("Sound only"),
+  "notifications-and-sound": uiText("Notifications with sound"),
 } satisfies Record<NotificationMode, string>;
 
 export function hasNotificationSound(mode: NotificationMode) {

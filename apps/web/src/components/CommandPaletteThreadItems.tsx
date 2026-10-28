@@ -12,12 +12,12 @@ import {
   pickedQuery,
   rankMessageMatches,
 } from "@t3tools/shared/paletteSearch";
+import { requestSpotlightMatch } from "./chat/spotlightMatchBus";
 import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { useAtomValue } from "@effect/atom-react";
 import { useNavigate } from "@tanstack/react-router";
 import { MessageSquareIcon } from "lucide-react";
 import { useState } from "react";
-
 import {
   applyProviderInstanceSettings,
   deriveProviderInstanceEntries,
@@ -35,7 +35,12 @@ import { threadEnvironment } from "../state/threads";
 import { useAtomCommand } from "../state/use-atom-command";
 import { buildThreadRouteParams } from "../threadRoutes";
 import { formatRelativeTimeLabel } from "../timestampFormat";
-import { buildThreadActionItems, ITEM_ICON_CLASS } from "./CommandPalette.logic";
+import {
+  buildThreadActionItems,
+  ITEM_ICON_CLASS,
+  RECENT_THREAD_LIMIT,
+  type CommandPaletteActionItem,
+} from "./CommandPalette.logic";
 import { useEnvironmentLookups, useProjectLookups } from "./CommandPaletteLookups";
 import { ThreadCommandSubtitle } from "./ThreadCommandSubtitle";
 import {
@@ -43,7 +48,6 @@ import {
   ThreadRowTrailingStatus,
   ThreadSearchPullRequestNumber,
 } from "./ThreadStatusIndicators";
-
 function useProviderEntryByEnvironmentAndInstanceId() {
   const { environments } = useEnvironments();
   const primaryEnvironmentId = usePrimaryEnvironmentId();
@@ -65,7 +69,6 @@ function useProviderEntryByEnvironmentAndInstanceId() {
     }),
   );
 }
-
 function useConnectedThreadSearch(query: string) {
   const { environments } = useEnvironments();
   const { projectEnvironmentLocationById } = useEnvironmentLookups();
@@ -85,16 +88,18 @@ function useConnectedThreadSearch(query: string) {
   return useThreadSearch(
     environmentIds,
     query,
-    environmentLabels === undefined ? {} : { environmentLabels },
+    environmentLabels === undefined ? { spotlight: true } : { environmentLabels, spotlight: true },
   );
 }
-
 /**
  * Every visible thread as a palette item, plus, for a non-empty
  * `threadSearchQuery`, the threads whose messages match, best first.
  */
 export function useCommandPaletteThreadItems(input: {
-  readonly activeThread: { readonly environmentId: EnvironmentId; readonly id: ThreadId } | null;
+  readonly activeThread: {
+    readonly environmentId: EnvironmentId;
+    readonly id: ThreadId;
+  } | null;
   readonly threadSearchQuery: string;
 }) {
   const { activeThread, threadSearchQuery } = input;
@@ -107,7 +112,6 @@ export function useCommandPaletteThreadItems(input: {
   const visitThread = useAtomCommand(threadEnvironment.visit, { reportFailure: false });
   // Ranking is relative to when the palette opened, so rows do not reorder as time passes.
   const [now] = useState(() => Date.now());
-
   const { environments } = useEnvironments();
   const threadItems = buildThreadActionItems({
     threads,
@@ -189,7 +193,6 @@ export function useCommandPaletteThreadItems(input: {
       });
     },
   });
-
   const itemByValue = new Map(threadItems.map((item) => [item.value, item]));
   const itemForMatch = (match: EnvironmentThreadSearchMatch) =>
     itemByValue.get(`thread:${match.environmentId}:${match.threadId}`);
@@ -227,7 +230,6 @@ export function useCommandPaletteThreadItems(input: {
       },
     ];
   });
-
   // Rows already shown keep their places when a slower environment answers.
   const [shownOrder, setShownOrder] = useState<ShownOrder | null>(null);
   const order = nextShownOrder(
@@ -241,11 +243,94 @@ export function useCommandPaletteThreadItems(input: {
   const threadMessageItems = order.keys
     .slice(0, order.shown)
     .flatMap((value) => messageItemByValue.get(value) ?? []);
-
+  const spotlightItems: CommandPaletteActionItem[] = messageSearch.matches.map((match) => {
+    const local = threadItems.find(
+      (item) => item.value === `thread:${match.environmentId}:${match.threadId}`,
+    );
+    const target = scopeThreadRef(match.environmentId, match.threadId);
+    const subtitle = [
+      projectByKey.get(`${match.environmentId}:${match.projectId}`)?.title,
+      match.archivedAt ? "\u5DF2\u5F52\u6863" : "",
+      match.isSubagent ? "\u5B50\u4EFB\u52A1" : "",
+      match.matchedQuery && match.matchedQuery !== messageSearch.query
+        ? "\u8FD1\u4F3C\u5339\u914D"
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" \u00B7 ");
+    return {
+      kind: "action",
+      value: `thread:${match.environmentId}:${match.threadId}`,
+      title: match.title ?? local?.title ?? match.threadId,
+      searchTerms: [messageSearch.query, match.title ?? "", match.snippet],
+      icon: <MessageSquareIcon className={ITEM_ICON_CLASS} />,
+      description: subtitle,
+      ...(match.score !== undefined ? { searchScore: match.score } : {}),
+      ...(match.familyKey
+        ? {
+            searchFamilyKey: `${match.environmentId}:${match.familyKey}`,
+            ...(match.familyTitle ? { searchFamilyTitle: match.familyTitle } : {}),
+          }
+        : {}),
+      ...(match.isSubagent !== undefined ? { searchSubagent: match.isSubagent } : {}),
+      searchRelatedItems: (match.familyThreads ?? []).map((member) => ({
+        kind: "action",
+        value: `thread:${match.environmentId}:${member.threadId}`,
+        title: member.title,
+        description: member.archivedAt ? "\u5DF2\u5F52\u6863" : "",
+        searchTerms: [member.title],
+        searchRecency: Date.parse(member.updatedAt),
+        icon: <MessageSquareIcon className={ITEM_ICON_CLASS} />,
+        run: async () => {
+          await navigate({
+            to: "/$environmentId/$threadId",
+            params: buildThreadRouteParams(scopeThreadRef(match.environmentId, member.threadId)),
+          });
+        },
+      })),
+      ...(local?.timestamp ? { timestamp: local.timestamp } : {}),
+      ...(match.messageId
+        ? {
+            threadContentMatch: {
+              source: match.source,
+              snippet: match.snippet,
+              query: match.matchedQuery ?? messageSearch.query,
+            },
+          }
+        : {}),
+      run: async () => {
+        if (match.messageId)
+          requestSpotlightMatch({
+            thread: target,
+            query: match.matchedQuery ?? messageSearch.query,
+            messageId: match.messageId,
+          });
+        await navigate({ to: "/$environmentId/$threadId", params: buildThreadRouteParams(target) });
+      },
+    };
+  });
+  const serverItemIds = new Set(
+    messageSearch.matches.map((match) => `thread:${match.environmentId}:${match.threadId}`),
+  );
+  const threadItemsForSearch = [
+    ...spotlightItems,
+    ...threadItems.filter((item) => !serverItemIds.has(item.value)),
+  ];
+  const mainThreadIds = new Set(
+    threads
+      .filter((thread) => thread.lineage.relationshipToParent !== "subagent")
+      .map((thread) => `thread:${thread.environmentId}:${thread.id}`),
+  );
+  const recentThreadItems = threadItems
+    .filter((item) => mainThreadIds.has(item.value))
+    .slice(0, RECENT_THREAD_LIMIT);
   return {
     threadItems,
     threadMessageItems,
     now,
+    threadItemsForSearch,
+    recentThreadItems,
     isSearchPending: messageSearch.isPending,
+    searchError: messageSearch.error,
   };
 }

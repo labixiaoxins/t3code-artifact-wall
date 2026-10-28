@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   ANTIGRAVITY_DEFAULT_MODEL,
   type ProviderInstanceId,
@@ -5,7 +6,7 @@ import {
   type ProviderDriverKind,
   type ResolvedKeybindingsConfig,
 } from "@t3tools/contracts";
-import { memo, useRef, useState } from "react";
+import { memo, useRef, useState, type ReactNode } from "react";
 import { Badge } from "../ui/badge";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -26,7 +27,6 @@ import {
 } from "./ComposerControl";
 import { useComposerMenuProps } from "./composerEventScope";
 import { shortcutLabelForCommand } from "../../keybindings";
-
 /** Holds the page still behind the open picker; its lifetime is the popup element's. */
 function lockBackgroundScroll(popup: HTMLElement | null) {
   if (!popup) return;
@@ -35,13 +35,11 @@ function lockBackgroundScroll(popup: HTMLElement | null) {
   const previousBodyOverflow = body.style.overflow;
   const previousBodyPaddingRight = body.style.paddingRight;
   const scrollbarWidth = window.innerWidth - documentElement.clientWidth;
-
   documentElement.style.overscrollBehavior = "contain";
   body.style.overflow = "hidden";
   if (scrollbarWidth > 0) {
     body.style.paddingRight = `${scrollbarWidth}px`;
   }
-
   const shouldAllowOverlayScroll = (target: EventTarget | null) => {
     return target instanceof Element && target.closest("[data-model-picker-content]");
   };
@@ -57,13 +55,11 @@ function lockBackgroundScroll(popup: HTMLElement | null) {
     }
     event.preventDefault();
   };
-
   document.addEventListener("wheel", preventBackgroundWheel, { capture: true, passive: false });
   document.addEventListener("touchmove", preventBackgroundTouchMove, {
     capture: true,
     passive: false,
   });
-
   return () => {
     document.removeEventListener("wheel", preventBackgroundWheel, { capture: true });
     document.removeEventListener("touchmove", preventBackgroundTouchMove, { capture: true });
@@ -72,12 +68,15 @@ function lockBackgroundScroll(popup: HTMLElement | null) {
     body.style.paddingRight = previousBodyPaddingRight;
   };
 }
-
 export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   environmentId: EnvironmentId | null;
+  footer?: ReactNode;
   activeInstanceId: ProviderInstanceId;
   model: string;
-  selectedModels?: ReadonlyArray<{ instanceId: ProviderInstanceId; model: string }>;
+  selectedModels?: ReadonlyArray<{
+    instanceId: ProviderInstanceId;
+    model: string;
+  }>;
   onToggleModel?: (instanceId: ProviderInstanceId, model: string) => void;
   lockedProvider: ProviderDriverKind | null;
   lockedContinuationGroupKey?: string | null;
@@ -105,10 +104,8 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   const isMenuOpen = props.open ?? uncontrolledIsMenuOpen;
   const searchInputRef = useRef<HTMLInputElement>(null);
   const size = props.size ?? "sm";
-
   const activeEntry =
     props.instanceEntries.find((entry) => entry.instanceId === props.activeInstanceId) ?? null;
-
   const activeInstanceId = props.activeInstanceId;
   const selectedInstanceOptions = props.modelOptionsByInstance.get(activeInstanceId) ?? [];
   const selectedModel =
@@ -130,20 +127,17 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
     : triggerTitle;
   const showInstanceBadge =
     activeEntry !== null && shouldShowInstanceBadge(activeEntry, props.instanceEntries);
-
   const setIsMenuOpen = (open: boolean) => {
     props.onOpenChange?.(open);
     if (props.open === undefined) {
       setUncontrolledIsMenuOpen(open);
     }
   };
-
   const handleInstanceModelChange = (instanceId: ProviderInstanceId, model: string) => {
     if (props.disabled) return;
     props.onInstanceModelChange(instanceId, model);
     setIsMenuOpen(false);
   };
-
   const shortcutLabel = props.keybindings
     ? shortcutLabelForCommand(props.keybindings, "modelPicker.toggle")
     : null;
@@ -178,7 +172,6 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   const triggerTooltipContent = shortcutLabel
     ? `${props.triggerLabel ?? allModelNames ?? triggerLabel} · ${shortcutLabel}`
     : (props.triggerLabel ?? allModelNames ?? triggerLabel);
-
   return (
     <Popover
       open={isMenuOpen}
@@ -228,7 +221,8 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
                 )}
               {selectedEntries.length > 3 ? (
                 <span className="relative z-30 flex size-4 items-center justify-center rounded-full bg-(--chat-composer-glass-surface,var(--background)) text-3xs ring-2 ring-(--chat-composer-glass-surface,var(--background))">
-                  +{selectedEntries.length - 3}
+                  {"+"}
+                  {selectedEntries.length - 3}
                 </span>
               ) : null}
             </span>
@@ -264,7 +258,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
           </Tooltip>
           {selectedModel?.isUnavailable && !selectedEntries && props.triggerLabel === undefined ? (
             <Badge variant="outline" size="sm">
-              Unavailable
+              {uiText("Unavailable")}
             </Badge>
           ) : null}
         </span>
@@ -309,6 +303,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
           }
           onInstanceModelChange={handleInstanceModelChange}
         />
+        {props.footer ? <div className="border-t p-3">{props.footer}</div> : null}
         {props.selectedModels === undefined ? (
           <ChatGptSharingControl provider={activeEntry?.snapshot ?? null} />
         ) : null}

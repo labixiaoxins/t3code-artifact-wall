@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   type EnvironmentId,
   type ProjectId,
@@ -88,7 +89,7 @@ export function useThreadLinkedPullRequest(input: {
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: "Unable to update the thread pull request",
+          title: uiText("Unable to update the thread pull request"),
           description: error instanceof Error ? error.message : "An error occurred.",
         }),
       );

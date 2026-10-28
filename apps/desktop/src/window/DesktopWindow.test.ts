@@ -68,6 +68,7 @@ function makeFakeBrowserWindow() {
   const webContentsListeners = new Map<string, (...args: readonly unknown[]) => void>();
   let zoomLevel = 0;
   const webContents = {
+    executeJavaScript: vi.fn(() => Promise.resolve(true)),
     copyImageAt: vi.fn(),
     focus: vi.fn(),
     isDestroyed: vi.fn(() => false),
@@ -102,7 +103,7 @@ function makeFakeBrowserWindow() {
     isMaximized: vi.fn(() => false),
     isMinimized: vi.fn(() => false),
     isVisible: vi.fn(() => true),
-    loadURL: vi.fn(() => Promise.resolve()),
+    loadURL: vi.fn((_url: string) => Promise.resolve()),
     maximize: vi.fn(),
     on: vi.fn((eventName: string, listener: (...args: readonly unknown[]) => void) => {
       windowListeners.set(eventName, listener);
@@ -1080,5 +1081,33 @@ describe("DesktopWindow", () => {
         assert.equal(onReveal.mock.calls.length, 0);
       }).pipe(Effect.provide(layer));
     }),
+  );
+
+  it.effect.each([true, false])(
+    "flushes drafts before switching to closing view (saved=%s)",
+    (saved) =>
+      Effect.gen(function* () {
+        const fake = makeFakeBrowserWindow();
+        const execute = fake.window.webContents.executeJavaScript as ReturnType<typeof vi.fn>;
+        execute.mockResolvedValue(saved);
+        const createCount = yield* Ref.make(0);
+        const mainWindow = yield* Ref.make<Option.Option<Electron.BrowserWindow>>(Option.none());
+        yield* Effect.scoped(
+          Effect.gen(function* () {
+            const service = yield* DesktopWindow.DesktopWindow;
+            yield* service.createMain;
+            fake.loadURL.mockClear();
+            assert.equal(yield* service.prepareForShutdown, saved);
+            assert.equal(execute.mock.calls.length, 1);
+            assert.equal(fake.loadURL.mock.calls.length, saved ? 1 : 0);
+            if (saved)
+              assert.include(
+                decodeURIComponent(fake.loadURL.mock.calls[0]![0] as string),
+                "Running local tasks will be interrupted.",
+              );
+            else assert.deepEqual(fake.setOpacity.mock.calls, [[1]]);
+          }),
+        ).pipe(Effect.provide(layerTest({ window: fake.window, createCount, mainWindow })));
+      }),
   );
 });

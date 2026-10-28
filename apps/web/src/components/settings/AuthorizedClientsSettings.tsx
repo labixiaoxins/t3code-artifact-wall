@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { AUTH_SCOPE_OPTIONS as PAIRING_SCOPE_OPTIONS } from "@t3tools/shared/authScopeOptions";
 import { PlusIcon, QrCodeIcon } from "lucide-react";
 import { type ReactNode, memo, useId, useState } from "react";
@@ -15,7 +16,6 @@ import {
 } from "@t3tools/contracts";
 import { settlePromise } from "@t3tools/client-runtime/state/runtime";
 import * as Cause from "effect/Cause";
-
 import { useCopyToClipboard } from "../../hooks/useCopyToClipboard";
 import { cn } from "../../lib/utils";
 import { formatElapsedDurationLabel, formatExpiresInLabel } from "../../timestampFormat";
@@ -65,7 +65,6 @@ import {
   isHostedAppPairingUrl,
   endpointShareHint,
 } from "./ConnectionsSettings.logic";
-
 function AccessScopeSummary({
   scopes,
   label,
@@ -74,7 +73,6 @@ function AccessScopeSummary({
   readonly label: string;
 }) {
   const scopeCountLabel = `${scopes.length} ${scopes.length === 1 ? "scope" : "scopes"}`;
-
   return (
     <Popover>
       <PopoverTrigger
@@ -84,7 +82,7 @@ function AccessScopeSummary({
         render={
           <button
             type="button"
-            aria-label={`${label}: show ${scopeCountLabel}`}
+            aria-label={uiText("{0}: show {1}", { "0": label, "1": scopeCountLabel })}
             className="cursor-help underline decoration-border underline-offset-2 outline-hidden hover:text-foreground focus-visible:text-foreground"
           />
         }
@@ -97,7 +95,7 @@ function AccessScopeSummary({
         tooltipStyle
         className="w-max max-w-80 whitespace-normal"
       >
-        <p className="mb-1 font-medium">Granted scopes</p>
+        <p className="mb-1 font-medium">{uiText("Granted scopes")}</p>
         <div className="flex flex-col gap-0.5">
           {scopes.map((scope) => (
             <code key={scope} className="font-mono text-foreground/85">
@@ -109,15 +107,11 @@ function AccessScopeSummary({
     </Popover>
   );
 }
-
 const ENDPOINT_ROW_CLASSNAME = "first:rounded-t-xl last:rounded-b-xl px-3 py-2.5 sm:px-4";
-
 export type AccessSectionPresentation = "current" | "endpoint-rail";
-
 export function accessRowClassName(_presentation: AccessSectionPresentation) {
   return ITEM_ROW_CLASSNAME;
 }
-
 function endpointRowClassName(presentation: AccessSectionPresentation, isAvailable: boolean) {
   if (presentation === "endpoint-rail") {
     return cn(
@@ -125,10 +119,8 @@ function endpointRowClassName(presentation: AccessSectionPresentation, isAvailab
       !isAvailable && "bg-muted/15",
     );
   }
-
   return cn(ENDPOINT_ROW_CLASSNAME, !isAvailable && "bg-muted/24");
 }
-
 type PairingLinkListRowProps = {
   pairingLink: ServerPairingLinkRecord;
   credential: string | undefined;
@@ -140,7 +132,6 @@ type PairingLinkListRowProps = {
   onRevoke: (id: string) => void;
   canRevoke: boolean;
 };
-
 const PairingLinkListRow = memo(function PairingLinkListRow({
   pairingLink,
   credential,
@@ -158,7 +149,6 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
   const [isQrPanelOpen, setIsQrPanelOpen] = useState(false);
   const [qrEndpointId, setQrEndpointId] = useState<string | null>(null);
   const qrPanelId = useId();
-
   const currentOriginPairingUrl = credential ? resolveCurrentOriginPairingUrl(credential) : null;
   const hostedPairingUrl =
     credential && endpointUrl != null && endpointUrl !== ""
@@ -213,7 +203,6 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
     typeof window !== "undefined" &&
     window.isSecureContext &&
     navigator.clipboard?.writeText != null;
-
   const { copyToClipboard } = useCopyToClipboard<{
     value: string;
     kind: "code" | "hosted-link" | "link";
@@ -255,20 +244,15 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
       );
     },
   });
-
   const copyPairingValue = (value: string, kind: "code" | "hosted-link" | "link") => {
     copyToClipboard(value, { value, kind });
   };
-
   const copyKindForUrl = (url: string): "hosted-link" | "link" =>
     isHostedAppPairingUrl(url) ? "hosted-link" : "link";
-
   const handleCopyCode = () => {
     if (credential) copyPairingValue(credential, "code");
   };
-
   const expiresAbsolute = formatAccessTimestamp(pairingLink.expiresAt);
-
   const primaryLabel = pairingLink.label ?? "Pairing link";
   const selectedQrOption = selectQrEndpointOption(
     endpointCopyOptions,
@@ -280,7 +264,6 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
   if (expiresAtMs <= nowMs) {
     return null;
   }
-
   return (
     <div className={accessRowClassName(presentation)}>
       <div className={ITEM_ROW_INNER_CLASSNAME}>
@@ -299,16 +282,18 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
               </TooltipTrigger>
               <TooltipPopup side="top">{expiresAbsolute}</TooltipPopup>
             </Tooltip>
-            <span aria-hidden> · </span>
-            <AccessScopeSummary scopes={pairingLink.scopes} label="Pairing link scopes" />
+            <span aria-hidden>{" \u00B7 "}</span>
+            <AccessScopeSummary scopes={pairingLink.scopes} label={uiText("Pairing link scopes")} />
           </p>
           {!credential ? (
             <p className="text-2xs text-muted-foreground/70">
-              Create a new link to share from this client.
+              {uiText("Create a new link to share from this client.")}
             </p>
           ) : shareablePairingUrl === null ? (
             <p className="text-2xs text-muted-foreground/70">
-              Copy the token and pair from another client using this backend&apos;s reachable host.
+              {uiText(
+                "Copy the token and pair from another client using this backend&apos;s reachable host.",
+              )}
             </p>
           ) : null}
         </div>
@@ -322,7 +307,7 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
               onClick={() => setIsQrPanelOpen((open) => !open)}
             >
               <QrCodeIcon aria-hidden />
-              Share
+              {uiText("Share")}
             </Button>
           ) : null}
           <Dialog
@@ -335,12 +320,12 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
             {!credential ? null : canCopyToClipboard ? (
               shareablePairingUrl ? null : (
                 <Button size="xs" variant="outline" onClick={handleCopyCode}>
-                  Copy code
+                  {uiText("Copy code")}
                 </Button>
               )
             ) : (
               <DialogTrigger render={<Button size="xs" variant="outline" />}>
-                {shareablePairingUrl ? "Show link" : "Show code"}
+                {shareablePairingUrl ? uiText("Show link") : uiText("Show code")}
               </DialogTrigger>
             )}
             <DialogPopup className="max-w-md">
@@ -348,16 +333,22 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
                 <DialogTitle>
                   {isRevealValueUrl
                     ? isRevealValueHostedAppPairingUrl
-                      ? "Hosted app pairing link"
-                      : "Pairing link"
-                    : "Pairing code"}
+                      ? uiText("Hosted app pairing link")
+                      : uiText("Pairing link")
+                    : uiText("Pairing code")}
                 </DialogTitle>
                 <DialogDescription>
                   {isRevealValueUrl
                     ? isRevealValueHostedAppPairingUrl
-                      ? "Clipboard copy is unavailable here. Open or manually copy this hosted app link on the device you want to connect."
-                      : "Clipboard copy is unavailable here. Open or manually copy this full pairing URL on the device you want to connect."
-                    : "Clipboard copy is unavailable here. Manually copy this code into another client."}
+                      ? uiText(
+                          "Clipboard copy is unavailable here. Open or manually copy this hosted app link on the device you want to connect.",
+                        )
+                      : uiText(
+                          "Clipboard copy is unavailable here. Open or manually copy this full pairing URL on the device you want to connect.",
+                        )
+                    : uiText(
+                        "Clipboard copy is unavailable here. Manually copy this code into another client.",
+                      )}
                 </DialogDescription>
               </DialogHeader>
               <DialogPanel>
@@ -382,11 +373,11 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
               </DialogPanel>
               <DialogFooter variant="bare">
                 <Button variant="outline" onClick={() => setIsRevealDialogOpen(false)}>
-                  Done
+                  {uiText("Done")}
                 </Button>
                 {canCopyToClipboard ? (
                   <Button variant="outline" onClick={handleCopyCode}>
-                    Copy code
+                    {uiText("Copy code")}
                   </Button>
                 ) : null}
               </DialogFooter>
@@ -398,7 +389,7 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
             disabled={!canRevoke || revokingPairingLinkId === pairingLink.id}
             onClick={() => void onRevoke(pairingLink.id)}
           >
-            {revokingPairingLinkId === pairingLink.id ? "Revoking…" : "Revoke"}
+            {revokingPairingLinkId === pairingLink.id ? uiText("Revoking…") : uiText("Revoke")}
           </Button>
         </div>
       </div>
@@ -412,9 +403,11 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
               <div
                 className="space-y-1.5"
                 role="radiogroup"
-                aria-label="Endpoint the pairing QR code and URL use"
+                aria-label={uiText("Endpoint the pairing QR code and URL use")}
               >
-                <p className="text-2xs text-muted-foreground/70">Reach this machine via</p>
+                <p className="text-2xs text-muted-foreground/70">
+                  {uiText("Reach this machine via")}
+                </p>
                 {endpointCopyOptions.map((option) => {
                   const isSelected = option.id === selectedQrOption?.id;
                   return (
@@ -464,11 +457,11 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
                 className="shrink-0"
                 onClick={() => copyPairingValue(qrPairingUrl, copyKindForUrl(qrPairingUrl))}
               >
-                Copy link
+                {uiText("Copy link")}
               </Button>
             </div>
             <Button size="xs" variant="ghost" onClick={handleCopyCode}>
-              Copy code only
+              {uiText("Copy code only")}
             </Button>
           </div>
           {canRenderQrForSelection ? (
@@ -484,8 +477,9 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
           ) : (
             <div className="flex size-[192px] shrink-0 items-center justify-center self-center rounded-xl border border-border/50 p-4 sm:self-start">
               <p className="text-center text-2xs text-muted-foreground/70">
-                No QR for this endpoint. Another device scanning a loopback link would dial itself;
-                copy the URL for use on this machine instead.
+                {uiText(
+                  "No QR for this endpoint. Another device scanning a loopback link would dial itself; copy the URL for use on this machine instead.",
+                )}
               </p>
             </div>
           )}
@@ -494,7 +488,6 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
     </div>
   );
 });
-
 type ConnectedClientListRowProps = {
   clientSession: ServerClientSessionRecord;
   presentation?: AccessSectionPresentation;
@@ -502,7 +495,6 @@ type ConnectedClientListRowProps = {
   onRevokeSession: (sessionId: ServerClientSessionRecord["sessionId"]) => void;
   canRevoke: boolean;
 };
-
 const ConnectedClientListRow = memo(function ConnectedClientListRow({
   clientSession,
   presentation = "current",
@@ -530,9 +522,8 @@ const ConnectedClientListRow = memo(function ConnectedClientListRow({
   ].filter((value): value is string => value !== null);
   const primaryLabel =
     clientSession.client.label ??
-    ([clientSession.client.os, clientSession.client.browser].filter(Boolean).join(" · ") ||
+    ([clientSession.client.os, clientSession.client.browser].filter(Boolean).join(" \u00B7 ") ||
       clientSession.subject);
-
   return (
     <div className={accessRowClassName(presentation)}>
       <div className={ITEM_ROW_INNER_CLASSNAME}>
@@ -546,18 +537,18 @@ const ConnectedClientListRow = memo(function ConnectedClientListRow({
             <h3 className="text-sm font-medium text-foreground">{primaryLabel}</h3>
             {clientSession.current ? (
               <span className="text-3xs text-muted-foreground/80 rounded-md border border-border/50 bg-muted/50 px-1 py-0.5">
-                This device
+                {uiText("This device")}
               </span>
             ) : null}
           </div>
           <p className="text-xs text-muted-foreground">
             {deviceInfoBits.length > 0 ? (
               <>
-                {deviceInfoBits.join(" · ")}
-                <span aria-hidden> · </span>
+                {deviceInfoBits.join(" \u00B7 ")}
+                <span aria-hidden>{" \u00B7 "}</span>
               </>
             ) : null}
-            <AccessScopeSummary scopes={clientSession.scopes} label="Client scopes" />
+            <AccessScopeSummary scopes={clientSession.scopes} label={uiText("Client scopes")} />
           </p>
         </div>
         <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto sm:justify-end">
@@ -568,7 +559,9 @@ const ConnectedClientListRow = memo(function ConnectedClientListRow({
               disabled={!canRevoke || revokingClientSessionId === clientSession.sessionId}
               onClick={() => void onRevokeSession(clientSession.sessionId)}
             >
-              {revokingClientSessionId === clientSession.sessionId ? "Revoking…" : "Revoke"}
+              {revokingClientSessionId === clientSession.sessionId
+                ? uiText("Revoking…")
+                : uiText("Revoke")}
             </Button>
           ) : null}
         </div>
@@ -576,7 +569,6 @@ const ConnectedClientListRow = memo(function ConnectedClientListRow({
     </div>
   );
 });
-
 type AuthorizedClientsHeaderActionProps = {
   onPairingLinkCreated: (result: AuthPairingCredentialResult) => void;
   clientSessions: ReadonlyArray<ServerClientSessionRecord> | null;
@@ -584,7 +576,6 @@ type AuthorizedClientsHeaderActionProps = {
   onRevokeOtherClients: () => void;
   delegatableScopes: ReadonlyArray<AuthEnvironmentScope>;
 };
-
 export const AuthorizedClientsHeaderAction = memo(function AuthorizedClientsHeaderAction({
   onPairingLinkCreated,
   clientSessions,
@@ -600,7 +591,6 @@ export const AuthorizedClientsHeaderAction = memo(function AuthorizedClientsHead
   ]);
   const selectedScopes = pairingScopes.filter((scope) => delegatableScopes.includes(scope));
   const [isCreatingPairingLink, setIsCreatingPairingLink] = useState(false);
-
   const handleCreatePairingLink = async () => {
     if (
       primaryEnvironmentId === null ||
@@ -628,18 +618,16 @@ export const AuthorizedClientsHeaderAction = memo(function AuthorizedClientsHead
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: "Could not create pairing URL",
+          title: uiText("Could not create pairing URL"),
           description: message,
         }),
       );
     }
     setIsCreatingPairingLink(false);
   };
-
   const togglePairingScope = (scope: AuthGrantScope, checked: boolean) => {
     setPairingScopes((current) => togglePairingScopeSelection(current, scope, checked));
   };
-
   return (
     <div className="flex items-center gap-2">
       <Button
@@ -648,7 +636,7 @@ export const AuthorizedClientsHeaderAction = memo(function AuthorizedClientsHead
         disabled={isRevokingOtherClients || !canRevokeOtherClients(clientSessions)}
         onClick={() => void onRevokeOtherClients()}
       >
-        {isRevokingOtherClients ? "Revoking…" : "Revoke others"}
+        {isRevokingOtherClients ? uiText("Revoking…") : uiText("Revoke others")}
       </Button>
       <Dialog
         open={dialogOpen}
@@ -666,27 +654,28 @@ export const AuthorizedClientsHeaderAction = memo(function AuthorizedClientsHead
           render={
             <Button size="xs" variant="default">
               <PlusIcon className="size-3" />
-              Create link
+              {uiText("Create link")}
             </Button>
           }
         />
         <DialogPopup className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Create pairing link</DialogTitle>
+            <DialogTitle>{uiText("Create pairing link")}</DialogTitle>
             <DialogDescription>
-              Generate a one-time link that another device can use to pair with this backend as an
-              authorized client.
+              {uiText(
+                "Generate a one-time link that another device can use to pair with this backend as an authorized client.",
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogPanel>
             <label className="block">
               <span className="mb-1.5 block text-xs font-medium text-foreground">
-                Client label (optional)
+                {uiText("Client label (optional)")}
               </span>
               <Input
                 value={pairingLabel}
                 onChange={(event) => setPairingLabel(event.target.value)}
-                placeholder="e.g. Living room iPad"
+                placeholder={uiText("e.g. Living room iPad")}
                 disabled={isCreatingPairingLink}
                 autoFocus
               />
@@ -694,9 +683,9 @@ export const AuthorizedClientsHeaderAction = memo(function AuthorizedClientsHead
             <section className="space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-xs font-medium text-foreground">Permissions</h3>
+                  <h3 className="text-xs font-medium text-foreground">{uiText("Permissions")}</h3>
                   <p className="text-xs text-muted-foreground">
-                    Limit what the paired client can do.
+                    {uiText("Limit what the paired client can do.")}
                   </p>
                 </div>
                 <div className="flex gap-1">
@@ -715,7 +704,7 @@ export const AuthorizedClientsHeaderAction = memo(function AuthorizedClientsHead
                       )
                     }
                   >
-                    Read only
+                    {uiText("Read only")}
                   </Button>
                   <Button
                     size="xs"
@@ -729,7 +718,7 @@ export const AuthorizedClientsHeaderAction = memo(function AuthorizedClientsHead
                       )
                     }
                   >
-                    Standard
+                    {uiText("Standard")}
                   </Button>
                 </div>
               </div>
@@ -757,10 +746,12 @@ export const AuthorizedClientsHeaderAction = memo(function AuthorizedClientsHead
                 )}
               </div>
               {selectedScopes.length === 0 ? (
-                <p className="text-xs text-destructive">Select at least one permission.</p>
+                <p className="text-xs text-destructive">
+                  {uiText("Select at least one permission.")}
+                </p>
               ) : selectedScopes.includes(AuthAccessWriteScope) ? (
                 <p className="text-xs text-warning">
-                  This client can create or revoke access for other devices.
+                  {uiText("This client can create or revoke access for other devices.")}
                 </p>
               ) : null}
             </section>
@@ -771,13 +762,13 @@ export const AuthorizedClientsHeaderAction = memo(function AuthorizedClientsHead
               disabled={isCreatingPairingLink}
               onClick={() => setDialogOpen(false)}
             >
-              Cancel
+              {uiText("Cancel")}
             </Button>
             <Button
               disabled={isCreatingPairingLink || selectedScopes.length === 0}
               onClick={() => void handleCreatePairingLink()}
             >
-              {isCreatingPairingLink ? "Creating…" : "Create link"}
+              {isCreatingPairingLink ? uiText("Creating…") : uiText("Create link")}
             </Button>
           </DialogFooter>
         </DialogPopup>
@@ -785,7 +776,6 @@ export const AuthorizedClientsHeaderAction = memo(function AuthorizedClientsHead
     </div>
   );
 });
-
 type PairingClientsListProps = {
   endpointUrl: string | null | undefined;
   endpoints: ReadonlyArray<AdvertisedEndpoint>;
@@ -801,7 +791,6 @@ type PairingClientsListProps = {
   onRevokeClientSession: (sessionId: ServerClientSessionRecord["sessionId"]) => void;
   canRevoke: boolean;
 };
-
 export const PairingClientsList = memo(function PairingClientsList({
   endpointUrl,
   endpoints,
@@ -833,7 +822,6 @@ export const PairingClientsList = memo(function PairingClientsList({
           canRevoke={canRevoke}
         />
       ))}
-
       {clientSessions.map((clientSession) => (
         <ConnectedClientListRow
           key={clientSession.sessionId}
@@ -844,16 +832,16 @@ export const PairingClientsList = memo(function PairingClientsList({
           canRevoke={canRevoke}
         />
       ))}
-
       {pairingLinks.length === 0 && clientSessions.length === 0 && !isLoading ? (
         <div className={accessRowClassName(presentation)}>
-          <p className="text-xs text-muted-foreground/60">No pairing links or client sessions.</p>
+          <p className="text-xs text-muted-foreground/60">
+            {uiText("No pairing links or client sessions.")}
+          </p>
         </div>
       ) : null}
     </>
   );
 });
-
 type AdvertisedEndpointListRowProps = {
   endpoint: AdvertisedEndpoint;
   isDefault: boolean;
@@ -863,7 +851,6 @@ type AdvertisedEndpointListRowProps = {
   onDisableTailscaleServe: (endpoint: AdvertisedEndpoint) => void;
   isUpdatingTailscaleServe: boolean;
 };
-
 export const AdvertisedEndpointListRow = memo(function AdvertisedEndpointListRow({
   endpoint,
   isDefault,
@@ -903,14 +890,14 @@ export const AdvertisedEndpointListRow = memo(function AdvertisedEndpointListRow
           ) : null}
           {!isAvailable ? (
             <span className="shrink-0 rounded-md border border-border/70 px-1 py-0.5 text-3xs text-muted-foreground">
-              Setup required
+              {uiText("Setup required")}
             </span>
           ) : null}
         </div>
         <div className="ml-auto flex min-h-6 shrink-0 items-center justify-end gap-2">
           {isDefault ? (
             <span className="rounded-md border border-primary/30 bg-primary/10 px-1 py-0.5 text-3xs text-primary">
-              Default
+              {uiText("Default")}
             </span>
           ) : null}
           {needsTailscaleSetup ? (
@@ -920,7 +907,7 @@ export const AdvertisedEndpointListRow = memo(function AdvertisedEndpointListRow
               onClick={() => onSetupTailscaleServe(endpoint)}
               disabled={isUpdatingTailscaleServe}
             >
-              {isUpdatingTailscaleServe ? "Restarting…" : "Setup"}
+              {isUpdatingTailscaleServe ? uiText("Restarting…") : uiText("Setup")}
             </Button>
           ) : null}
           {canDisableTailscaleServe ? (
@@ -930,12 +917,12 @@ export const AdvertisedEndpointListRow = memo(function AdvertisedEndpointListRow
               onClick={() => onDisableTailscaleServe(endpoint)}
               disabled={isUpdatingTailscaleServe}
             >
-              {isUpdatingTailscaleServe ? "Restarting…" : "Disable"}
+              {isUpdatingTailscaleServe ? uiText("Restarting…") : uiText("Disable")}
             </Button>
           ) : null}
           {!needsTailscaleSetup && !isDefault ? (
             <Button size="xs" variant="outline" onClick={() => onSetDefault(endpoint)}>
-              Set as default
+              {uiText("Set as default")}
             </Button>
           ) : null}
         </div>
@@ -943,7 +930,6 @@ export const AdvertisedEndpointListRow = memo(function AdvertisedEndpointListRow
     </div>
   );
 });
-
 export function NetworkAccessDescription({
   endpoint,
   hiddenEndpointCount,
@@ -960,21 +946,19 @@ export function NetworkAccessDescription({
   if (!endpoint) {
     return fallback;
   }
-
   const summary = (
     <>
       <span className="min-w-0 truncate">{endpoint.httpBaseUrl}</span>
       {hiddenEndpointCount > 0 ? (
         <span className="shrink-0 text-xs font-medium">
-          {expanded ? "Hide" : `+${hiddenEndpointCount}`}
+          {expanded ? uiText("Hide") : `+${hiddenEndpointCount}`}
         </span>
       ) : null}
     </>
   );
-
   return (
     <span className="inline-flex min-w-0 max-w-full items-baseline gap-1">
-      <span className="shrink-0">Reachable at</span>
+      <span className="shrink-0">{uiText("Reachable at")}</span>
       {hiddenEndpointCount > 0 ? (
         <button
           type="button"

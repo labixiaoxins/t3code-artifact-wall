@@ -1,13 +1,12 @@
+import { uiText } from "~/i18n";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { ArrowLeftIcon, ExternalLinkIcon } from "lucide-react";
 import type { MouseEvent as ReactMouseEvent } from "react";
-
 import { cn } from "~/lib/utils";
 import { readLocalApi } from "~/localApi";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { openOnHostLabel, showPullRequestLinkContextMenu } from "./pullRequestLinkContextMenu";
-
 interface CrumbsPullRequest {
   readonly url: string;
   readonly provider: string;
@@ -15,7 +14,6 @@ interface CrumbsPullRequest {
   readonly repository: string;
   readonly title: string;
 }
-
 const openNumberContextMenu = (event: ReactMouseEvent, detail: CrumbsPullRequest): void => {
   event.preventDefault();
   event.stopPropagation();
@@ -25,10 +23,8 @@ const openNumberContextMenu = (event: ReactMouseEvent, detail: CrumbsPullRequest
     position: { x: event.clientX, y: event.clientY },
   });
 };
-
 const ROW_CLASS_NAME =
   "col-start-1 row-start-1 flex min-w-0 items-center gap-1 text-sm text-muted-foreground transition-[opacity,transform] ease-out motion-reduce:transform-none motion-reduce:transition-none sm:text-xs";
-
 function BackButton({ onBack, focusable }: { onBack: () => void; focusable: boolean }) {
   return (
     <Tooltip>
@@ -40,17 +36,16 @@ function BackButton({ onBack, focusable }: { onBack: () => void; focusable: bool
             {...(focusable ? {} : { tabIndex: -1 })}
             onClick={onBack}
             className="-ml-1.5"
-            aria-label="Back to this thread's pull requests"
+            aria-label={uiText("Back to this thread's pull requests")}
           >
             <ArrowLeftIcon aria-hidden className="size-3.5" />
           </Button>
         }
       />
-      <TooltipPopup side="top">Back to pull requests</TooltipPopup>
+      <TooltipPopup side="top">{uiText("Back to pull requests")}</TooltipPopup>
     </Tooltip>
   );
 }
-
 function NumberLink({
   detail,
   toneClassName,
@@ -80,7 +75,8 @@ function NumberLink({
             )}
             aria-label={`Open ${sourceControlClients.get(detail.provider).changeRequest.singular} #${detail.number} on host`}
           >
-            #{detail.number}
+            {"#"}
+            {detail.number}
             <ExternalLinkIcon aria-hidden className="size-2.5" />
           </button>
         }
@@ -89,7 +85,6 @@ function NumberLink({
     </Tooltip>
   );
 }
-
 /**
  * The repository and number above the title, swapped for the number and title once the reader has
  * scrolled the title away.
@@ -144,7 +139,9 @@ export function PullRequestDetailCrumbs({
                 }
               />
               <TooltipPopup side="top">
-                {repositoryUrl ? `Open ${detail.repository} repository` : detail.repository}
+                {repositoryUrl
+                  ? uiText("Open {0} repository", { "0": detail.repository })
+                  : detail.repository}
               </TooltipPopup>
             </Tooltip>
             <NumberLink

@@ -1,17 +1,15 @@
 import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import type * as FileSystem from "effect/FileSystem";
 import type * as Path from "effect/Path";
 import * as EffectAcpErrors from "effect-acp/errors";
 import type * as EffectAcpSchema from "effect-acp/compat";
-
 /** The agent requests permission for every write; check only path containment here. */
 const CLIENT_FILE_MAX_BYTES = 8 * 1024 * 1024;
-
 function isInsideRoot(path: Path.Path, root: string, candidate: string): boolean {
   const relative = path.relative(root, candidate);
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
-
 /** Resolve all symlinks, including the final component, before checking workspace containment. */
 const resolveClientFilePath = Effect.fn("AntigravityClientFiles.resolveClientFilePath")(
   function* (input: {
@@ -25,23 +23,26 @@ const resolveClientFilePath = Effect.fn("AntigravityClientFiles.resolveClientFil
     const outside = EffectAcpErrors.AcpRequestError.invalidParams(
       `Path '${input.requestPath}' is outside the session workspace.`,
     );
-    const real = yield* input.fileSystem.realPath(resolved).pipe(
-      Effect.catch(() =>
-        Effect.gen(function* () {
-          // Fall back to the parent only for missing files, never dangling or unreadable links.
-          const entryExists = yield* input.fileSystem.readLink(resolved).pipe(
-            Effect.as(true),
-            Effect.catch(() => input.fileSystem.exists(resolved)),
-            Effect.orElseSucceed(() => true),
-          );
-          if (entryExists) return yield* outside;
-          const parent = yield* input.fileSystem
-            .realPath(path.dirname(resolved))
-            .pipe(Effect.orElseSucceed(() => path.dirname(resolved)));
-          return path.join(parent, path.basename(resolved));
-        }),
-      ),
-    );
+    // Resolve the deepest existing ancestor before creating any missing directories.
+    let candidate = resolved;
+    const missingSuffix: Array<string> = [];
+    let real: string;
+    while (true) {
+      const canonical = yield* input.fileSystem.realPath(candidate).pipe(Effect.option);
+      if (Option.isSome(canonical)) {
+        real = path.join(canonical.value, ...missingSuffix);
+        break;
+      }
+      const entryExists = yield* input.fileSystem.readLink(candidate).pipe(
+        Effect.as(true),
+        Effect.catch(() => input.fileSystem.exists(candidate)),
+        Effect.orElseSucceed(() => true),
+      );
+      const parent = path.dirname(candidate);
+      if (entryExists || parent === candidate) return yield* outside;
+      missingSuffix.unshift(path.basename(candidate));
+      candidate = parent;
+    }
     const roots = yield* Effect.forEach(input.allowedRoots, (root) =>
       input.fileSystem.realPath(root).pipe(Effect.orElseSucceed(() => root)),
     );
@@ -51,7 +52,6 @@ const resolveClientFilePath = Effect.fn("AntigravityClientFiles.resolveClientFil
     return real;
   },
 );
-
 export const readAntigravityClientTextFile = Effect.fn("AntigravityClientFiles.readTextFile")(
   function* (input: {
     readonly fileSystem: FileSystem.FileSystem;
@@ -93,7 +93,6 @@ export const readAntigravityClientTextFile = Effect.fn("AntigravityClientFiles.r
     return { content: lines.slice(start, end).join("\n") };
   },
 );
-
 export const writeAntigravityClientTextFile = Effect.fn("AntigravityClientFiles.writeTextFile")(
   function* (input: {
     readonly fileSystem: FileSystem.FileSystem;

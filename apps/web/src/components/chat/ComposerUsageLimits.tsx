@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type { EnvironmentId, UsageLimitsReport } from "@t3tools/contracts";
 import { limitsNotice } from "@t3tools/shared/usageLimits";
 import { GaugeIcon } from "lucide-react";
@@ -59,7 +60,7 @@ export function usageLimitsBannerItem(
     id,
     variant: "info",
     icon: <GaugeIcon />,
-    title: "Usage limits",
+    title: uiText("Usage limits"),
     description: summary,
     dismissLabel: "Dismiss usage limits",
     onDismiss,
@@ -108,7 +109,7 @@ function UsageLimitsBannerBody({
                   className="self-start"
                   onClick={() => void ensureLocalApi().shell.openExternal(externalUsage.url)}
                 >
-                  Manage usage
+                  {uiText("Manage usage")}
                 </Button>
               ) : null}
               {resetCreditInput && account.limits.resetCredits ? (

@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   SECRET_REQUEST_DEFAULT_PLACEHOLDER,
   secretRequestAnswerInput,
@@ -58,7 +59,7 @@ function PendingSecretRequestForm(props: {
   const errorId = useId();
   const privacyId = useId();
   const answer = useAtomCommand(serverEnvironment.answerSecretRequest, {
-    label: "answer secret request",
+    label: uiText("answer secret request"),
     // The failure cause holds the request; keep it out of the console.
     reportFailure: false,
     reportDefect: false,
@@ -136,7 +137,7 @@ function PendingSecretRequestForm(props: {
           />
         </div>
         <Button type="submit" disabled={submitting || secret.trim().length === 0}>
-          Save securely
+          {uiText("Save securely")}
         </Button>
       </div>
       {error !== null ? (
@@ -159,7 +160,7 @@ function PendingSecretRequestForm(props: {
           disabled={submitting}
           onClick={() => void send({ type: "decline" })}
         >
-          Decline
+          {uiText("Decline")}
         </Button>
       </div>
     </form>

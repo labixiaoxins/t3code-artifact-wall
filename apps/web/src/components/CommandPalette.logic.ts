@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   foldSearchQuery,
   PALETTE_SECONDARY_LIMIT,
@@ -10,6 +11,8 @@ import {
   type ThreadSearchSubject,
 } from "@t3tools/shared/paletteSearch";
 import { threadSearchSubject } from "@t3tools/client-runtime/state/thread-search";
+import { buildSpotlightGroups } from "./CommandPalette.spotlight";
+
 import type { CommandPaletteLinkedThreads } from "../commandPaletteBus";
 import {
   addProjectRemoteSourceLabel,
@@ -32,11 +35,9 @@ import { type ReactNode } from "react";
 import { formatRelativeTimeLabel } from "../timestampFormat";
 import { type Project, type SidebarThreadSummary, type Thread } from "../types";
 import { isSidebarSubagentThread } from "./Sidebar.logic";
-
 export const RECENT_THREAD_LIMIT = 12;
 export const ITEM_ICON_CLASS = "size-4 text-icon-muted";
 export const ADDON_ICON_CLASS = "size-4";
-
 export function buildLinkedThreadActionItems(
   input: CommandPaletteLinkedThreads & {
     query: string;
@@ -54,7 +55,6 @@ export function buildLinkedThreadActionItems(
     run: () => input.runThread({ environmentId: input.environmentId, id: thread.id }),
   }));
 }
-
 export function browseInputEndPaddingClass(input: {
   readonly willCreateProjectPath: boolean;
   readonly hasHighlightedBrowseItem: boolean;
@@ -67,17 +67,16 @@ export function browseInputEndPaddingClass(input: {
   }
   return "*:data-[slot=autocomplete-input]:pe-24!";
 }
-
 export type SearchOverlayMode = "command" | "files" | "content";
-
 export type CommandPaletteOpenIntent =
-  | { readonly kind: "add-project" | "new-thread-in" | "change-theme" }
+  | {
+      readonly kind: "add-project" | "new-thread-in" | "change-theme";
+    }
   | {
       readonly kind: "search";
       readonly query: string;
       readonly linkedThreads?: CommandPaletteLinkedThreads;
     };
-
 export interface CommandPaletteUiState {
   readonly open: boolean;
   readonly mode: SearchOverlayMode;
@@ -88,25 +87,37 @@ export interface CommandPaletteUiState {
   readonly parentSearch?: CommandPaletteReturnContext;
   readonly restoredSearch?: CommandPaletteReturnContext;
 }
-
 export type CommandPaletteUiAction =
-  | { readonly _tag: "SetOpen"; readonly open: boolean }
-  | { readonly _tag: "ToggleMode"; readonly mode: SearchOverlayMode }
+  | {
+      readonly _tag: "SetOpen";
+      readonly open: boolean;
+    }
+  | {
+      readonly _tag: "ToggleMode";
+      readonly mode: SearchOverlayMode;
+    }
   | {
       readonly _tag: "OpenSearch";
       readonly query: string;
       readonly linkedThreads?: CommandPaletteLinkedThreads;
     }
-  | { readonly _tag: "OpenAddProject" }
-  | { readonly _tag: "OpenNewThreadIn" }
-  | { readonly _tag: "OpenChangeTheme" }
+  | {
+      readonly _tag: "OpenAddProject";
+    }
+  | {
+      readonly _tag: "OpenNewThreadIn";
+    }
+  | {
+      readonly _tag: "OpenChangeTheme";
+    }
   | {
       readonly _tag: "OpenChildSearch";
       readonly mode: "files" | "content";
       readonly context: CommandPaletteReturnContext;
     }
-  | { readonly _tag: "BackToCommand" };
-
+  | {
+      readonly _tag: "BackToCommand";
+    };
 export function reduceCommandPaletteUiState(
   state: CommandPaletteUiState,
   action: CommandPaletteUiAction,
@@ -159,13 +170,18 @@ export function reduceCommandPaletteUiState(
       return openWithIntent({ kind: "change-theme" });
   }
 }
-
 /** Where "Add project" starts, given the environments that can take a new project. */
 export type AddProjectEntry =
-  | { readonly kind: "connect-environment" }
-  | { readonly kind: "choose-environment" }
-  | { readonly kind: "choose-source"; readonly environmentId: EnvironmentId };
-
+  | {
+      readonly kind: "connect-environment";
+    }
+  | {
+      readonly kind: "choose-environment";
+    }
+  | {
+      readonly kind: "choose-source";
+      readonly environmentId: EnvironmentId;
+    };
 export function resolveAddProjectEntry(
   options: ReadonlyArray<Pick<AddProjectEnvironmentOption, "environmentId">>,
   defaultEnvironmentId: EnvironmentId | null,
@@ -174,13 +190,11 @@ export function resolveAddProjectEntry(
   if (options.length > 1 || defaultEnvironmentId === null) return { kind: "choose-environment" };
   return { kind: "choose-source", environmentId: defaultEnvironmentId };
 }
-
 export interface CommandPaletteThreadContentMatch {
   readonly source: "user" | "assistant";
   readonly snippet: string;
   readonly query: string;
 }
-
 export interface CommandPaletteItem {
   readonly kind: "action" | "submenu";
   readonly value: string;
@@ -195,6 +209,12 @@ export interface CommandPaletteItem {
   readonly threadSearch?: ThreadSearchSubject;
   /** Shown in place of the description when the match is not in the title. */
   readonly matchHint?: SearchMatchHint;
+  readonly searchRecency?: number;
+  readonly searchScore?: number;
+  readonly searchFamilyKey?: string;
+  readonly searchFamilyTitle?: string;
+  readonly searchSubagent?: boolean;
+  readonly searchRelatedItems?: readonly CommandPaletteActionItem[];
   readonly icon: ReactNode;
   readonly disabled?: boolean;
   readonly titleLeadingContent?: ReactNode;
@@ -202,38 +222,37 @@ export interface CommandPaletteItem {
   readonly shortcutCommand?: KeybindingCommand;
   readonly secondary?: boolean;
 }
-
 export interface CommandPaletteActionItem extends CommandPaletteItem {
   readonly kind: "action";
   readonly keepOpen?: boolean;
   readonly run: () => Promise<void>;
 }
-
 export interface CommandPaletteSubmenuItem extends CommandPaletteItem {
   readonly kind: "submenu";
   readonly addonIcon: ReactNode;
   readonly groups: ReadonlyArray<CommandPaletteGroup>;
   readonly initialQuery?: string;
 }
-
 export interface CommandPaletteGroup {
   readonly value: string;
   readonly label: string;
   readonly items: ReadonlyArray<CommandPaletteActionItem | CommandPaletteSubmenuItem>;
 }
-
 export interface CommandPaletteView {
   readonly addonIcon: ReactNode;
   readonly groups: ReadonlyArray<CommandPaletteGroup>;
   readonly initialQuery?: string;
 }
-
 // Child search unmounts the palette; retain search data without its view closures.
 export interface CommandPaletteReturnContext {
   readonly query: string;
-  readonly linkedThreadSearch: Extract<CommandPaletteOpenIntent, { kind: "search" }> | null;
+  readonly linkedThreadSearch: Extract<
+    CommandPaletteOpenIntent,
+    {
+      kind: "search";
+    }
+  > | null;
 }
-
 export interface CommandPaletteSearchState {
   readonly query: string;
   readonly views: ReadonlyArray<{
@@ -241,18 +260,27 @@ export interface CommandPaletteSearchState {
     readonly parentQuery: string;
   }>;
 }
-
 export function createCommandPaletteSearchState(query = ""): CommandPaletteSearchState {
   return { query, views: [] };
 }
-
 export function reduceCommandPaletteSearchState(
   state: CommandPaletteSearchState,
   action:
-    | { readonly type: "query"; readonly query: string }
-    | { readonly type: "push"; readonly view: CommandPaletteView }
-    | { readonly type: "back" }
-    | { readonly type: "reset"; readonly query?: string },
+    | {
+        readonly type: "query";
+        readonly query: string;
+      }
+    | {
+        readonly type: "push";
+        readonly view: CommandPaletteView;
+      }
+    | {
+        readonly type: "back";
+      }
+    | {
+        readonly type: "reset";
+        readonly query?: string;
+      },
 ): CommandPaletteSearchState {
   switch (action.type) {
     case "query":
@@ -270,7 +298,6 @@ export function reduceCommandPaletteSearchState(
       return createCommandPaletteSearchState(action.query);
   }
 }
-
 export type CommandPaletteRow =
   | {
       readonly kind: "label";
@@ -284,7 +311,6 @@ export type CommandPaletteRow =
       readonly item: CommandPaletteActionItem | CommandPaletteSubmenuItem;
       readonly itemIndex: number | null;
     };
-
 export function buildCommandPaletteRows(groups: ReadonlyArray<CommandPaletteGroup>) {
   const rows: CommandPaletteRow[] = [];
   const itemValues: string[] = [];
@@ -309,7 +335,6 @@ export function buildCommandPaletteRows(groups: ReadonlyArray<CommandPaletteGrou
   }
   return { rows, itemValues, rowIndexByItemIndex };
 }
-
 export function findHighlightedCommandPaletteItem(
   groups: ReadonlyArray<CommandPaletteGroup>,
   highlightedItemValue: string | null,
@@ -322,39 +347,38 @@ export function findHighlightedCommandPaletteItem(
   }
   return null;
 }
-
 export function enumerateCommandPaletteItems(
   items: ReadonlyArray<CommandPaletteActionItem>,
 ): CommandPaletteActionItem[] {
   return items.map((item, index) => {
     const shortcutCommand = THREAD_JUMP_KEYBINDING_COMMANDS[index];
     if (shortcutCommand) return { ...item, shortcutCommand };
-
     const { shortcutCommand: _shortcutCommand, ...itemWithoutShortcut } = item;
     return itemWithoutShortcut;
   });
 }
-
 export type CommandPaletteMode = "root" | "root-browse" | "submenu" | "submenu-browse";
-
-export type CommandPaletteProject = Project & { readonly displayName: string };
-
+export type CommandPaletteProject = Project & {
+  readonly displayName: string;
+};
 export function buildCommandPaletteProjectMetadata(input: {
   readonly projects: ReadonlyArray<Pick<Project, "environmentId" | "title" | "workspaceRoot">>;
-  readonly locationByEnvironmentId: ReadonlyMap<EnvironmentId, { readonly label: string }>;
+  readonly locationByEnvironmentId: ReadonlyMap<
+    EnvironmentId,
+    {
+      readonly label: string;
+    }
+  >;
 }) {
   const searchTerms: string[] = [];
   const environmentLabels = new Set<string>();
-
   for (const project of input.projects) {
     const label = input.locationByEnvironmentId.get(project.environmentId)?.label ?? "Remote";
     searchTerms.push(project.title, project.workspaceRoot, label);
     environmentLabels.add(label);
   }
-
   return { searchTerms, environmentLabels: [...environmentLabels] };
 }
-
 export function buildProjectActionItems(input: {
   projects: ReadonlyArray<CommandPaletteProject>;
   valuePrefix: string;
@@ -382,7 +406,6 @@ export function buildProjectActionItems(input: {
     },
   }));
 }
-
 export type BuildThreadActionItemsThread = Pick<
   SidebarThreadSummary,
   | "archivedAt"
@@ -405,7 +428,6 @@ export type BuildThreadActionItemsThread = Pick<
   > & {
     updatedAt: string;
   };
-
 export function buildThreadActionItems<TThread extends BuildThreadActionItemsThread>(input: {
   threads: ReadonlyArray<TThread>;
   activeThread?: Pick<Thread, "environmentId" | "id">;
@@ -413,7 +435,12 @@ export function buildThreadActionItems<TThread extends BuildThreadActionItemsThr
   icon: ReactNode;
   renderLeadingContent?: (thread: TThread) => ReactNode;
   renderTrailingContent?: (thread: TThread) => ReactNode;
-  renderDescription?: (thread: TThread, meta: { projectTitle: string | undefined }) => ReactNode;
+  renderDescription?: (
+    thread: TThread,
+    meta: {
+      projectTitle: string | undefined;
+    },
+  ) => ReactNode;
   runThread: (thread: TThread) => Promise<void>;
   /** Makes the environment searchable; pass it only with two or more environments. */
   environmentLabelOf?: (thread: TThread) => string | null;
@@ -422,13 +449,11 @@ export function buildThreadActionItems<TThread extends BuildThreadActionItemsThr
   const visibleThreads = input.threads.filter(
     (thread) => thread.archivedAt === null && !isSidebarSubagentThread(thread),
   );
-
   return visibleThreads.map((thread) => {
     const projectTitle = input.projectByKey.get(
       `${thread.environmentId}:${thread.projectId}`,
     )?.title;
     const descriptionParts: string[] = [];
-
     if (projectTitle) {
       descriptionParts.push(projectTitle);
     }
@@ -441,13 +466,11 @@ export function buildThreadActionItems<TThread extends BuildThreadActionItemsThr
     if (isCurrent) {
       descriptionParts.push("Current thread");
     }
-
     const leadingContent = input.renderLeadingContent?.(thread);
     const trailingContent = input.renderTrailingContent?.(thread);
     const description = input.renderDescription
       ? input.renderDescription(thread, { projectTitle })
       : descriptionParts.join(` · `);
-
     return Object.assign(
       {
         kind: "action" as const,
@@ -481,14 +504,14 @@ export function buildThreadActionItems<TThread extends BuildThreadActionItemsThr
     );
   });
 }
-
 type PaletteItem = CommandPaletteActionItem | CommandPaletteSubmenuItem;
-
 function rankPaletteItem(
   item: PaletteItem,
   normalizedQuery: string,
   now: number,
-  options: { readonly typos: boolean },
+  options: {
+    readonly typos: boolean;
+  },
 ): {
   readonly score: number;
   readonly quality: number;
@@ -504,12 +527,13 @@ function rankPaletteItem(
   // does not decide where the group sits.
   return match && item.secondary ? { ...match, groupQuality: 0 } : match;
 }
-
 function scorePaletteItem(
   item: PaletteItem,
   normalizedQuery: string,
   now: number,
-  options: { readonly typos: boolean },
+  options: {
+    readonly typos: boolean;
+  },
 ) {
   if (item.threadSearch) return scoreThreadSearch(normalizedQuery, item.threadSearch, now, options);
   // The title names the item; search terms are keywords. Ranges index the
@@ -522,13 +546,13 @@ function scorePaletteItem(
   const match = scoreSearchTerms(normalizedQuery, terms, options);
   return match && (item.title === terms[0] ? match : { ...match, ranges: [] });
 }
-
 /**
  * Equal match classes put commands before threads, so "new" runs "New thread".
  * Server message matches stay in a final group so late results cannot move earlier rows.
  */
 export function filterCommandPaletteGroups(input: {
   activeGroups: ReadonlyArray<CommandPaletteGroup>;
+  spotlight?: boolean;
   query: string;
   isInSubmenu: boolean;
   /** Submenu options join the root search, and a submenu with no match falls back to it. */
@@ -537,6 +561,8 @@ export function filterCommandPaletteGroups(input: {
     readonly nestedItems: ReadonlyArray<CommandPaletteActionItem>;
   };
   projectSearchItems: ReadonlyArray<CommandPaletteActionItem>;
+  /** Already filtered and ranked; shown as the first group, ahead of actions. */
+  topProjectItems?: ReadonlyArray<CommandPaletteActionItem>;
   settingsSearchItems?: ReadonlyArray<CommandPaletteActionItem>;
   threadSearchItems: ReadonlyArray<CommandPaletteActionItem>;
   /** Threads whose messages match, best first; threads already listed are skipped. */
@@ -553,25 +579,29 @@ export function filterCommandPaletteGroups(input: {
       isInSubmenu: false,
     });
   }
-
   const isActionsFilter = input.query.startsWith(">");
   const searchQuery = isActionsFilter ? input.query.slice(1) : input.query;
   const normalizedQuery = foldSearchQuery(searchQuery);
-
+  if (input.spotlight && !input.isInSubmenu && !isActionsFilter) {
+    return buildSpotlightGroups({
+      activeGroups: input.activeGroups,
+      query: input.query,
+      projectItems: input.topProjectItems ?? input.projectSearchItems,
+      threadItems: input.threadSearchItems,
+    });
+  }
   if (normalizedQuery.length === 0) {
     if (isActionsFilter) {
       return input.activeGroups.filter((group) => group.value === "actions");
     }
     return [...input.activeGroups];
   }
-
   let baseGroups = [...input.activeGroups];
   if (isActionsFilter) {
     baseGroups = baseGroups.filter((group) => group.value === "actions");
   } else if (!input.isInSubmenu) {
     baseGroups = baseGroups.filter((group) => group.value !== "recent-threads");
   }
-
   const searchableGroups = [...baseGroups];
   const searchesEverything = !input.isInSubmenu && !isActionsFilter;
   // On equal match classes, groups keep this order: threads, what people search
@@ -587,26 +617,25 @@ export function filterCommandPaletteGroups(input: {
     if (input.threadSearchItems.length > 0) {
       searchableGroups.push({
         value: "threads-search",
-        label: "Threads",
+        label: uiText("Threads"),
         items: input.threadSearchItems,
       });
     }
     if (input.projectSearchItems.length > 0) {
       searchableGroups.push({
         value: "projects-search",
-        label: "Projects",
+        label: uiText("Projects"),
         items: input.projectSearchItems,
       });
     }
     if (input.settingsSearchItems && input.settingsSearchItems.length > 0) {
       searchableGroups.push({
         value: "settings-search",
-        label: "Settings",
+        label: uiText("Settings"),
         items: input.settingsSearchItems,
       });
     }
   }
-
   const now = input.now ?? Date.now();
   const ranked = rankSearchGroups(
     searchableGroups.map((group) => ({ group, items: group.items })),
@@ -636,7 +665,6 @@ export function filterCommandPaletteGroups(input: {
       });
     return { value: group.value, label: group.label, items };
   });
-
   if (!searchesEverything) return groups;
   const listed = new Set(groups.flatMap((group) => group.items.map((item) => item.value)));
   // The items arrive cut to what the palette shows; see `nextShownOrder`.
@@ -645,7 +673,6 @@ export function filterCommandPaletteGroups(input: {
     ? groups
     : [...groups, { value: "threads-messages", label: "In messages", items: messageItems }];
 }
-
 /** Every option inside a submenu as one row, e.g. "New thread in t3code" or "Change theme: Dracula". */
 export function buildNestedSearchItems(
   items: ReadonlyArray<CommandPaletteActionItem | CommandPaletteSubmenuItem>,
@@ -674,7 +701,6 @@ export function buildNestedSearchItems(
     );
   });
 }
-
 export function buildBrowseGroups(input: {
   browseEntries: ReadonlyArray<FilesystemBrowseEntry>;
   browseQuery: string;
@@ -685,7 +711,6 @@ export function buildBrowseGroups(input: {
   browseTo: (name: string) => void | Promise<void>;
 }): CommandPaletteGroup[] {
   const items: CommandPaletteActionItem[] = [];
-
   if (input.canBrowseUp) {
     items.push({
       kind: "action",
@@ -699,7 +724,6 @@ export function buildBrowseGroups(input: {
       },
     });
   }
-
   for (const entry of input.browseEntries) {
     items.push({
       kind: "action",
@@ -713,10 +737,8 @@ export function buildBrowseGroups(input: {
       },
     });
   }
-
-  return [{ value: "directories", label: "Directories", items }];
+  return [{ value: "directories", label: uiText("Directories"), items }];
 }
-
 export function filterPinnedBrowseEntries(input: {
   browseEntries: ReadonlyArray<FilesystemBrowseEntry>;
   filterQuery: string;
@@ -735,7 +757,6 @@ export function filterPinnedBrowseEntries(input: {
       : null;
   return { visibleEntries, exactEntry };
 }
-
 export function getCommandPaletteMode(input: {
   currentView: CommandPaletteView | null;
   isBrowsing: boolean;
@@ -745,38 +766,35 @@ export function getCommandPaletteMode(input: {
   }
   return input.isBrowsing ? "root-browse" : "root";
 }
-
 export function buildRootGroups(input: {
   actionItems: ReadonlyArray<CommandPaletteActionItem | CommandPaletteSubmenuItem>;
   recentThreadItems: ReadonlyArray<CommandPaletteActionItem>;
 }): CommandPaletteGroup[] {
   const groups: CommandPaletteGroup[] = [];
   if (input.actionItems.length > 0) {
-    groups.push({ value: "actions", label: "Actions", items: input.actionItems });
+    groups.push({ value: "actions", label: uiText("Actions"), items: input.actionItems });
   }
   if (input.recentThreadItems.length > 0) {
     groups.push({
       value: "recent-threads",
-      label: "Recent Threads",
+      label: uiText("Recent Threads"),
       items: input.recentThreadItems,
     });
   }
   return groups;
 }
-
 export function getCommandPaletteInputPlaceholder(mode: CommandPaletteMode): string {
   switch (mode) {
     case "root":
-      return "Search commands, projects, and threads...";
+      return uiText("Search commands, projects, and threads...");
     case "root-browse":
-      return "Enter project path (e.g. ~/projects/my-app)";
+      return uiText("Enter project path (e.g. ~/projects/my-app)");
     case "submenu":
-      return "Search...";
+      return uiText("Search...");
     case "submenu-browse":
-      return "Enter path (e.g. ~/projects/my-app)";
+      return uiText("Enter path (e.g. ~/projects/my-app)");
   }
 }
-
 export function getEnvironmentBrowsePlatform(os: string | null | undefined): string {
   if (os === "windows") {
     return "Win32";
@@ -789,7 +807,6 @@ export function getEnvironmentBrowsePlatform(os: string | null | undefined): str
   }
   return typeof navigator === "undefined" ? "" : navigator.platform;
 }
-
 export interface AddProjectEnvironmentOption {
   readonly environmentId: EnvironmentId;
   readonly label: string;
@@ -798,7 +815,6 @@ export interface AddProjectEnvironmentOption {
   readonly isConnected: boolean;
   readonly status: string;
 }
-
 export type AddProjectCloneFlow =
   | {
       readonly step: "repository";
@@ -813,7 +829,6 @@ export type AddProjectCloneFlow =
       readonly repository: SourceControlRepositoryInfo | null;
       readonly remoteUrl: string;
     };
-
 export function remoteProjectInputPlaceholder(flow: AddProjectCloneFlow | null): string | null {
   if (!flow) return null;
   if (flow.step === "confirm") return null;
@@ -822,7 +837,6 @@ export function remoteProjectInputPlaceholder(flow: AddProjectCloneFlow | null):
   }
   return `Enter ${addProjectRemoteSourceLabel(flow.source)} repository (${addProjectRemoteSourcePathHint(flow.source)})`;
 }
-
 export function buildPaletteRemoteSourceReadiness(
   discovery: SourceControlDiscoveryResult | null,
 ): AddProjectRemoteSourceReadiness {
@@ -840,20 +854,17 @@ export function buildPaletteRemoteSourceReadiness(
         };
   };
 }
-
 export function errorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim().length > 0) {
     return error.message;
   }
   return "An error occurred.";
 }
-
 const OVERLAY_MODE_BY_COMMAND = {
   "commandPalette.toggle": "command",
   "filePicker.toggle": "files",
   "projectSearch.toggle": "content",
 } as const satisfies Partial<Record<string, SearchOverlayMode>>;
-
 export function overlayModeForCommand(command: string | null): SearchOverlayMode | null {
   if (command === null) return null;
   return command in OVERLAY_MODE_BY_COMMAND

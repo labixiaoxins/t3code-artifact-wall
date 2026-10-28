@@ -1,18 +1,16 @@
+import { uiText } from "~/i18n";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { useAtomCommand } from "~/state/use-atom-command";
 import type { EnvironmentId, PullRequestDetailView, PullRequestRef } from "@t3tools/contracts";
 import { SendIcon } from "lucide-react";
 import { useState, type RefObject } from "react";
-
 import { pullRequestEnvironment } from "~/state/pullRequests";
-
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import { toastManager } from "../ui/toast";
 import { PullRequestGlyph } from "./pullRequestIcons";
 import { pullRequestReviewKey } from "./pullRequestReviewStore";
 import { useInlineActionConfirm } from "./useInlineActionConfirm";
-
 export function PullRequestCommentForm({
   environmentId,
   reference,
@@ -31,7 +29,9 @@ export function PullRequestCommentForm({
   onCommentAction: (
     body: string,
     action: "close" | "reopen",
-  ) => Promise<{ readonly commentPosted: boolean }>;
+  ) => Promise<{
+    readonly commentPosted: boolean;
+  }>;
   onCommented: () => void;
   onClose: () => void;
 }) {
@@ -51,7 +51,6 @@ export function PullRequestCommentForm({
           detail.viewerPermissions.actions.includes("reopen")
         ? ("reopen" as const)
         : null;
-
   const submit = async (action: "comment" | "close" | "reopen") => {
     const trimmed = body.trim();
     if (trimmed.length === 0 || submitting !== null || actionPending) return;
@@ -74,7 +73,7 @@ export function PullRequestCommentForm({
     });
     if (result._tag === "Failure") {
       setSubmitting(null);
-      toastManager.add({ type: "error", title: "Could not post the comment" });
+      toastManager.add({ type: "error", title: uiText("Could not post the comment") });
       return;
     }
     setBody("");
@@ -82,7 +81,6 @@ export function PullRequestCommentForm({
     onClose();
     onCommented();
   };
-
   return (
     <div className="space-y-2">
       <Textarea
@@ -91,7 +89,7 @@ export function PullRequestCommentForm({
         disabled={submitting !== null || actionPending}
         value={body}
         rows={3}
-        placeholder="Leave a comment"
+        placeholder={uiText("Leave a comment")}
         aria-label={`Comment on this ${sourceControlClients.get(detail.provider).changeRequest.singular}`}
         onChange={(event) => setBody(event.target.value)}
         onKeyDown={(event) => {
@@ -127,20 +125,20 @@ export function PullRequestCommentForm({
               // The longest label holds the width, so the confirming click lands on the button.
               <span className="inline-grid">
                 <span aria-hidden className="invisible col-start-1 row-start-1">
-                  Close with comment
+                  {uiText("Close with comment")}
                 </span>
                 <span className="col-start-1 row-start-1">
                   {submitting === "close"
-                    ? "Closing..."
+                    ? uiText("Closing...")
                     : inlineConfirm.isArmed("close")
-                      ? "Confirm close?"
-                      : "Close with comment"}
+                      ? uiText("Confirm close?")
+                      : uiText("Close with comment")}
                 </span>
               </span>
             ) : submitting === "reopen" ? (
-              "Reopening..."
+              uiText("Reopening...")
             ) : (
-              "Reopen with comment"
+              uiText("Reopen with comment")
             )}
           </Button>
         )}
@@ -151,7 +149,7 @@ export function PullRequestCommentForm({
           onClick={() => void submit("comment")}
         >
           <SendIcon className="size-3.5" />
-          {submitting === "comment" ? "Posting..." : "Comment"}
+          {submitting === "comment" ? uiText("Posting...") : uiText("Comment")}
         </Button>
       </div>
     </div>

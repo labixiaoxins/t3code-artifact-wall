@@ -26,7 +26,6 @@ import * as SqlClient from "effect/sql/SqlClient";
 import * as Stream from "effect/Stream";
 import * as EventStore from "./EventStore.ts";
 import * as TestClock from "effect/testing/TestClock";
-
 import * as SqlitePersistence from "../persistence/Sqlite.ts";
 import * as ServerSettings from "../serverSettings.ts";
 import { CLAUDE_PROVIDER } from "./Adapters/ClaudeAdapterV2.ts";
@@ -41,7 +40,6 @@ import * as ProviderAdapterRegistry from "./ProviderAdapterRegistry.ts";
 import * as ThreadManagementService from "./ThreadManagementService.ts";
 import * as ProviderReplayHarness from "./testkit/ProviderReplayHarness.ts";
 import type * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
-
 const instanceId = ProviderInstanceId.make("codex");
 const modelSelection = { instanceId, model: "gpt-5.1-codex" };
 const adapter = {
@@ -69,15 +67,12 @@ const layerTest = ThreadManagementService.layer.pipe(
   Layer.provideMerge(ServerSettings.layerTest()),
   Layer.provideMerge(CommandReceiptStore.layer.pipe(Layer.provide(layerDatabase))),
 );
-
 const encodeEffectRequest = Schema.encodeSync(Schema.fromJsonString(OrchestrationEffectRequestV2));
-
 const pullRequest = (number: number) => ({
   host: "github.com",
   repository: "pingdotgg/t3code",
   number,
 });
-
 const createWatchingThread = (threadId: ThreadId, number: number) =>
   Effect.gen(function* () {
     const orchestrator = yield* Orchestrator.OrchestratorV2;
@@ -97,7 +92,6 @@ const createWatchingThread = (threadId: ThreadId, number: number) =>
     });
     yield* watch(threadId, number);
   });
-
 const watch = (threadId: ThreadId, number: number) =>
   Effect.gen(function* () {
     const orchestrator = yield* Orchestrator.OrchestratorV2;
@@ -110,7 +104,6 @@ const watch = (threadId: ThreadId, number: number) =>
       link: { url: `https://github.com/pingdotgg/t3code/pull/${number}`, source: "agent" },
     });
   });
-
 const send = (threadId: ThreadId, text: string, type: "start_immediately" | "queue_after_active") =>
   Effect.gen(function* () {
     const orchestrator = yield* Orchestrator.OrchestratorV2;
@@ -126,7 +119,6 @@ const send = (threadId: ThreadId, text: string, type: "start_immediately" | "que
       creationSource: "web",
     });
   });
-
 const delegate = (parentThreadId: ThreadId, task: string) =>
   Effect.gen(function* () {
     const orchestrator = yield* Orchestrator.OrchestratorV2;
@@ -148,7 +140,6 @@ const delegate = (parentThreadId: ThreadId, task: string) =>
     const projection = yield* orchestrator.getThreadProjection(parentThreadId);
     return projection.subagents.find((candidate) => candidate.prompt === task)!.childThreadId!;
   });
-
 const threadState = (threadId: ThreadId) =>
   Effect.gen(function* () {
     const orchestrator = yield* Orchestrator.OrchestratorV2;
@@ -160,7 +151,6 @@ const threadState = (threadId: ThreadId) =>
         .map((link) => link.number),
     };
   });
-
 it.effect.each([
   ["idle", "thread.stop"],
   ["idle", "run.interrupt"],
@@ -505,7 +495,6 @@ it.effect.each([
       }
     }).pipe(Effect.provide(layerTest)),
 );
-
 it.effect("Stop still stops the thread when a delegated child cannot be read", () =>
   Effect.gen(function* () {
     const orchestrator = yield* Orchestrator.OrchestratorV2;
@@ -529,7 +518,6 @@ it.effect("Stop still stops the thread when a delegated child cannot be read", (
     assert.deepEqual(yield* threadState(parentThreadId), { runs: ["interrupted"], watched: [] });
   }).pipe(Effect.provide(layerTest)),
 );
-
 it.effect.each(["run.interrupt", "thread.stop"] as const)(
   "%s Stop ends watches, holds queues, and stops the delegated tasks under the thread",
   (type) =>
@@ -545,7 +533,6 @@ it.effect.each(["run.interrupt", "thread.stop"] as const)(
       assert.isTrue(Exit.isFailure(yield* Effect.exit(watch(childThreadId, 2))));
       const grandchildThreadId = yield* delegate(childThreadId, "grandchild task");
       yield* send(childThreadId, "child follow-up", "queue_after_active");
-
       const now = yield* DateTime.now;
       const firstRun = (yield* orchestrator.getThreadProjection(parentThreadId)).runs[0]!;
       yield* projections.apply({
@@ -558,7 +545,6 @@ it.effect.each(["run.interrupt", "thread.stop"] as const)(
       });
       yield* send(parentThreadId, "second", "start_immediately");
       const secondRun = (yield* orchestrator.getThreadProjection(parentThreadId)).runs.at(-1)!;
-
       const stopCommandId = CommandId.make("stop-parent");
       yield* orchestrator.dispatch(
         type === "thread.stop"
@@ -571,32 +557,33 @@ it.effect.each(["run.interrupt", "thread.stop"] as const)(
               holdQueue: true,
             },
       );
-
       assert.deepEqual(yield* threadState(parentThreadId), {
         runs: ["completed", "interrupted"],
         watched: [],
       });
       const parent = yield* orchestrator.getThreadProjection(parentThreadId);
       assert.equal(parent.subagents[0]?.completionDelivery?.state, "disposed");
-      const effects = yield* sql<{ readonly effect_type: string }>`
+      const effects = yield* sql<{
+        readonly effect_type: string;
+      }>`
       SELECT effect_type FROM orchestration_v2_effect_outbox WHERE command_id = ${stopCommandId}
     `;
       assert.include(
         effects.map((row) => row.effect_type),
         "delegated-tasks.stop",
       );
-
       yield* threads.stopDelegatedTasks({ threadId: parentThreadId, commandId: stopCommandId });
       assert.deepEqual(yield* threadState(childThreadId), {
         runs: ["interrupted", "queued:held"],
         watched: [],
       });
       assert.deepEqual((yield* threadState(grandchildThreadId)).runs, ["interrupted"]);
-
       yield* threads.stopDelegatedTasks({ threadId: parentThreadId, commandId: stopCommandId });
       assert.deepEqual((yield* threadState(childThreadId)).runs, ["interrupted", "queued:held"]);
       // The walk stops each level itself, so the child stops it sends queue no walk of their own.
-      const walks = yield* sql<{ readonly command_id: string }>`
+      const walks = yield* sql<{
+        readonly command_id: string;
+      }>`
       SELECT command_id FROM orchestration_v2_effect_outbox
       WHERE effect_type = 'delegated-tasks.stop'
     `;
@@ -606,7 +593,6 @@ it.effect.each(["run.interrupt", "thread.stop"] as const)(
       );
     }).pipe(Effect.provide(layerTest)),
 );
-
 it.effect("a repeated Stop that changes nothing still stops the delegated tasks", () =>
   Effect.gen(function* () {
     const orchestrator = yield* Orchestrator.OrchestratorV2;
@@ -631,7 +617,6 @@ it.effect("a repeated Stop that changes nothing still stops the delegated tasks"
       commandId: CommandId.make("stop-again:first"),
       threadId: parentThreadId,
     });
-
     // The first Stop already disposed the delivery and ended the watch, so this one writes no
     // events, like Stop on a thread an older server stopped without stopping its children.
     const again = yield* orchestrator.dispatch({
@@ -640,7 +625,9 @@ it.effect("a repeated Stop that changes nothing still stops the delegated tasks"
       threadId: parentThreadId,
     });
     assert.lengthOf(again.storedEvents, 0);
-    const walks = yield* sql<{ readonly command_id: string }>`
+    const walks = yield* sql<{
+      readonly command_id: string;
+    }>`
       SELECT command_id FROM orchestration_v2_effect_outbox
       WHERE effect_type = 'delegated-tasks.stop'
     `;
@@ -650,7 +637,6 @@ it.effect("a repeated Stop that changes nothing still stops the delegated tasks"
     );
   }).pipe(Effect.provide(layerTest)),
 );
-
 it.effect.each(["thread.stop", "run.interrupt"] as const)(
   "%s cancels buffered wakes and preserves durable queued messages",
   (type) =>
@@ -706,7 +692,6 @@ it.effect.each(["thread.stop", "run.interrupt"] as const)(
       );
     }).pipe(Effect.provide(layerTest)),
 );
-
 it.effect("a message the user sends after Stop releases the held queue; an agent's does not", () =>
   Effect.gen(function* () {
     const orchestrator = yield* Orchestrator.OrchestratorV2;
@@ -733,7 +718,6 @@ it.effect("a message the user sends after Stop releases the held queue; an agent
       threadId,
     });
     assert.deepEqual((yield* threadState(threadId)).runs, ["interrupted", "queued:held"]);
-
     // An agent's message starts on the idle thread, but the hold is the user's.
     yield* agentSend("agent nudge");
     assert.deepEqual((yield* threadState(threadId)).runs, [
@@ -751,7 +735,6 @@ it.effect("a message the user sends after Stop releases the held queue; an agent
       occurredAt: now,
       payload: { ...nudge, status: "completed", completedAt: now },
     });
-
     // A scheduled task the user created is not the user coming back.
     yield* orchestrator.dispatch({
       type: "message.dispatch",
@@ -780,7 +763,6 @@ it.effect("a message the user sends after Stop releases the held queue; an agent
       occurredAt: now,
       payload: { ...scheduled, status: "completed", completedAt: now },
     });
-
     // The user is back: the held message follows their run, and a wake that
     // queues behind it is not held by the old Stop.
     yield* send(threadId, "back", "start_immediately");
@@ -795,7 +777,6 @@ it.effect("a message the user sends after Stop releases the held queue; an agent
     ]);
   }).pipe(Effect.provide(layerTest)),
 );
-
 it.effect(
   "thread.stop ends an idle thread's watches and accepts a thread with nothing to stop",
   () =>
@@ -803,14 +784,12 @@ it.effect(
       const orchestrator = yield* Orchestrator.OrchestratorV2;
       const threadId = ThreadId.make("thread:stop-idle");
       yield* createWatchingThread(threadId, 3);
-
       yield* orchestrator.dispatch({
         type: "thread.stop",
         commandId: CommandId.make("stop-idle"),
         threadId,
       });
       assert.deepEqual(yield* threadState(threadId), { runs: [], watched: [] });
-
       const again = yield* orchestrator.dispatch({
         type: "thread.stop",
         commandId: CommandId.make("stop-idle-again"),
@@ -819,7 +798,6 @@ it.effect(
       assert.lengthOf(again.storedEvents, 0);
     }).pipe(Effect.provide(layerTest)),
 );
-
 it.effect.each([false, true])(
   "a completed watch records whether it ended through Stop (%s)",
   (stopped) =>
@@ -846,7 +824,6 @@ it.effect.each([false, true])(
         payload: completedRun,
       });
       assert.isFalse((yield* projections.getThreadShell(threadId))?.latestRunStopRequested);
-
       yield* orchestrator.dispatch(
         stopped
           ? { type: "thread.stop", commandId: CommandId.make("stop-watch"), threadId }
@@ -870,12 +847,10 @@ it.effect.each([false, true])(
         assert.isEmpty(result?.pendingBackgroundTasks ?? []);
         assert.equal(result?.latestRunStopRequested, stopped);
       }
-
       yield* send(threadId, "next", "start_immediately");
       assert.isFalse((yield* projections.getThreadShell(threadId))?.latestRunStopRequested);
     }).pipe(Effect.provide(layerTest)),
 );
-
 it.effect("a run Stop reached cannot delegate or start a watch, even after it ends", () =>
   Effect.gen(function* () {
     const orchestrator = yield* Orchestrator.OrchestratorV2;
@@ -916,7 +891,7 @@ it.effect("a run Stop reached cannot delegate or start a watch, even after it en
         providerTurnId: null,
         nativeItemRef: null,
         parentItemId: null,
-        ordinal: 1_000,
+        ordinal: 1000,
         status: "completed",
         title: "Interrupt requested",
         startedAt: now,
@@ -926,10 +901,8 @@ it.effect("a run Stop reached cannot delegate or start a watch, even after it en
         message: "Stop",
       },
     });
-
     assert.isTrue(Exit.isFailure(yield* Effect.exit(delegate(threadId, "late task"))));
     assert.isTrue(Exit.isFailure(yield* Effect.exit(watch(threadId, 5))));
-
     yield* projections.apply({
       id: EventId.make("event:stop-barrier:interrupted"),
       type: "run.updated",
@@ -943,7 +916,6 @@ it.effect("a run Stop reached cannot delegate or start a watch, even after it en
       runs: ["interrupted", "cancelled"],
       watched: [4],
     });
-
     for (const watching of [false, true]) {
       yield* orchestrator.dispatch({
         type: "thread.pull-request.watch",
@@ -956,7 +928,6 @@ it.effect("a run Stop reached cannot delegate or start a watch, even after it en
     assert.deepEqual((yield* threadState(threadId)).watched, [4]);
   }).pipe(Effect.provide(layerTest)),
 );
-
 it.effect("thread.stop keeps a restart continuation of the stopped run from starting", () =>
   Effect.gen(function* () {
     const orchestrator = yield* Orchestrator.OrchestratorV2;
@@ -987,7 +958,6 @@ it.effect("thread.stop keeps a restart continuation of the stopped run from star
         'pending', 0, ${at}, ${at}, ${at}
       )
     `;
-
     yield* orchestrator.dispatch({
       type: "thread.stop",
       commandId: CommandId.make("stop-restart"),
@@ -1008,7 +978,6 @@ it.effect("thread.stop keeps a restart continuation of the stopped run from star
     assert.deepEqual(yield* threadState(threadId), { runs: ["cancelled"], watched: [] });
   }).pipe(Effect.provide(layerTest)),
 );
-
 it.effect.each(["thread.stop", "run.interrupt"] as const)(
   "a successful %s blocks a newer restart continuation when completion timestamps tie",
   (stopType) =>
@@ -1103,7 +1072,6 @@ it.effect.each(["thread.stop", "run.interrupt"] as const)(
       });
     }).pipe(Effect.provide(layerTest.pipe(Layer.provideMerge(TestClock.layer())))),
 );
-
 it.effect.each([
   { ending: "cancelled", question: "resolved" },
   { ending: "interrupted", question: "resolved" },
@@ -1149,7 +1117,6 @@ it.effect.each([
         orchestrator.getThreadProjection(childThreadId),
         (projection) => projection.runtimeRequests[0],
       );
-
       yield* orchestrator.recoverDelegatedTask(childThreadId, childRun.id);
       assert.equal((yield* request)?.status, "pending");
       if (ending === "interrupted") {
@@ -1173,7 +1140,6 @@ it.effect.each([
       assert.equal((yield* request)?.decision, question === "resolved" ? "cancel" : undefined);
     }).pipe(Effect.provide(layerTest)),
 );
-
 it.effect("a delegated task that cannot be stopped fails the walk after its siblings stop", () =>
   Effect.gen(function* () {
     const orchestrator = yield* Orchestrator.OrchestratorV2;
@@ -1199,7 +1165,6 @@ it.effect("a delegated task that cannot be stopped fails the walk after its sibl
         startedAt: DateTime.subtract(task.startedAt!, { hours: 1 }),
       },
     });
-
     const walked = yield* Effect.exit(
       threads.stopDelegatedTasks({
         threadId: parentThreadId,
@@ -1210,7 +1175,6 @@ it.effect("a delegated task that cannot be stopped fails the walk after its sibl
     assert.deepEqual((yield* threadState(childThreadId)).runs, ["interrupted"]);
   }).pipe(Effect.provide(layerTest)),
 );
-
 it.effect("thread.stop marks a turn it cannot interrupt so a late agent watch is refused", () =>
   Effect.gen(function* () {
     const orchestrator = yield* Orchestrator.OrchestratorV2;
@@ -1245,7 +1209,6 @@ it.effect("thread.stop marks a turn it cannot interrupt so a late agent watch is
         completedAt: null,
       },
     });
-
     yield* orchestrator.dispatch({
       type: "thread.stop",
       commandId: CommandId.make("stop-lost-session"),
@@ -1255,7 +1218,6 @@ it.effect("thread.stop marks a turn it cannot interrupt so a late agent watch is
     assert.deepEqual(yield* threadState(threadId), { runs: ["running"], watched: [] });
   }).pipe(Effect.provide(layerTest)),
 );
-
 it.effect.each(["missing session", "completed", "failed", "cancelled"] as const)(
   "a native child Stop only settles a confirmed %s outcome and preserves its owner and sibling",
   (providerState) =>
@@ -1416,7 +1378,9 @@ it.effect.each(["missing session", "completed", "failed", "cancelled"] as const)
         subagentId: subagent.id,
       });
       assert.deepEqual(yield* threadState(threadId), stateBefore);
-      const effects = yield* sql<{ payload_json: string }>`
+      const effects = yield* sql<{
+        payload_json: string;
+      }>`
       SELECT payload_json FROM orchestration_v2_effect_outbox WHERE command_id = ${commandId}
     `;
       assert.equal(effects.length, 1);
@@ -1479,7 +1443,6 @@ it.effect.each(["missing session", "completed", "failed", "cancelled"] as const)
         assert.deepEqual(yield* threadState(threadId), stateBefore);
         return;
       }
-
       const repaired = yield* eventStore.read({ threadId, afterSequence }).pipe(Stream.runCollect);
       const terminal = repaired.flatMap(({ event }) =>
         (event.type === "subagent.updated" ||
@@ -1504,7 +1467,6 @@ it.effect.each(["missing session", "completed", "failed", "cancelled"] as const)
           assert.isDefined(event.payload.updatedAt);
         }
       }
-
       assert.equal(cancelled.status, confirmedStatus);
       assert.isNotNull(cancelled.completedAt);
       assert.equal(
@@ -1549,6 +1511,81 @@ it.effect.each(["missing session", "completed", "failed", "cancelled"] as const)
           (task) => task.id === subagent.id,
         )?.status,
         "running",
+      );
+    }).pipe(Effect.provide(layerTest)),
+);
+it.effect.each(["run.interrupt", "thread.stop"] as const)(
+  "%s Stop ends watches, holds queues, and stops the delegated tasks under the thread",
+  (type) =>
+    Effect.gen(function* () {
+      const orchestrator = yield* Orchestrator.OrchestratorV2;
+      const projections = yield* ProjectionStore.ProjectionStoreV2;
+      const threads = yield* ThreadManagementService.ThreadManagementService;
+      const sql = yield* SqlClient.SqlClient;
+      const parentThreadId = ThreadId.make("thread:stop-parent");
+      yield* createWatchingThread(parentThreadId, 1);
+      yield* send(parentThreadId, "first", "start_immediately");
+      const childThreadId = yield* delegate(parentThreadId, "child task");
+      assert.isTrue(Exit.isFailure(yield* Effect.exit(watch(childThreadId, 2))));
+      const grandchildThreadId = yield* delegate(childThreadId, "grandchild task");
+      yield* send(childThreadId, "child follow-up", "queue_after_active");
+      const now = yield* DateTime.now;
+      const firstRun = (yield* orchestrator.getThreadProjection(parentThreadId)).runs[0]!;
+      yield* projections.apply({
+        id: EventId.make("event:stop-parent:first-run-completed"),
+        type: "run.updated",
+        threadId: parentThreadId,
+        runId: firstRun.id,
+        occurredAt: now,
+        payload: { ...firstRun, status: "completed", completedAt: now },
+      });
+      yield* send(parentThreadId, "second", "start_immediately");
+      const secondRun = (yield* orchestrator.getThreadProjection(parentThreadId)).runs.at(-1)!;
+      const stopCommandId = CommandId.make("stop-parent");
+      yield* orchestrator.dispatch(
+        type === "thread.stop"
+          ? { type, commandId: stopCommandId, threadId: parentThreadId }
+          : {
+              type,
+              commandId: stopCommandId,
+              threadId: parentThreadId,
+              runId: secondRun.id,
+              holdQueue: true,
+            },
+      );
+      assert.deepEqual(yield* threadState(parentThreadId), {
+        runs: ["completed", "interrupted"],
+        watched: [],
+      });
+      const parent = yield* orchestrator.getThreadProjection(parentThreadId);
+      assert.equal(parent.subagents[0]?.completionDelivery?.state, "disposed");
+      const effects = yield* sql<{
+        readonly effect_type: string;
+      }>`
+      SELECT effect_type FROM orchestration_v2_effect_outbox WHERE command_id = ${stopCommandId}
+    `;
+      assert.include(
+        effects.map((row) => row.effect_type),
+        "delegated-tasks.stop",
+      );
+      yield* threads.stopDelegatedTasks({ threadId: parentThreadId, commandId: stopCommandId });
+      assert.deepEqual(yield* threadState(childThreadId), {
+        runs: ["interrupted", "queued:held"],
+        watched: [],
+      });
+      assert.deepEqual((yield* threadState(grandchildThreadId)).runs, ["interrupted"]);
+      yield* threads.stopDelegatedTasks({ threadId: parentThreadId, commandId: stopCommandId });
+      assert.deepEqual((yield* threadState(childThreadId)).runs, ["interrupted", "queued:held"]);
+      // The walk stops each level itself, so the child stops it sends queue no walk of their own.
+      const walks = yield* sql<{
+        readonly command_id: string;
+      }>`
+      SELECT command_id FROM orchestration_v2_effect_outbox
+      WHERE effect_type = 'delegated-tasks.stop'
+    `;
+      assert.deepEqual(
+        walks.map((row) => row.command_id),
+        [stopCommandId],
       );
     }).pipe(Effect.provide(layerTest)),
 );

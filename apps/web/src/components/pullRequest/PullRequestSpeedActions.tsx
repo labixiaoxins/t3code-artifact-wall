@@ -1,8 +1,8 @@
+import { uiText } from "~/i18n";
 import { useAtomValue } from "@effect/atom-react";
 import type { PullRequestAction } from "@t3tools/contracts";
 import { createContext, use, type ReactNode } from "react";
 import type { ChangeRequestTerminology } from "@t3tools/client-runtime/source-control-clients";
-
 import { useShortcutModifierState } from "~/shortcutModifierState";
 import { pullRequestEnvironment } from "~/state/pullRequests";
 import { useUiStateStore } from "~/uiStateStore";
@@ -16,17 +16,16 @@ import {
   usePullRequestActionRunner,
   usePullRequestDefaultMergeMethodResolver,
 } from "./usePullRequestActions";
-
 type PullRequestSpeedActionEntry = Pick<
   EnvironmentPullRequestEntry,
   "environmentId" | "projectId" | "host" | "repository" | "number" | "state" | "isDraft"
-> & { readonly stack?: object | undefined };
-
+> & {
+  readonly stack?: object | undefined;
+};
 export interface PullRequestSpeedActionResult<Entry = EnvironmentPullRequestEntry> {
   readonly entry: Entry;
   readonly action: PullRequestAction;
 }
-
 export function PullRequestSpeedActions<Entry extends PullRequestSpeedActionEntry>({
   entry,
   hostActions,
@@ -113,8 +112,8 @@ export function PullRequestSpeedActions<Entry extends PullRequestSpeedActionEntr
               {action === "merge" && entry.stack
                 ? `Open this ${terminology.singular} to merge its stack`
                 : action === "close" && onCloseSweepStart
-                  ? "Close immediately, or drag across rows to close several"
-                  : `${label} immediately`}
+                  ? uiText("Close immediately, or drag across rows to close several")
+                  : uiText("{0} immediately", { "0": label })}
             </TooltipPopup>
           </Tooltip>
         );
@@ -122,13 +121,11 @@ export function PullRequestSpeedActions<Entry extends PullRequestSpeedActionEntr
     </SpeedModeGroup>
   );
 }
-
 /**
  * Whether Shift is held, as context rather than a row prop: a Shift press then re-renders each
  * row's action group, not the rows or their buttons, in one commit.
  */
 export const PullRequestSpeedModeContext = createContext(false);
-
 /** Tracks Shift for the quick actions below it. */
 export function PullRequestSpeedModeProvider({ children }: { children: ReactNode }) {
   const modifiers = useShortcutModifierState(true);
@@ -136,7 +133,6 @@ export function PullRequestSpeedModeProvider({ children }: { children: ReactNode
     modifiers.shiftKey && !modifiers.metaKey && !modifiers.ctrlKey && !modifiers.altKey;
   return <PullRequestSpeedModeContext value={speedMode}>{children}</PullRequestSpeedModeContext>;
 }
-
 function SpeedModeGroup({
   busy,
   pending,
@@ -161,10 +157,9 @@ function SpeedModeGroup({
     </div>
   );
 }
-
 const ACTIONS = {
-  close: { label: "Close", Icon: PullRequestGlyph.closed },
-  merge: { label: "Merge", Icon: PullRequestGlyph.merged },
-  ready: { label: "Ready for review", Icon: PullRequestGlyph.pullRequest },
-  reopen: { label: "Reopen", Icon: PullRequestGlyph.reopen },
+  close: { label: uiText("Close"), Icon: PullRequestGlyph.closed },
+  merge: { label: uiText("Merge"), Icon: PullRequestGlyph.merged },
+  ready: { label: uiText("Ready for review"), Icon: PullRequestGlyph.pullRequest },
+  reopen: { label: uiText("Reopen"), Icon: PullRequestGlyph.reopen },
 } as const;

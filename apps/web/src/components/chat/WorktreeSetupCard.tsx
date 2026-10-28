@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   worktreeSetupStageLabel,
   type WorktreeSetupSnapshot,
@@ -15,7 +16,6 @@ import {
 } from "lucide-react";
 import { ChevronDown, ChevronRight } from "lucide";
 import { useState, type ReactNode } from "react";
-
 import { Button } from "~/components/ui/button";
 import { MorphIcon } from "~/components/MorphIcon";
 import { Spinner } from "~/components/ui/spinner";
@@ -24,27 +24,23 @@ import { observeVisibleAnimation } from "~/lib/visibleAnimation";
 import { cn } from "~/lib/utils";
 import { useNowSecond } from "~/hooks/useNowSecond";
 import { WorkLogRow } from "./WorkLog";
-
 interface WorktreeSetupCardProps {
   snapshot: WorktreeSetupSnapshot;
   onCancel: (() => void) | null;
   onWorkLocally: (() => void) | null;
   onOpenTerminal: (() => void) | null;
 }
-
 function elapsedMs(startedAt: string | null, endMs: number): number | null {
   if (!startedAt) return null;
   const start = Date.parse(startedAt);
   if (!Number.isFinite(start) || !Number.isFinite(endMs)) return null;
   return Math.max(0, endMs - start);
 }
-
 /** Mounted only while setup runs, so finished setups never subscribe to the tick. */
 function LiveElapsed({ startedAt }: { startedAt: string }) {
   const elapsed = elapsedMs(startedAt, useNowSecond());
   return elapsed === null ? null : <>{formatDuration(elapsed)}</>;
 }
-
 /** A finished duration, or a ticking one while setup is still running. */
 function Elapsed({
   startedAt,
@@ -62,7 +58,6 @@ function Elapsed({
   }
   return live ? <LiveElapsed startedAt={startedAt} /> : null;
 }
-
 function StageIcon({ status }: { status: WorktreeSetupStage["status"] }) {
   const className = "size-4 shrink-0 stroke-2";
   switch (status) {
@@ -80,7 +75,6 @@ function StageIcon({ status }: { status: WorktreeSetupStage["status"] }) {
       return <CircleIcon aria-hidden className={className} />;
   }
 }
-
 function stageRowClassName(status: WorktreeSetupStage["status"]): string {
   switch (status) {
     case "failed":
@@ -95,7 +89,6 @@ function stageRowClassName(status: WorktreeSetupStage["status"]): string {
       return "text-secondary-label";
   }
 }
-
 function ShimmerOverlay({ children }: { children: ReactNode }) {
   return (
     <span
@@ -108,22 +101,20 @@ function ShimmerOverlay({ children }: { children: ReactNode }) {
     </span>
   );
 }
-
 function headerLabel(snapshot: WorktreeSetupSnapshot): string {
   switch (snapshot.phase) {
     case "running":
-      return "Setting up worktree…";
+      return uiText("Setting up worktree…");
     case "done":
       return snapshot.stages.some((stage) => stage.status === "failed")
         ? "Worktree ready, setup script failed"
         : "Worktree ready";
     case "failed":
-      return "Worktree setup failed";
+      return uiText("Worktree setup failed");
     case "cancelled":
-      return "Worktree setup cancelled";
+      return uiText("Worktree setup cancelled");
   }
 }
-
 function SetupHeaderRow({ snapshot }: { snapshot: WorktreeSetupSnapshot }) {
   const running = snapshot.phase === "running";
   const failed = snapshot.phase === "failed";
@@ -157,7 +148,6 @@ function SetupHeaderRow({ snapshot }: { snapshot: WorktreeSetupSnapshot }) {
     </div>
   );
 }
-
 function StageRow({
   stage,
   setupRunning,
@@ -220,10 +210,8 @@ function StageRow({
     />
   );
 }
-
 const OUTPUT_TAIL_LINES = 4;
 const OUTPUT_TAIL_SLOTS = Array.from({ length: OUTPUT_TAIL_LINES }, (_, slot) => slot);
-
 function OutputTail({ lines, failed }: { lines: ReadonlyArray<string>; failed: boolean }) {
   const rows = OUTPUT_TAIL_SLOTS.map((slot) => ({
     slot,
@@ -240,19 +228,18 @@ function OutputTail({ lines, failed }: { lines: ReadonlyArray<string>; failed: b
     >
       {rows.map(({ slot, line }) => (
         <div key={slot} className="truncate whitespace-pre">
-          {line.length === 0 ? "\u00a0" : line}
+          {line.length === 0 ? "\u00A0" : line}
         </div>
       ))}
     </pre>
   );
 }
-
 function SetupDetails({ snapshot }: { snapshot: WorktreeSetupSnapshot }) {
   return (
     <dl className="mt-1 mb-1.5 ml-8 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
       {snapshot.branch ? (
         <>
-          <dt className="text-foreground/80">Branch</dt>
+          <dt className="text-foreground/80">{uiText("Branch")}</dt>
           <dd className="min-w-0 font-mono">
             <MiddleTruncate value={snapshot.branch} className="flex" />
           </dd>
@@ -260,7 +247,7 @@ function SetupDetails({ snapshot }: { snapshot: WorktreeSetupSnapshot }) {
       ) : null}
       {snapshot.baseRef ? (
         <>
-          <dt className="text-foreground/80">Base</dt>
+          <dt className="text-foreground/80">{uiText("Base")}</dt>
           <dd className="min-w-0 font-mono">
             <MiddleTruncate value={snapshot.baseRef} className="flex" />
           </dd>
@@ -268,7 +255,7 @@ function SetupDetails({ snapshot }: { snapshot: WorktreeSetupSnapshot }) {
       ) : null}
       {snapshot.worktreePath ? (
         <>
-          <dt className="text-foreground/80">Path</dt>
+          <dt className="text-foreground/80">{uiText("Path")}</dt>
           <dd className="min-w-0 font-mono">
             <MiddleTruncate value={snapshot.worktreePath} className="flex" />
           </dd>
@@ -276,14 +263,13 @@ function SetupDetails({ snapshot }: { snapshot: WorktreeSetupSnapshot }) {
       ) : null}
       {snapshot.setupScript ? (
         <>
-          <dt className="text-foreground/80">Setup</dt>
+          <dt className="text-foreground/80">{uiText("Setup")}</dt>
           <dd className="truncate font-mono">{snapshot.setupScript.command}</dd>
         </>
       ) : null}
     </dl>
   );
 }
-
 function CollapsedSummaryRow({ snapshot }: { snapshot: WorktreeSetupSnapshot }) {
   const status: WorktreeSetupStage["status"] =
     snapshot.phase === "failed" || snapshot.phase === "cancelled"
@@ -310,7 +296,6 @@ function CollapsedSummaryRow({ snapshot }: { snapshot: WorktreeSetupSnapshot }) 
     />
   );
 }
-
 export function WorktreeSetupCard({
   snapshot,
   onCancel,
@@ -330,9 +315,8 @@ export function WorktreeSetupCard({
     setupStage !== undefined &&
     (setupStage.status === "failed" ||
       (setupStage.status === "running" && setupStage.tail.length > 0));
-
   return (
-    <section aria-label="Worktree setup" data-worktree-setup-phase={snapshot.phase}>
+    <section aria-label={uiText("Worktree setup")} data-worktree-setup-phase={snapshot.phase}>
       {showHeader ? <SetupHeaderRow snapshot={snapshot} /> : null}
       {collapsed ? (
         <CollapsedSummaryRow snapshot={snapshot} />
@@ -353,11 +337,9 @@ export function WorktreeSetupCard({
           ))}
         </div>
       )}
-
       {snapshot.phase === "failed" && snapshot.error ? (
         <p className="mt-1 ml-8 text-xs text-muted-foreground">{snapshot.error}</p>
       ) : null}
-
       <div className="mt-0.5 ml-[calc(--spacing(6)+2px-(--spacing(2)-1px))] flex flex-wrap items-center gap-0.5">
         <Button
           type="button"
@@ -367,24 +349,24 @@ export function WorktreeSetupCard({
           onClick={() => setDetailsOpen((open) => !open)}
         >
           <MorphIcon aria-hidden icon={detailsOpen ? ChevronDown : ChevronRight} />
-          Details
+          {uiText("Details")}
         </Button>
         {showTerminal ? (
           <Button type="button" size="xs" variant="ghost-muted" onClick={onOpenTerminal}>
             <TerminalIcon aria-hidden />
-            Open terminal
+            {uiText("Open terminal")}
           </Button>
         ) : null}
         {onWorkLocally ? (
           <Button type="button" size="xs" variant="ghost-muted" onClick={onWorkLocally}>
             <LaptopIcon aria-hidden />
-            Work locally
+            {uiText("Work locally")}
           </Button>
         ) : null}
         {onCancel && running ? (
           <Button type="button" size="xs" variant="ghost-muted" onClick={onCancel}>
             <XIcon aria-hidden />
-            Cancel
+            {uiText("Cancel")}
           </Button>
         ) : null}
       </div>

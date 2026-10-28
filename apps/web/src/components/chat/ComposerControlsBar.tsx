@@ -1,10 +1,12 @@
+import { CouncilRequestAction } from "./CouncilRequestAction";
+import { uiText } from "~/i18n";
 import type { ChatComposerProps } from "./ChatComposer";
 import type { PromptUltrathink } from "./TraitsPicker";
 import type { ProviderInstanceEntry } from "../../providerInstances";
 import { type AppModelOption } from "../../modelSelection";
 import { CircleAlertIcon } from "lucide-react";
 import { CompactComposerControlsMenu } from "./CompactComposerControlsMenu";
-import { ComposerControl, ComposerControlSeparator } from "./ComposerControl";
+import { ComposerControl } from "./ComposerControl";
 import {
   ComposerFooterModeControls,
   ComposerModelPicker,
@@ -32,6 +34,8 @@ import type { useComposerProviderModel } from "./useComposerProviderModel";
  */
 export function ComposerControlsBar(props: {
   environmentId: EnvironmentId;
+  onCouncilRequest: () => void;
+  councilDisabled: boolean;
   routeKind: ChatComposerProps["routeKind"];
   routeThreadRef: ChatComposerProps["routeThreadRef"];
   draftId: ChatComposerProps["draftId"];
@@ -55,7 +59,6 @@ export function ComposerControlsBar(props: {
   restingHiddenBlockCount: number;
   iconOnlyBlockCount: number;
   showInlineRestingControls: boolean;
-  showLeadingSeparator: boolean;
   showProviderUnavailable: boolean;
   providerSetupInstanceId: ProviderInstanceId | undefined;
   onOpenProviderSetup: ChatComposerProps["onOpenProviderSetup"];
@@ -104,7 +107,6 @@ export function ComposerControlsBar(props: {
     restingHiddenBlockCount,
     iconOnlyBlockCount,
     showInlineRestingControls,
-    showLeadingSeparator,
     showProviderUnavailable,
     providerSetupInstanceId,
     onOpenProviderSetup,
@@ -191,6 +193,14 @@ export function ComposerControlsBar(props: {
     .map((def) => def.id);
   // Its own element, so typing (which rebuilds the controls around it) leaves it cached.
   const composerModelPicker = (
+    <>
+      <CouncilRequestAction
+        providers={providerInstanceEntries.flatMap((entry) =>
+          entry.snapshot ? [entry.snapshot] : [],
+        )}
+        disabled={props.councilDisabled}
+        onRequest={props.onCouncilRequest}
+      />
     <ComposerModelPicker
       environmentId={environmentId}
       compact={false}
@@ -246,6 +256,7 @@ export function ComposerControlsBar(props: {
       getModelDisabledReason={getModelDisabledReason}
       onOpenProviderSetup={onOpenProviderSetup}
     />
+    </>
   );
   return showProviderUnavailable ? (
     <ComposerControl
@@ -260,17 +271,10 @@ export function ComposerControlsBar(props: {
       className="shrink-0"
     >
       <CircleAlertIcon className="size-4" />
-      {providerSetupInstanceId ? "Open provider settings" : "No provider available"}
+      {providerSetupInstanceId ? uiText("Open provider settings") : uiText("No provider available")}
     </ComposerControl>
   ) : (
     <>
-      {showLeadingSeparator ? (
-        <ComposerControlSeparator
-          size="xs"
-          className="@max-[400px]/composer-surface:hidden"
-          data-resting-controls-separator="true"
-        />
-      ) : null}
       {composerModelPicker}
 
       <>

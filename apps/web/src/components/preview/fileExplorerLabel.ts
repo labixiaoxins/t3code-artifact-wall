@@ -1,10 +1,11 @@
+import { uiText } from "~/i18n";
 import type { ExecutionEnvironmentPlatformOs, FileManagerRevealKind } from "@t3tools/contracts";
 
 export function revealInFileExplorerLabel(platform: string): string {
   const normalized = platform.toLowerCase();
-  if (normalized.includes("mac")) return "Reveal in Finder";
-  if (normalized.includes("win")) return "Reveal in File Explorer";
-  return "Reveal in Files";
+  if (normalized.includes("mac")) return uiText("Reveal in Finder");
+  if (normalized.includes("win")) return uiText("Reveal in File Explorer");
+  return uiText("Reveal in Files");
 }
 
 export function revealInFileExplorerLabelForOs(os: ExecutionEnvironmentPlatformOs): string {

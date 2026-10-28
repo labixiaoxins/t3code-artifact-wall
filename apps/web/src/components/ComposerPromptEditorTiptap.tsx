@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { documentIconColorForFileName } from "~/pierre-icons";
 import { isProviderSkillUserInvocable } from "@t3tools/client-runtime/providerSkills";
 import { formatProviderSkillDisplayName } from "@t3tools/shared/inlineSkills";
@@ -51,7 +52,6 @@ import {
   type RefObject,
 } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
-
 import {
   clampCollapsedComposerCursor,
   collapseExpandedComposerCursor,
@@ -125,12 +125,14 @@ import { composerCodeBlockHighlight } from "./composerCodeBlockHighlight";
 import { importPastedComposerText } from "./composerInlineTokenPaste";
 import { didComposerSelectionChangeVisibly } from "./composerSelection";
 import type { ComposerDraftContextRecords } from "./composerContextPresentation";
-
 export interface ComposerPromptEditorHandle {
   focus: () => void;
   focusAt: (cursor: number) => void;
   focusAtEnd: () => void;
-  readSelectionRange: () => { start: number; end: number };
+  readSelectionRange: () => {
+    start: number;
+    end: number;
+  };
   requestCitationComment: (request: ComposerCitationCommentRequest) => void;
   readSnapshot: () => {
     value: string;
@@ -140,7 +142,6 @@ export interface ComposerPromptEditorHandle {
   };
   isCaretOnVisualEdge: (edge: "start" | "end") => boolean;
 }
-
 export interface ComposerPromptEditorProps {
   draftKey?: string;
   value: string;
@@ -182,7 +183,6 @@ export interface ComposerPromptEditorProps {
   onPaste: React.ClipboardEventHandler<HTMLElement>;
   editorRef: React.RefObject<ComposerPromptEditorHandle | null>;
 }
-
 export type ComposerCitationCommentRequest = {
   previousValue: string;
   value: string;
@@ -190,15 +190,15 @@ export type ComposerCitationCommentRequest = {
   sourceAnchor: AssistantCitationSourceAnchor;
   insertedSpaces: CitationInsertedSpaces;
 };
-
-type CitationInsertedSpaces = { before: boolean; after: boolean };
-
+type CitationInsertedSpaces = {
+  before: boolean;
+  after: boolean;
+};
 type OpenCitationComment = {
   key: string;
   sourceAnchor?: AssistantCitationSourceAnchor;
   removeOnCancel?: CitationInsertedSpaces;
 };
-
 const ComposerCitationCommentContext = createContext<{
   openComment: OpenCitationComment | null;
   onOpenChange: (citeKey: string, open: boolean) => void;
@@ -210,30 +210,25 @@ const ComposerCitationCommentContext = createContext<{
   onDraftChange: () => {},
   onSubmitAndSend: () => {},
 });
-
 const RichComposerSkillsContext = createContext<ReadonlyArray<ServerProviderSkill>>([]);
-
 const SURROUND_CLOSE: Record<string, string> = {
   "(": ")",
   "[": "]",
   "{": "}",
   "'": "'",
   '"': '"',
-  "“": "”",
+  "\u201C": "\u201D",
   "`": "`",
   "<": ">",
-  "«": "»",
+  "\u00AB": "\u00BB",
   "*": "*",
   _: "_",
 };
-
 function resolvedThemeFromDocument(): "light" | "dark" {
   return document.documentElement.classList.contains("dark") ? "dark" : "light";
 }
-
 const CHIP_NODE_SELECTION_CLASS_NAME =
   "relative inline-flex select-none items-center align-middle leading-none data-[composer-chip-selected]:after:pointer-events-none data-[composer-chip-selected]:after:absolute data-[composer-chip-selected]:after:inset-0 data-[composer-chip-selected]:after:rounded-sm data-[composer-chip-selected]:after:bg-[Highlight] data-[composer-chip-selected]:after:opacity-30 data-[composer-chip-selected]:after:content-['']";
-
 const ComposerMentionExtension = Node.create({
   name: "composer-mention",
   group: "inline",
@@ -256,7 +251,6 @@ const ComposerMentionExtension = Node.create({
     return ReactNodeViewRenderer(ComposerMentionNodeView);
   },
 });
-
 function ComposerMentionNodeView({ node }: NodeViewProps) {
   const actions = use(ComposerContextActionsContext);
   const path = (node.attrs.path as string) ?? "";
@@ -268,7 +262,7 @@ function ComposerMentionNodeView({ node }: NodeViewProps) {
       dir="ltr"
       render={<button type="button" />}
       onClick={() => actions.openMention(path)}
-      aria-label={`Preview ${path}`}
+      aria-label={uiText("Preview {0}", { "0": path })}
       contentEditable={false}
       spellCheck={false}
       data-composer-mention-chip="true"
@@ -297,7 +291,6 @@ function ComposerMentionNodeView({ node }: NodeViewProps) {
     </NodeViewWrapper>
   );
 }
-
 const ComposerSkillExtension = Node.create({
   name: "composer-skill",
   group: "inline",
@@ -321,7 +314,6 @@ const ComposerSkillExtension = Node.create({
     return ReactNodeViewRenderer(ComposerSkillNodeView);
   },
 });
-
 /** Chip presentation for `$name`, or null when the provider does not offer it to users. */
 function composerSkillMeta(
   skills: ReadonlyArray<ServerProviderSkill>,
@@ -337,7 +329,6 @@ function composerSkillMeta(
     description: shortDescription || skill.description?.trim() || null,
   };
 }
-
 function ComposerSkillNodeView({ node }: NodeViewProps) {
   const actions = use(ComposerContextActionsContext);
   const skills = use(RichComposerSkillsContext);
@@ -362,7 +353,6 @@ function ComposerSkillNodeView({ node }: NodeViewProps) {
     </NodeViewWrapper>
   );
 }
-
 const ComposerCitationExtension = Node.create({
   name: "composer-citation",
   group: "inline",
@@ -386,19 +376,16 @@ const ComposerCitationExtension = Node.create({
     return ReactNodeViewRenderer(ComposerCitationNodeView);
   },
 });
-
 function ComposerCitationNodeView({ node, editor, getPos }: NodeViewProps) {
   const commentContext = use(ComposerCitationCommentContext);
   const citation = node.attrs.citation as AssistantCitation;
   const citeKey = node.attrs.citeKey as string;
   const commentTarget =
     commentContext.openComment?.key === citeKey ? commentContext.openComment : null;
-
   const nodePos = () => {
     const pos = typeof getPos === "function" ? getPos() : null;
     return typeof pos === "number" ? pos : null;
   };
-
   const onSaveComment = (comment: string): boolean => {
     if (!editor.isEditable) return false;
     const pos = nodePos();
@@ -415,7 +402,6 @@ function ComposerCitationNodeView({ node, editor, getPos }: NodeViewProps) {
     editor.view.dispatch(tr);
     return true;
   };
-
   const removeOnCancel = commentTarget?.removeOnCancel;
   const onRemove = () => {
     if (!editor.isEditable || !removeOnCancel) return;
@@ -429,7 +415,6 @@ function ComposerCitationNodeView({ node, editor, getPos }: NodeViewProps) {
     const to = removeOnCancel.after && doc.textBetween(end, end + 1) === " " ? end + 1 : end;
     editor.chain().focus().deleteRange({ from, to }).run();
   };
-
   const onRestoreFocus = () => {
     if (!editor.isEditable) return;
     const pos = nodePos();
@@ -438,7 +423,6 @@ function ComposerCitationNodeView({ node, editor, getPos }: NodeViewProps) {
     if (!current || current.type.name !== "composer-citation") return;
     editor.commands.focus(pos + current.nodeSize);
   };
-
   return (
     <NodeViewWrapper
       as="span"
@@ -487,7 +471,6 @@ function ComposerCitationNodeView({ node, editor, getPos }: NodeViewProps) {
     </NodeViewWrapper>
   );
 }
-
 const ComposerContextReferenceExtension = Node.create({
   name: "composer-context-reference",
   group: "inline",
@@ -512,7 +495,6 @@ const ComposerContextReferenceExtension = Node.create({
     return ReactNodeViewRenderer(ComposerContextReferenceNodeView);
   },
 });
-
 function ComposerContextReferenceNodeView({ node }: NodeViewProps) {
   return (
     <NodeViewWrapper as="span" className={CHIP_NODE_SELECTION_CLASS_NAME}>
@@ -524,13 +506,15 @@ function ComposerContextReferenceNodeView({ node }: NodeViewProps) {
     </NodeViewWrapper>
   );
 }
-
 type StyledRange = {
   from: number;
   to: number;
-  markers: { at: number; side: number; text: string }[];
+  markers: {
+    at: number;
+    side: number;
+    text: string;
+  }[];
 };
-
 function collectStyledRanges(doc: ProseMirrorNode): StyledRange[] {
   const ranges: StyledRange[] = [];
   const map = serializeEditorDoc(doc);
@@ -564,7 +548,6 @@ function collectStyledRanges(doc: ProseMirrorNode): StyledRange[] {
   }
   return ranges;
 }
-
 /** Wait for a character after '- ' so task markers reach their input rule before becoming bullets. */
 function listMarkerInputRule(find: RegExp, listType: "bulletList" | "orderedList"): InputRule {
   return new InputRule({
@@ -588,14 +571,22 @@ function listMarkerInputRule(find: RegExp, listType: "bulletList" | "orderedList
     },
   });
 }
-
 const bulletToTaskInputRule = new InputRule({
   find: /^\[([ xX])\] $/,
   handler: ({ state, range, match, chain }) => {
     const $from = state.doc.resolve(range.from);
     const item = $from.node(-1);
     if ($from.parent.type.name !== "paragraph" || item?.type.name !== "listItem") return null;
-    if (!["-", "*", "+"].includes((item.attrs as { marker?: string }).marker ?? "")) return null;
+    if (
+      !["-", "*", "+"].includes(
+        (
+          item.attrs as {
+            marker?: string;
+          }
+        ).marker ?? "",
+      )
+    )
+      return null;
     const checked = (match[1] ?? " ").toLowerCase() === "x";
     chain()
       .command(({ tr }) => {
@@ -606,7 +597,6 @@ const bulletToTaskInputRule = new InputRule({
     return undefined;
   },
 });
-
 function taskInputRule(type: NodeType): InputRule {
   const rule = wrappingInputRule({
     find: /^- \[([ xX])\] $/,
@@ -619,14 +609,12 @@ function taskInputRule(type: NodeType): InputRule {
       props.state.doc.resolve(props.range.from).depth === 1 ? rule.handler(props) : null,
   });
 }
-
 function hasAncestor($pos: ResolvedPos, name: string): boolean {
   for (let depth = $pos.depth; depth > 0; depth -= 1) {
     if ($pos.node(depth).type.name === name) return true;
   }
   return false;
 }
-
 const blockquoteInputRule = new InputRule({
   find: /^>(\s)$/,
   handler: ({ state, range, match, chain }) => {
@@ -639,7 +627,6 @@ const blockquoteInputRule = new InputRule({
     return undefined;
   },
 });
-
 /** Require a space after *** or ___ to preserve bold typing. Lists and quotes cannot serialize rules. */
 const horizontalRuleInputRule = new InputRule({
   find: /^(---|\*\*\*|___)\s?$/,
@@ -666,7 +653,6 @@ const horizontalRuleInputRule = new InputRule({
     return undefined;
   },
 });
-
 /** Require a space to preserve PR references; lists and quotes cannot serialize headings. */
 const headingInputRule = new InputRule({
   find: /^(#{1,6})(\s)$/,
@@ -680,13 +666,10 @@ const headingInputRule = new InputRule({
     return undefined;
   },
 });
-
 function isInCodeBlock(view: EditorView): boolean {
   return view.state.selection.$from.parent.type.spec.code === true;
 }
-
 const MarkerPluginKey = new PluginKey("composer-rich-markers");
-
 const ComposerMarkerPlugin = new Plugin({
   key: MarkerPluginKey,
   state: {
@@ -700,7 +683,6 @@ const ComposerMarkerPlugin = new Plugin({
     },
   },
 });
-
 function decorationsForSelection(state: EditorState): DecorationSet {
   const { doc, selection } = state;
   const caretSide = caretTakesMarksBefore(state) ? 3 : 0;
@@ -746,16 +728,13 @@ function decorationsForSelection(state: EditorState): DecorationSet {
   }
   return DecorationSet.create(doc, decorations);
 }
-
 const ComposerMarkersExtension = Extension.create({
   name: "composer-rich-markers",
   addProseMirrorPlugins() {
     return [ComposerMarkerPlugin];
   },
 });
-
 type TiptapEditor = NonNullable<ReturnType<typeof useEditor>>;
-
 function replaceSkillChips(
   editor: TiptapEditor,
   replacements: ReturnType<typeof skillChipReplacements>,
@@ -764,7 +743,6 @@ function replaceSkillChips(
   for (const { from, to, node } of replacements) transaction.replaceWith(from, to, node);
   editor.view.dispatch(transaction);
 }
-
 export function ComposerPromptEditorTiptap(props: ComposerPromptEditorProps) {
   const restoreFocusRef = useRef(false);
   const { onChange: onPromptChange } = props;
@@ -798,11 +776,12 @@ export function ComposerPromptEditorTiptap(props: ComposerPromptEditorProps) {
     />
   );
 }
-
 /** Decide grouping in dispatch middleware before the history plugin applies the transaction. */
 const ComposerUndoGroupingExtension = Extension.create<
   Record<string, never>,
-  { previous: ComposerChangeKind | null }
+  {
+    previous: ComposerChangeKind | null;
+  }
 >({
   name: "composer-undo-grouping",
   addStorage() {
@@ -813,7 +792,6 @@ const ComposerUndoGroupingExtension = Extension.create<
     next(transaction);
   },
 });
-
 // Module scope keeps extension identity stable; Tiptap hooks read config through this.
 function createComposerExtensions(richText: boolean) {
   return [
@@ -916,10 +894,8 @@ function createComposerExtensions(richText: boolean) {
       : []),
   ];
 }
-
 const RICH_TEXT_EXTENSIONS = createComposerExtensions(true);
 const PLAIN_TEXT_EXTENSIONS = createComposerExtensions(false);
-
 function ComposerPromptEditorTiptapInner(
   props: ComposerPromptEditorProps & {
     initialExpandedCursor: number;
@@ -966,7 +942,6 @@ function ComposerPromptEditorTiptapInner(
       : clampCollapsedComposerCursor(text, position);
   const expandEditorCursor = (text: string, position: number) =>
     literalText ? position : expandCollapsedComposerCursor(text, position);
-
   const latestValueRef = useRef(value);
   // The editor config is built once, so its handlers reach the current callbacks through here.
   const readCallbacks = useStableCallback(() => ({
@@ -976,10 +951,8 @@ function ComposerPromptEditorTiptapInner(
     isPathQueryActive,
     importContextFragment,
   }));
-
   // Stable so a skills refresh does not rerun the controlled-value effect.
   const skillLabelFor = useStableCallback((name: string) => composerSkillMeta(skills, name));
-
   const initialCursor = clampEditorCursor(value, cursor);
   const initialExpandedCursor = Math.max(0, Math.min(value.length, props.initialExpandedCursor));
   const snapshotRef = useRef({
@@ -993,9 +966,11 @@ function ComposerPromptEditorTiptapInner(
   const hasAppliedControlledSelectionRef = useRef(false);
   const citationRequestRef = useRef<ComposerCitationCommentRequest | null>(null);
   const [openCitation, setOpenCitation] = useState<OpenCitationComment | null>(null);
-  const citationDraftRef = useRef<{ key: string; comment: string } | null>(null);
+  const citationDraftRef = useRef<{
+    key: string;
+    comment: string;
+  } | null>(null);
   const [isEmpty, setIsEmpty] = useState(value.length === 0);
-
   const citationCommentActions = {
     openComment: openCitation,
     onOpenChange: (nodeKey: string, open: boolean) => {
@@ -1013,7 +988,6 @@ function ComposerPromptEditorTiptapInner(
     },
     onSubmitAndSend: onCitationSubmitAndSend ?? (() => {}),
   };
-
   const handleEditorChange = (updated: TiptapEditor) => {
     const map = serializeEditorDoc(updated.state.doc);
     const contextIds = literalText ? [] : map.contextIds;
@@ -1074,7 +1048,6 @@ function ComposerPromptEditorTiptapInner(
       contextIds,
     );
   };
-
   const editorAttributes = {
     class: cn(
       "composer-tiptap -m-1 block max-h-52 min-h-19.5 redesign:min-h-12 overflow-y-auto p-1 whitespace-pre-wrap wrap-break-word bg-transparent leading-relaxed text-foreground focus:outline-none",
@@ -1100,7 +1073,6 @@ function ComposerPromptEditorTiptapInner(
       : {}),
     "aria-placeholder": placeholder,
   };
-
   const editor = useEditor(
     {
       extensions: richText ? RICH_TEXT_EXTENSIONS : PLAIN_TEXT_EXTENSIONS,
@@ -1447,17 +1419,14 @@ function ComposerPromptEditorTiptapInner(
     },
     [],
   );
-
   useEffect(() => {
     editor?.setEditable(!disabled);
   }, [disabled, editor]);
-
   // Push attributes before layout measurements; Tiptap updates them later in a passive effect.
   useLayoutEffect(() => {
     if (!editor?.isInitialized) return;
     editor.view.setProps({ attributes: editorAttributes });
   }, [editor, editorAttributes]);
-
   const readSnapshot = () => {
     const snapshot = snapshotRef.current;
     if (!editor) return snapshot;
@@ -1479,7 +1448,6 @@ function ComposerPromptEditorTiptapInner(
     snapshotRef.current = next;
     return next;
   };
-
   // Save citation drafts before controlled rewrites unmount their node views.
   const saveCitationDraft = useEffectEvent((current: TiptapEditor, replacedValue: string) => {
     const draft = citationDraftRef.current;
@@ -1510,7 +1478,6 @@ function ComposerPromptEditorTiptapInner(
     );
     onCitationDraftSave(replacedValue, serializeEditorDoc(current.state.doc).value);
   });
-
   // The one place the controlled value reaches the editor. Imperative handlers compare against
   // the committed value, so it is recorded here even before the editor exists.
   useLayoutEffect(() => {
@@ -1544,7 +1511,6 @@ function ComposerPromptEditorTiptapInner(
     const rootElement = editor.view.dom;
     const isFocused = Boolean(rootElement && document.activeElement === rootElement);
     if (!initialSelection && previousSnapshot.value === value && !isFocused) return;
-
     isApplyingControlledUpdateRef.current = true;
     const pendingCitation =
       citationRequestRef.current?.value === value ? citationRequestRef.current : null;
@@ -1571,7 +1537,13 @@ function ComposerPromptEditorTiptapInner(
       );
       if (target) {
         const node = editor.state.doc.nodeAt(target.pmPos);
-        const citeKey = (node?.attrs as { citeKey?: string } | undefined)?.citeKey;
+        const citeKey = (
+          node?.attrs as
+            | {
+                citeKey?: string;
+              }
+            | undefined
+        )?.citeKey;
         if (citeKey) {
           setOpenCitation({
             key: citeKey,
@@ -1595,7 +1567,6 @@ function ComposerPromptEditorTiptapInner(
     skillLabelFor,
     value,
   ]);
-
   // Reconcile loaded or switched provider skills without rebuilding citation node views.
   useEffect(() => {
     if (!editor || literalText) return;
@@ -1604,7 +1575,6 @@ function ComposerPromptEditorTiptapInner(
     );
     if (replacements.length > 0) replaceSkillChips(editor, replacements);
   }, [editor, literalText, skills]);
-
   useLayoutEffect(() => {
     if (!editor) return;
     if (restoreFocusRef.current) {
@@ -1617,7 +1587,6 @@ function ComposerPromptEditorTiptapInner(
       restoreFocusRef.current = editor.view.hasFocus();
     };
   }, [editor, restoreFocusRef]);
-
   const focusAt = (nextCursor: number, exactExpandedCursor?: number) => {
     if (!editor) return;
     // view.focus() writes selection immediately; bare DOM focus waits 20ms and can misplace fast dictation.
@@ -1648,7 +1617,6 @@ function ComposerPromptEditorTiptapInner(
       snapshotRef.current.contextIds,
     );
   };
-
   useImperativeHandle(
     editorRef,
     () => ({
@@ -1685,7 +1653,13 @@ function ComposerPromptEditorTiptapInner(
         );
         if (!target) return;
         const node = editor.state.doc.nodeAt(target.pmPos);
-        const citeKey = (node?.attrs as { citeKey?: string } | undefined)?.citeKey;
+        const citeKey = (
+          node?.attrs as
+            | {
+                citeKey?: string;
+              }
+            | undefined
+        )?.citeKey;
         if (citeKey) {
           citationRequestRef.current = null;
           setOpenCitation({
@@ -1729,7 +1703,6 @@ function ComposerPromptEditorTiptapInner(
     }),
     [editor, focusAt, literalText, readSnapshot],
   );
-
   const handleCopyCut = (event: React.ClipboardEvent, cut: boolean) => {
     const build = buildContextClipboardFragment;
     if (!editor || (cut && !editor.isEditable)) return;
@@ -1757,7 +1730,6 @@ function ComposerPromptEditorTiptapInner(
         .run();
     }
   };
-
   return (
     <RichComposerSkillsContext value={skills}>
       <ComposerContextRecordsContext value={contextRecords}>
@@ -1827,12 +1799,16 @@ function ComposerPromptEditorTiptapInner(
     </RichComposerSkillsContext>
   );
 }
-
 /** Split newlines into paragraphs; trailing hard breaks render no visible line. */
 function insertMarkdownParagraphs(
   value: string,
   skillLabelFor: (name: string) => SkillMeta | null,
-  options: { styling: boolean; blocks?: boolean; literalText?: boolean; literalLength?: number },
+  options: {
+    styling: boolean;
+    blocks?: boolean;
+    literalText?: boolean;
+    literalLength?: number;
+  },
   insertContent: (content: JSONContent[] | JSONContent) => void,
 ): void {
   const blocks = buildTiptapContent(value, skillLabelFor, options);
@@ -1844,17 +1820,14 @@ function insertMarkdownParagraphs(
   }
   insertContent(blocks as JSONContent[]);
 }
-
 /** Native scrolling follows only real input; explicitly reveal programmatically placed carets. */
 function scrollTiptapCaretIntoView(editor: TiptapEditor): void {
   editor.view.dispatch(editor.state.tr.scrollIntoView());
 }
-
 function caretLineRect(range: Range, edge: "start" | "end"): DOMRect | null {
   const collapsedRects = Array.from(range.getClientRects()).filter((rect) => rect.height > 0);
   const collapsedRect = edge === "start" ? collapsedRects.at(-1) : collapsedRects[0];
   if (collapsedRect) return collapsedRect;
-
   const container = range.startContainer;
   if (container.nodeType === 3) {
     const textNode = container as Text;
@@ -1874,7 +1847,6 @@ function caretLineRect(range: Range, edge: "start" | "end"): DOMRect | null {
     const boundingRect = probeRange.getBoundingClientRect();
     return boundingRect.height > 0 ? boundingRect : null;
   }
-
   if (!(container instanceof HTMLElement)) return null;
   const neighbour =
     container.childNodes[Math.max(0, range.startOffset - 1)] ??

@@ -273,6 +273,33 @@ it.layer(NodeServices.layer)("keybindings", (it) => {
     }).pipe(Effect.provide(layerKeybindings())),
   );
 
+  it.effect("adds mod+alt+i next to an existing thread panel shortcut, once", () =>
+    Effect.gen(function* () {
+      const { keybindingsConfigPath } = yield* ServerConfig.ServerConfig;
+      const keybindings = yield* Keybindings.Keybindings;
+      const existing = {
+        key: "mod+shift+b",
+        command: "threadPanel.toggle",
+        when: "!terminalFocus",
+      } as const;
+      const panelRules = Effect.map(readKeybindingsConfig(keybindingsConfigPath), (rules) =>
+        rules.filter((entry) => entry.command === "threadPanel.toggle"),
+      );
+      yield* writeKeybindingsConfig(keybindingsConfigPath, [existing]);
+
+      yield* keybindings.syncDefaultKeybindingsOnStartup;
+      assert.deepStrictEqual(yield* panelRules, [
+        { key: "mod+alt+i", command: "threadPanel.toggle", when: "!terminalFocus" },
+        existing,
+      ]);
+
+      // The user may remove it again: the migration is recorded and does not come back.
+      yield* writeKeybindingsConfig(keybindingsConfigPath, [existing]);
+      yield* keybindings.syncDefaultKeybindingsOnStartup;
+      assert.deepStrictEqual(yield* panelRules, [existing]);
+    }).pipe(Effect.provide(layerKeybindings())),
+  );
+
   it.effect("leaves a customized command without the late default", () =>
     Effect.gen(function* () {
       const { keybindingsConfigPath } = yield* ServerConfig.ServerConfig;
