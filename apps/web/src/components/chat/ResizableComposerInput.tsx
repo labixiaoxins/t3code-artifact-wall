@@ -56,7 +56,7 @@ export function ResizableComposerInput({
   return (
     <div
       className={cn(
-        "relative",
+        "relative pt-3",
         enabled &&
           "[&_.composer-tiptap]:min-h-[min(var(--composer-input-height),45dvh)] [&_.composer-tiptap]:max-h-[min(max(var(--composer-input-height),13rem),45dvh)]",
       )}
