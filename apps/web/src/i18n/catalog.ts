@@ -163,8 +163,6 @@ export const zhCN: Readonly<Record<string, string>> = {
   None: "无",
   "Toggle main sidebar": "切换主侧栏",
   "Resize sidebar": "调整侧栏宽度",
-  "Resize message input": "调整输入框高度",
-  "Drag to resize; double-click or press Home to reset": "拖动调整高度；双击或按 Home 恢复默认",
   "Drag to resize sidebar": "拖动以调整侧栏宽度",
   Sidebar: "侧栏",
   "Displays the mobile sidebar.": "显示移动端侧栏。",
