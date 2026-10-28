@@ -3591,7 +3591,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                       "min-h-8",
                       !isMobileViewport &&
                         !isComposerResting &&
-                        "min-h-[min(6rem,45dvh)] max-h-[min(13rem,45dvh)]",
+                        "min-h-[min(89px,45dvh)] max-h-[min(13rem,45dvh)]",
                       showMobilePendingAnswerActions && "max-sm:pb-12",
                       isComposerResting &&
                         "my-0 max-h-8 min-h-8 redesign:min-h-8 overflow-hidden py-0 whitespace-pre! leading-8",

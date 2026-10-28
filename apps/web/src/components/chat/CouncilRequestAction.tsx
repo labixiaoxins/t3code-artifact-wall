@@ -10,16 +10,18 @@ import {
   DialogFooter,
 } from "../ui/dialog";
 import { Button } from "../ui/button";
-import { ComposerControl, ComposerControlIcon } from "./ComposerControl";
+import { ComposerControl, ComposerControlIcon, type ComposerControlSize } from "./ComposerControl";
 
 export function CouncilRequestAction({
   providers,
   disabled,
   onRequest,
+  size = "sm",
 }: {
   providers: readonly ServerProvider[];
   disabled: boolean;
   onRequest: () => void;
+  size?: ComposerControlSize;
 }) {
   const [open, setOpen] = useState(false);
   const choices = [
@@ -31,11 +33,11 @@ export function CouncilRequestAction({
     <>
       <ComposerControl
         aria-label="发起三方会审"
-        title="发起三方会审"
+        size={size}
         disabled={disabled}
         onClick={() => setOpen(true)}
       >
-        <ComposerControlIcon icon={UsersRoundIcon} />
+        <ComposerControlIcon icon={UsersRoundIcon} size={size} />
         <span data-composer-control-label>会审</span>
       </ComposerControl>
       <Dialog open={open} onOpenChange={setOpen}>

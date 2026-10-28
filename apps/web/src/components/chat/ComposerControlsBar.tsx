@@ -195,67 +195,68 @@ export function ComposerControlsBar(props: {
   const composerModelPicker = (
     <>
       <CouncilRequestAction
+        size={composerControlsCollapsed ? "xs" : "sm"}
         providers={providerInstanceEntries.flatMap((entry) =>
           entry.snapshot ? [entry.snapshot] : [],
         )}
         disabled={props.councilDisabled}
         onRequest={props.onCouncilRequest}
       />
-    <ComposerModelPicker
-      environmentId={environmentId}
-      compact={false}
-      isComposerOwned
-      disabled={providerCatalogPending || isSendBusy}
-      multipleModelsEnabled={multipleModelsEnabled}
-      multipleModelSelections={multipleModelSelections}
-      onMultipleModelSelectionsChange={onMultipleModelSelectionsChange}
-      selectedModelSelection={selectedModelSelection}
-      onProviderModelSelect={onProviderModelSelect}
-      activeInstanceId={
-        providerCatalogPending
-          ? (activeThreadModelSelection?.instanceId ?? selectedInstanceId)
-          : selectedInstanceId
-      }
-      model={
-        providerCatalogPending
-          ? (activeThreadModelSelection?.model ?? selectedModelForPickerWithCustomFallback)
-          : selectedModelForPickerWithCustomFallback
-      }
-      lockedProvider={lockedProvider}
-      lockedContinuationGroupKey={lockedContinuationGroupKey}
-      instanceEntries={providerInstanceEntries}
-      keybindings={keybindings}
-      modelOptionsByInstance={modelOptionsByInstance}
-      size={composerControlsCollapsed ? "xs" : "sm"}
-      triggerClassName={
-        composerControlsCollapsed
-          ? cn(
-              "min-w-13 shrink text-xs!",
-              !showInlineRestingControls &&
-                "@max-[640px]/composer-surface:[&_[data-chat-provider-model-picker-label]]:w-0 @max-[640px]/composer-surface:[&_[data-chat-provider-model-picker-label]]:flex-none",
-            )
-          : "-ms-2 min-w-13"
-      }
-      terminalOpen={terminalOpen}
-      open={modelPickerOpen}
-      instanceIndicatorBackground={
-        composerControlsCollapsed
-          ? "color-mix(in srgb, var(--chat-composer-glass-surface) var(--glass-opacity), transparent)"
-          : "var(--contrast-input)"
-      }
-      {...(modelPickerIconClassName || composerControlsCollapsed
-        ? {
-            activeProviderIconClassName: cn(
-              modelPickerIconClassName,
-              composerControlsCollapsed &&
-                "fill-muted-foreground/70! text-muted-foreground/70! [&_path]:fill-muted-foreground/70! [&_rect]:fill-muted-foreground/70! [&_[data-icon-detail]]:fill-transparent! [&[data-provider-package-icon]]:opacity-70 [&[data-provider-package-icon]_path:not([data-icon-detail])]:fill-muted-foreground!",
-            ),
-          }
-        : {})}
-      onOpenChange={onModelPickerOpenChange}
-      getModelDisabledReason={getModelDisabledReason}
-      onOpenProviderSetup={onOpenProviderSetup}
-    />
+      <ComposerModelPicker
+        environmentId={environmentId}
+        compact={false}
+        isComposerOwned
+        disabled={providerCatalogPending || isSendBusy}
+        multipleModelsEnabled={multipleModelsEnabled}
+        multipleModelSelections={multipleModelSelections}
+        onMultipleModelSelectionsChange={onMultipleModelSelectionsChange}
+        selectedModelSelection={selectedModelSelection}
+        onProviderModelSelect={onProviderModelSelect}
+        activeInstanceId={
+          providerCatalogPending
+            ? (activeThreadModelSelection?.instanceId ?? selectedInstanceId)
+            : selectedInstanceId
+        }
+        model={
+          providerCatalogPending
+            ? (activeThreadModelSelection?.model ?? selectedModelForPickerWithCustomFallback)
+            : selectedModelForPickerWithCustomFallback
+        }
+        lockedProvider={lockedProvider}
+        lockedContinuationGroupKey={lockedContinuationGroupKey}
+        instanceEntries={providerInstanceEntries}
+        keybindings={keybindings}
+        modelOptionsByInstance={modelOptionsByInstance}
+        size={composerControlsCollapsed ? "xs" : "sm"}
+        triggerClassName={
+          composerControlsCollapsed
+            ? cn(
+                "min-w-13 shrink text-xs!",
+                !showInlineRestingControls &&
+                  "@max-[640px]/composer-surface:[&_[data-chat-provider-model-picker-label]]:w-0 @max-[640px]/composer-surface:[&_[data-chat-provider-model-picker-label]]:flex-none",
+              )
+            : "min-w-13"
+        }
+        terminalOpen={terminalOpen}
+        open={modelPickerOpen}
+        instanceIndicatorBackground={
+          composerControlsCollapsed
+            ? "color-mix(in srgb, var(--chat-composer-glass-surface) var(--glass-opacity), transparent)"
+            : "var(--contrast-input)"
+        }
+        {...(modelPickerIconClassName || composerControlsCollapsed
+          ? {
+              activeProviderIconClassName: cn(
+                modelPickerIconClassName,
+                composerControlsCollapsed &&
+                  "fill-muted-foreground/70! text-muted-foreground/70! [&_path]:fill-muted-foreground/70! [&_rect]:fill-muted-foreground/70! [&_[data-icon-detail]]:fill-transparent! [&[data-provider-package-icon]]:opacity-70 [&[data-provider-package-icon]_path:not([data-icon-detail])]:fill-muted-foreground!",
+              ),
+            }
+          : {})}
+        onOpenChange={onModelPickerOpenChange}
+        getModelDisabledReason={getModelDisabledReason}
+        onOpenProviderSetup={onOpenProviderSetup}
+      />
     </>
   );
   return showProviderUnavailable ? (
