@@ -2,7 +2,6 @@ import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import * as Option from "effect/Option";
 import { useEnvironmentThread } from "../../state/threads";
 import type { ThreadStructure } from "@t3tools/client-runtime/state/shell";
-import { uiText } from "~/i18n";
 import { memo, useEffect, useState } from "react";
 import {
   selectTurnThroughput,
@@ -50,35 +49,38 @@ export const TurnThroughput = memo(function TurnThroughput({
       data-turn-throughput
       aria-label="本轮用量详情"
     >
-      <p className="font-medium text-foreground">
-        {phase} ·{" "}
-        {measurable ? `端到端均速 ${rate}` : disconnected ? "用量数据已过期" : "用量尚未上报"}
-      </p>
-      <div className="space-y-1 pb-2 leading-relaxed" data-throughput-details>
-        <p>
-          模型：{snapshot.provider} / {snapshot.model}。当前模型轮次耗时{" "}
-          {formatThroughputDuration(reading.elapsedMs)}。
-        </p>
-        <p>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5" data-throughput-details>
+        <dt>状态</dt>
+        <dd className="text-right text-foreground">{phase}</dd>
+        <dt>耗时</dt>
+        <dd className="text-right tabular-nums">{formatThroughputDuration(reading.elapsedMs)}</dd>
+        <dt>输出</dt>
+        <dd className="text-right tabular-nums">
           {snapshot.outputTokens === null
-            ? "提供商尚未上报本轮 Token 用量。"
-            : uiText("已上报输出 {0} tokens{1}。", {
-                "0": snapshot.outputTokens.toLocaleString(),
-                "1": snapshot.partial ? "（部分数据）" : "",
-              })}
-          {snapshot.running && reading.reportAgeMs !== null
-            ? ` 用量上报于 ${formatThroughputDuration(reading.reportAgeMs)} 前。`
-            : ""}
-        </p>
-        <p>端到端均速包含思考、工具和网络等待，不是纯生成速度；用量可能延迟上报。</p>
-        <p>仅统计当前会话的主任务，子任务用量请在对应会话查看。</p>
-        {disconnected ? <p>连接恢复前暂停速率显示，避免把旧数据当成实时结果。</p> : null}
-      </div>
+            ? "尚未上报"
+            : `${snapshot.outputTokens.toLocaleString()} tokens${snapshot.partial ? "（部分）" : ""}`}
+        </dd>
+        <dt>端到端均速</dt>
+        <dd className="text-right tabular-nums">{disconnected ? "用量数据已过期" : rate}</dd>
+        <dt>模型</dt>
+        <dd className="min-w-0 text-right break-words">
+          {snapshot.provider} / {snapshot.model}
+        </dd>
+        {snapshot.running && reading.reportAgeMs !== null ? (
+          <>
+            <dt>最近上报</dt>
+            <dd className="text-right tabular-nums">
+              {formatThroughputDuration(reading.reportAgeMs)} 前
+            </dd>
+          </>
+        ) : null}
+      </dl>
+      <p className="leading-relaxed">含思考、工具与网络等待；仅计当前会话主任务，上报可能延迟。</p>
     </section>
   );
 });
 
-/** The live subscription exists only while the details popover is open. */
+/** The live subscription exists only while the usage details are expanded. */
 export function LiveTurnThroughput(props: {
   environmentId: EnvironmentId;
   threadId: ThreadId;

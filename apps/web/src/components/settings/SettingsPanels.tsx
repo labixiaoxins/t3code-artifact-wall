@@ -1,3 +1,4 @@
+import { useAtomValue } from "@effect/atom-react";
 import { uiText } from "~/i18n";
 import { PresetChangeHistory } from "../workbench/PresetChangeHistory";
 
@@ -25,6 +26,7 @@ import {
   type QuitConfirmationMode,
   SidebarProjectSortOrder,
 } from "@t3tools/contracts/settings";
+import { desktopUpdateChannelOf } from "@t3tools/shared/cliRelease";
 import { createModelSelection } from "@t3tools/shared/model";
 import * as Equal from "effect/Equal";
 import * as Schema from "effect/Schema";
@@ -59,20 +61,17 @@ import { useOptionalSettingsScope, useSettingsScope } from "./SettingsScopeConte
 import { scopedIdleCompaction } from "./scopedSettings";
 import { ProjectDefaultsSettings } from "./ProjectDefaultsSettings";
 import { ThreadTitleInstructionsSettings } from "./ThreadTitleInstructionsSettings";
+import { SnoozePresetsRow } from "./SnoozePresetsSettings";
 import { useDesktopUpdateState } from "../../state/desktopUpdate";
 import {
   getCustomModelOptionsByInstance,
   resolveAppModelSelectionState,
   selectsPlanAgent,
 } from "../../modelSelection";
-import {
-  applyProviderInstanceSettings,
-  deriveProviderInstanceEntries,
-  sortProviderInstanceEntries,
-} from "../../providerInstances";
+import { providerInstanceEntriesFor } from "../../providerInstances";
 import { ensureLocalApi, readLocalApi } from "../../localApi";
 import { isMacPlatform } from "../../lib/utils";
-import { useEnvironmentProviders } from "../../state/environments";
+import { useEnvironmentProviders, useEnvironments } from "../../state/environments";
 import { EMPTY_SERVER_PROVIDERS } from "../../state/server";
 import { Button } from "../ui/button";
 import { DraftInput } from "../ui/draft-input";
@@ -103,6 +102,14 @@ import { BackgroundActivitySettingsRow } from "./BackgroundActivitySettings";
 import { AdvancedSettings } from "./AdvancedSettings";
 import { PullRequestLinksOpenInAppSetting } from "./IntegrationsSettings";
 import { StorageCleanupSections } from "./StorageSettings";
+import { UpdateTrackSwitchDialog } from "./UpdateTrackSwitchDialog";
+import { environmentIdsKey } from "~/state/environmentAtomList";
+import { environmentSessionStatesAtom } from "~/state/session";
+import { canUpdateServer } from "../ServerUpdateAction";
+import { useUpdateEverythingRun } from "../sidebar/updateEverythingRun";
+import { awaitsTrackSwitch, channelSwitchLabel } from "../sidebar/updateEverything.logic";
+import { isHostedByThisApp } from "../sidebar/useUpdateEverything";
+
 const RESPONSE_STREAMING_MODE_LABELS: Record<ResponseStreamingMode, string> = {
   turn: uiText("Wait for the full response"),
   paragraph: uiText("Show finished paragraphs"),
@@ -142,36 +149,39 @@ function AboutVersionTitle() {
 }
 function AboutVersionSection() {
   const updateState = useDesktopUpdateState();
-  const [isChangingUpdateChannel, setIsChangingUpdateChannel] = useState(false);
+  const [switchChannel, setSwitchChannel] = useState<DesktopUpdateChannel | null>(null);
   const [isUpdateActionPending, setIsUpdateActionPending] = useState(false);
+  const { environments } = useEnvironments();
+  const sessionStates = useAtomValue(
+    environmentSessionStatesAtom(
+      environmentIdsKey(environments.map(({ environmentId }) => environmentId)),
+    ),
+  );
+  // A second run would replace the first run's progress and local download.
+  const updateRun = useUpdateEverythingRun();
+
   const hasDesktopBridge = typeof window !== "undefined" && Boolean(window.desktopBridge);
   const selectedUpdateChannel = updateState?.channel ?? "latest";
   const selectedHostedAppChannel = hasDesktopBridge ? null : HOSTED_APP_CHANNEL;
-  const handleUpdateChannelChange = (channel: DesktopUpdateChannel) => {
-    const bridge = window.desktopBridge;
-    if (
-      !bridge ||
-      typeof bridge.setUpdateChannel !== "function" ||
-      channel === selectedUpdateChannel
-    ) {
-      return;
-    }
-    setIsChangingUpdateChannel(true);
-    void bridge
-      .setUpdateChannel(channel)
-      .catch((error: unknown) => {
-        toastManager.add(
-          stackedThreadToast({
-            type: "error",
-            title: uiText("Could not change update track"),
-            description: error instanceof Error ? error.message : "Update track change failed.",
-          }),
-        );
-      })
-      .finally(() => {
-        setIsChangingUpdateChannel(false);
-      });
-  };
+  // A switch that failed part way leaves this app or a server on the other track.
+  // With its updater off, a switch cannot move this app, so it is not counted.
+  const appOffTrack =
+    updateState?.enabled !== false && desktopUpdateChannelOf(APP_VERSION) !== selectedUpdateChannel;
+  const unswitchedMachines =
+    (appOffTrack ? 1 : 0) +
+    environments.filter(
+      (environment, index) =>
+        environment.connection.phase === "connected" &&
+        canUpdateServer(sessionStates[index]!) &&
+        awaitsTrackSwitch(
+          {
+            serverConfig: environment.serverConfig,
+            hostedByThisApp: isHostedByThisApp(environment),
+          },
+          selectedUpdateChannel,
+        ),
+    ).length;
+
   const handleButtonClick = async () => {
     const bridge = window.desktopBridge;
     if (!bridge) return;
@@ -260,9 +270,10 @@ function AboutVersionSection() {
       : isDesktopUpdateButtonDisabled(updateState);
   const actionLabel: Record<string, string> = { download: uiText("Download"), install: "Install" };
   const statusLabel: Record<string, string> = {
-    checking: "Checking\u2026",
-    downloading: "Downloading\u2026",
-    "up-to-date": "Up to Date",
+    checking: "Checking…",
+    downloading: "Downloading…",
+    // Off its track, "up to date" only means no switch is pending; Review moves it.
+    ...(appOffTrack ? {} : { "up-to-date": "Up to Date" }),
   };
   const buttonLabel =
     actionLabel[action] ?? statusLabel[updateState?.status ?? ""] ?? "Check for Updates";
@@ -297,23 +308,43 @@ function AboutVersionSection() {
       {hasDesktopBridge ? (
         <SettingsRow
           {...searchableSetting("update-track")}
-          description={uiText("Use stable releases or nightly builds. Switch back anytime.")}
+          description={
+            unswitchedMachines > 0 ? (
+              <>
+                {unswitchedMachines === 1
+                  ? "1 machine still runs"
+                  : `${unswitchedMachines} machines still run`}{" "}
+                {channelSwitchLabel(selectedUpdateChannel === "nightly" ? "latest" : "nightly")}.{" "}
+                {/* The dialog moves what it can and says why it skips the rest. */}
+                <Button
+                  size="xs"
+                  variant="link"
+                  disabled={updateRun !== null}
+                  onClick={() => setSwitchChannel(selectedUpdateChannel)}
+                >
+                  Review
+                </Button>
+              </>
+            ) : (
+              "Switches this app and every connected machine whose database the target release supports."
+            )
+          }
           control={
             <Select
               value={selectedUpdateChannel}
               onValueChange={(value) => {
-                handleUpdateChannelChange(value as DesktopUpdateChannel);
+                if (value !== selectedUpdateChannel) {
+                  setSwitchChannel(value as DesktopUpdateChannel);
+                }
               }}
             >
               <SelectTrigger
                 size="sm"
                 className="w-full sm:w-40"
                 aria-label={uiText("Update track")}
-                disabled={isChangingUpdateChannel}
+                disabled={switchChannel !== null || updateRun !== null}
               >
-                <SelectValue>
-                  {selectedUpdateChannel === "nightly" ? uiText("Nightly") : uiText("Stable")}
-                </SelectValue>
+                <SelectValue>{channelSwitchLabel(selectedUpdateChannel)}</SelectValue>
               </SelectTrigger>
               <SelectPopup align="end" alignItemWithTrigger={false}>
                 <SelectItem hideIndicator value="latest">
@@ -360,6 +391,9 @@ function AboutVersionSection() {
         />
       ) : null}
       {hasDesktopBridge ? <CliCommandSettingsRow /> : null}
+      {switchChannel === null ? null : (
+        <UpdateTrackSwitchDialog channel={switchChannel} onClose={() => setSwitchChannel(null)} />
+      )}
     </>
   );
 }
@@ -394,11 +428,11 @@ export function useSettingsRestore(onRestored?: () => void) {
       ? [uiText("Diff colors")]
       : []),
     ...(settings.chatWidth !== DEFAULT_UNIFIED_SETTINGS.chatWidth ? [uiText("Chat width")] : []),
+    ...(settings.effortDisplay !== DEFAULT_UNIFIED_SETTINGS.effortDisplay
+      ? ["Effort display"]
+      : []),
     ...(settings.mathRenderingEnabled !== DEFAULT_UNIFIED_SETTINGS.mathRenderingEnabled
       ? ["Render math"]
-      : []),
-    ...(settings.redesignEnabled !== DEFAULT_UNIFIED_SETTINGS.redesignEnabled
-      ? ["New design"]
       : []),
     ...(settings.panelAnimationDurationMs !== DEFAULT_UNIFIED_SETTINGS.panelAnimationDurationMs
       ? ["Panel animations"]
@@ -415,9 +449,6 @@ export function useSettingsRestore(onRestored?: () => void) {
       : []),
     ...(settings.inAppNotificationsEnabled !== DEFAULT_UNIFIED_SETTINGS.inAppNotificationsEnabled
       ? [uiText("In-app notifications")]
-      : []),
-    ...(settings.sidebarThreadPreviewCount !== DEFAULT_UNIFIED_SETTINGS.sidebarThreadPreviewCount
-      ? [uiText("Visible threads")]
       : []),
     ...(settings.sidebarProjectGroupingMode !== DEFAULT_UNIFIED_SETTINGS.sidebarProjectGroupingMode
       ? ["Project Grouping"]
@@ -444,6 +475,9 @@ export function useSettingsRestore(onRestored?: () => void) {
     ...(settings.snoozeLimitedThreads !== DEFAULT_UNIFIED_SETTINGS.snoozeLimitedThreads
       ? ["Snooze until limits reset"]
       : []),
+    ...(!Equal.equals(settings.snoozePresets, DEFAULT_UNIFIED_SETTINGS.snoozePresets)
+      ? ["Snooze options"]
+      : []),
     ...(settings.wordWrap !== DEFAULT_UNIFIED_SETTINGS.wordWrap ? ["Word wrap"] : []),
     ...(settings.persistComposerContextStrip !==
     DEFAULT_UNIFIED_SETTINGS.persistComposerContextStrip
@@ -463,11 +497,11 @@ export function useSettingsRestore(onRestored?: () => void) {
     ...(settings.showSkillsInSlashMenu !== DEFAULT_UNIFIED_SETTINGS.showSkillsInSlashMenu
       ? [uiText("Show skills in slash menu")]
       : []),
-    ...(settings.composerCollapseOnScroll !== DEFAULT_UNIFIED_SETTINGS.composerCollapseOnScroll
-      ? [uiText("Collapse composer on scroll")]
-      : []),
     ...(settings.composerRichTextEnabled !== DEFAULT_UNIFIED_SETTINGS.composerRichTextEnabled
       ? [uiText("Rich text composer")]
+      : []),
+    ...(settings.artifactRevisionEnabled !== DEFAULT_UNIFIED_SETTINGS.artifactRevisionEnabled
+      ? ["图片修改意见"]
       : []),
     ...(settings.sendShortcut !== DEFAULT_UNIFIED_SETTINGS.sendShortcut
       ? [uiText("Send shortcut")]
@@ -572,8 +606,8 @@ export function useSettingsRestore(onRestored?: () => void) {
       appearanceContrast: DEFAULT_UNIFIED_SETTINGS.appearanceContrast,
       diffColorScheme: DEFAULT_UNIFIED_SETTINGS.diffColorScheme,
       chatWidth: DEFAULT_UNIFIED_SETTINGS.chatWidth,
+      effortDisplay: DEFAULT_UNIFIED_SETTINGS.effortDisplay,
       mathRenderingEnabled: DEFAULT_UNIFIED_SETTINGS.mathRenderingEnabled,
-      redesignEnabled: DEFAULT_UNIFIED_SETTINGS.redesignEnabled,
       timestampFormat: DEFAULT_UNIFIED_SETTINGS.timestampFormat,
       notificationMode: DEFAULT_UNIFIED_SETTINGS.notificationMode,
       inAppNotificationsEnabled: DEFAULT_UNIFIED_SETTINGS.inAppNotificationsEnabled,
@@ -586,7 +620,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       showSkillsInSlashMenu: DEFAULT_UNIFIED_SETTINGS.showSkillsInSlashMenu,
       longConversationReminderEnabled: DEFAULT_UNIFIED_SETTINGS.longConversationReminderEnabled,
       turnThroughputEnabled: DEFAULT_UNIFIED_SETTINGS.turnThroughputEnabled,
-      composerCollapseOnScroll: DEFAULT_UNIFIED_SETTINGS.composerCollapseOnScroll,
+      artifactRevisionEnabled: DEFAULT_UNIFIED_SETTINGS.artifactRevisionEnabled,
       composerRichTextEnabled: DEFAULT_UNIFIED_SETTINGS.composerRichTextEnabled,
       sendShortcut: DEFAULT_UNIFIED_SETTINGS.sendShortcut,
       followUpBehavior: DEFAULT_UNIFIED_SETTINGS.followUpBehavior,
@@ -594,7 +628,6 @@ export function useSettingsRestore(onRestored?: () => void) {
       environmentIdentificationMode: DEFAULT_UNIFIED_SETTINGS.environmentIdentificationMode,
       glassOpacity: DEFAULT_UNIFIED_SETTINGS.glassOpacity,
       panelAnimationDurationMs: DEFAULT_UNIFIED_SETTINGS.panelAnimationDurationMs,
-      sidebarThreadPreviewCount: DEFAULT_UNIFIED_SETTINGS.sidebarThreadPreviewCount,
       sidebarProjectGroupingMode: DEFAULT_UNIFIED_SETTINGS.sidebarProjectGroupingMode,
       sidebarProjectSortOrder: DEFAULT_UNIFIED_SETTINGS.sidebarProjectSortOrder,
       sidebarWorkingShelfEnabled: DEFAULT_UNIFIED_SETTINGS.sidebarWorkingShelfEnabled,
@@ -603,6 +636,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       sidebarAutoSettleOnMerge: DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleOnMerge,
       autoResumeLimitedThreads: DEFAULT_UNIFIED_SETTINGS.autoResumeLimitedThreads,
       snoozeLimitedThreads: DEFAULT_UNIFIED_SETTINGS.snoozeLimitedThreads,
+      snoozePresets: DEFAULT_UNIFIED_SETTINGS.snoozePresets,
       responseStreamingMode: DEFAULT_UNIFIED_SETTINGS.responseStreamingMode,
       enableProviderUpdateChecks: DEFAULT_UNIFIED_SETTINGS.enableProviderUpdateChecks,
       keepAwake: DEFAULT_UNIFIED_SETTINGS.keepAwake,
@@ -723,19 +757,6 @@ export function LegacyFeaturesSection() {
           />
         }
       />
-      <SettingsRow
-        {...searchableSetting("legacy-sidebar")}
-        description="Restore per-project thread trees instead of the default flat sidebar."
-        control={
-          <Switch
-            checked={settings.legacySidebarEnabled}
-            onCheckedChange={(checked) =>
-              updateSettings({ legacySidebarEnabled: Boolean(checked) })
-            }
-            aria-label="Sidebar (legacy)"
-          />
-        }
-      />
     </SettingsSection>
   );
 }
@@ -851,9 +872,7 @@ export function GeneralSettingsPanel() {
         />
         <SettingsRow
           {...searchableSetting("working-shelf")}
-          description={uiText(
-            "Fold working and monitoring threads into a Working section. They return to the top of the inbox when they need you.",
-          )}
+          description="Fold working and monitoring threads into a Working section. They return to the top of the inbox when they need you. The boring sidebar in Labs has no Working section."
           resetAction={
             settings.sidebarWorkingShelfEnabled !==
             DEFAULT_UNIFIED_SETTINGS.sidebarWorkingShelfEnabled ? (
@@ -1116,7 +1135,8 @@ export function ChatSettingsPanel() {
                 label={uiText("rich text composer")}
                 onClick={() =>
                   updateSettings({
-                    composerRichTextEnabled: DEFAULT_UNIFIED_SETTINGS.composerRichTextEnabled,
+                    artifactRevisionEnabled: DEFAULT_UNIFIED_SETTINGS.artifactRevisionEnabled,
+      composerRichTextEnabled: DEFAULT_UNIFIED_SETTINGS.composerRichTextEnabled,
                   })
                 }
               />
@@ -1178,34 +1198,6 @@ export function ChatSettingsPanel() {
             </Select>
           }
         />
-        <SettingsRow
-          {...searchableSetting("composer-collapse")}
-          description={uiText(
-            "Rest the composer of an existing thread into a single line when you scroll the conversation. Focus the composer or start typing to expand it again.",
-          )}
-          resetAction={
-            settings.composerCollapseOnScroll !==
-            DEFAULT_UNIFIED_SETTINGS.composerCollapseOnScroll ? (
-              <SettingResetButton
-                label={uiText("collapse composer on scroll")}
-                onClick={() =>
-                  updateSettings({
-                    composerCollapseOnScroll: DEFAULT_UNIFIED_SETTINGS.composerCollapseOnScroll,
-                  })
-                }
-              />
-            ) : null
-          }
-          control={
-            <Switch
-              checked={settings.composerCollapseOnScroll}
-              onCheckedChange={(checked) =>
-                updateSettings({ composerCollapseOnScroll: Boolean(checked) })
-              }
-              aria-label={uiText("Collapse composer on scroll")}
-            />
-          }
-        />
         <AdvancedSettings targetIds={[searchableSetting("skills-in-slash-menu").id]}>
           <SettingsRow
             {...searchableSetting("skills-in-slash-menu")}
@@ -1235,6 +1227,30 @@ export function ChatSettingsPanel() {
             }
           />
         </AdvancedSettings>
+      </SettingsSection>
+      <SettingsSection id="image-artifacts" title="图片产物">
+        <SettingsRow
+          {...searchableSetting("artifact-revision")}
+          description="在图片查看器中显示修改意见与返工草稿。默认关闭，不影响看图、对比或附加图片。"
+          resetAction={
+            settings.artifactRevisionEnabled !==
+            DEFAULT_UNIFIED_SETTINGS.artifactRevisionEnabled ? (
+              <SettingResetButton
+                label="图片修改意见"
+                onClick={() => updateSettings({ artifactRevisionEnabled: false })}
+              />
+            ) : null
+          }
+          control={
+            <Switch
+              checked={settings.artifactRevisionEnabled}
+              onCheckedChange={(checked) =>
+                updateSettings({ artifactRevisionEnabled: Boolean(checked) })
+              }
+              aria-label="图片修改意见"
+            />
+          }
+        />
       </SettingsSection>
       <SettingsSection id="follow-ups" title="Follow-ups">
         <SettingsRow
@@ -1557,7 +1573,8 @@ export function ThreadsSettingsPanel() {
   const settings = useScopedSettings();
   const updateSettings = useUpdateScopedSettings();
   const navigate = useNavigate();
-  const { environment, connectedEnvironments, target } = useSettingsScope();
+  const { environment, connectedEnvironments, target, scope } = useSettingsScope();
+  const isProjectScope = scope.kind === "project" || scope.kind === "checkout";
   const environmentId = environment?.environmentId ?? null;
   const hasServerTargets = connectedEnvironments.length > 0;
   const mixedResponseStreamingMode = useScopedSettingsMixed(["responseStreamingMode"]);
@@ -1566,11 +1583,6 @@ export function ThreadsSettingsPanel() {
     (environment?.serverConfig
       ? providersByEnvironment.get(environment.environmentId)
       : undefined) ?? EMPTY_SERVER_PROVIDERS;
-  const supportsAutoSettlement =
-    connectedEnvironments.length > 0 &&
-    connectedEnvironments.every(
-      (target) => target.serverConfig?.environment.capabilities.threadAutoSettlement === true,
-    );
   const supportsAutoSettlementScope = connectedEnvironments.every(
     (target) => target.serverConfig?.environment.capabilities.threadAutoSettlementScope === true,
   );
@@ -1584,12 +1596,10 @@ export function ThreadsSettingsPanel() {
   const textGenInstanceId = textGenerationModelSelection.instanceId;
   const textGenModel = textGenerationModelSelection.model;
   const textGenModelOptions = textGenerationModelSelection.options;
-  const textGenerationModelInstanceEntries = sortProviderInstanceEntries(
-    applyProviderInstanceSettings(
-      deriveProviderInstanceEntries(textGenerationProviders),
-      settings,
-      target?.projectId ?? null,
-    ),
+  const textGenerationModelInstanceEntries = providerInstanceEntriesFor(
+    textGenerationProviders,
+    settings,
+    target?.projectId ?? null,
   );
   const hasTextGenerationProvider = textGenerationModelInstanceEntries.some(
     (entry) => entry.enabled && entry.isAvailable,
@@ -1650,6 +1660,13 @@ export function ThreadsSettingsPanel() {
         />
       </SettingsSection>
       <ProjectDefaultsSettings category="general" />
+
+      {!isProjectScope ? (
+        <SettingsSection id="snooze" title="Snooze">
+          <SnoozePresetsRow />
+        </SettingsSection>
+      ) : null}
+
       <SettingsSection id="usage-limits" title="Usage limits">
         <SettingsRow
           serverScoped
@@ -1686,7 +1703,8 @@ export function ThreadsSettingsPanel() {
           }
         />
       </SettingsSection>
-      {supportsAutoSettlement ? (
+
+      {hasServerTargets ? (
         <SettingsSection id="auto-settle" title="Auto-settle">
           <SettingsRow
             serverScoped
@@ -1964,11 +1982,8 @@ export function MaintenanceSettingsPanel() {
   const { scope, environment, connectedEnvironments } = useSettingsScope();
   const environmentId = environment?.environmentId ?? null;
   const isEnvironmentScope = scope.environmentIds.length === 1 && environmentId !== null;
-  const supportsRestartContinuation =
-    connectedEnvironments.length > 0 &&
-    connectedEnvironments.every(
-      (target) => target.serverConfig?.environment.capabilities.threadRestartContinuation === true,
-    );
+  const hasServerTargets = connectedEnvironments.length > 0;
+
   return (
     <SettingsPageContainer>
       <SettingsSection id="updates" title="Updates">
@@ -2011,12 +2026,12 @@ export function MaintenanceSettingsPanel() {
             "Automatically resume interrupted threads after an update, crash, or machine restart on the selected environments.",
           )}
           status={
-            !supportsRestartContinuation
+            !hasServerTargets
               ? "All selected connected environments must support restart continuation."
               : undefined
           }
           resetAction={
-            supportsRestartContinuation &&
+            hasServerTargets &&
             settings.continueThreadsAfterServerUpdate !==
               DEFAULT_UNIFIED_SETTINGS.continueThreadsAfterServerUpdate ? (
               <SettingResetButton
@@ -2034,7 +2049,7 @@ export function MaintenanceSettingsPanel() {
             <ScopedSwitch
               settingKeys={["continueThreadsAfterServerUpdate"]}
               checked={settings.continueThreadsAfterServerUpdate}
-              disabled={!supportsRestartContinuation}
+              disabled={!hasServerTargets}
               onCheckedChange={(checked) =>
                 updateSettings({ continueThreadsAfterServerUpdate: Boolean(checked) })
               }

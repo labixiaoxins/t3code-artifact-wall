@@ -16,11 +16,12 @@ import { Check, Code2, Copy, Eye, Table2 } from "lucide";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useAssetUrlRefresh } from "~/assets/assetUrls";
 import ChatMarkdown from "~/components/ChatMarkdown";
+import { maskMarkdownFrontmatter } from "@t3tools/shared/markdownFrontmatter";
 import { MorphIcon } from "~/components/MorphIcon";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { toastManager } from "~/components/ui/toast";
 import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
-import { useClientSettings, updateClientSettings } from "~/hooks/useSettings";
+import { useClientSettings } from "~/hooks/useSettings";
 import { cn } from "~/lib/utils";
 import { BinaryFilePreview } from "./BinaryFilePreview";
 import { PreviewImage } from "./PreviewImage";
@@ -45,8 +46,10 @@ const MermaidFilePreview = lazy(() =>
   import("./MermaidFilePreview").then((module) => ({ default: module.MermaidFilePreview })),
 );
 const SourcePreview = lazy(() => import("./ReadOnlySourcePreview"));
-const STALE_URL_MS = 5 * 60000;
-export function ReadOnlySourcePreview(props: { name: string; text: string }) {
+
+const STALE_URL_MS = 5 * 60_000;
+
+export function ReadOnlySourcePreview(props: { name: string; text: string; wordWrap?: boolean }) {
   return (
     <Suspense fallback={<FileSurfaceLoading className="p-4" />}>
       <SourcePreview {...props} />
@@ -139,6 +142,7 @@ export function AttachmentFilePreview(props: {
   const [contentError, setContentError] = useState<string | null>(null);
   const copyContents = useRef<(() => Promise<string>) | null>(null);
   const authorizedAt = useRef(0);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- creates an object URL for the local file and revokes it on cleanup
   useEffect(() => {
     if (!props.file) return;
     const url = URL.createObjectURL(props.file);
@@ -146,6 +150,7 @@ export function AttachmentFilePreview(props: {
     setLocalUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [props.file]);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- authorizes a remote attachment URL from the server and ignores the result after cleanup
   useEffect(() => {
     if (props.file) return;
     let cancelled = false;
@@ -175,6 +180,7 @@ export function AttachmentFilePreview(props: {
       (props.sizeBytes === 0 && (!resource || resource._tag === "attachment")));
   const needsText =
     kind === "text" || kind === "markdown" || kind === "mermaid" || (kind === "html" && !rendered);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- fetches the file's text from its URL or Blob stream and aborts the request on cleanup
   useEffect(() => {
     if (!needsText || streamsText || !url) return;
     const controller = new AbortController();
@@ -211,7 +217,9 @@ export function AttachmentFilePreview(props: {
     return () => controller.abort();
   }, [url, needsText, streamsText, revision, props.sizeBytes, props.file, refresh]);
   const failure = error ?? (needsText ? contentError : null);
-  const wordWrap = useClientSettings((settings) => settings.wordWrap);
+  const defaultWordWrap = useClientSettings((settings) => settings.wordWrap);
+  const [wordWrapOverride, setWordWrapOverride] = useState<boolean | null>(null);
+  const wordWrap = wordWrapOverride ?? defaultWordWrap;
   const showsRawText =
     failure === null &&
     needsText &&
@@ -267,6 +275,7 @@ export function AttachmentFilePreview(props: {
         onRetry={() => setRevision((value) => value + 1)}
         delimiter={rendered ? delimiter : null}
         copyContents={copyContents}
+        wordWrap={wordWrap}
       />
     </Suspense>
   ) : !url || (needsText && !content) ? (
@@ -280,10 +289,14 @@ export function AttachmentFilePreview(props: {
       </Suspense>
     ) : kind === "markdown" && rendered ? (
       <ScrollArea className="min-h-0 flex-1">
-        <ChatMarkdown text={content.text} cwd={undefined} className="mx-auto max-w-4xl px-6 py-5" />
+        <ChatMarkdown
+          text={maskMarkdownFrontmatter(content.text)}
+          cwd={undefined}
+          className="mx-auto max-w-4xl px-6 py-5"
+        />
       </ScrollArea>
     ) : (
-      <ReadOnlySourcePreview name={props.name} text={content.text} />
+      <ReadOnlySourcePreview name={props.name} text={content.text} wordWrap={wordWrap} />
     )
   ) : kind === "archive" || kind === "sqlite" ? (
     <BinaryFilePreview
@@ -377,7 +390,7 @@ export function AttachmentFilePreview(props: {
           <FileSurfaceAction
             label={wordWrap ? uiText("Disable word wrap") : uiText("Enable word wrap")}
             pressed={wordWrap}
-            onPress={() => updateClientSettings({ wordWrap: !wordWrap })}
+            onPress={() => setWordWrapOverride(!wordWrap)}
           >
             <WrapTextIcon className="size-3.5" />
           </FileSurfaceAction>

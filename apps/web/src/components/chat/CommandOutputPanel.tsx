@@ -36,6 +36,8 @@ export function CommandOutputPanel(props: {
   const followRef = useRef(true);
   const text = data?.output.text ?? "";
   const { resolvedTheme } = useTheme();
+
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- pins the output scroller's scrollTop to the bottom after each commit while the user follows
   useLayoutEffect(() => {
     const element = scrollRef.current;
     if (element && followRef.current) element.scrollTop = element.scrollHeight;

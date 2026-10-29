@@ -56,6 +56,8 @@ export function NoticeText({
   const textRef = useRef<HTMLSpanElement>(null);
   const detailsRef = useRef<HTMLButtonElement>(null);
   const [showDetails, setShowDetails] = useState(false);
+
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- measures text overflow in the DOM via ResizeObserver and MutationObserver to show the details button
   useLayoutEffect(() => {
     const text = textRef.current;
     if (!text) return;

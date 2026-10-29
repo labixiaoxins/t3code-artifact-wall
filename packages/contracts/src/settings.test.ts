@@ -27,6 +27,18 @@ const decodeServerSettingsPatch = Schema.decodeUnknownSync(ServerSettingsPatch);
 const encodeServerSettings = Schema.encodeSync(ServerSettings);
 const decodeClaudeSettings = Schema.decodeUnknownSync(ClaudeSettings);
 
+describe("image revision preference", () => {
+  it("keeps existing installations off and round-trips an explicit choice", () => {
+    expect(decodeClientSettings({}).artifactRevisionEnabled).toBe(false);
+    const enabled = decodeClientSettings({ artifactRevisionEnabled: true });
+    expect(decodeClientSettings(encodeClientSettings(enabled)).artifactRevisionEnabled).toBe(true);
+    expect(decodeClientSettingsPatch({ artifactRevisionEnabled: false })).toEqual({
+      artifactRevisionEnabled: false,
+    });
+    expect(() => decodeClientSettingsPatch({ artifactRevisionEnabled: "false" })).toThrow();
+  });
+});
+
 describe("storage cleanup settings", () => {
   it("keeps cleanup disabled for existing installations", () => {
     expect(decodeServerSettings({}).worktreeCleanup).toBeNull();

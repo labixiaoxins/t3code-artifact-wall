@@ -40,12 +40,16 @@ export function DeviceDuoViewport(props: {
     onUnavailable,
     onFrameListener,
   } = props;
+
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- stores screen and model in refs, ends any active interaction, and pushes the screen into the 3D Duo viewer
   useEffect(() => {
     screenRef.current = props.screen;
     modelRef.current = props.model;
     interactionRef.current?.end();
     viewerRef.current?.setScreen(props.screen);
   }, [props.screen, props.model]);
+
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- pushes the hinge preview into the imperative 3D Duo viewer unless a pinch is active
   useEffect(() => {
     previewRef.current = props.hingePreview;
     if (!pinchRef.current?.active) viewerRef.current?.setHingePreview(props.hingePreview);

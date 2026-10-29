@@ -167,6 +167,24 @@ describe("client settings hydration", () => {
 });
 
 describe("persistClientSettingsPatch", () => {
+  it("restores the image revision choice after rehydration without changing other preferences", async () => {
+    const saved = {
+      ...DEFAULT_CLIENT_SETTINGS,
+      artifactRevisionEnabled: true,
+      fontSizePrompt: 18,
+      onboardingCompletedAt: "2026-10-29T12:00:00.000Z",
+    };
+    persistenceMocks.getClientSettings.mockResolvedValueOnce(saved);
+    await ensureClientSettingsHydrated();
+    await persistClientSettingsPatch({ artifactRevisionEnabled: false });
+    const written = persistenceMocks.setClientSettings.mock.calls.at(-1)![0];
+    __resetClientSettingsPersistenceForTests();
+    persistenceMocks.getClientSettings.mockResolvedValueOnce(written);
+    await ensureClientSettingsHydrated();
+    expect(getClientSettings().artifactRevisionEnabled).toBe(false);
+    expect(getClientSettings().fontSizePrompt).toBe(18);
+  });
+
   it("waits for settings writes in request order", async () => {
     __setClientSettingsForTests(DEFAULT_CLIENT_SETTINGS);
     let finishFirst!: () => void;

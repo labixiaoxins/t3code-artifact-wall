@@ -126,7 +126,9 @@ const mount = async (projection = fixture(), canCompact = true) => {
   });
 };
 const buttons = () =>
-  view!.root.findAllByType("button").filter((button) => !button.props["aria-label"]);
+  view!.root
+    .findAllByType("button")
+    .filter((button) => !button.props["aria-label"] && button.props["aria-expanded"] === undefined);
 const click = async (label: string) => {
   await act(async () => {
     await buttons()

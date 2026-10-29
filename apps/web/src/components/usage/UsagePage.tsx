@@ -1,3 +1,4 @@
+import { usageMetricPresentation } from "./usageMetricPresentation";
 import { uiText } from "~/i18n";
 import { ChatGptUsageButton } from "../settings/ChatGptUsageButton";
 import { usesChatGptSharing } from "@t3tools/shared/usageLimits";
@@ -147,6 +148,7 @@ function UsageModelDialogHost({
   readonly onSetPrice: (model: string) => void;
 }) {
   const selectedKey = useAtomValue(selectedUsageModelKeyAtom);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- clears the shared selected-model atom on unmount
   useEffect(() => () => selectUsageModel(null), []);
   const model =
     selectedKey === null
@@ -281,6 +283,8 @@ export function UsagePage() {
     if (metricOption) selectMetric(metricOption.value);
     if (periodOption && !showingLimits) selectWindow(periodOption.days);
   });
+
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- window capture keydown listener for usage metric and period shortcuts
   useEffect(() => {
     globalThis.window.addEventListener("keydown", onUsageKeyDown, true);
     return () => globalThis.window.removeEventListener("keydown", onUsageKeyDown, true);
@@ -329,6 +333,7 @@ export function UsagePage() {
   const autoRefreshLimits = useEffectEvent(() => {
     void refreshLimits(true);
   });
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- refreshes provider limits from the server when the connected environment set changes
   useEffect(() => {
     if (showingLimits && connectedLimitsEnvironments) autoRefreshLimits();
   }, [showingLimits, connectedLimitsEnvironments]);
@@ -383,25 +388,25 @@ export function UsagePage() {
         </span>
       ) : null}
       <div className="ms-auto hidden shrink-0 items-center justify-end gap-2 @4xl/usage-header:flex">
-        <ToggleGroup
-          aria-label={uiText("Usage period")}
-          variant="segmented"
-          value={[String(windowDays)]}
-          disabled={showingLimits || showingDisk}
-          // Limits are always current; the New design hides the period instead of greying it.
-          // It sits before the metric tabs so hiding it never moves them.
-          className={showingLimits ? "redesign:hidden" : undefined}
-          onValueChange={(next) => {
-            const value = next[0];
-            if (value) selectWindow(Number(value));
-          }}
-        >
-          {WINDOW_OPTIONS.map((option) => (
-            <Toggle key={option.days} value={String(option.days)} title={shortcutTitle(option)}>
-              {option.label}
-            </Toggle>
-          ))}
-        </ToggleGroup>
+        {/* Limits are always current, so they have no period. The period sits before the metric
+            tabs so dropping it never moves them. */}
+        {showingLimits || showingDisk ? null : (
+          <ToggleGroup
+            aria-label={uiText("Usage period")}
+            variant="segmented"
+            value={[String(windowDays)]}
+            onValueChange={(next) => {
+              const value = next[0];
+              if (value) selectWindow(Number(value));
+            }}
+          >
+            {WINDOW_OPTIONS.map((option) => (
+              <Toggle key={option.days} value={String(option.days)} title={shortcutTitle(option)}>
+                {option.label}
+              </Toggle>
+            ))}
+          </ToggleGroup>
+        )}
         <ToggleGroup
           aria-label={uiText("Usage metric")}
           variant="segmented"
@@ -429,33 +434,31 @@ export function UsagePage() {
         </Button>
       </div>
       <div className="ms-auto flex shrink-0 items-center justify-end gap-1 @4xl/usage-header:hidden">
-        <Select
-          value={String(windowDays)}
-          disabled={showingLimits || showingDisk}
-          onValueChange={(value) => selectWindow(Number(value))}
-        >
-          <SelectTrigger
-            aria-label={uiText("Usage period")}
-            size="compact"
-            variant="ghost"
-            className={cn("w-auto min-w-0", showingLimits && "redesign:hidden")}
-          >
-            <SelectValue>
-              {WINDOW_OPTIONS.find((option) => option.days === windowDays)?.label}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectPopup align="end" alignItemWithTrigger={false}>
-            {WINDOW_OPTIONS.map((option) => (
-              <SelectItem
-                key={option.days}
-                value={String(option.days)}
-                title={shortcutTitle(option)}
-              >
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectPopup>
-        </Select>
+        {showingLimits || showingDisk ? null : (
+          <Select value={String(windowDays)} onValueChange={(value) => selectWindow(Number(value))}>
+            <SelectTrigger
+              aria-label={uiText("Usage period")}
+              size="compact"
+              variant="ghost"
+              className="w-auto min-w-0"
+            >
+              <SelectValue>
+                {WINDOW_OPTIONS.find((option) => option.days === windowDays)?.label}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectPopup align="end" alignItemWithTrigger={false}>
+              {WINDOW_OPTIONS.map((option) => (
+                <SelectItem
+                  key={option.days}
+                  value={String(option.days)}
+                  title={shortcutTitle(option)}
+                >
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectPopup>
+          </Select>
+        )}
         <Select
           value={metric}
           onValueChange={(value) => {
@@ -708,9 +711,7 @@ function UsageOverview({
                 figureClass(loadingPartial),
               )}
             >
-              {metric === uiText("cost")
-                ? formatUsd(merged.costUsd)
-                : formatTokens(merged.totalTokens)}
+              {usageMetricPresentation(metric, merged).value}
             </span>
             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
               <span>
@@ -718,9 +719,9 @@ function UsageOverview({
                   {formatCount(merged.sessions)}
                   {uiText("sessions")}
                 </span>
-                {metric === uiText("cost") && uiText("· API estimate")}
+                {metric === "cost" && uiText("· API estimate")}
               </span>
-              {metric === uiText("cost") && merged.costQuality.unpricedShare > 0 && (
+              {metric === "cost" && merged.costQuality.unpricedShare > 0 && (
                 <Popover>
                   <PopoverTrigger
                     openOnHover
@@ -758,7 +759,10 @@ function UsageOverview({
             }
             const provider = row.provider;
             const totals = merged.providers.find((entry) => entry.provider === provider);
-            const share = metric === "cost" ? (totals?.costShare ?? 0) : (totals?.tokenShare ?? 0);
+            const presentation = usageMetricPresentation(
+              metric,
+              totals ?? { costUsd: 0, totalTokens: 0 },
+            );
             const providerSessions = totals?.sessions ?? 0;
             const sessionLabel = `${formatCount(providerSessions)} ${providerSessions === 1 ? "session" : "sessions"}`;
             const providerLoading = loadingProviders.has(provider);
@@ -794,11 +798,7 @@ function UsageOverview({
                       figureClass(providerLoading),
                     )}
                   >
-                    {awaitingData
-                      ? "-"
-                      : metric === uiText("cost")
-                        ? formatUsd(totals?.costUsd ?? 0)
-                        : formatTokens(totals?.totalTokens ?? 0)}
+                    {awaitingData ? "-" : presentation.value}
                   </span>
                 </div>
                 <span
@@ -808,15 +808,7 @@ function UsageOverview({
                     awaitingData && "invisible",
                   )}
                 >
-                  {metric === uiText("cost")
-                    ? uiText("{0} of cost · {1} tokens", {
-                        "0": formatPercent(share),
-                        "1": formatTokens(totals?.totalTokens ?? 0),
-                      })
-                    : uiText("{0} of tokens · {1}", {
-                        "0": formatPercent(share),
-                        "1": formatUsd(totals?.costUsd ?? 0),
-                      })}
+                  {presentation.share}
                 </span>
               </div>
             );
@@ -1336,7 +1328,7 @@ function UsageEnvironmentFilter({
             />
           ) : (
             <ChevronDownIcon
-              className="size-3.5 opacity-0 transition-opacity group-hover/usage-environment:opacity-100 group-focus-visible/usage-environment:opacity-100 group-data-popup-open/usage-environment:opacity-100 redesign:opacity-60 redesign:group-hover/usage-environment:opacity-100 redesign:group-focus-visible/usage-environment:opacity-100 redesign:group-data-popup-open/usage-environment:opacity-100"
+              className="size-3.5 opacity-60 transition-opacity group-hover/usage-environment:opacity-100 group-focus-visible/usage-environment:opacity-100 group-data-popup-open/usage-environment:opacity-100"
               aria-hidden
             />
           )}
@@ -1449,7 +1441,7 @@ function UsageProviderFilter({
       <MenuTrigger render={<InlineButton />} className="group/usage-provider min-w-0 max-w-full">
         <span className="min-w-0 truncate">{label}</span>
         <ChevronDownIcon
-          className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/usage-provider:opacity-100 group-focus-visible/usage-provider:opacity-100 group-data-popup-open/usage-provider:opacity-100 redesign:opacity-60 redesign:group-hover/usage-provider:opacity-100 redesign:group-focus-visible/usage-provider:opacity-100 redesign:group-data-popup-open/usage-provider:opacity-100"
+          className="size-3.5 shrink-0 text-muted-foreground opacity-60 transition-opacity group-hover/usage-provider:opacity-100 group-focus-visible/usage-provider:opacity-100 group-data-popup-open/usage-provider:opacity-100"
           aria-hidden
         />
       </MenuTrigger>

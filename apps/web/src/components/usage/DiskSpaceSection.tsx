@@ -1,16 +1,13 @@
-import { StorageManagementPanel } from "./StorageManagementPanel";
-import { uiText } from "~/i18n";
 import { useAtomRefresh, useAtomValue } from "@effect/atom-react";
-import type { DiskSpaceCategory, DiskSpaceReport, EnvironmentId } from "@t3tools/contracts";
+import type { DiskSpaceReport, EnvironmentId } from "@t3tools/contracts";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Option from "effect/Option";
 import { useEffect, useRef } from "react";
-
+import { uiText } from "~/i18n";
 import { formatBytes } from "../../lib/formatBytes";
 import { serverEnvironment } from "../../state/server";
-import { DISK_SPACE_KINDS, categoryFor, daysSince, summarizeGrowth } from "./diskSpaceModel";
-
-const sizeLabel = (bytes: number | null) => (bytes === null ? "—" : formatBytes(bytes));
+import { DISK_SPACE_KINDS, categoryFor, summarizeGrowth } from "./diskSpaceModel";
+import { StorageManagementPanel } from "./StorageManagementPanel";
 
 export function DiskSpaceSection({
   environments,
@@ -20,7 +17,6 @@ export function DiskSpaceSection({
     readonly environmentId: EnvironmentId;
     readonly label: string;
   }>;
-  /** Bumped by the page's refresh button; the first bump switches to an uncached measurement. */
   readonly refreshTick: number;
 }) {
   return (
@@ -36,7 +32,6 @@ export function DiskSpaceSection({
     </div>
   );
 }
-
 function DiskSpaceEnvironment({
   environmentId,
   label,
@@ -48,205 +43,118 @@ function DiskSpaceEnvironment({
 }) {
   const atom = serverEnvironment.diskSpace({
     environmentId,
-    input: refreshTick > 0 ? { refresh: true } : {},
+    input: { awaitMeasurement: true, ...(refreshTick > 0 ? { refresh: true } : {}) },
   });
   const result = useAtomValue(atom);
-  const refreshAtom = useAtomRefresh(atom);
+  const refresh = useAtomRefresh(atom);
   const handledTick = useRef(refreshTick);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- The page refresh control invalidates the remote measurement cache.
   useEffect(() => {
-    // Tick 1 already changed the atom's input; later ticks re-run that same atom.
-    if (refreshTick > 1 && refreshTick !== handledTick.current) refreshAtom();
+    if (refreshTick > 1 && refreshTick !== handledTick.current) refresh();
     handledTick.current = refreshTick;
-  }, [refreshTick, refreshAtom]);
-
+  }, [refreshTick, refresh]);
   const report = Option.getOrNull(AsyncResult.value(result));
   return (
     <section className="flex min-w-0 flex-col gap-6">
-      {label === null ? null : <h2 className="text-sm font-medium">{label}</h2>}
-      {report === null ? (
-        <p className="text-sm text-muted-foreground">
-          {result._tag === "Failure"
-            ? uiText("This environment could not report disk usage.")
-            : uiText("Measuring disk usage. The first pass can take a minute.")}
-        </p>
+      {label ? <h2 className="text-sm font-medium">{label}</h2> : null}
+      {report ? (
+        <DiskSpaceReportView report={report} />
       ) : (
-        <>
-          <StorageManagementPanel environmentId={environmentId} />
-          <p className="text-xs text-muted-foreground">
-            {uiText("Measurement time")}: {new Date(report.measuredAt).toLocaleString()}
-          </p>
-          <DiskSpaceReportView report={report} />
-        </>
+        <p role="status" className="text-xs text-muted-foreground">
+          {uiText(
+            result._tag === "Failure"
+              ? "This environment could not report disk usage."
+              : "Measuring disk usage. You can inspect items below meanwhile.",
+          )}
+        </p>
       )}
+      <StorageManagementPanel
+        key={`${environmentId}:${refreshTick}`}
+        environmentId={environmentId}
+      />
     </section>
   );
 }
-
-function DiskSpaceReportView({ report }: { readonly report: DiskSpaceReport }) {
+export function DiskSpaceReportView({ report }: { readonly report: DiskSpaceReport }) {
   const growth = summarizeGrowth(report.history);
-  const largest = Math.max(1, ...report.categories.map((category) => category.bytes ?? 0));
-  const backups = categoryFor(report, "backups");
+  const total = report.volume?.totalBytes ?? 0;
+  const free = report.volume?.freeBytes ?? 0;
+  const largest = Math.max(1, ...report.categories.map((entry) => entry.bytes ?? 0));
   return (
-    <>
-      <div className="flex min-w-0 flex-col gap-2">
-        {report.volume === null ? null : (
-          <div className="flex items-baseline justify-between gap-3">
-            <h3 className="text-sm font-medium">{uiText("Free space on this drive")}</h3>
+    <div className="space-y-3">
+      {report.volume ? (
+        <>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h3 className="text-sm font-medium">{uiText("T3 data volume")}</h3>
             <span className="text-sm tabular-nums">
               {uiText("{free} free of {total}", {
-                free: formatBytes(report.volume.freeBytes),
-                total: formatBytes(report.volume.totalBytes),
+                free: formatBytes(free),
+                total: formatBytes(total),
               })}
             </span>
           </div>
-        )}
-        {report.volume === null ? null : (
-          <div className="h-2 overflow-hidden rounded-full bg-muted">
+          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
             <div
-              className="h-full bg-foreground/60"
+              className="h-full bg-primary/60"
               style={{
-                width: `${Math.max(0, Math.min(100, (1 - report.volume.freeBytes / report.volume.totalBytes) * 100))}%`,
+                width: `${total > 0 ? Math.max(0, Math.min(100, (1 - free / total) * 100)) : 0}%`,
               }}
             />
           </div>
-        )}
-        <p className="text-xs text-muted-foreground">
-          {report.measuring
-            ? uiText("Measuring… sizes below may be from an earlier pass.")
-            : uiText(
-                "Sizes are allocated space. Cloned files on APFS are counted in full, so totals can exceed what deleting would free.",
-              )}
-        </p>
-        {growth === null ? null : (
-          <p className="text-xs text-muted-foreground">
-            {growth.freeBytesChange === null
-              ? uiText("Since the previous measurement ({days} d ago).", { days: growth.days })
-              : uiText("Since the previous measurement ({days} d ago), free space {change}.", {
-                  days: growth.days,
-                  change: `${growth.freeBytesChange >= 0 ? "+" : "−"}${formatBytes(Math.abs(growth.freeBytesChange))}`,
-                })}
-            {growth.fastest === null
-              ? null
-              : ` ${uiText("Grew most: {name} +{size}.", {
-                  name:
-                    DISK_SPACE_KINDS.find((entry) => entry.kind === growth.fastest?.kind)?.label ??
-                    growth.fastest.kind,
-                  size: formatBytes(growth.fastest.bytesChange),
-                })}`}
-          </p>
-        )}
-      </div>
-
-      <div className="flex min-w-0 flex-col">
-        {DISK_SPACE_KINDS.map(({ kind, label, hint, color }) => {
-          const category = categoryFor(report, kind);
-          return (
-            <div
-              key={kind}
-              className="grid grid-cols-[minmax(0,1fr)_5.5rem] items-center gap-x-3 gap-y-1 border-t py-3 first:border-t-0 sm:grid-cols-[11rem_minmax(0,1fr)_5.5rem]"
-            >
-              <div className="min-w-0">
-                <div className="text-sm">{label}</div>
-                <div className="text-xs text-muted-foreground">{hint}</div>
-              </div>
-              <div className="order-last col-span-2 h-2 overflow-hidden rounded-full bg-muted sm:order-none sm:col-span-1">
-                <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: `${((category?.bytes ?? 0) / largest) * 100}%`,
-                    backgroundColor: color,
-                  }}
-                />
-              </div>
-              <div className="text-right text-sm tabular-nums">
-                {sizeLabel(category?.bytes ?? null)}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <BackupRetention category={backups} keep={report.backupsToKeep} />
-      <WorkspaceList category={categoryFor(report, "workspaces")} />
-    </>
-  );
-}
-
-function BackupRetention({
-  category,
-}: {
-  readonly category: DiskSpaceCategory | undefined;
-  readonly keep: number;
-}) {
-  if (category === undefined || category.items.length === 0) return null;
-  return (
-    <div className="flex min-w-0 flex-col gap-3">
-      <div className="flex items-baseline justify-between gap-3">
-        <h3 className="text-sm font-medium">{uiText("Upgrade backups")}</h3>
-        <span className="text-xs text-muted-foreground">
-          {uiText("Recovery references must be checked before releasing backups.")}
+        </>
+      ) : null}
+      <div className="flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">
+        <span>
+          {uiText("Measurement time")}: {new Date(report.measuredAt).toLocaleString()}
+          {report.measuring ? ` · ${uiText("Measuring…")}` : ""}
         </span>
+        {growth?.freeBytesChange != null ? (
+          <span>
+            {uiText("Free-space change")}: {growth.freeBytesChange >= 0 ? "+" : "−"}
+            {formatBytes(Math.abs(growth.freeBytesChange))}
+          </span>
+        ) : null}
       </div>
-      <ul className="flex flex-col">
-        {category.items.map((item) => (
-          <li
-            key={item.path}
-            className="flex items-baseline justify-between gap-3 border-t py-2 text-sm first:border-t-0"
-          >
-            <span className="min-w-0 truncate" title={item.path}>
-              {item.name}
-              {item.overRetention ? (
-                <span className="ms-2 rounded-sm bg-warning/15 px-1.5 py-0.5 text-xs text-warning-foreground">
-                  {uiText("Older")}
+      <details>
+        <summary className="cursor-pointer text-xs text-muted-foreground">
+          {uiText("Storage breakdown and measurement scope")}
+        </summary>
+        <div className="mt-3 space-y-3">
+          {DISK_SPACE_KINDS.map(({ kind, label, color }) => {
+            const category = categoryFor(report, kind);
+            return (
+              <div
+                key={kind}
+                className="grid grid-cols-[8rem_minmax(0,1fr)_5rem] items-center gap-3 text-xs"
+              >
+                <span>{label}</span>
+                <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${((category?.bytes ?? 0) / largest) * 100}%`,
+                      backgroundColor: color,
+                    }}
+                  />
+                </div>
+                <span className="text-right tabular-nums">
+                  {category?.bytes == null ? uiText("Not measured") : formatBytes(category.bytes)}
                 </span>
-              ) : null}
-            </span>
-            <span className="shrink-0 tabular-nums text-muted-foreground">
-              {sizeLabel(item.bytes)}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function WorkspaceList({ category }: { readonly category: DiskSpaceCategory | undefined }) {
-  if (category === undefined || category.items.length === 0) return null;
-  const now = Date.now();
-  return (
-    <div className="flex min-w-0 flex-col gap-3">
-      <h3 className="text-sm font-medium">{uiText("Largest task workspaces")}</h3>
-      <ul className="flex flex-col">
-        {category.items.map((item) => {
-          const idle = daysSince(item.modifiedAt, now);
-          return (
-            <li
-              key={item.path}
-              className="flex items-baseline justify-between gap-3 border-t py-2 text-sm first:border-t-0"
-            >
-              <span className="min-w-0 truncate" title={item.path}>
-                {item.name}
-                {idle === null || idle < 14 ? null : (
-                  <span className="ms-2 text-xs text-muted-foreground">
-                    {uiText("untouched for {days} d", { days: idle })}
-                  </span>
-                )}
-              </span>
-              <span className="shrink-0 tabular-nums text-muted-foreground">
-                {sizeLabel(item.bytes)}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
-      {category.unlistedItemCount === 0 ? null : (
-        <p className="text-xs text-muted-foreground">
-          {uiText("{count} smaller workspaces are counted but not listed.", {
-            count: category.unlistedItemCount,
+              </div>
+            );
           })}
-        </p>
-      )}
+          <p className="text-xs text-muted-foreground">
+            {uiText(
+              "Sizes are allocated space. Cloned files on APFS are counted in full, so totals can exceed what deleting would free.",
+            )}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {uiText(
+              "The overview covers T3 data directories and Codex history. Other detected caches and registered archives are listed below; this is not a whole-disk scan.",
+            )}
+          </p>
+        </div>
+      </details>
     </div>
   );
 }

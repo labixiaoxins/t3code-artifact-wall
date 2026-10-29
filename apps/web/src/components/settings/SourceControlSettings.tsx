@@ -32,6 +32,7 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { GitIcon, JujutsuIcon, type Icon } from "../Icons";
 import { SourceControlHostSettings } from "./SourceControlHostSettings";
 import { SourceControlAccountSettings } from "./SourceControlAccountSettings";
+import { SourceControlAppSignInSettings } from "./SourceControlAppSignInSettings";
 import { SourceControlTokenSettings } from "./SourceControlTokenSettings";
 import { RedactedSensitiveText } from "./RedactedSensitiveText";
 import { SourceControlWritingSettingsSection } from "./SourceControlWritingSettings";
@@ -67,13 +68,13 @@ function isVcsNotReady(item: VcsDiscoveryItem | SourceControlProviderDiscoveryIt
 }
 function authPresentation(auth: SourceControlProviderAuth): {
   readonly label: string;
-  readonly badge: "warning" | null;
+  readonly badge: "secondary" | null;
 } {
   if (auth.status === "authenticated") {
     return { label: uiText("Authenticated"), badge: null };
   }
   if (auth.status === "unauthenticated") {
-    return { label: uiText("Not authenticated"), badge: "warning" };
+    return { label: uiText("Not authenticated"), badge: "secondary" };
   }
   return { label: uiText("Status unknown"), badge: null };
 }
@@ -89,8 +90,12 @@ function RedactedAccount(props: { readonly account: string | null }) {
 }
 function itemStatusDot(item: VcsDiscoveryItem | SourceControlProviderDiscoveryItem): string {
   if (isVcsNotReady(item)) return "bg-muted-foreground/35";
+  if (isProviderDiscoveryItem(item)) {
+    return item.status === "available" && item.auth.status === "authenticated"
+      ? "bg-success"
+      : "bg-muted-foreground/35";
+  }
   if (item.status !== "available") return "bg-warning";
-  if (isProviderDiscoveryItem(item) && item.auth.status !== "authenticated") return "bg-warning";
   return "bg-success";
 }
 function sourceControlItemIcon(
@@ -403,6 +408,23 @@ export function SourceControlSettingsPanel() {
       return (
         <SettingsSearchTarget id={sourceControlHostSettingsSearchId(item.kind)}>
           <div className="grid gap-6">
+            {credentials.appSignIn && item.appSignIn === true ? (
+              <SourceControlAppSignInSettings
+                key={`sign-in-${environmentId}`}
+                environmentId={environmentId}
+                definition={definition}
+                appSignIn={credentials.appSignIn}
+                account={Option.getOrNull(item.auth.account)}
+                onChanged={handleScan}
+              />
+            ) : null}
+            {credentials.appSignIn && item.appSignIn === true ? (
+              <div className="flex items-center gap-3 text-2xs text-muted-foreground">
+                <span aria-hidden className="h-px flex-1 bg-border" />
+                Or use your own credentials
+                <span aria-hidden className="h-px flex-1 bg-border" />
+              </div>
+            ) : null}
             <SourceControlTokenSettings
               key={`token-${environmentId}`}
               environmentId={environmentId}

@@ -1,5 +1,4 @@
 import type { ThreadStructure } from "@t3tools/client-runtime/state/shell";
-import { uiText } from "~/i18n";
 import { latestContextUsage } from "./contextUsage";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { CommandId, MessageId, ThreadId } from "@t3tools/contracts";
@@ -89,6 +88,7 @@ export function ContextHandoffNotice({
     }
   });
   const [open, setOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -342,9 +342,9 @@ export function ContextHandoffNotice({
                 ? `上下文 ${Math.round(ratio * 100)}%`
                 : "会话详情";
   const description = budgetBlocked
-    ? "当前请求未执行。可压缩当前会话，或在新会话读取旧记录；原记录会保留。"
+    ? "上下文不足，请压缩或换新会话。原记录会保留。"
     : compacting
-      ? "正在整理当前会话，请等待完成。草稿与原记录会保留。"
+      ? "正在压缩，草稿与原记录会保留。"
       : pending
         ? pendingRun?.status === "queued"
           ? "交接指令已排队，当前轮结束后执行。"
@@ -357,11 +357,17 @@ export function ContextHandoffNotice({
               ? "任务已在新会话继续，旧记录仍保留在这里。"
               : level !== null
                 ? ratio !== null && ratio >= 0.6
-                  ? "当前上下文用量偏高。可继续输入，或整理后继续。"
-                  : "会话记录较多，浏览和加载可能变慢。可整理后在新会话继续。"
-                : "管理当前会话的上下文与用量。";
+                  ? "占用偏高，仍可继续。"
+                  : "会话较长，可整理后换新会话。"
+                : "";
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(value) => {
+        setOpen(value);
+        if (!value) setDetailsOpen(false);
+      }}
+    >
       <PopoverTrigger
         render={
           <Button
@@ -397,17 +403,48 @@ export function ContextHandoffNotice({
       </PopoverTrigger>
       <PopoverPopup side="top" align="end" width="md">
         <div className="space-y-3 text-xs leading-relaxed" data-context-details>
-          <PopoverTitle>上下文与用量</PopoverTitle>
-          <p>{description}</p>
-          {usage?.usedTokens != null ? (
-            <p className="text-muted-foreground tabular-nums">
-              最近上报约 {Math.round(usage.usedTokens / 1000)}{uiText("k tokens") + " "}{ratio === null ? "" : ` · ${Math.round(ratio * 100)}%`} · {thread.itemCount} 条记录 /
-              第 {turns} 轮{disconnected ? " · 连接中断，数据可能过期" : ""}
-            </p>
-          ) : null}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <PopoverTitle>上下文</PopoverTitle>
+              <span className="text-sm font-medium tabular-nums">
+                {ratio === null ? "未上报" : `${Math.round(ratio * 100)}%`}
+              </span>
+            </div>
+            {ratio !== null ? (
+              <div
+                role="progressbar"
+                aria-label="上下文占用"
+                aria-valuenow={Math.round(Math.min(1, Math.max(0, ratio)) * 100)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                className="h-1 overflow-hidden rounded-full bg-muted"
+              >
+                <div
+                  className={
+                    budgetBlocked
+                      ? "h-full bg-destructive"
+                      : ratio >= 0.8
+                        ? "h-full bg-warning"
+                        : "h-full bg-primary/70"
+                  }
+                  style={{ width: `${Math.min(1, Math.max(0, ratio)) * 100}%` }}
+                />
+              </div>
+            ) : null}
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-muted-foreground">
+              {description ? <p>{description}</p> : null}
+              {usage?.usedTokens != null ? (
+                <span className="tabular-nums whitespace-nowrap">
+                  约 {Math.round(usage.usedTokens / 1000)}k
+                  {usage.maxTokens ? ` / ${Math.round(usage.maxTokens / 1000)}k` : ""} tokens
+                </span>
+              ) : null}
+            </div>
+            {disconnected ? <p className="text-warning">连接中断，数据可能过期</p> : null}
+          </div>
           {pendingSubtasks > 0 ? (
             <p className="text-muted-foreground">
-              还有 {pendingSubtasks} 个子任务在运行，结果会回到当前会话。
+              {pendingSubtasks} 个子任务运行中，结果仍回到这里。
             </p>
           ) : null}
           {continued ? (
@@ -506,32 +543,55 @@ export function ContextHandoffNotice({
               ) : null}
             </div>
           )}
-          {!state.requestMessageId && !handoffPath && enabled ? (
-            <Button
-              size="xs"
-              variant="ghost-muted"
-              onClick={() => {
-                setDismissed(!dismissed);
-                try {
-                  localStorage.setItem(`${key}:dismissed`, String(!dismissed));
-                } catch {
-                  /* In-memory preference remains available. */
-                }
-              }}
-            >
-              {dismissed ? "恢复普通提醒" : "关闭普通提醒"}
-            </Button>
-          ) : null}
           {error ? (
             <p role="alert" className="text-destructive">
               {error}
             </p>
           ) : null}
-          {showThroughput && open ? (
-            <div className="border-t border-border pt-3">
-              <LiveTurnThroughput projection={projection} environmentId={environmentId} threadId={thread.id} disconnected={disconnected} />
+          <div className="border-t border-border pt-2">
+            <div className="flex items-center justify-between gap-2">
+              <Button
+                size="xs"
+                variant="ghost-muted"
+                aria-expanded={detailsOpen}
+                onClick={() => setDetailsOpen(!detailsOpen)}
+              >
+                详细数据
+                <ChevronDownIcon className={detailsOpen ? "rotate-180" : undefined} />
+              </Button>
+              {!state.requestMessageId && !handoffPath && enabled ? (
+                <Button
+                  size="xs"
+                  variant="ghost-muted"
+                  onClick={() => {
+                    setDismissed(!dismissed);
+                    try {
+                      localStorage.setItem(`${key}:dismissed`, String(!dismissed));
+                    } catch {
+                      /* In-memory preference remains available. */
+                    }
+                  }}
+                >
+                  {dismissed ? "恢复普通提醒" : "关闭普通提醒"}
+                </Button>
+              ) : null}
             </div>
-          ) : null}
+            {detailsOpen ? (
+              <div className="space-y-3 pt-3 text-muted-foreground">
+                <p className="tabular-nums">
+                  {thread.itemCount} 条记录 · 第 {turns} 轮
+                </p>
+                {showThroughput && open ? (
+                  <LiveTurnThroughput
+                    projection={projection}
+                    environmentId={environmentId}
+                    threadId={thread.id}
+                    disconnected={disconnected}
+                  />
+                ) : null}
+              </div>
+            ) : null}
+          </div>
         </div>
       </PopoverPopup>
     </Popover>

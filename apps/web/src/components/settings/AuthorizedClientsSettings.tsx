@@ -107,19 +107,12 @@ function AccessScopeSummary({
     </Popover>
   );
 }
-const ENDPOINT_ROW_CLASSNAME = "first:rounded-t-xl last:rounded-b-xl px-3 py-2.5 sm:px-4";
-export type AccessSectionPresentation = "current" | "endpoint-rail";
-export function accessRowClassName(_presentation: AccessSectionPresentation) {
-  return ITEM_ROW_CLASSNAME;
-}
-function endpointRowClassName(presentation: AccessSectionPresentation, isAvailable: boolean) {
-  if (presentation === "endpoint-rail") {
-    return cn(
-      "relative first:rounded-t-xl last:rounded-b-xl px-3 py-3 sm:px-4",
-      !isAvailable && "bg-muted/15",
-    );
-  }
-  return cn(ENDPOINT_ROW_CLASSNAME, !isAvailable && "bg-muted/24");
+
+function endpointRowClassName(isAvailable: boolean) {
+  return cn(
+    "relative first:rounded-t-xl last:rounded-b-xl px-3 py-3 sm:px-4",
+    !isAvailable && "bg-muted/15",
+  );
 }
 type PairingLinkListRowProps = {
   pairingLink: ServerPairingLinkRecord;
@@ -127,7 +120,6 @@ type PairingLinkListRowProps = {
   endpointUrl: string | null | undefined;
   endpoints: ReadonlyArray<AdvertisedEndpoint>;
   defaultEndpointKey: string | null;
-  presentation?: AccessSectionPresentation;
   revokingPairingLinkId: string | null;
   onRevoke: (id: string) => void;
   canRevoke: boolean;
@@ -138,7 +130,6 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
   endpointUrl,
   endpoints,
   defaultEndpointKey,
-  presentation = "current",
   revokingPairingLinkId,
   onRevoke,
   canRevoke,
@@ -265,7 +256,7 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
     return null;
   }
   return (
-    <div className={accessRowClassName(presentation)}>
+    <div className={ITEM_ROW_CLASSNAME}>
       <div className={ITEM_ROW_INNER_CLASSNAME}>
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex min-h-5 items-center gap-1.5">
@@ -490,14 +481,12 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
 });
 type ConnectedClientListRowProps = {
   clientSession: ServerClientSessionRecord;
-  presentation?: AccessSectionPresentation;
   revokingClientSessionId: string | null;
   onRevokeSession: (sessionId: ServerClientSessionRecord["sessionId"]) => void;
   canRevoke: boolean;
 };
 const ConnectedClientListRow = memo(function ConnectedClientListRow({
   clientSession,
-  presentation = "current",
   revokingClientSessionId,
   onRevokeSession,
   canRevoke,
@@ -525,7 +514,7 @@ const ConnectedClientListRow = memo(function ConnectedClientListRow({
     ([clientSession.client.os, clientSession.client.browser].filter(Boolean).join(" \u00B7 ") ||
       clientSession.subject);
   return (
-    <div className={accessRowClassName(presentation)}>
+    <div className={ITEM_ROW_CLASSNAME}>
       <div className={ITEM_ROW_INNER_CLASSNAME}>
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex min-h-5 items-center gap-1.5">
@@ -780,7 +769,6 @@ type PairingClientsListProps = {
   endpointUrl: string | null | undefined;
   endpoints: ReadonlyArray<AdvertisedEndpoint>;
   defaultEndpointKey: string | null;
-  presentation?: AccessSectionPresentation;
   isLoading: boolean;
   pairingLinks: ReadonlyArray<ServerPairingLinkRecord>;
   createdPairingCredentials: ReadonlyMap<string, string>;
@@ -795,7 +783,6 @@ export const PairingClientsList = memo(function PairingClientsList({
   endpointUrl,
   endpoints,
   defaultEndpointKey,
-  presentation = "current",
   isLoading,
   pairingLinks,
   createdPairingCredentials,
@@ -816,7 +803,6 @@ export const PairingClientsList = memo(function PairingClientsList({
           endpointUrl={endpointUrl}
           endpoints={endpoints}
           defaultEndpointKey={defaultEndpointKey}
-          presentation={presentation}
           revokingPairingLinkId={revokingPairingLinkId}
           onRevoke={onRevokePairingLink}
           canRevoke={canRevoke}
@@ -826,14 +812,13 @@ export const PairingClientsList = memo(function PairingClientsList({
         <ConnectedClientListRow
           key={clientSession.sessionId}
           clientSession={clientSession}
-          presentation={presentation}
           revokingClientSessionId={revokingClientSessionId}
           onRevokeSession={onRevokeClientSession}
           canRevoke={canRevoke}
         />
       ))}
       {pairingLinks.length === 0 && clientSessions.length === 0 && !isLoading ? (
-        <div className={accessRowClassName(presentation)}>
+        <div className={ITEM_ROW_CLASSNAME}>
           <p className="text-xs text-muted-foreground/60">
             {uiText("No pairing links or client sessions.")}
           </p>
@@ -845,7 +830,6 @@ export const PairingClientsList = memo(function PairingClientsList({
 type AdvertisedEndpointListRowProps = {
   endpoint: AdvertisedEndpoint;
   isDefault: boolean;
-  presentation?: AccessSectionPresentation;
   onSetDefault: (endpoint: AdvertisedEndpoint) => void;
   onSetupTailscaleServe: (endpoint: AdvertisedEndpoint) => void;
   onDisableTailscaleServe: (endpoint: AdvertisedEndpoint) => void;
@@ -854,7 +838,6 @@ type AdvertisedEndpointListRowProps = {
 export const AdvertisedEndpointListRow = memo(function AdvertisedEndpointListRow({
   endpoint,
   isDefault,
-  presentation = "current",
   onSetDefault,
   onSetupTailscaleServe,
   onDisableTailscaleServe,
@@ -865,10 +848,9 @@ export const AdvertisedEndpointListRow = memo(function AdvertisedEndpointListRow
   const canDisableTailscaleServe =
     isTailscaleHttpsEndpoint(endpoint) && endpoint.status === "available";
   const shouldShowEndpointUrl = !needsTailscaleSetup;
-  const isEndpointRail = presentation === "endpoint-rail";
   return (
-    <div className={endpointRowClassName(presentation, isAvailable)}>
-      {isEndpointRail && isDefault ? (
+    <div className={endpointRowClassName(isAvailable)}>
+      {isDefault ? (
         <span className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-primary" aria-hidden />
       ) : null}
       <div className="flex min-h-6 min-w-0 flex-col gap-2 sm:-my-0.5 sm:flex-row sm:items-center">

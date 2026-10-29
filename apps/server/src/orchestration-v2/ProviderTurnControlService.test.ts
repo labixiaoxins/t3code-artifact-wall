@@ -211,6 +211,7 @@ it.effect(
           apply: () => Effect.void,
           getArchiveBlockReason: () => Effect.succeed("unavailable" as const),
           getLimitRecoveryCandidates: () => Effect.die("unused getLimitRecoveryCandidates"),
+          getOpenRemoteDelegatedTasks: Effect.die("unused getOpenRemoteDelegatedTasks"),
           getShellSnapshot: () => Effect.die("unused getShellSnapshot"),
           listActiveSubagentThreadIds: () => Effect.die("unused listActiveSubagentThreadIds"),
           listOlderSettledThreads: () => Effect.die("unused listOlderSettledThreads"),

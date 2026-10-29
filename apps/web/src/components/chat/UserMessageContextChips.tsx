@@ -1,5 +1,5 @@
+import { documentChipKindForFileName } from "~/pierre-icons";
 import { uiText } from "~/i18n";
-import { documentIconColorForFileName } from "~/pierre-icons";
 import { isSvgAttachment } from "@t3tools/shared/image";
 import { useRenderedAppearance } from "../../hooks/useTheme";
 import { PullRequestGlyph } from "../pullRequest/pullRequestIcons";
@@ -7,7 +7,7 @@ import { ReadOnlySourcePreview } from "../files/AttachmentFilePreview";
 import { useRightPanelStore } from "~/rightPanelStore";
 import { COMPOSER_CONTEXT_KINDS } from "@t3tools/contracts";
 import { formatAttachmentSize } from "@t3tools/client-runtime/state/attachments";
-import { use, type CSSProperties, type ReactNode } from "react";
+import { use, type ReactNode } from "react";
 import { FileDiff } from "@pierre/diffs/react";
 import { DiffWorkerPoolProvider } from "../DiffWorkerPoolProvider";
 import {
@@ -23,6 +23,7 @@ import {
 } from "../../lib/diffRendering";
 import { PREFERRED_HIGHLIGHTER } from "../../lib/syntaxHighlighting";
 import ChatMarkdown from "../ChatMarkdown";
+import { EnvironmentContextChip } from "../EnvironmentContextChip";
 import { ThreadContextChip } from "../ThreadContextChip";
 import { MessageCircleIcon, MousePointerClickIcon, PaintbrushIcon } from "lucide-react";
 import type { ComposerContextId, KnownComposerContextRecord } from "@t3tools/contracts";
@@ -70,14 +71,12 @@ function UserMessageMentionChip(props: {
   copyMarkdown: string;
 }) {
   const ctx = use(TimelineRowCtx);
-  const accent = documentIconColorForFileName(props.record.path);
   return (
     <Tooltip>
       <TooltipTrigger
         render={
           <ContextChip
-            kind="mention"
-            style={accent ? ({ "--context-chip-accent": accent } as CSSProperties) : undefined}
+            kind={documentChipKindForFileName(props.record.path) ?? "mention"}
             render={<button type="button" />}
             aria-label={uiText("Preview {0}", { "0": props.record.path })}
             data-markdown-copy={props.copyMarkdown}
@@ -343,6 +342,16 @@ const userMessageContextPresentationRegistry = createContextPresentationRegistry
       render: (record, context) =>
         record.kind === "thread" ? (
           <ThreadContextChip record={record} copyMarkdown={context.copyMarkdown} />
+        ) : (
+          <UnavailableUserMessageContextChip {...context} />
+        ),
+    },
+    {
+      kind: "environment",
+      canRender: (record) => record.kind === "environment",
+      render: (record, context) =>
+        record.kind === "environment" ? (
+          <EnvironmentContextChip record={record} copyMarkdown={context.copyMarkdown} />
         ) : (
           <UnavailableUserMessageContextChip {...context} />
         ),

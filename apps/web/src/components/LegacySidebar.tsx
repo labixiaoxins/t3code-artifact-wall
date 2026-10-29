@@ -221,7 +221,7 @@ import {
   useThreadJumpHintsVisible,
   ThreadStatusPill,
 } from "./Sidebar.logic";
-import { sortThreads, getThreadSortTimestamp } from "../lib/threadSort";
+import { sortThreads, getThreadSortTimestamp } from "@t3tools/client-runtime/state/thread-sort";
 import { SidebarChromeFooter, SidebarChromeHeader } from "./sidebar/SidebarChrome";
 import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
 import { useIsMobile } from "~/hooks/useMediaQuery";
@@ -4250,8 +4250,8 @@ export default function LegacySidebar(props: { routeReveal: SidebarRouteReveal }
   })();
   // Jumping to a project from search (or elsewhere) asks the sidebar to show it: open its row, and
   // the "more projects" section when it sits there. The request is consumed so a repeat works too.
-  const requestedScopeKey = useUiStateStore((state) => state.sidebarProjectScopeKey);
-  const setSidebarProjectScopeKey = useUiStateStore((state) => state.setSidebarProjectScopeKey);
+  const requestedScopeKey = useUiStateStore((state) => state.sidebarProjectScopeKeys[0] ?? null);
+  const setSidebarProjectScopeKey = useUiStateStore((state) => state.setSidebarProjectScopeKeys);
   // oxlint-disable-next-line t3code/react-effect-budget -- Reveal requests from search synchronize the sidebar with an external navigation store.
   useEffect(() => {
     if (requestedScopeKey === null) return;
@@ -4284,7 +4284,7 @@ export default function LegacySidebar(props: { routeReveal: SidebarRouteReveal }
           ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 50);
     }
-    setSidebarProjectScopeKey(null);
+    setSidebarProjectScopeKey([]);
   }, [
     requestedScopeKey,
     sidebarProjects,

@@ -1,5 +1,12 @@
+import { workspaceAreaProps } from "../../lib/workspaceFocus";
+import {
+  useLayoutEffect,
+  useState,
+  type MouseEventHandler,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { uiText } from "~/i18n";
-import { useLayoutEffect, useState, type ReactNode, type RefObject } from "react";
 import type { ScopedThreadRef } from "@t3tools/contracts";
 import { useIsMobile } from "../../hooks/useMediaQuery";
 import { Sheet, SheetPopup, SheetTitle } from "../ui/sheet";
@@ -13,17 +20,25 @@ import {
   resolveThreadDetailsCardDensity,
 } from "./threadDetailsCardLayout";
 import { observeResize } from "../../lib/observeResize";
+import { requestWorkspaceFocus } from "../../lib/workspaceFocus";
+
 export function ThreadDetailsCard({
   threadRef,
   anchor,
   handle,
+  contentKey,
+  onContextMenu,
   children,
 }: {
   threadRef: ScopedThreadRef;
   anchor: RefObject<Element | null>;
   handle: ReturnType<typeof PopoverCreateHandle>;
+  /** Changes when the set of rendered items changes, so cached heights are measured again. */
+  contentKey: string;
+  onContextMenu?: MouseEventHandler<HTMLDivElement>;
   children: (density: "full" | "compact" | "essential") => ReactNode;
 }) {
+  const detailsArea = workspaceAreaProps("details", 3, "Thread details");
   const mobile = useIsMobile();
   const canvas = useChatCanvas();
   const preferredPlacement = canvas?.preferredDetailsCard ?? null;
@@ -36,7 +51,7 @@ export function ThreadDetailsCard({
   const popoverOpen = useRightPanelStore((state) =>
     selectThreadPanelOpen(state.threadPanelVisibilityByThreadKey, threadRef, "popover"),
   );
-  const measurementKey = `${threadRef.environmentId}:${threadRef.threadId}:${preferredPlacement?.width ?? "popup"}`;
+  const measurementKey = `${threadRef.environmentId}:${threadRef.threadId}:${preferredPlacement?.width ?? "popup"}:${contentKey}`;
   const [measurements, setMeasurements] = useState({
     key: measurementKey,
     heights: { full: 0, compact: 0 },
@@ -51,6 +66,7 @@ export function ThreadDetailsCard({
   // inline flag, which live in three stores, so no single write site sees the
   // card leave popover mode. A flag left set would reopen the popover unasked
   // when the card returns to popover mode.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- closes the popover flag in the right panel store when the derived mode turns inline
   useLayoutEffect(() => {
     if (mode === "inline" && popoverOpen)
       useRightPanelStore.getState().setThreadPanelOpen(threadRef, "popover", false);
@@ -59,6 +75,7 @@ export function ThreadDetailsCard({
   const { environmentId, threadId } = threadRef;
   // Re-measures when the density or measurement key changes, so each density's
   // height is measured once it renders.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- measures the card's DOM height via ResizeObserver and reports it to the canvas
   useLayoutEffect(() => {
     const element = contentElement;
     if (!element || density === "essential") return;
@@ -127,6 +144,7 @@ export function ThreadDetailsCard({
           "max-h-[min(calc(100dvh-6.5rem),calc(var(--available-height,100dvh)-1rem))]",
       )}
       style={placement ? { maxHeight: height } : undefined}
+      onContextMenu={onContextMenu}
       data-thread-details-card
     >
       <ScrollArea scrollFade className="min-h-0">
@@ -154,7 +172,8 @@ export function ThreadDetailsCard({
     >
       {placement && inlineOpen ? (
         <aside
-          aria-label={uiText("Thread details")}
+          {...detailsArea}
+          data-workspace-focus-key={`details:${threadRef.environmentId}:${threadRef.threadId}`}
           // Skip the return transition to avoid overlapping the rising preview.
           className={cn(
             "absolute z-20",
@@ -176,6 +195,13 @@ export function ThreadDetailsCard({
             mounted, because its exit animation never finishes. Staying in the tree
             lets it close cleanly when the card switches inline. */}
       <PopoverPopup
+        {...(mode === "popover" ? detailsArea : {})}
+        role="dialog"
+        data-workspace-focus-key={`details:${threadRef.environmentId}:${threadRef.threadId}`}
+        initialFocus={() => {
+          requestWorkspaceFocus({ area: "details" });
+          return false;
+        }}
         anchor={anchor}
         align="end"
         // Account for the find panel's 8px card padding.

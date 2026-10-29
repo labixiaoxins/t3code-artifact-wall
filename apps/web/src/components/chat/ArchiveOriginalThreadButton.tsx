@@ -8,7 +8,7 @@ import {
 } from "@t3tools/contracts";
 import { useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
-import * as ThreadUndo from "../../hooks/threadUndo";
+import * as ThreadUndo from "@t3tools/client-runtime/state/thread-undo";
 import { showThreadUndoNotice } from "../../hooks/showThreadUndoNotice";
 import { refreshArchivedThreadsForEnvironment } from "../../lib/archivedThreadsState";
 import { serverEnvironment } from "../../state/server";

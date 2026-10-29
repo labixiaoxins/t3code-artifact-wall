@@ -176,6 +176,8 @@ export function PreviewChromeRow({
                     }
                   }}
                   placeholder={uiText("Search or enter URL")}
+                  aria-label={uiText("Search or enter URL")}
+                  data-workspace-focus-default
                   spellCheck={false}
                   disabled={inputDisabled}
                   data-preview-url-input

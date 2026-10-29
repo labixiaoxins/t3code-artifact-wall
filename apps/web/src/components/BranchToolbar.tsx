@@ -6,17 +6,11 @@ import { stackedThreadToast, toastManager } from "./ui/toast";
 import { ComposerContextLabel } from "./ComposerContextLabel";
 import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentId, ProjectId, ThreadId } from "@t3tools/contracts";
-import {
-  ChevronDownIcon,
-  FolderGit2Icon,
-  FolderGitIcon,
-  FolderIcon,
-  PlusIcon,
-  ScaleIcon,
-} from "lucide-react";
+import { FolderGit2Icon, FolderGitIcon, FolderIcon, PlusIcon, ScaleIcon } from "lucide-react";
 import {
   type Ref,
   type MouseEvent as ReactMouseEvent,
+  type ReactNode,
   memo,
   useImperativeHandle,
   useRef,
@@ -73,8 +67,6 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import { MiddleTruncate } from "./ui/middle-truncate";
 import { ComposerSurface } from "./chat/ComposerSurface";
 import { useComposerMenuProps } from "./chat/composerEventScope";
-import { measureRestingComposerControls } from "./chat/restingComposerControlsMeasurement";
-import { resolveRestingComposerControlsNaturalWidth } from "./composerFooterLayout";
 import { cn } from "~/lib/utils";
 import { observeResize } from "~/lib/observeResize";
 
@@ -106,10 +98,10 @@ interface BranchToolbarProps {
   envLocked: boolean;
   onCheckoutPullRequestRequest?: (reference: string) => void;
   onComposerFocusRequest?: () => void;
+  /** Shown at the end of the composer strip, such as the new thread's permissions. */
+  trailing?: ReactNode;
   availableEnvironments?: readonly EnvironmentOption[];
   onEnvironmentChange?: (environmentId: EnvironmentId) => void;
-  composerControlsHostRef?: (element: HTMLDivElement | null) => void;
-  contextStripVisible?: boolean;
 }
 
 function showWorkspaceContextMenu(event: ReactMouseEvent, workspacePath: string) {
@@ -256,22 +248,12 @@ const RunContextSelector = memo(function RunContextSelector({
           />
         )}
       </TooltipTrigger>
-        <TooltipPopup>
-          {autoEnvironmentLabel ?? activeEnvironment?.label ?? uiText("Run on")}
-        </TooltipPopup>
+      <TooltipPopup>
+        {autoEnvironmentLabel ?? activeEnvironment?.label ?? uiText("Run on")}
+      </TooltipPopup>
     </Tooltip>
   );
-  const icon = !showEnvironmentIndicator ? (
-    workspaceIcon
-  ) : isPanel ? (
-    environmentIcon
-  ) : (
-    // Button's SVG margins consume 4px of the gap; mx-0! restores the intended 2px.
-    <span className="inline-flex shrink-0 items-center gap-0.5">
-      {environmentIcon}
-      {workspaceIcon}
-    </span>
-  );
+  const icon = showEnvironmentIndicator ? environmentIcon : workspaceIcon;
   const triggerContent = (
     <>
       {icon}
@@ -295,7 +277,11 @@ const RunContextSelector = memo(function RunContextSelector({
           isPanel && THREAD_DETAILS_PANEL_LOCKED_ROW_CLASS,
         )}
         onContextMenu={handleContextMenu}
-        aria-label={isPanel ? uiText("Run context") : undefined}
+        aria-label={
+          isPanel
+            ? `Run context: ${[autoEnvironmentLabel ?? activeEnvironment?.label, workspaceLabel].filter(Boolean).join(", ")}`
+            : undefined
+        }
         data-composer-context-control
       >
         {triggerContent}
@@ -316,7 +302,11 @@ const RunContextSelector = memo(function RunContextSelector({
               }
             : undefined
         }
-        aria-label={isPanel ? uiText("Run context") : undefined}
+        aria-label={
+          isPanel
+            ? `Run context: ${[autoEnvironmentLabel ?? activeEnvironment?.label, workspaceLabel].filter(Boolean).join(", ")}`
+            : undefined
+        }
         data-composer-context-control
         data-composer-shortcut={[
           showEnvironmentPicker && !envLocked ? "composer.host" : "",
@@ -324,7 +314,6 @@ const RunContextSelector = memo(function RunContextSelector({
         ].join(" ")}
       >
         {triggerContent}
-        {!isPanel ? <ChevronDownIcon className="size-3 shrink-0 mx-0!" /> : null}
       </MenuTrigger>
       <MenuPopup
         align="start"
@@ -551,16 +540,7 @@ function useLabelsOverflow(): readonly [
       let groups = 0;
       for (const child of current.children) {
         if (!(child instanceof HTMLElement)) continue;
-        // Reserve overflowed controls' width to prevent repeated hiding and expansion.
-        const hostedControls = child.matches('[data-chat-resting-composer-controls-host="true"]')
-          ? child.querySelector<HTMLElement>('[data-chat-composer-resting-controls="true"]')
-          : null;
-        const hostedMeasurement = hostedControls
-          ? measureRestingComposerControls(hostedControls)
-          : null;
-        const width = hostedMeasurement
-          ? resolveRestingComposerControlsNaturalWidth(hostedMeasurement)
-          : contentWidth(hostedControls ?? child);
+        const width = contentWidth(child);
         if (width <= 1) continue;
         groups += 1;
         needed += width;
@@ -592,7 +572,6 @@ function useLabelsOverflow(): readonly [
         [
           current,
           ...Array.from(current.children),
-          ...Array.from(current.querySelectorAll("[data-chat-composer-resting-controls='true']")),
           ...Array.from(current.querySelectorAll(COMPOSER_CONTEXT_LABEL_SELECTOR)),
         ],
         measure,
@@ -647,8 +626,7 @@ export const BranchToolbar = memo(function BranchToolbar({
   onComposerFocusRequest,
   availableEnvironments,
   onEnvironmentChange,
-  composerControlsHostRef,
-  contextStripVisible = true,
+  trailing,
 }: BranchToolbarProps) {
   const branchSelectorRef = useRef<BranchToolbarBranchSelectorHandle>(null);
   const threadRef = scopeThreadRef(environmentId, threadId);
@@ -771,11 +749,7 @@ export const BranchToolbar = memo(function BranchToolbar({
     <ComposerSurface.ContextStrip
       ref={attachStrip}
       data-compact={labelsOverflow ? "" : undefined}
-      className={cn(
-        "gap-1 text-xs font-normal text-foreground/70 dark:text-muted-foreground",
-        // Hide empty non-Git strips while retaining host width so controls can reappear as the chat grows.
-        !contextStripVisible && "pointer-events-none invisible absolute inset-x-0 top-full",
-      )}
+      className={cn("gap-1 text-xs font-normal text-foreground/70 dark:text-muted-foreground")}
     >
       {showGitControls ? (
         <div className="contents @3xl/composer-surface:hidden">
@@ -806,7 +780,7 @@ export const BranchToolbar = memo(function BranchToolbar({
           className={cn(
             "min-h-7 min-w-10 items-center gap-1 sm:min-h-6",
             showGitControls ? "hidden @3xl/composer-surface:flex" : "flex",
-            composerControlsHostRef ? "shrink" : "flex-1",
+            "flex-1",
           )}
         >
           {showEnvironmentIndicator && availableEnvironments && (
@@ -844,15 +818,6 @@ export const BranchToolbar = memo(function BranchToolbar({
         </div>
       ) : null}
 
-      {composerControlsHostRef ? (
-        <div
-          ref={composerControlsHostRef}
-          data-composer-context-control
-          data-chat-resting-composer-controls-host="true"
-          className="flex min-w-0 flex-1 items-center justify-start overflow-x-clip overflow-y-visible"
-        />
-      ) : null}
-
       {showGitControls ? (
         <BranchToolbarBranchSelector
           forceNewWorktree={forceNewWorktree}
@@ -871,6 +836,7 @@ export const BranchToolbar = memo(function BranchToolbar({
           {...(onComposerFocusRequest ? { onComposerFocusRequest } : {})}
         />
       ) : null}
+      {trailing}
     </ComposerSurface.ContextStrip>
   );
 });

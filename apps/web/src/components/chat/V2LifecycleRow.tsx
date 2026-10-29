@@ -1,3 +1,4 @@
+import { XIcon, MinusIcon } from "lucide-react";
 import { uiText } from "~/i18n";
 import { ThreadHoverCardPopup } from "../ThreadHoverCard";
 import { AgentElapsed } from "./AgentElapsed";
@@ -5,6 +6,9 @@ import { projectedSubagentsToRuntime } from "@t3tools/client-runtime/state/subag
 import { contextCompactionLabel } from "@t3tools/client-runtime/work-log/presentation";
 import type { ReactNode } from "react";
 import { useThreadShell, useProject } from "../../state/entities";
+import { useEnvironment } from "../../state/environments";
+import { buildThreadRouteParams } from "../../threadRoutes";
+import { useNavigate } from "@tanstack/react-router";
 import { SubagentTooltipContent } from "./SubagentTooltipContent";
 import { useAtomValue } from "@effect/atom-react";
 import { scopeThreadRef, scopeProjectRef } from "@t3tools/client-runtime/environment";
@@ -23,6 +27,7 @@ import {
   ProviderDriverKind,
   type OrchestrationV2Notification,
   type OrchestrationV2TurnItem,
+  type OrchestrationV2RemoteTaskChild,
   type OrchestrationV2Subagent,
   type ProviderInstanceId,
   type ServerProvider,
@@ -35,12 +40,11 @@ import type { TimestampFormat } from "@t3tools/contracts/settings";
 import {
   BotIcon,
   ChevronRightIcon,
+  CircleStopIcon,
   ArrowRightLeftIcon,
   ArrowRightIcon,
   GitForkIcon,
   MessageSquareIcon,
-  MinusIcon,
-  XIcon,
 } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipPopup } from "../ui/tooltip";
 import {
@@ -57,25 +61,12 @@ import { TimelineSystemDivider } from "./TimelineSystemDivider";
 import { subagentResumedSince } from "./V2LifecycleRow.logic";
 import { Button, InlineButton } from "../ui/button";
 import { T3Wordmark } from "../T3Wordmark";
-const LIFECYCLE_TYPES = new Set<OrchestrationV2TurnItem["type"]>([
-  "run_interrupt_request",
-  "run_interrupt_result",
-  "compaction",
-  "handoff",
-  "fork",
-  "subagent",
-  "thread_created",
-]);
-export function isV2LifecycleItem(item: OrchestrationV2TurnItem): boolean {
-  return LIFECYCLE_TYPES.has(item.type);
-}
+
 export type { HandoffTimelineRun } from "@t3tools/client-runtime/handoff";
 export function V2LifecycleRow(props: {
   readonly item: OrchestrationV2TurnItem;
   readonly environmentId: EnvironmentId;
   readonly resourceSummary?: boolean | undefined;
-  readonly createdAt: string;
-  readonly timestampFormat: TimestampFormat;
   readonly runs: ReadonlyArray<HandoffTimelineRun>;
   readonly onOpenThread: (threadId: ThreadId) => void;
 }) {
@@ -92,9 +83,6 @@ export function V2LifecycleRow(props: {
             {"\u00B7"}
           </span>
           <span className="font-medium">{item.message}</span>
-          <span className="text-3xs text-muted-foreground">
-            {formatShortTimestamp(props.createdAt, props.timestampFormat)}
-          </span>
         </div>
       </div>
     );
@@ -206,6 +194,7 @@ export function V2LifecycleRow(props: {
         startedAt={item.startedAt}
         completedAt={item.completedAt}
         threadId={item.childThreadId}
+        remote={item.remoteChild}
         onOpenThread={props.onOpenThread}
       />
     );
@@ -299,14 +288,25 @@ function SubagentAvatar({
 export function EnvironmentSubagentAvatar({
   environmentId,
   providerInstanceId,
+  driver,
+  remote,
   ...props
 }: {
   environmentId: EnvironmentId;
   providerInstanceId: ProviderInstanceId;
   driver?: ProviderDriverKind | undefined;
+  /** A task in a linked environment runs a provider instance there; its driver here is only a label. */
+  remote?: OrchestrationV2RemoteTaskChild | undefined;
   status?: OrchestrationV2TurnItem["status"] | undefined;
 }) {
-  const providersAtom = serverEnvironment.providersValueAtom(environmentId);
+  const providersAtom = serverEnvironment.providersValueAtom(
+    remote?.environmentId ?? environmentId,
+  );
+  const providerDriver = useAtomValue(
+    providersAtom,
+    (providers) =>
+      providers?.find((provider) => provider.instanceId === providerInstanceId)?.driver,
+  );
   const displayName = useAtomValue(
     providersAtom,
     (providers) =>
@@ -317,7 +317,14 @@ export function EnvironmentSubagentAvatar({
     (providers) =>
       providers?.find((provider) => provider.instanceId === providerInstanceId)?.iconUrl,
   );
-  return <SubagentAvatar {...props} displayName={displayName} iconUrl={iconUrl} />;
+  return (
+    <SubagentAvatar
+      {...props}
+      driver={providerDriver ?? (remote === undefined ? driver : undefined)}
+      displayName={displayName}
+      iconUrl={iconUrl}
+    />
+  );
 }
 const NOTIFICATION_OUTCOME_STATUS: Record<
   OrchestrationV2Notification["outcome"],
@@ -395,6 +402,8 @@ function SubagentTimelineLink(props: {
   readonly startedAt: DateTime.Utc | null;
   readonly completedAt: DateTime.Utc | null;
   readonly threadId: ThreadId | null;
+  /** The thread in a linked environment that runs this task, when it runs there. */
+  readonly remote?: OrchestrationV2RemoteTaskChild | undefined;
   readonly onOpenThread: (threadId: ThreadId) => void;
   readonly event?: {
     readonly status: OrchestrationV2TurnItem["status"] | null;
@@ -406,7 +415,21 @@ function SubagentTimelineLink(props: {
     environmentThreadDetails.threadAtom(props.parentRef),
     (thread) => thread?.projection.subagents.find((agent) => agent.id === props.subagentId) ?? null,
   );
+  const remote = props.remote ?? agent?.remoteChild;
+  const remoteEnvironment = useEnvironment(remote?.environmentId ?? null);
+  const navigate = useNavigate();
   const threadId = props.threadId;
+  // A task in a linked environment opens there, if this client is connected to it.
+  const open =
+    threadId !== null
+      ? () => props.onOpenThread(threadId)
+      : remote !== undefined && remoteEnvironment !== null
+        ? () =>
+            void navigate({
+              to: "/$environmentId/$threadId",
+              params: buildThreadRouteParams(scopeThreadRef(remote.environmentId, remote.threadId)),
+            })
+        : null;
   const liveStatus = agent?.status ?? props.status;
   const status = props.event ? props.event.status : liveStatus;
   const statusLabel = props.event?.label ?? subagentStatusVisual(liveStatus).label;
@@ -428,10 +451,18 @@ function SubagentTimelineLink(props: {
         environmentId={props.parentRef.environmentId}
         providerInstanceId={props.providerInstanceId}
         driver={props.driver}
+        remote={remote}
         status={status ?? undefined}
       />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-xs font-medium text-foreground">{props.title}</span>
+        <span className="flex items-baseline gap-2">
+          <span className="min-w-0 truncate text-xs font-medium text-foreground">
+            {props.title}
+          </span>
+          {remote !== undefined ? (
+            <span className="shrink-0 text-xs text-muted-foreground">on {remote.label}</span>
+          ) : null}
+        </span>
         <span
           className={cn(
             "block text-2xs leading-relaxed",
@@ -457,7 +488,7 @@ function SubagentTimelineLink(props: {
       <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
         {props.event ? props.event.timestamp : <SubagentElapsed agent={timing} />}
       </span>
-      {threadId !== null ? (
+      {open !== null ? (
         <ChevronRightIcon
           aria-hidden
           className="size-3.5 shrink-0 text-muted-foreground/60 transition-colors group-hover/subagent:text-foreground"
@@ -472,7 +503,7 @@ function SubagentTimelineLink(props: {
       <TooltipTrigger
         delay={200}
         render={
-          threadId === null ? (
+          open === null ? (
             <div data-v2-item-type="subagent" aria-description={statusLabel} className={className}>
               {content}
             </div>
@@ -482,7 +513,7 @@ function SubagentTimelineLink(props: {
               data-v2-item-type="subagent"
               aria-label={uiText("Open {0}", { "0": props.title })}
               aria-description={statusLabel}
-              onClick={() => props.onOpenThread(threadId)}
+              onClick={open}
               className={cn(
                 className,
                 "cursor-pointer transition-colors hover:bg-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
@@ -618,7 +649,7 @@ function HandoffEndpoint(props: {
       : entry?.models.find((candidate) => candidate.slug === model);
   const label =
     providerModel !== undefined
-      ? getTriggerDisplayModelName(providerModel)
+      ? getTriggerDisplayModelName(providerModel, entry?.driverKind)
       : model !== undefined && model.length > 0
         ? model
         : (entry?.displayName ?? props.instanceId);

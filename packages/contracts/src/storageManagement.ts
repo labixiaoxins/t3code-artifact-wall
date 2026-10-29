@@ -17,6 +17,10 @@ export const StorageOperation = Schema.Struct({
   freeBefore: Schema.optionalKey(Schema.Number),
   freeAfter: Schema.optionalKey(Schema.Number),
   error: Schema.optionalKey(Schema.String),
+  spacePath: Schema.optionalKey(Schema.String),
+  items: Schema.optionalKey(
+    Schema.Array(Schema.Struct({ path: Schema.String, bytes: Schema.Number })),
+  ),
 });
 export type StorageOperation = typeof StorageOperation.Type;
 export const StorageInspection = Schema.Struct({
@@ -29,6 +33,10 @@ export const StorageInspection = Schema.Struct({
       kind: Schema.String,
       reason: Schema.String,
       canRelease: Schema.Boolean,
+      canArchive: Schema.optionalKey(Schema.Boolean),
+      canExpand: Schema.optionalKey(Schema.Boolean),
+      volumePath: Schema.optionalKey(Schema.String),
+      modifiedAt: Schema.optionalKey(Schema.String),
       bytes: Schema.optionalKey(Schema.NullOr(Schema.Number)),
     }),
   ),
@@ -49,9 +57,12 @@ export const StorageInspection = Schema.Struct({
       name: Schema.String,
       path: Schema.String,
       freeBytes: Schema.Number,
+      totalBytes: Schema.optionalKey(Schema.Number),
+      internal: Schema.optionalKey(Schema.Boolean),
     }),
   ),
   operations: Schema.Array(StorageOperation),
+  truncated: Schema.optionalKey(Schema.Boolean),
 });
 export type StorageInspection = typeof StorageInspection.Type;
 export const StorageInspectInput = Schema.Struct({
@@ -61,6 +72,7 @@ export const StorageInspectInput = Schema.Struct({
 });
 export type StorageInspectInput = typeof StorageInspectInput.Type;
 export const StorageActionInput = Schema.Union([
+  Schema.Struct({ action: Schema.Literals(["logs-plan"]) }),
   Schema.Struct({
     action: Schema.Literals(["plan"]),
     objectId: Schema.String,

@@ -2,11 +2,7 @@ import { uiText } from "~/i18n";
 import { type ProviderDriverKind, type ProviderInstanceId } from "@t3tools/contracts";
 import { memo } from "react";
 import { CheckIcon, StarIcon } from "lucide-react";
-import {
-  getDisplayModelName,
-  getProviderRowLabel,
-  getTriggerDisplayModelLabel,
-} from "./providerIconUtils";
+import { getDisplayModelName, getTriggerDisplayModelName, getProviderRowLabel } from "./providerIconUtils";
 import { ComboboxItem } from "../ui/combobox";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
@@ -22,6 +18,9 @@ export const ModelListRow = memo(function ModelListRow(props: {
   slug: string;
   name: string;
   shortName?: string | undefined;
+  showSelection?: boolean;
+  preferShortName?: boolean;
+  useTriggerLabel?: boolean;
   subProvider?: string | undefined;
   instanceId: ProviderInstanceId;
   driverKind: ProviderDriverKind;
@@ -31,10 +30,7 @@ export const ModelListRow = memo(function ModelListRow(props: {
   acpRegistryIconUrl?: string | undefined;
   isFavorite: boolean;
   isSelected: boolean;
-  showSelection?: boolean;
   showProvider: boolean;
-  preferShortName?: boolean;
-  useTriggerLabel?: boolean;
   showNewBadge?: boolean;
   unavailable?: boolean;
   jumpLabel?: string | null;
@@ -64,7 +60,7 @@ export const ModelListRow = memo(function ModelListRow(props: {
         <div className="flex min-w-0 items-center gap-2">
           <div className="min-w-0 truncate text-sm font-normal leading-snug">
             {props.useTriggerLabel
-              ? getTriggerDisplayModelLabel(model)
+              ? getTriggerDisplayModelName(model, props.driverKind)
               : getDisplayModelName(
                   model,
                   props.preferShortName ? { preferShortName: true } : undefined,
@@ -126,7 +122,7 @@ export const ModelListRow = memo(function ModelListRow(props: {
             {props.isFavorite ? uiText("Remove from favorites") : uiText("Add to favorites")}
           </TooltipPopup>
         </Tooltip>
-        {props.showSelection ? (
+        {props.showSelection !== false ? (
           <CheckIcon
             className={cn("size-3.5", !props.isSelected && "invisible")}
             aria-hidden="true"

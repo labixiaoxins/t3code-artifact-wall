@@ -278,6 +278,7 @@ const REVIEW_OUTCOME_PRESENTATION = {
     ringClassName: "ring-2 ring-emerald-500 dark:ring-emerald-400",
     staleRingClassName:
       "ring-2 ring-[color-mix(in_srgb,var(--color-emerald-500)_35%,var(--background))] dark:ring-[color-mix(in_srgb,var(--color-emerald-400)_35%,var(--background))]",
+    fillClassName: "fill-emerald-500 dark:fill-emerald-400",
     badgeVariant: "success",
   },
   "changes-requested": {
@@ -286,6 +287,7 @@ const REVIEW_OUTCOME_PRESENTATION = {
     toneClassName: "text-destructive",
     ringClassName: "ring-2 ring-destructive",
     staleRingClassName: "ring-2 ring-[color-mix(in_srgb,var(--destructive)_35%,var(--background))]",
+    fillClassName: "fill-destructive",
     badgeVariant: "error",
   },
   dismissed: {
@@ -295,6 +297,7 @@ const REVIEW_OUTCOME_PRESENTATION = {
     ringClassName: "ring-2 ring-muted-foreground/60",
     staleRingClassName:
       "ring-2 ring-[color-mix(in_srgb,var(--contrast-muted-foreground)_30%,var(--background))]",
+    fillClassName: "fill-muted-foreground",
     badgeVariant: "outline",
   },
 } as const satisfies Record<
@@ -305,6 +308,7 @@ const REVIEW_OUTCOME_PRESENTATION = {
     toneClassName: string;
     ringClassName: string;
     staleRingClassName: string;
+    fillClassName: string;
     badgeVariant: "success" | "error" | "outline";
   }
 >;
@@ -337,6 +341,29 @@ export function PullRequestReviewOutcomeIcon({
     />
   );
 }
+
+// Ring color alone blends into colorful bot avatars; the glyph gives each verdict a shape.
+export function PullRequestReviewOutcomeAvatarBadge({
+  outcome,
+  stale = false,
+}: {
+  outcome: PullRequestReviewOutcome;
+  stale?: boolean;
+}) {
+  const presentation = REVIEW_OUTCOME_PRESENTATION[outcome];
+  return (
+    <presentation.Icon
+      aria-hidden
+      strokeWidth={3}
+      className={cn(
+        "absolute -right-1 -bottom-1 size-3 text-background",
+        presentation.fillClassName,
+        stale && "opacity-50",
+      )}
+    />
+  );
+}
+
 export function pullRequestReviewOutcomeLabel(outcome: PullRequestReviewOutcome): string {
   return REVIEW_OUTCOME_PRESENTATION[outcome].label;
 }

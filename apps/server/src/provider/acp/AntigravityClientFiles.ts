@@ -4,7 +4,7 @@ import type * as FileSystem from "effect/FileSystem";
 import type * as Path from "effect/Path";
 import * as EffectAcpErrors from "effect-acp/errors";
 import type * as EffectAcpSchema from "effect-acp/compat";
-/** The agent requests permission for every write; check only path containment here. */
+
 const CLIENT_FILE_MAX_BYTES = 8 * 1024 * 1024;
 function isInsideRoot(path: Path.Path, root: string, candidate: string): boolean {
   const relative = path.relative(root, candidate);
@@ -23,7 +23,7 @@ const resolveClientFilePath = Effect.fn("AntigravityClientFiles.resolveClientFil
     const outside = EffectAcpErrors.AcpRequestError.invalidParams(
       `Path '${input.requestPath}' is outside the session workspace.`,
     );
-    // Resolve the deepest existing ancestor before creating any missing directories.
+    // Canonicalize the deepest existing ancestor, so a link above missing directories cannot escape.
     let candidate = resolved;
     const missingSuffix: Array<string> = [];
     let real: string;
@@ -33,6 +33,7 @@ const resolveClientFilePath = Effect.fn("AntigravityClientFiles.resolveClientFil
         real = path.join(canonical.value, ...missingSuffix);
         break;
       }
+      // Walk up only past missing entries, never dangling or unreadable links.
       const entryExists = yield* input.fileSystem.readLink(candidate).pipe(
         Effect.as(true),
         Effect.catch(() => input.fileSystem.exists(candidate)),
@@ -91,22 +92,5 @@ export const readAntigravityClientTextFile = Effect.fn("AntigravityClientFiles.r
     const start = Math.max(0, (line ?? 1) - 1);
     const end = limit === undefined ? lines.length : Math.min(lines.length, start + limit);
     return { content: lines.slice(start, end).join("\n") };
-  },
-);
-export const writeAntigravityClientTextFile = Effect.fn("AntigravityClientFiles.writeTextFile")(
-  function* (input: {
-    readonly fileSystem: FileSystem.FileSystem;
-    readonly path: Path.Path;
-    readonly allowedRoots: ReadonlyArray<string>;
-    readonly request: EffectAcpSchema.WriteTextFileRequest;
-  }): Effect.fn.Return<EffectAcpSchema.WriteTextFileResponse, EffectAcpErrors.AcpError> {
-    const filePath = yield* resolveClientFilePath({ ...input, requestPath: input.request.path });
-    yield* input.fileSystem.makeDirectory(input.path.dirname(filePath), { recursive: true }).pipe(
-      Effect.andThen(input.fileSystem.writeFileString(filePath, input.request.content)),
-      Effect.mapError(() =>
-        EffectAcpErrors.AcpRequestError.internalError(`Could not write '${input.request.path}'.`),
-      ),
-    );
-    return {};
   },
 );

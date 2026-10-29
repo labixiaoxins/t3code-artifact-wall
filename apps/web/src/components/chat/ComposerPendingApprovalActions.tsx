@@ -6,12 +6,13 @@ import {
 } from "@t3tools/contracts";
 import { memo } from "react";
 import { EllipsisIcon, TriangleAlertIcon } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button, InlineButton } from "../ui/button";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "../ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { composerFloatingLayerProps } from "./composerEventScope";
 
 interface ComposerPendingApprovalActionsProps {
+  presentation?: "composer" | "inline";
   requestId: RuntimeRequestId;
   isResponding: boolean;
   canRespond: boolean;
@@ -31,6 +32,7 @@ const DEFAULT_APPROVAL_OPTIONS = [
 ] satisfies ReadonlyArray<ProviderApprovalOption>;
 
 export const ComposerPendingApprovalActions = memo(function ComposerPendingApprovalActions({
+  presentation = "composer",
   requestId,
   isResponding,
   canRespond,
@@ -48,23 +50,42 @@ export const ComposerPendingApprovalActions = memo(function ComposerPendingAppro
   return (
     <>
       {primaryOptions.map((option) => {
-        const button = (
-          <Button
-            key={option.decision}
-            size="xs"
-            variant={option.decision === "accept" ? "default" : "outline"}
-            disabled={disabled || isResponding || !canRespond}
-            aria-description={option.warning}
-            onClick={() => {
-              if (!disabled && !isResponding) {
-                void onRespondToApproval(requestId, option.decision);
-              }
-            }}
-          >
+        const buttonProps = {
+          disabled: disabled || isResponding || !canRespond,
+          "aria-description": option.warning,
+          onClick: () => {
+            if (!disabled && !isResponding && canRespond) {
+              void onRespondToApproval(requestId, option.decision);
+            }
+          },
+        };
+        const content = (
+          <>
             {option.warning ? <TriangleAlertIcon className="size-3 shrink-0" /> : null}
-            <span className="max-w-40 truncate">{option.label}</span>
-          </Button>
+            <span className={presentation === "inline" ? "whitespace-normal" : "max-w-40 truncate"}>
+              {option.label}
+            </span>
+          </>
         );
+        const button =
+          presentation === "inline" ? (
+            <InlineButton
+              key={option.decision}
+              {...buttonProps}
+              tone={option.decision === "accept" ? "default" : "muted"}
+            >
+              {content}
+            </InlineButton>
+          ) : (
+            <Button
+              key={option.decision}
+              {...buttonProps}
+              size="xs"
+              variant={option.decision === "accept" ? "default" : "outline"}
+            >
+              {content}
+            </Button>
+          );
         return option.warning ? (
           <Tooltip key={option.decision}>
             <TooltipTrigger render={button} />
@@ -77,26 +98,30 @@ export const ComposerPendingApprovalActions = memo(function ComposerPendingAppro
       {moreOptions.length > 0 ? (
         <Menu>
           <MenuTrigger
-            disabled={disabled || isResponding}
+            disabled={disabled || isResponding || !canRespond}
             render={
-              <Button
-                size="icon-xs"
-                variant="outline"
-                aria-label={uiText("More approval options")}
-              />
+              presentation === "inline" ? (
+                <InlineButton tone="muted" aria-label={uiText("More approval options")} />
+              ) : (
+                <Button
+                  size="icon-xs"
+                  variant="outline"
+                  aria-label={uiText("More approval options")}
+                />
+              )
             }
           >
-            <EllipsisIcon />
+            {presentation === "inline" ? "More" : <EllipsisIcon />}
           </MenuTrigger>
           <MenuPopup {...composerFloatingLayerProps} side="top" align="end" width="content">
             {moreOptions.map((option) => {
               const item = (
                 <MenuItem
                   key={option.decision}
-                  disabled={disabled || isResponding}
+                  disabled={disabled || isResponding || !canRespond}
                   aria-description={option.warning}
                   onClick={() => {
-                    if (!disabled && !isResponding)
+                    if (!disabled && !isResponding && canRespond)
                       void onRespondToApproval(requestId, option.decision);
                   }}
                 >

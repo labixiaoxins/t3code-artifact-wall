@@ -14,8 +14,8 @@ import { useRef, useState } from "react";
 import {
   readCachedPullRequestResolution,
   usePreparePullRequestThreadAction,
-  usePullRequestResolution,
-} from "~/lib/sourceControlActions";
+  usePullRequestResolutionState,
+} from "~/state/sourceControlActions";
 import { cn } from "~/lib/utils";
 import { parsePullRequestReference } from "@t3tools/client-runtime/pull-request-link-input";
 import { getSourceControlPresentation } from "~/sourceControlPresentation";
@@ -93,7 +93,7 @@ export function PullRequestThreadDialog({
 
   const parsedReference = parsePullRequestReference(reference);
   const parsedDebouncedReference = parsePullRequestReference(debouncedReference);
-  const pullRequestResolution = usePullRequestResolution({
+  const pullRequestResolution = usePullRequestResolutionState({
     environmentId,
     cwd,
     reference: open ? parsedDebouncedReference : null,

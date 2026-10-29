@@ -40,8 +40,9 @@ import {
   ComboboxItem,
   ComboboxListVirtualized,
 } from "../ui/combobox";
-import { getDisplayModelName, ModelEsque } from "./providerIconUtils";
+import { ModelEsque } from "./providerIconUtils";
 import { isCommandPaletteOpen } from "../../commandPaletteBus";
+import { registerModelPickerContent } from "../../modelPickerVisibility";
 import { primaryServerKeybindingsAtom } from "../../state/server";
 import {
   modelPickerJumpCommandForIndex,
@@ -64,6 +65,7 @@ import {
   type ProviderInstanceEntry,
 } from "../../providerInstances";
 import { providerModelKey, sortProviderModelItems } from "../../modelOrdering";
+
 type ModelPickerItem = {
   slug: string;
   name: string;
@@ -80,6 +82,7 @@ type ModelPickerItem = {
   isLegacy?: boolean | undefined;
   isUnavailable?: boolean | undefined;
 };
+
 export function resolveModelPickerSelectedModel(input: {
   driverKind: ProviderDriverKind | undefined;
   model: string;
@@ -96,6 +99,7 @@ export function resolveModelPickerSelectedModel(input: {
   }
   return input.options.find((option) => option.slug === input.model);
 }
+
 function shouldIncludeModelPickerOption(input: {
   readonly entry: ProviderInstanceEntry;
   readonly option: ModelEsque;
@@ -114,6 +118,7 @@ function shouldIncludeModelPickerOption(input: {
     input.option.isUnavailable === true
   );
 }
+
 function shouldOfferModelPickerSetup(
   entry: ProviderInstanceEntry,
   options: ReadonlyArray<ModelEsque>,
@@ -128,6 +133,7 @@ function shouldOfferModelPickerSetup(
       !options.some((option) => !option.isUnavailable))
   );
 }
+
 function adjacentModelPickerProvider(input: {
   entries: ReadonlyArray<ProviderInstanceEntry>;
   selectedInstanceId: ProviderInstanceId | "favorites";
@@ -155,16 +161,19 @@ function adjacentModelPickerProvider(input: {
       : (index + input.direction + providers.length) % providers.length
   ]!;
 }
+
 const EMPTY_MODEL_JUMP_LABELS = new Map<string, string>();
-const MODEL_LIST_ESTIMATED_ITEM_SIZE = 48;
-// Reserve the tallest provider tab so its icons stay under the pointer when switching.
+const MODEL_LIST_ESTIMATED_ITEM_SIZE = 52;
+// Rendered heights in `--spacing` units. Chrome is the search box and list padding, plus a 1px border.
 const ONE_LINE_ROW_UNITS = 8;
 const TWO_LINE_ROW_UNITS = 12;
 const ROW_SEPARATOR_UNITS = 0.5;
 const LIST_CHROME_UNITS = 15.5;
+
 function ModelListSeparator() {
   return <div className="h-0.5" />;
 }
+
 function modelJumpLabelsByKey(
   modelKeys: ReadonlyArray<string>,
   keybindings: ResolvedKeybindingsConfig,
@@ -184,6 +193,7 @@ function modelJumpLabelsByKey(
   }
   return mapping.size > 0 ? mapping : EMPTY_MODEL_JUMP_LABELS;
 }
+
 function ModelPickerProviderNotices({
   setupEntries,
   updateRequiredNotices,
@@ -193,10 +203,7 @@ function ModelPickerProviderNotices({
 }: {
   setupEntries: ReadonlyArray<ProviderInstanceEntry>;
   emptyLabel: string;
-  updateRequiredNotices: ReadonlyArray<{
-    instanceId: ProviderInstanceId;
-    notice: string;
-  }>;
+  updateRequiredNotices: ReadonlyArray<{ instanceId: ProviderInstanceId; notice: string }>;
   onRequestClose: (() => void) | undefined;
   onOpenProviderSetup: ((instanceId: ProviderInstanceId) => void) | undefined;
 }) {
@@ -217,9 +224,7 @@ function ModelPickerProviderNotices({
                   onOpenProviderSetup?.(entry.instanceId);
                 }}
               >
-                {setupEntries.length > 1
-                  ? uiText("Set up {0}", { "0": entry.displayName })
-                  : uiText("Open provider setup")}
+                {setupEntries.length > 1 ? `Set up ${entry.displayName}` : "Open provider setup"}
               </InlineButton>
             </div>
           ))}
@@ -239,13 +244,14 @@ function ModelPickerProviderNotices({
               void navigate({ to: "/settings/providers" });
             }}
           >
-            {uiText("Provider settings")}
+            Provider settings
           </InlineButton>
         </p>
       ))}
     </>
   );
 }
+
 function ModelPickerList({
   listRef,
   itemKeys,
@@ -268,6 +274,7 @@ function ModelPickerList({
     setShowTopScrollFade(scrollElement.scrollTop > 1);
     setShowBottomScrollFade(maxScrollOffset - scrollElement.scrollTop > 1);
   };
+
   // Disabled-reason closures rebuild identical key arrays; compare contents.
   const itemListKey = JSON.stringify(itemKeys);
   const [fadesResetFor, setFadesResetFor] = useState(itemListKey);
@@ -277,6 +284,7 @@ function ModelPickerList({
     setShowBottomScrollFade(itemKeys.length > 5);
   }
   const measureScrollFades = useEffectEvent(updateScrollFades);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- measures the list scroller in animation frames after a new list lays out to set scroll fades
   useLayoutEffect(() => {
     let nestedFrame = 0;
     const frame = window.requestAnimationFrame(() => {
@@ -289,6 +297,7 @@ function ModelPickerList({
     };
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- A new list re-measures its scroll fades once it has laid out.
   }, [itemListKey]);
+
   return (
     <div
       className={cn(
@@ -322,9 +331,11 @@ function ModelPickerList({
     </div>
   );
 }
+
 // Capture gives picker shortcuts priority over the composer.
 function WindowKeyDownListener({ onKeyDown }: { onKeyDown: (event: KeyboardEvent) => void }) {
   const handleKeyDown = useEffectEvent(onKeyDown);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- subscribes a capture-phase window keydown listener for the picker's lifetime
   useEffect(() => {
     const listener = (event: KeyboardEvent) => handleKeyDown(event);
     window.addEventListener("keydown", listener, true);
@@ -334,14 +345,12 @@ function WindowKeyDownListener({ onKeyDown }: { onKeyDown: (event: KeyboardEvent
   }, []);
   return null;
 }
+
 export const ModelPickerContent = memo(function ModelPickerContent(props: {
   environmentId: EnvironmentId | null;
   activeInstanceId: ProviderInstanceId;
   model: string;
-  selectedModels?: ReadonlyArray<{
-    instanceId: ProviderInstanceId;
-    model: string;
-  }>;
+  selectedModels?: ReadonlyArray<{ instanceId: ProviderInstanceId; model: string }>;
   onToggleModel?: (instanceId: ProviderInstanceId, model: string) => void;
   lockedProvider: ProviderDriverKind | null;
   lockedContinuationGroupKey?: string | null;
@@ -370,6 +379,8 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
   const [searchQuery, setSearchQuery] = useState("");
   const modelListRef = useRef<LegendListRef | null>(null);
   const pickerContentRef = useRef<HTMLDivElement>(null);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- publishes this picker's mount to global keydown handlers
+  useLayoutEffect(() => registerModelPickerContent(), []);
   const highlightedModelKeyRef = useRef<string | null>(null);
   const { favorites } = useEnvironmentModelPreferences(props.environmentId);
   const activeEntry = props.instanceEntries.find(
@@ -441,15 +452,18 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
   const keybindings = providedKeybindings ?? serverKeybindings;
   const [searchHeight, setSearchHeight] = useState(0);
   const toggleFavorite = useToggleEnvironmentModelFavorite(props.environmentId);
+
   const focusSearchInput = () => {
     searchInputRef.current?.focus({ preventScroll: true });
   };
+
   const handleSelectInstance = (instanceId: ProviderInstanceId | "favorites") => {
     setSelectedInstanceId(instanceId);
     window.requestAnimationFrame(() => {
       focusSearchInput();
     });
   };
+
   const toggleLegacySection = (instanceId: ProviderInstanceId) => {
     setExpandedLegacyInstances((expanded) => {
       const next = new Set(expanded);
@@ -461,6 +475,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
       return next;
     });
   };
+
   const handleModelSelect = (
     modelSlug: string,
     instanceId: ProviderInstanceId,
@@ -486,6 +501,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     }
     return resolvedModel;
   };
+
   const modelJumpShortcutContext = {
     terminalFocus: false,
     terminalOpen: props.terminalOpen,
@@ -494,6 +510,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
   const lockedProvider = props.lockedProvider;
   const lockedContinuationGroupKey = props.lockedContinuationGroupKey;
   const canOpenProviderSetup = onOpenProviderSetup !== undefined;
+
   const entryByInstanceId = new Map(instanceEntries.map((entry) => [entry.instanceId, entry]));
   const matchesLockedProvider = (
     entry: Pick<ProviderInstanceEntry, "driverKind" | "continuationGroupKey">,
@@ -503,6 +520,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     if (!lockedContinuationGroupKey) return true;
     return entry.continuationGroupKey === lockedContinuationGroupKey;
   };
+
   const selectableUnavailableInstanceIds = (() => {
     const instanceIds = new Set<ProviderInstanceId>();
     if (activeInstanceHasSelectableUnavailableModel) {
@@ -519,6 +537,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     }
     return instanceIds.size > 0 ? instanceIds : undefined;
   })();
+
   const flatModels = (() => {
     const out: ModelPickerItem[] = [];
     for (const [instanceId, models] of modelOptionsByInstance) {
@@ -559,8 +578,12 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     }
     return out;
   })();
+
   const isLocked = lockedProvider !== null;
   const isSearching = searchQuery.trim().length > 0;
+  // Inside one provider's tab the provider line repeats the selected rail icon on every row.
+  const rowsMixProviders = isSearching || selectedInstanceId === "favorites";
+  // Fit the tallest tab so switching tabs never resizes the popup and moves the rail under the cursor.
   const tallestTabUnits = (() => {
     const unitsByTab = new Map<ProviderInstanceId | "favorites", number>();
     const addRow = (tab: ProviderInstanceId | "favorites", twoLine: boolean) => {
@@ -574,10 +597,13 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     const tabsWithLegacyRow = new Set<ProviderInstanceId>();
     for (const model of flatModels) {
       if (!matchesLockedProvider(model)) continue;
-      const favorite = favoritesSet.has(providerModelKey(model.instanceId, model.slug));
-      if (favorite) addRow("favorites", false);
-      if (model.isLegacy && !favorite) tabsWithLegacyRow.add(model.instanceId);
-      else addRow(model.instanceId, false);
+      const isFavorite = favoritesSet.has(providerModelKey(model.instanceId, model.slug));
+      if (isFavorite) addRow("favorites", true);
+      if (model.isLegacy && !isFavorite) {
+        tabsWithLegacyRow.add(model.instanceId);
+      } else {
+        addRow(model.instanceId, Boolean(model.subProvider));
+      }
     }
     for (const instanceId of tabsWithLegacyRow) addRow(instanceId, true);
     return Math.max(0, ...unitsByTab.values());
@@ -612,8 +638,10 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
   })();
   const showSidebar = !isSearching && sidebarInstanceEntries.length > 0;
   const instanceOrder = instanceEntries.map((entry) => entry.instanceId);
+
   const filteredModels = (() => {
     let result = flatModels;
+
     if (searchQuery.trim()) {
       const candidates =
         lockedProvider !== null ? result.filter((m) => matchesLockedProvider(m)) : result;
@@ -626,6 +654,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
         isFavorite: favoritesSet.has(providerModelKey(model.instanceId, model.slug)),
       }));
     }
+
     if (lockedProvider !== null) {
       result = result.filter((m) => matchesLockedProvider(m));
       if (selectedInstanceId === "favorites") {
@@ -638,12 +667,14 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     } else {
       result = result.filter((m) => m.instanceId === selectedInstanceId);
     }
+
     return sortProviderModelItems(result, {
       favoriteModelKeys: favoritesSet,
       groupFavorites: selectedInstanceId !== "favorites",
       instanceOrder: selectedInstanceId === "favorites" ? instanceOrder : [],
     });
   })();
+
   const legacySection = (() => {
     if (isSearching || selectedInstanceId === "favorites") {
       return null;
@@ -665,6 +696,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
       isExpanded: expandedLegacyInstances.has(selectedInstanceId),
     };
   })();
+
   const visibleModels = (() => {
     if (!legacySection) {
       return filteredModels;
@@ -674,19 +706,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
       ...(legacySection.isExpanded ? legacySection.legacyModels : []),
     ];
   })();
-  // Only repeated visible model names need an account/source label.
-  const displayNameCounts = new Map<string, number>();
-  const displayNameKey = (model: ModelPickerItem) =>
-    getDisplayModelName(model, { preferShortName: !isLocked }).normalize("NFKC").toLowerCase();
-  for (const model of visibleModels) {
-    const name = displayNameKey(model);
-    displayNameCounts.set(name, (displayNameCounts.get(name) ?? 0) + 1);
-  }
-  const providerLabelModelKeys = new Set(
-    visibleModels
-      .filter((model) => (displayNameCounts.get(displayNameKey(model)) ?? 0) > 1)
-      .map((model) => modelPickerModelKey(model.instanceId, model.slug)),
-  );
+
   const selectedEntry =
     selectedInstanceId === "favorites" ? undefined : entryByInstanceId.get(selectedInstanceId);
   const providerSetupEntries =
@@ -703,6 +723,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
               : filteredModels.length === 0),
         )
       : [];
+
   const updateRequiredNotices = instanceEntries.flatMap((entry) => {
     const shown = isSearching
       ? matchesLockedProvider(entry)
@@ -710,6 +731,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     const notice = shown ? formatProviderUpdateRequiredNotice(entry.snapshot, searchQuery) : null;
     return notice ? [{ instanceId: entry.instanceId, notice }] : [];
   });
+
   const modelJumpModelKeys = visibleModels
     .filter((model) => !getModelDisabledReason?.(model.instanceId, model.slug))
     .slice(0, MODEL_PICKER_JUMP_KEYBINDING_COMMANDS.length)
@@ -738,22 +760,24 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
         (model) => [modelPickerModelKey(model.instanceId, model.slug), model] as const,
       ),
     ))();
+
   const modelJumpLabelByKey = modelJumpLabelsByKey(
     modelJumpModelKeys,
     keybindings,
     props.terminalOpen,
   );
   const modelListExtraData = {
-    providerLabelModelKeys,
     favoritesSet,
     modelJumpLabelByKey,
     activeModelKey,
     selectedModelKeySet,
   };
+
   const onWindowKeyDown = (event: globalThis.KeyboardEvent) => {
     if (event.defaultPrevented || event.repeat || isCommandPaletteOpen()) {
       return;
     }
+
     const command = resolveShortcutCommand(event, keybindings, {
       platform: navigator.platform,
       context: modelJumpShortcutContext,
@@ -782,6 +806,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     }
     event.preventDefault();
     event.stopPropagation();
+
     const targetModelKey = modelJumpModelKeys[jumpIndex];
     if (!targetModelKey) {
       return;
@@ -797,10 +822,40 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     )?.name;
     announce(`Model: ${name ?? selectedSlug}`, "model-picker");
   };
+
   return (
     <TooltipProvider delay={0}>
       <WindowKeyDownListener onKeyDown={onWindowKeyDown} />
-      <div className="w-screen max-w-90">
+      <div
+        ref={pickerContentRef}
+        className="relative flex max-h-86.5 w-screen max-w-90 flex-row overflow-hidden"
+        style={
+          isSearching
+            ? { height: searchHeight }
+            : {
+                minHeight: `min(calc(var(--spacing) * ${tallestTabUnits + LIST_CHROME_UNITS} + 1px), calc(var(--spacing) * 86.5))`,
+              }
+        }
+        data-model-picker-content="true"
+      >
+        {showSidebar && (
+          <ModelPickerSidebar
+            selectedInstanceId={selectedInstanceId}
+            onSelectInstance={handleSelectInstance}
+            onFocusSearch={focusSearchInput}
+            instanceEntries={sidebarInstanceEntries}
+            showFavorites
+            {...(selectableUnavailableInstanceIds ? { selectableUnavailableInstanceIds } : {})}
+            {...(lockedDisabledInstanceIds
+              ? {
+                  disabledInstanceIds: lockedDisabledInstanceIds,
+                  getDisabledInstanceTooltip: (entry: ProviderInstanceEntry) =>
+                    `${entry.displayName} is unavailable in this thread. Start a new thread to switch providers.`,
+                }
+              : {})}
+          />
+        )}
+
         <Combobox<string, boolean>
           inline
           items={allItemKeys}
@@ -844,186 +899,153 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
           }}
         >
           <div
-            ref={pickerContentRef}
-            className="relative flex max-h-86.5 w-screen max-w-90 flex-row overflow-hidden"
-            style={
-              isSearching
-                ? { height: searchHeight }
-                : {
-                    height: `min(calc(var(--spacing) * ${tallestTabUnits + LIST_CHROME_UNITS} + 1px), calc(var(--spacing) * 86.5))`,
-                  }
-            }
-            data-model-picker-content="true"
-          >
-            {showSidebar && (
-              <ModelPickerSidebar
-                selectedInstanceId={selectedInstanceId}
-                onSelectInstance={handleSelectInstance}
-                onFocusSearch={focusSearchInput}
-                instanceEntries={sidebarInstanceEntries}
-                showFavorites
-                {...(selectableUnavailableInstanceIds ? { selectableUnavailableInstanceIds } : {})}
-                {...(lockedDisabledInstanceIds
-                  ? {
-                      disabledInstanceIds: lockedDisabledInstanceIds,
-                      getDisabledInstanceTooltip: (entry: ProviderInstanceEntry) =>
-                        `${entry.displayName} is unavailable in this thread. Start a new thread to switch providers.`,
-                    }
-                  : {})}
-              />
+            className={cn(
+              "flex min-h-0 flex-1 flex-col overflow-hidden bg-muted/40",
+              showSidebar && "border-l border-border/70",
             )}
-            <div
-              className={cn(
-                "flex min-h-0 flex-1 flex-col overflow-hidden bg-muted/40",
-                showSidebar && "border-l border-border/70",
-              )}
-            >
-              <ComboboxSearchInput
-                ref={searchInputRef}
-                placeholder={uiText("Search models...")}
-                value={searchQuery}
-                onChange={(e) => {
-                  if (!isSearching) setSearchHeight(pickerContentRef.current?.offsetHeight ?? 0);
-                  setSearchQuery(e.target.value);
-                }}
-                onKeyDown={(e) => {
-                  if (
-                    showSidebar &&
-                    !e.altKey &&
-                    !e.ctrlKey &&
-                    !e.metaKey &&
-                    ((e.key === "ArrowLeft" && !e.shiftKey && searchQuery.length === 0) ||
-                      (e.key === "Tab" && e.shiftKey))
-                  ) {
-                    const sidebar = e.currentTarget
-                      .closest("[data-model-picker-content]")
-                      ?.querySelector("[data-model-picker-sidebar]");
-                    const button =
-                      sidebar?.querySelector<HTMLButtonElement>(
-                        'button[aria-pressed="true"]:not(:disabled)',
-                      ) ?? sidebar?.querySelector<HTMLButtonElement>("button:not(:disabled)");
-                    if (button) {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      button.focus();
-                      return;
-                    }
-                  }
-                  if (e.key === "Escape") {
+          >
+            <ComboboxSearchInput
+              ref={searchInputRef}
+              placeholder={uiText("Search models...")}
+              value={searchQuery}
+              onChange={(e) => {
+                if (!isSearching) setSearchHeight(pickerContentRef.current?.offsetHeight ?? 0);
+                setSearchQuery(e.target.value);
+              }}
+              onKeyDown={(e) => {
+                if (
+                  showSidebar &&
+                  !e.altKey &&
+                  !e.ctrlKey &&
+                  !e.metaKey &&
+                  ((e.key === "ArrowLeft" && !e.shiftKey && searchQuery.length === 0) ||
+                    (e.key === "Tab" && e.shiftKey))
+                ) {
+                  const sidebar = e.currentTarget
+                    .closest("[data-model-picker-content]")
+                    ?.querySelector("[data-model-picker-sidebar]");
+                  const button =
+                    sidebar?.querySelector<HTMLButtonElement>(
+                      'button[aria-pressed="true"]:not(:disabled)',
+                    ) ?? sidebar?.querySelector<HTMLButtonElement>("button:not(:disabled)");
+                  if (button) {
                     e.preventDefault();
                     e.stopPropagation();
-                    onRequestClose?.();
+                    button.focus();
                     return;
                   }
-                  if (e.key === "Enter" && highlightedModelKeyRef.current) {
-                    (
-                      e as typeof e & {
-                        preventBaseUIHandler?: () => void;
-                      }
-                    ).preventBaseUIHandler?.();
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const legacyInstanceId = parseModelPickerLegacySectionKey(
-                      highlightedModelKeyRef.current,
-                    );
-                    if (legacyInstanceId) {
-                      toggleLegacySection(legacyInstanceId);
-                      return;
-                    }
-                    const model = parseModelPickerModelKey(highlightedModelKeyRef.current);
-                    if (model) {
-                      handleModelSelect(model.slug, model.instanceId, e.shiftKey);
-                    }
-                    return;
-                  }
+                }
+                if (e.key === "Escape") {
+                  e.preventDefault();
                   e.stopPropagation();
-                }}
-                onMouseDown={(e) => e.stopPropagation()}
-                onTouchStart={(e) => e.stopPropagation()}
-              />
-              <ModelPickerList
-                listRef={modelListRef}
-                itemKeys={filteredItemKeys}
-                extraData={modelListExtraData}
-                renderItem={({ item: modelKey, index }) => {
-                  if (legacySection?.key === modelKey) {
-                    return (
-                      <ComboboxItem
-                        hideIndicator
-                        index={index}
-                        value={modelKey}
-                        aria-expanded={legacySection.isExpanded}
-                        className="group w-full cursor-pointer"
-                      >
-                        <div className="min-w-0 flex-1 text-left">
-                          <div className="text-sm font-normal leading-snug">
-                            {uiText("Legacy models")}
-                          </div>
-                          <div className="mt-1 text-xs font-normal leading-snug text-muted-foreground">
-                            {legacySection.legacyModels.length} {"models "}
-                          </div>
-                        </div>
-                        <ChevronRightIcon
-                          className={cn(
-                            "size-4 transition-transform",
-                            legacySection.isExpanded && "rotate-90",
-                          )}
-                        />
-                      </ComboboxItem>
-                    );
-                  }
-                  const model = filteredModelByKey.get(modelKey);
-                  if (!model) {
-                    return null;
-                  }
-                  const disabledReason =
-                    getModelDisabledReason?.(model.instanceId, model.slug) ?? null;
-                  return (
-                    <ModelListRow
-                      key={modelKey}
-                      index={index}
-                      slug={model.slug}
-                      name={model.name}
-                      shortName={model.shortName}
-                      subProvider={model.subProvider}
-                      instanceId={model.instanceId}
-                      driverKind={model.driverKind}
-                      providerDisplayName={model.instanceDisplayName}
-                      providerAccentColor={model.instanceAccentColor}
-                      acpRegistryAgentId={model.acpRegistryAgentId}
-                      acpRegistryIconUrl={model.acpRegistryIconUrl}
-                      isFavorite={favoritesSet.has(providerModelKey(model.instanceId, model.slug))}
-                      isSelected={
-                        selectedModelKeys !== undefined
-                          ? selectedModelKeySet.has(modelKey)
-                          : modelKey === activeModelKey
-                      }
-                      showSelection
-                      showProvider={providerLabelModelKeys.has(modelKey)}
-                      preferShortName={!isLocked}
-                      useTriggerLabel={false}
-                      showNewBadge={model.badge === "new"}
-                      unavailable={model.isUnavailable === true}
-                      jumpLabel={modelJumpLabelByKey.get(modelKey) ?? null}
-                      disabledReason={disabledReason}
-                      onToggleFavorite={toggleFavorite}
-                    />
+                  onRequestClose?.();
+                  return;
+                }
+                if (e.key === "Enter" && highlightedModelKeyRef.current) {
+                  (e as typeof e & { preventBaseUIHandler?: () => void }).preventBaseUIHandler?.();
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const legacyInstanceId = parseModelPickerLegacySectionKey(
+                    highlightedModelKeyRef.current,
                   );
-                }}
-              />
-            </div>
+                  if (legacyInstanceId) {
+                    toggleLegacySection(legacyInstanceId);
+                    return;
+                  }
+                  const model = parseModelPickerModelKey(highlightedModelKeyRef.current);
+                  if (model) {
+                    handleModelSelect(model.slug, model.instanceId, e.shiftKey);
+                  }
+                  return;
+                }
+                e.stopPropagation();
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+            />
+
+            <ModelPickerList
+              listRef={modelListRef}
+              itemKeys={filteredItemKeys}
+              extraData={modelListExtraData}
+              renderItem={({ item: modelKey, index }) => {
+                if (legacySection?.key === modelKey) {
+                  return (
+                    <ComboboxItem
+                      hideIndicator
+                      index={index}
+                      value={modelKey}
+                      aria-expanded={legacySection.isExpanded}
+                      className="group w-full cursor-pointer"
+                    >
+                      <div className="min-w-0 flex-1 text-left">
+                        <div className="text-sm font-normal leading-snug">
+                          {uiText("Legacy models")}
+                        </div>
+                        <div className="mt-1 text-xs font-normal leading-snug text-muted-foreground">
+                          {legacySection.legacyModels.length} models
+                        </div>
+                      </div>
+                      <ChevronRightIcon
+                        className={cn(
+                          "size-4 transition-transform",
+                          legacySection.isExpanded && "rotate-90",
+                        )}
+                      />
+                    </ComboboxItem>
+                  );
+                }
+                const model = filteredModelByKey.get(modelKey);
+                if (!model) {
+                  return null;
+                }
+                const disabledReason =
+                  getModelDisabledReason?.(model.instanceId, model.slug) ?? null;
+                return (
+                  <ModelListRow
+                    key={modelKey}
+                    index={index}
+                    slug={model.slug}
+                    name={model.name}
+                    shortName={model.shortName}
+                    showSelection
+                    preferShortName={!isLocked}
+                    useTriggerLabel={false}
+                    subProvider={model.subProvider}
+                    instanceId={model.instanceId}
+                    driverKind={model.driverKind}
+                    providerDisplayName={model.instanceDisplayName}
+                    providerAccentColor={model.instanceAccentColor}
+                    acpRegistryAgentId={model.acpRegistryAgentId}
+                    acpRegistryIconUrl={model.acpRegistryIconUrl}
+                    isFavorite={favoritesSet.has(providerModelKey(model.instanceId, model.slug))}
+                    isSelected={
+                      selectedModelKeys !== undefined
+                        ? selectedModelKeySet.has(modelKey)
+                        : modelKey === activeModelKey
+                    }
+                    showProvider={rowsMixProviders || Boolean(model.subProvider)}
+                    showNewBadge={model.badge === "new"}
+                    unavailable={model.isUnavailable === true}
+                    jumpLabel={modelJumpLabelByKey.get(modelKey) ?? null}
+                    disabledReason={disabledReason}
+                    onToggleFavorite={toggleFavorite}
+                  />
+                );
+              }}
+            />
+            <ModelPickerProviderNotices
+              setupEntries={providerSetupEntries}
+              updateRequiredNotices={updateRequiredNotices}
+              emptyLabel={
+                selectedInstanceId === "favorites" && !isSearching
+                  ? "No favorites yet"
+                  : "No models found"
+              }
+              onRequestClose={onRequestClose}
+              onOpenProviderSetup={onOpenProviderSetup}
+            />
           </div>
-          <ModelPickerProviderNotices
-            setupEntries={providerSetupEntries}
-            updateRequiredNotices={updateRequiredNotices}
-            emptyLabel={
-              selectedInstanceId === "favorites" && !isSearching
-                ? "No favorites yet"
-                : "No models found"
-            }
-            onRequestClose={onRequestClose}
-            onOpenProviderSetup={onOpenProviderSetup}
-          />
         </Combobox>
       </div>
     </TooltipProvider>

@@ -4,6 +4,7 @@ import { useRender } from "@base-ui/react/use-render";
 import type { ComponentType, SVGProps } from "react";
 import { ChevronDownIcon } from "lucide-react";
 import { cn } from "~/lib/utils";
+
 export type ComposerControlSize = "sm" | "xs";
 function composerControlClassName(size: ComposerControlSize, className?: string) {
   return cn(
@@ -91,9 +92,6 @@ export function ComposerSelectControl({
   return (
     <SelectPrimitive.Trigger className={composerControlClassName(size, className)} {...props}>
       {children}
-      <SelectPrimitive.Icon>
-        <ComposerControlChevron size={size} />
-      </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   );
 }

@@ -42,9 +42,13 @@ const make = Effect.gen(function* () {
             reject(new Error("当前归档操作需要 macOS 的 Python 3；不会执行清理"));
             return;
           }
-          const child = NodeChildProcess.spawn("/usr/bin/python3", ["-c", STORAGE_ARCHIVE_PROGRAM], {
-            stdio: ["pipe", "pipe", "pipe"],
-          });
+          const child = NodeChildProcess.spawn(
+            "/usr/bin/python3",
+            ["-c", STORAGE_ARCHIVE_PROGRAM],
+            {
+              stdio: ["pipe", "pipe", "pipe"],
+            },
+          );
           let output = "";
           let stderr = "";
           child.stdout.on("data", (data) => {
@@ -70,7 +74,17 @@ const make = Effect.gen(function* () {
               reject(new Error(stderr || "归档进程未返回有效结果"));
             }
           });
-          child.stdin.end(JSON.stringify({ ...input, base: config.baseDir }));
+          child.stdin.end(
+            JSON.stringify({
+              ...input,
+              base: config.baseDir,
+              inventoryPaths: {
+                logs: config.logsDir,
+                attachments: config.attachmentsDir,
+                database: config.dbPath,
+              },
+            }),
+          );
         }),
       catch: (error) =>
         new StorageManagementError({

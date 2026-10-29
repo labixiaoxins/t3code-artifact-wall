@@ -442,5 +442,3 @@ export function resolveLiveThreadBranchUpdate(input: {
     branch: input.gitStatus.refName,
   };
 }
-
-export { resolveAutoFeatureBranchName } from "@t3tools/shared/git";

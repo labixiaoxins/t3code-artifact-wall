@@ -9,6 +9,7 @@ import {
   BackgroundActivityProfile,
   BackgroundActivityProfileSelection,
   ExecutionEnvironmentDescriptor,
+  OrchestratorMcpEnvironmentTarget,
   OrchestratorMcpFailure,
   ServerSettings,
   ServerSettingsPatch,
@@ -49,6 +50,7 @@ const EnvironmentReadTool = Tool.make("t3_environment_read", {
   ...shared,
   description:
     "Read this server's identity and preferences. Providers and models: `orchestrator_capabilities`.",
+  parameters: Schema.Struct({ environmentId: OrchestratorMcpEnvironmentTarget }),
   success: Schema.Struct({
     environmentId: ExecutionEnvironmentDescriptor.fields.environmentId,
     label: Schema.String,
@@ -64,6 +66,7 @@ const EnvironmentPreferencesTool = Tool.make("t3_environment_preferences_update"
   description:
     "Update environment-wide preferences. Live full-access or default caller thread only. Omitted fields are unchanged; `customInstructions: ''` clears it.",
   parameters: Schema.Struct({
+    environmentId: OrchestratorMcpEnvironmentTarget,
     defaultThreadEnvMode: ServerSettingsPatch.fields.defaultThreadEnvMode,
     newWorktreesStartFromOrigin: ServerSettingsPatch.fields.newWorktreesStartFromOrigin,
     enableProviderUpdateChecks: ServerSettingsPatch.fields.enableProviderUpdateChecks,

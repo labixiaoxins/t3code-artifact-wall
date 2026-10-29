@@ -1,0 +1,48 @@
+{
+  "product": "Xiaoxin T3 Code",
+  "communityBuild": "C28",
+  "officialBaseline": "0.1.5",
+  "channel": "prerelease",
+  "sourceBaseline": "67b340b4c87856e5fd0c84048dfa6941bd3d01dd",
+  "sourceDeltaFiles": 20,
+  "platform": "macOS arm64",
+  "minimumMacOS": "13.0",
+  "signature": "ad-hoc; not Apple-notarized",
+  "localCandidateAsarSha256": "fc3d2aea3027a5639897e84eb82fc3bd0cc18cd85803070abb801727af111ebc",
+  "distributionAsarSha256": "13fb08aac8a0134b60a59153457fb871a7e0695476117447ac4c88c556a78e04",
+  "archiveFile": "Xiaoxin-T3-Code-C28-macOS-arm64.zip",
+  "archiveSha256": "8f37296b10ec6c05547dc905b464b798f75c0b26e85e8292139d5c5cdcb1de67",
+  "archiveBytes": 212942126,
+  "distributionNormalization": {
+    "scope": "777 build-path source comments in 4 desktop JavaScript bundles",
+    "runtimeLogicChanged": false,
+    "nativeEntriesUnchanged": 96
+  },
+  "checks": {
+    "focusedTestsPassed": 33,
+    "installerTestsPassed": 48,
+    "coreTypecheck": [
+      "web",
+      "server",
+      "contracts"
+    ],
+    "aggregateCheckChanged": "not green; details in bilingual C28 release notes",
+    "aggregateTests": {
+      "passed": 99,
+      "failed": 1,
+      "failure": "AgentContextBudget"
+    },
+    "reactCompiler": {
+      "passed": 8,
+      "failed": 2,
+      "failure": "finally in ContextHandoffNotice and StorageManagementPanel"
+    },
+    "zipIntegrity": true,
+    "signatureVerified": true,
+    "runtimeReadbackPassed": true,
+    "protectedDataReadbackPassed": true,
+    "idleCpuAcceptance": "pending"
+  },
+  "userStateIncluded": false,
+  "images": "Isolated synthetic fixtures; individual provenance in image guide"
+}

@@ -26,10 +26,6 @@ export function desktopLocalBackendId(target: ConnectionTarget): string | null {
     : null;
 }
 
-export function isWslConnectionTarget(target: ConnectionTarget): boolean {
-  return desktopLocalBackendId(target)?.startsWith("wsl:") === true;
-}
-
 export type DesktopSecondaryBootstrapsRead =
   | {
       readonly _tag: "Success";
@@ -103,4 +99,8 @@ export function readDesktopSecondaryBootstrapsResult(): DesktopSecondaryBootstra
 
 export function readDesktopSecondaryBootstraps(): ReadonlyArray<DesktopEnvironmentBootstrap> {
   return desktopSecondaryBootstrapsReader.readSnapshot();
+}
+
+export function isWslConnectionTarget(target: ConnectionTarget): boolean {
+  return desktopLocalBackendId(target)?.startsWith("wsl:") === true;
 }

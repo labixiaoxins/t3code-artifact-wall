@@ -1,8 +1,10 @@
 import "~/index.css";
 import type { EnvironmentId, ThreadId, WallArtifact } from "@t3tools/contracts";
 import { describe, expect, it, vi } from "vite-plus/test";
+import { userEvent } from "vite-plus/test/browser";
 import { render } from "../../../test/render";
 import { ArtifactWall } from "./ArtifactWall";
+import { loadWallArtifacts } from "../../lib/artifactWallClient";
 
 const ARTIFACTS = vi.hoisted(() => {
   const make = (id: string, name: string, extension: string, kind: string) => ({
@@ -27,7 +29,7 @@ const ARTIFACTS = vi.hoisted(() => {
 vi.mock("../../lib/artifactWallClient", () => ({
   artifactFileUrl: () => null,
   fileFromArtifact: vi.fn(),
-  loadWallArtifacts: async () => ARTIFACTS,
+  loadWallArtifacts: vi.fn(async () => ARTIFACTS),
 }));
 vi.mock("../../state/session", () => ({ usePreparedConnection: () => null }));
 vi.mock("../../state/use-atom-command", () => ({ useAtomCommand: () => vi.fn() }));
@@ -106,6 +108,63 @@ describe("ArtifactWall video filter", () => {
 });
 
 describe("ArtifactWall revision drafts", () => {
+  it("hides feedback by default and preserves the draft when its visibility is toggled", async () => {
+    const props = {
+      environmentId: "environment-local" as EnvironmentId,
+      threadId: "thread-1" as ThreadId,
+      onAttach: vi.fn(),
+      onRevise: vi.fn(() => true),
+    };
+    await using screen = await render(<ArtifactWall {...props} />, { router: false });
+    await screen.getByRole("button", { name: "对比 cover.png", exact: true }).click();
+    await expect.element(screen.getByRole("textbox", { name: "修改意见" })).not.toBeInTheDocument();
+    await screen.rerender(<ArtifactWall {...props} revisionEnabled />);
+    await screen.getByRole("textbox", { name: "修改意见" }).fill("保留构图，只调整边缘");
+    await screen.rerender(<ArtifactWall {...props} revisionEnabled={false} />);
+    await expect.element(screen.getByRole("textbox", { name: "修改意见" })).not.toBeInTheDocument();
+    await expect.element(screen.getByRole("button", { name: "附加到输入框" })).toBeVisible();
+    await screen.rerender(<ArtifactWall {...props} revisionEnabled />);
+    await expect
+      .element(screen.getByRole("textbox", { name: "修改意见" }))
+      .toHaveValue("保留构图，只调整边缘");
+    expect(props.onRevise).not.toHaveBeenCalled();
+  });
+
+  it("keeps the comparison divider keyboard-adjustable when feedback is off", async () => {
+    const previous = {
+      ...ARTIFACTS[0]!,
+      id: "a6",
+      name: "previous.png",
+      path: "/work/previous.png",
+    };
+    vi.mocked(loadWallArtifacts).mockResolvedValueOnce([...ARTIFACTS, previous]);
+    await using screen = await render(
+      <ArtifactWall
+        environmentId={"environment-local" as EnvironmentId}
+        threadId={"thread-1" as ThreadId}
+        onAttach={vi.fn()}
+      />,
+      { router: false },
+    );
+    await screen.getByRole("button", { name: "对比 cover.png", exact: true }).click();
+    await screen.getByRole("button", { name: "选择对比 previous.png" }).click();
+    const slider = document.querySelector<HTMLInputElement>('[aria-label="拖动中线对比"]')!;
+    slider.focus();
+    await userEvent.keyboard("{ArrowRight}");
+    await expect.element(screen.getByRole("slider", { name: "拖动中线对比" })).toHaveValue("51");
+    await screen.getByRole("button", { name: "A 全图", exact: true }).click();
+    await expect.element(screen.getByRole("slider")).not.toBeInTheDocument();
+    await expect.element(document.querySelector<HTMLImageElement>('[data-artifact-compare] img[alt="previous.png"]')!).toBeVisible();
+    await expect.element(document.querySelector<HTMLImageElement>('[data-artifact-compare] img[alt="cover.png"]')!).not.toBeVisible();
+    await screen.getByRole("button", { name: "B 全图", exact: true }).click();
+    await expect.element(document.querySelector<HTMLImageElement>('[data-artifact-compare] img[alt="cover.png"]')!).toBeVisible();
+    await expect.element(document.querySelector<HTMLImageElement>('[data-artifact-compare] img[alt="previous.png"]')!).not.toBeVisible();
+    await screen.getByRole("button", { name: "滑动对比", exact: true }).click();
+    await expect.element(screen.getByRole("slider", { name: "拖动中线对比" })).toHaveValue("51");
+    await screen.getByRole("button", { name: "单图查看" }).click();
+    await expect.element(screen.getByRole("slider")).not.toBeInTheDocument();
+  });
+
   it("keeps feedback when the composer is unavailable and permits retry", async () => {
     const onRevise = vi.fn().mockReturnValue(false);
     await using screen = await render(
@@ -114,6 +173,7 @@ describe("ArtifactWall revision drafts", () => {
         threadId={"thread-1" as ThreadId}
         onAttach={vi.fn()}
         onRevise={onRevise}
+        revisionEnabled
       />,
       { router: false }, // The mocked wall does not navigate.
     );
@@ -141,6 +201,7 @@ describe("ArtifactWall revision drafts", () => {
         threadId={"thread-1" as ThreadId}
         onAttach={vi.fn()}
         onRevise={() => true}
+        revisionEnabled
       />,
       { router: false }, // The mocked wall does not navigate.
     );

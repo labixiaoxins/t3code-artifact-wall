@@ -121,6 +121,12 @@ export function useAllEnvironmentShellsBootstrapped(): boolean {
 export function useAllEnvironmentProjectSnapshotsReady(): boolean {
   return useAtomValue(allEnvironmentProjectSnapshotsReadyAtom);
 }
+
+/** Tasks linked environments run for a listed thread, by thread key; lists show them under it. */
+export function useDelegatedUnderParent(): ReadonlySet<string> {
+  return useAtomValue(environmentThreadShells.delegatedUnderParentAtom);
+}
+
 export function useThreadShellsForProjectRefs(
   refs: ReadonlyArray<ScopedProjectRef>,
 ): ReadonlyArray<EnvironmentThreadShell> {
@@ -288,23 +294,9 @@ export function readEnvironmentSupportsServerBrowser(environmentId: EnvironmentI
       .serverBrowser === true
   );
 }
-export function readEnvironmentSupportsTitleRegeneration(environmentId: EnvironmentId): boolean {
-  return (
-    appAtomRegistry.get(environmentServerConfigsAtom).get(environmentId)?.environment.capabilities
-      .threadTitleRegeneration === true
-  );
-}
-export function readEnvironmentSupportsPinning(environmentId: EnvironmentId): boolean {
-  return (
-    appAtomRegistry.get(environmentServerConfigsAtom).get(environmentId)?.environment.capabilities
-      .threadPinning === true
-  );
-}
-export function readEnvironmentSupportsPinReorder(environmentId: EnvironmentId): boolean {
-  return (
-    appAtomRegistry.get(environmentServerConfigsAtom).get(environmentId)?.environment.capabilities
-      .threadPinReorder === true
-  );
+
+export function readEnvironmentServerConfigLoaded(environmentId: EnvironmentId): boolean {
+  return appAtomRegistry.get(environmentServerConfigsAtom).has(environmentId);
 }
 export function readEnvironmentSupportsAutoSettleOptOut(environmentId: EnvironmentId): boolean {
   return (
@@ -312,30 +304,7 @@ export function readEnvironmentSupportsAutoSettleOptOut(environmentId: Environme
       .threadAutoSettleOptOut === true
   );
 }
-export function readEnvironmentSupportsActiveReorder(environmentId: EnvironmentId): boolean {
-  return (
-    appAtomRegistry.get(environmentServerConfigsAtom).get(environmentId)?.environment.capabilities
-      .threadActiveReorder === true
-  );
-}
-export function readEnvironmentSupportsSettlement(environmentId: EnvironmentId): boolean {
-  return (
-    appAtomRegistry.get(environmentServerConfigsAtom).get(environmentId)?.environment.capabilities
-      .threadSettlement === true
-  );
-}
-export function readEnvironmentSupportsSnooze(environmentId: EnvironmentId): boolean {
-  return (
-    appAtomRegistry.get(environmentServerConfigsAtom).get(environmentId)?.environment.capabilities
-      .threadSnooze === true
-  );
-}
-export function readEnvironmentSupportsVisitedTracking(environmentId: EnvironmentId): boolean {
-  return (
-    appAtomRegistry.get(environmentServerConfigsAtom).get(environmentId)?.environment.capabilities
-      .threadVisitedTracking === true
-  );
-}
+
 export function readEnvironmentThreadRefs(
   environmentId: EnvironmentId,
 ): ReadonlyArray<ScopedThreadRef> {

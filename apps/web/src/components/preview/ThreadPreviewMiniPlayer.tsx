@@ -60,7 +60,6 @@ import { previewBridge } from "./previewBridge";
 import { showPreviewPopup } from "./showPreviewPopup";
 import {
   clampPreviewMiniPlayerPosition,
-  NO_PREVIEW_MINI_PLAYER_OBSTACLES,
   PREVIEW_MINI_PLAYER_CORNER_RADIUS,
   PREVIEW_MINI_PLAYER_WEBVIEW_Z_INDEX,
   type PreviewMiniPlayerFrame,
@@ -76,6 +75,7 @@ interface PointerGesture {
   readonly pointerX: number;
   readonly pointerY: number;
   readonly frame: PreviewMiniPlayerFrame;
+  readonly resizeAnchor: PreviewMiniPlayerFrame;
   readonly direction: BrowserViewportResizeDirection | null;
   moved: boolean;
 }
@@ -372,8 +372,8 @@ function DeviceMiniPlayer({
   const device = deviceState.devices.find(
     (entry) => entry.hostId === source.hostId && entry.id === source.deviceId,
   );
-  const hostLabel =
-    deviceState.hosts.find((host) => host.id === source.hostId)?.label ?? "Device host";
+  const host = deviceState.hosts.find((entry) => entry.id === source.hostId);
+  const hostLabel = host?.label ?? "Device host";
   const cornerRadius = (player: PreviewMiniPlayerSize) =>
     resolveDeviceMiniPlayerCornerRadius(source.platform, player);
 
@@ -410,6 +410,7 @@ function DeviceMiniPlayer({
             deviceDescription={`${hostLabel} · ${device?.version ?? source.platform}`}
             visible
             viewId={viewId}
+            serveSimOnly={host?.kind === "simlock"}
           />
         </div>
       )}
@@ -445,6 +446,7 @@ function MiniPlayerShell({
   const [pillOpen, setPillOpen] = useState(false);
   const handleTappedRef = useRef(false);
   const handleRef = useRef<HTMLDivElement | null>(null);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- document pointerdown listener closes the open pill on an outside press
   useEffect(() => {
     if (!pillOpen) return;
     const dismiss = (event: PointerEvent) => {
@@ -455,7 +457,6 @@ function MiniPlayerShell({
     return () => document.removeEventListener("pointerdown", dismiss, true);
   }, [pillOpen]);
   const container = canvas?.container ?? null;
-  const obstacles = NO_PREVIEW_MINI_PLAYER_OBSTACLES;
   const sourceKey = previewMiniPlayerSourceKey(miniPlayer.source);
   const frame = canvas?.previewKey === sourceKey ? canvas.layout.frame : null;
 
@@ -471,12 +472,21 @@ function MiniPlayerShell({
     direction: BrowserViewportResizeDirection | null,
   ) => {
     if (event.button !== 0 || !frame) return;
+    const preferredWidth = miniPlayer.width ?? frame.width;
     gestureRef.current = {
       pointerId: event.pointerId,
       pointerType: event.pointerType,
       pointerX: event.clientX,
       pointerY: event.clientY,
       frame,
+      // Composer avoidance is temporary; a later resize must not adopt its shifted corner.
+      resizeAnchor: miniPlayer.position
+        ? {
+            ...miniPlayer.position,
+            width: preferredWidth,
+            height: Math.round((preferredWidth * sourceSize.height) / sourceSize.width),
+          }
+        : frame,
       direction,
       moved: false,
     };
@@ -500,18 +510,17 @@ function MiniPlayerShell({
           { x: gesture.frame.x + delta.x, y: gesture.frame.y + delta.y },
           container,
           gesture.frame,
-          obstacles,
         ),
       );
       return;
     }
     const next = resizePreviewMiniPlayer({
       start: gesture.frame,
+      anchor: gesture.resizeAnchor,
       direction: gesture.direction,
       delta,
       source: sourceSize,
       container,
-      obstacles,
     });
     store.resize(threadRef, sourceKey, next.width, { x: next.x, y: next.y });
   };

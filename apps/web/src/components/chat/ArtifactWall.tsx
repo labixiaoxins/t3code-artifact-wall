@@ -2,7 +2,7 @@ import { uiText } from "~/i18n";
 import { usePreparedConnection } from "../../state/session";
 import type { EnvironmentId, ThreadId, WallArtifact } from "@t3tools/contracts";
 import { useEffect, useRef, useState } from "react";
-import { FileIcon, GlobeIcon, XIcon } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon, FileIcon, GlobeIcon, XIcon } from "lucide-react";
 import {
   artifactCounts,
   artifactCheckLabel,
@@ -27,6 +27,7 @@ export function ArtifactWall({
   threadId,
   onAttach,
   onRevise,
+  revisionEnabled = false,
   active = true,
   onCount,
 }: {
@@ -34,6 +35,7 @@ export function ArtifactWall({
   threadId: ThreadId;
   onAttach: (files: File[]) => void;
   onRevise?: (prompt: string) => boolean;
+  revisionEnabled?: boolean;
   /** An inactive wall keeps loading (for the tab count) but renders nothing, so no thumbnails load. */
   active?: boolean;
   onCount?: (count: number) => void;
@@ -51,6 +53,7 @@ export function ArtifactWall({
   const [visible, setVisible] = useState(40);
   const [selected, setSelected] = useState<WallArtifact | null>(null);
   const [comparison, setComparison] = useState<WallArtifact | null>(null);
+  const [compareMode, setCompareMode] = useState<"slider" | "a" | "b">("slider");
   const [split, setSplit] = useState(50);
   const [revisionNotes, setRevisionNotes] = useState<Record<string, string>>({});
   const [thumbCount, setThumbCount] = useState(40);
@@ -129,6 +132,7 @@ export function ArtifactWall({
     setSelected(a);
     setComparison(null);
     setSplit(50);
+    setCompareMode("slider");
     setThumbCount(40);
   };
   const revisionKey = selected ? `${key}:${artifactVersionKey(selected)}` : "";
@@ -139,7 +143,8 @@ export function ArtifactWall({
     : undefined;
   const selectedIsCurrent = currentSelected !== undefined;
   const requestRevision = () => {
-    if (!selected || !selectedIsCurrent || !onRevise || !revisionNote.trim()) return;
+    if (!revisionEnabled || !selected || !selectedIsCurrent || !onRevise || !revisionNote.trim())
+      return;
     try {
       if (!onRevise(artifactRevisionPrompt(selected, revisionNote))) {
         setActionError("输入框暂不可用，修改意见已保留，请稍后重试。");
@@ -466,7 +471,10 @@ export function ArtifactWall({
                   >
                     <video
                       key={selected.id}
-                      src={artifactFileUrl(environmentId, currentSelected?.id ?? selected.id) ?? undefined}
+                      src={
+                        artifactFileUrl(environmentId, currentSelected?.id ?? selected.id) ??
+                        undefined
+                      }
                       controls
                       playsInline
                       preload="metadata"
@@ -476,7 +484,7 @@ export function ArtifactWall({
                   </div>
                 ) : (
                   <div
-                    className="relative min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-muted"
+                    className="group/artifact-compare relative min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-muted"
                     data-artifact-compare
                   >
                     {comparison ? (
@@ -484,43 +492,59 @@ export function ArtifactWall({
                         src={artifactFileUrl(environmentId, comparison.id) ?? undefined}
                         alt={comparison.name}
                         className="absolute inset-0 size-full object-contain"
+                        style={{ clipPath: compareMode === "slider" ? `inset(0 ${100 - split}% 0 0)` : undefined, visibility: compareMode === "b" ? "hidden" : "visible" }}
                       />
                     ) : null}
                     <img
-                      src={artifactFileUrl(environmentId, currentSelected?.id ?? selected.id) ?? undefined}
+                      src={
+                        artifactFileUrl(environmentId, currentSelected?.id ?? selected.id) ??
+                        undefined
+                      }
                       alt={selected.name}
                       className="absolute inset-0 size-full object-contain"
-                      style={comparison ? { clipPath: `inset(0 0 0 ${split}%)` } : undefined}
+                      style={comparison ? { clipPath: compareMode === "slider" ? `inset(0 0 0 ${split}%)` : undefined, visibility: compareMode === "a" ? "hidden" : "visible" } : undefined}
                     />
-                    {comparison ? (
+                    {comparison && compareMode === "slider" ? (
                       <>
                         <div
-                          className="pointer-events-none absolute top-0 bottom-0 border-l-2 border-foreground"
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-y-0 w-px bg-background/95 shadow-[0_0_0_0.5px_var(--border)]"
                           style={{ left: `${split}%` }}
                         />
                         <input
                           type="range"
                           min="0"
                           max="100"
+                          step="1"
                           value={split}
                           onChange={(e) => setSplit(Number(e.target.value))}
                           aria-label="拖动中线对比"
+                          aria-valuetext={`对比图 ${split}%，当前图 ${100 - split}%`}
                           className="absolute inset-0 size-full cursor-ew-resize opacity-0"
                         />
                         <span
-                          className="pointer-events-none absolute top-1/2 rounded-full bg-background px-2 py-1 text-xs text-foreground"
+                          aria-hidden="true"
+                          className="pointer-events-none absolute top-1/2 flex size-8 items-center justify-center rounded-full border border-border/60 bg-background/90 text-foreground shadow-sm backdrop-blur-md group-focus-within/artifact-compare:ring-2 group-focus-within/artifact-compare:ring-ring group-focus-within/artifact-compare:ring-offset-2 group-focus-within/artifact-compare:ring-offset-background"
                           style={{ left: `${split}%`, transform: "translate(-50%, -50%)" }}
                         >
-                          ↔
+                          <ChevronLeftIcon className="size-3.5" strokeWidth={1.5} />
+                          <ChevronRightIcon className="-ml-1 size-3.5" strokeWidth={1.5} />
                         </span>
                       </>
                     ) : null}
                   </div>
                 )}
                 {comparison ? (
+                  <div role="group" aria-label="图片对比方式" className="flex shrink-0 items-center justify-center gap-1">
+                    {([["slider", "滑动对比"], ["a", "A 全图"], ["b", "B 全图"]] as const).map(([mode, label]) => (
+                      <Button key={mode} size="xs" variant={compareMode === mode ? "secondary" : "ghost"} aria-pressed={compareMode === mode} onClick={() => setCompareMode(mode)}>{label}</Button>
+                    ))}
+                  </div>
+                ) : null}
+                {comparison ? (
                   <div className="flex justify-between gap-2 text-2xs text-muted-foreground">
-                    <span className="truncate">{comparison.name}</span>
-                    <span className="truncate">{selected.name}</span>
+                    <span className="truncate">A · {comparison.name}</span>
+                    <span className="truncate">B · {selected.name}</span>
                   </div>
                 ) : null}
                 {!isArtifactVideo(selected) && (
@@ -545,7 +569,7 @@ export function ArtifactWall({
                         className={`size-10 shrink-0 overflow-hidden rounded-md border ${comparison?.id === a.id ? "border-primary" : "border-border"}`}
                         aria-label={`选择对比 ${a.name}`}
                         disabled={artifactVersionKey(a) === artifactVersionKey(selected)}
-                        onClick={() => setComparison(a)}
+                        onClick={() => { setComparison(a); setCompareMode("slider"); }}
                       >
                         {thumb(a, "size-full object-cover")}
                       </button>
@@ -557,7 +581,7 @@ export function ArtifactWall({
                     {actionError}
                   </p>
                 ) : null}
-                {selected.kind === "image" && onRevise ? (
+                {revisionEnabled && selected.kind === "image" && onRevise ? (
                   <div className="flex shrink-0 flex-col gap-2">
                     <label htmlFor="artifact-revision-note" className="text-xs">
                       修改意见

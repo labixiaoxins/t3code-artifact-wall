@@ -92,7 +92,7 @@ describe("workbench-owned preset journal", () => {
   });
 });
 
-it("captures a preset only for the next newly created task, preserving existing and live drafts", () => {
+it("ignores retired task defaults without changing existing drafts or saved presets", () => {
   const original = useComposerDraftStore.getState();
   onTestFinished(() => {
     useComposerDraftStore.setState(original);
@@ -124,7 +124,7 @@ it("captures a preset only for the next newly created task, preserving existing 
     useComposerDraftStore.getState().getComposerDraft(after)?.modelSelectionByProvider[
       ProviderInstanceId.make("codex-alias")
     ],
-  ).toEqual(preset().selection);
+  ).toBeUndefined();
   setLocalStorageItem(
     WORKBENCH_KEY,
     changePreset(
@@ -141,7 +141,7 @@ it("captures a preset only for the next newly created task, preserving existing 
     useComposerDraftStore.getState().getComposerDraft(after)?.modelSelectionByProvider[
       ProviderInstanceId.make("codex-alias")
     ],
-  ).toEqual(preset().selection);
+  ).toBeUndefined();
   expect(useComposerDraftStore.getState().getComposerDraft(before)?.prompt).toBe("keep this task");
 });
 

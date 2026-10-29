@@ -1,8 +1,8 @@
-import { isGitHubHost } from "./GitHubCredentials.ts";
 import { normalizeGitRemoteUrl } from "@t3tools/shared/git";
 import { isSshRemoteUrl } from "@t3tools/shared/sourceControl";
 import { parseGitRemoteHost } from "@t3tools/source-control-core/shared/definition";
 import { definition } from "../shared/definition.ts";
+import { isGitHubHost } from "./GitHubCredentials.ts";
 
 export interface GitHubRepositoryLocator {
   readonly host: string;

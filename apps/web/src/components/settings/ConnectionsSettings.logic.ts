@@ -2,7 +2,7 @@ import { uiText } from "~/i18n";
 import * as DateTime from "effect/DateTime";
 
 import { resolveDesktopPairingUrl, resolveHostedPairingUrl } from "./pairingUrls";
-import { getPairingTokenFromUrl, setPairingTokenOnUrl } from "../../pairingUrl";
+import { getPairingTokenFromUrl, setPairingTokenOnUrl } from "@t3tools/shared/remote";
 import { readHostedPairingRequest } from "../../hostedPairing";
 import {
   type ServerClientSessionRecord,

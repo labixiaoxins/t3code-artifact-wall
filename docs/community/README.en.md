@@ -1,10 +1,12 @@
-# Installation and recovery · C25
+# Installation and recovery · C28
+
+> C28 is a prerelease. Maintainer installation and data/runtime readbacks passed; idle CPU acceptance and aggregate checks are not all green. See [C28 validation and limits](C28.en.md).
 
 [简体中文](README.md) · [Feature guide](../../README.en.md)
 
 ## Install
 
-1. Download `Xiaoxin-T3-Code-C25-macOS-arm64.zip` and `SHA256SUMS.txt` from the [C25 release](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c25-20261029). This package is for Apple silicon Macs. The minimum macOS version is recorded in release-manifest.json.
+1. Download `Xiaoxin-T3-Code-C28-macOS-arm64.zip` and `SHA256SUMS.txt` from the [C28 release](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c28-20261030). This package is for Apple silicon Macs. The minimum macOS version is recorded in release-manifest.json.
 2. Run `shasum -a 256 -c SHA256SUMS.txt` in the download folder. If you downloaded only some assets, check the corresponding lines. Extract and move the app into Applications.
 3. This community build is ad-hoc signed and not Apple-notarized. If macOS blocks the first launch, verify this repository, the checksum and the app’s source, then use the system’s allowed-open flow in Privacy & Security. Do not disable global system protection.
 4. Sign in to your own providers. No maintainer account, API endpoint, subscription, private skill collection or chat data is included.
@@ -29,8 +31,8 @@ In Usage → Disk space, check the selected environment and measurement timestam
 
 ## Run from source
 
-Use branch `community/xiaoxin-c25` or tag `xiaoxin-c25-20261029`. Install the Node.js version required by the root package.json and Vite+, then run `vp i` and `vp run dev --no-seed`. Keep development state separate from production. Never point a test server at the live `~/.t3/userdata`.
+Use branch `community/xiaoxin-c28` or tag `xiaoxin-c28-20261030`. Install the Node.js version required by the root package.json and Vite+, then run `vp i` and `vp run dev --no-seed`. Keep development state separate from production. Never point a test server at the live `~/.t3/userdata`.
 
-The official baseline is 0.1.3. Release builds align package versions with `scripts/update-release-package-versions.ts 0.1.3`; a base package.json field alone does not identify the installed distribution.
+The official baseline is 0.1.5. Release builds align package versions with `scripts/update-release-package-versions.ts 0.1.5`; a base package.json field alone does not identify the installed distribution.
 
 See LICENSE for the MIT license and upstream attribution. Provider terms, account permissions, private dependencies and quotas remain your own responsibility to configure and verify.

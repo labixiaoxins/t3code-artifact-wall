@@ -12,12 +12,15 @@ vi.mock("../../hooks/useMediaQuery", () => ({ useIsMobile: () => state.mobile })
 vi.mock("./ChatCanvasContext", () => ({
   useChatCanvas: () => ({
     container: { height: 800 },
+    detailsCardPlacement: { x: 988, y: 64, width: 280, height: 700 },
+    preferredDetailsCard: { x: 988, y: 64, width: 280, height: 700 },
     lane: {},
     layout: {},
     reportDetailsCard: state.report,
   }),
 }));
 vi.mock("./threadDetailsCardLayout", () => ({
+  THREAD_DETAILS_CARD_GAP: 16,
   resolveThreadDetailsCardLayout: () => ({ x: 988, y: 64, width: 280, height: 700 }),
   resolveThreadDetailsCardDensity: () => "full",
 }));
@@ -51,13 +54,13 @@ it("switches desktop inline details to phone popover even while canvas geometry 
   };
   let view!: ReactTestRenderer;
   await act(async () => {
-    view = create(<ThreadDetailsCard {...props} />);
+    view = create(<ThreadDetailsCard contentKey="test" {...props} />);
   });
-  expect(state.mode).toHaveBeenLastCalledWith("inline");
+  expect(view.root.findAllByType("aside")).toHaveLength(1);
   state.mobile = true;
-  await act(async () => view.update(<ThreadDetailsCard {...props} />));
-  expect(state.mode).toHaveBeenLastCalledWith("popover");
-  expect(state.report).toHaveBeenLastCalledWith(null);
+  await act(async () => view.update(<ThreadDetailsCard contentKey="test" {...props} />));
+  expect(view.root.findAllByType("aside")).toHaveLength(0);
+  expect(view.root.findAllByProps({ "data-thread-details-panel": "mobile" })).toHaveLength(1);
   expect(view.root.findByType("section").props.open).toBe(false);
   await act(async () => view.unmount());
   vi.unstubAllGlobals();

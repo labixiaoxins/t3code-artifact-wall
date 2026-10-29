@@ -55,7 +55,7 @@ function shouldUseSidebarUpdateReleaseNotesPopover(
   showUpdateDetails: boolean,
   state: DesktopUpdateState | null,
 ): boolean {
-  return showUpdateDetails && state?.channel === "nightly" && state.releaseNotes.length > 0;
+  return showUpdateDetails && (state?.releaseNotes.length ?? 0) > 0;
 }
 
 function handleSidebarUpdateReleaseNotesPopoverOpenChange(
@@ -136,7 +136,7 @@ const toastUpdateError: ReportLocalUpdateError = (title, description) => {
   toastManager.add(stackedThreadToast({ type: "error", title, description }));
 };
 
-async function downloadLocalUpdate(
+export async function downloadLocalUpdate(
   bridge: DesktopBridge,
   {
     notifyDownloaded,
@@ -162,12 +162,13 @@ async function downloadLocalUpdate(
   }
 }
 
-async function installLocalUpdate(
+export async function installLocalUpdate(
   bridge: DesktopBridge,
   reportError: ReportLocalUpdateError = toastUpdateError,
+  expectedVersion?: string,
 ): Promise<boolean> {
   try {
-    const result = await bridge.installUpdate();
+    const result = await bridge.installUpdate(expectedVersion);
     if (!result.accepted) {
       showDesktopUpdateDownloadedToast(bridge, result.state);
       return false;
@@ -409,10 +410,10 @@ function SidebarUpdateControl() {
     <UpdateEverythingDialog
       open={isConfirmingEverything}
       onOpenChange={setIsConfirmingEverything}
-      summary={everything.summary}
-      lines={everything.lines}
+      version={everything.version}
+      providerCount={everything.providerCount}
+      rows={everything.rows}
       restarts={everything.restarts}
-      skipped={everything.skipped}
       onConfirm={() => void runEverything()}
     />
   );
@@ -554,7 +555,7 @@ function SidebarUpdateControl() {
         {showReleaseNotesPopover && state ? (
           <PopoverPopup
             align="center"
-            aria-label={uiText("Nightly update release notes")}
+            aria-label="Update release notes"
             initialFocus={false}
             onKeyDownCapture={(event) => {
               if (

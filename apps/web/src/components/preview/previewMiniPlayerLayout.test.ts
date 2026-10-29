@@ -72,6 +72,18 @@ describe("resolvePreviewMiniPlayerFrame", () => {
 describe("resizePreviewMiniPlayer", () => {
   const start = { x: 300, y: 200, width: 320, height: 200 };
 
+  it("keeps a preferred corner inside a smaller container when resizing from an older anchor", () => {
+    const resized = resizePreviewMiniPlayer({
+      start: { x: 468, y: 288, width: 320, height: 200 },
+      anchor: { x: 1012, y: 688, width: 320, height: 200 },
+      direction: "northwest",
+      delta: { x: -160, y: -100 },
+      source,
+      container: { width: 800, height: 500 },
+    });
+    expect(resized).toEqual({ x: 308, y: 188, width: 480, height: 300 });
+  });
+
   it("does not jump when corner motion crosses opposing dominant axes", () => {
     const frames = [-99, -100, -101].map((y) =>
       resizePreviewMiniPlayer({

@@ -23,6 +23,48 @@ const expectClear = (result: ReturnType<typeof resolve>) => {
 };
 
 describe("chat canvas layout", () => {
+  it.each([120, 180, 260])(
+    "returns to the original corner after separate grow and shrink gestures with a %spx composer",
+    (composerHeight) => {
+      const container = { width: 1344, height: 900 };
+      const source = { width: 1600, height: 1000 };
+      let player: ChatCanvasPreview = { ...preview, source };
+      const layout = () => resolveChatCanvasLayout({ container, preview: player, composerHeight });
+      const original = layout().frame!;
+      const resize = (targetWidth: number) => {
+        const visible = layout().frame!;
+        const preferredWidth = player.width ?? visible.width;
+        const anchor = player.position
+          ? { ...player.position, width: preferredWidth, height: Math.round(preferredWidth / 1.6) }
+          : visible;
+        const input = {
+          start: visible,
+          anchor,
+          direction: "northwest" as const,
+          delta: { x: visible.width - targetWidth, y: (visible.width - targetWidth) / 1.6 },
+          source,
+          container,
+        };
+        const next = resizePreviewMiniPlayer(input);
+        player = { ...player, width: next.width, position: next, lastInteraction: "resize" };
+        return layout().frame!;
+      };
+      for (let cycle = 0; cycle < 3; cycle++) {
+        const grown = resize(1000);
+        expect(grown.y + grown.height).toBeLessThanOrEqual(container.height - composerHeight - 12);
+        const restored = resize(original.width);
+        expect({
+          right: restored.x + restored.width,
+          bottom: restored.y + restored.height,
+        }).toEqual({
+          right: original.x + original.width,
+          bottom: original.y + original.height,
+        });
+        expect(restored).toEqual(original);
+      }
+    },
+  );
+
   it("lifts a growing preview above the composer without snapping at the chat boundary", () => {
     let previous: ReturnType<typeof resolve> | undefined;
     for (let width = 480; width <= 1100; width++) {
@@ -102,21 +144,17 @@ describe("chat canvas layout", () => {
     });
     expect(result.frame).toEqual({ x: 1260, y: 351, width: 240, height: 365 });
     expect(result.overlapsDetailsCard).toBe(false);
-    expect(result.chat).toEqual({ left: 424, width: 736, insetStart: 0, insetEnd: 0 });
+    expect(result.chat).toEqual({ left: 330, width: 736, insetStart: 0, insetEnd: 188 });
   });
-  it("centers the chat beside a details card it would crowd, when asked", () => {
-    const layout = (centerBesideDetails: boolean) =>
-      resolveChatCanvasLayout({
-        container: { width: 1344, height: 988 },
-        maxChatWidth: 736,
-        detailsCard: { left: 1052, right: 1332, bottom: 339 },
-        preview: null,
-        centerBesideDetails,
-      }).chat;
-    // Pushed left just enough to clear the card.
-    expect(layout(false).left).toBe(1052 - 32 - 736);
+  it("centers the chat beside a details card it would crowd", () => {
+    const { chat } = resolveChatCanvasLayout({
+      container: { width: 1344, height: 988 },
+      maxChatWidth: 736,
+      detailsCard: { left: 1052, right: 1332, bottom: 339 },
+      preview: null,
+    });
     // Equal space on both sides of the chat.
-    expect(layout(true)).toMatchObject({ left: (1052 - 736) / 2, width: 736 });
+    expect(chat).toMatchObject({ left: (1052 - 736) / 2, width: 736 });
   });
   it("keeps the chat canvas-centered when it clears the details card", () => {
     const result = resolveChatCanvasLayout({
@@ -124,7 +162,6 @@ describe("chat canvas layout", () => {
       maxChatWidth: 736,
       detailsCard: { left: 1876, right: 2188, bottom: 339 },
       preview: null,
-      centerBesideDetails: true,
     });
     expect(result.chat.left).toBe((2200 - 736) / 2);
   });
@@ -135,7 +172,6 @@ describe("chat canvas layout", () => {
         maxChatWidth: 736,
         detailsCard: { left: width - 292, right: width - 12, bottom: 339 },
         preview: null,
-        centerBesideDetails: true,
       }).chat.left;
     for (let width = 1300; width < 1800; width += 1) {
       expect(Math.abs(leftAt(width + 1) - leftAt(width))).toBeLessThanOrEqual(1);
@@ -261,7 +297,7 @@ describe("chat canvas layout", () => {
       const compact = layout(460);
       expect(compact.frame!.x + compact.frame!.width).toBe(1572);
       expect(compact.frame!.width).toBe(460);
-      expect(compact.chat.left).toBe(364);
+      expect(compact.chat.left).toBe(330);
       expect(compact.overlapsDetailsCard).toBe(true);
       expect(density(compact)).toBe("compact");
       expectClear(compact);

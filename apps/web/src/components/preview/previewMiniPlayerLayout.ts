@@ -69,7 +69,7 @@ export interface PreviewMiniPlayerObstacles {
   readonly detailsCard: (HorizontalSpan & { readonly bottom: number }) | null;
 }
 
-export const NO_PREVIEW_MINI_PLAYER_OBSTACLES: PreviewMiniPlayerObstacles = {
+const NO_PREVIEW_MINI_PLAYER_OBSTACLES: PreviewMiniPlayerObstacles = {
   composer: null,
   detailsCard: null,
 };
@@ -259,6 +259,7 @@ export function resolvePreviewMiniPlayerFrame(input: {
 
 export function resizePreviewMiniPlayer(input: {
   readonly start: PreviewMiniPlayerFrame;
+  readonly anchor?: PreviewMiniPlayerFrame;
   readonly direction: BrowserViewportResizeDirection;
   readonly delta: PreviewMiniPlayerPosition;
   readonly source: PreviewMiniPlayerSize;
@@ -267,6 +268,7 @@ export function resizePreviewMiniPlayer(input: {
 }): PreviewMiniPlayerFrame {
   const {
     start,
+    anchor = start,
     direction,
     delta,
     source,
@@ -277,21 +279,24 @@ export function resizePreviewMiniPlayer(input: {
   const west = direction.includes("west");
   const north = direction.includes("north");
   const south = direction.includes("south");
-  const right = start.x + start.width;
-  const bottom = start.y + start.height;
-  const span = spanOf(start.x, start.width);
+  const right = Math.min(anchor.x + anchor.width, container.width - PREVIEW_MINI_PLAYER_EDGE_GAP);
+  const bottom = Math.min(
+    anchor.y + anchor.height,
+    container.height - PREVIEW_MINI_PLAYER_EDGE_GAP,
+  );
+  const span = spanOf(anchor.x, start.width);
   const floor = floorFor(span, container, obstacles);
   const ceiling = ceilingFor(span, obstacles);
   const max = {
     width: west
       ? right - PREVIEW_MINI_PLAYER_EDGE_GAP
       : east
-        ? container.width - PREVIEW_MINI_PLAYER_EDGE_GAP - start.x
+        ? container.width - PREVIEW_MINI_PLAYER_EDGE_GAP - anchor.x
         : container.width - PREVIEW_MINI_PLAYER_EDGE_GAP * 2,
     height: north
       ? bottom - ceiling - PREVIEW_MINI_PLAYER_EDGE_GAP
       : south
-        ? floor - PREVIEW_MINI_PLAYER_EDGE_GAP - start.y
+        ? floor - PREVIEW_MINI_PLAYER_EDGE_GAP - anchor.y
         : floor - ceiling - PREVIEW_MINI_PLAYER_EDGE_GAP * 2,
   };
   const desiredWidth = start.width + (east ? delta.x : west ? -delta.x : 0);
@@ -309,7 +314,7 @@ export function resizePreviewMiniPlayer(input: {
         : desiredHeight * aspectRatio;
   const size = fitPreviewMiniPlayerWidth(desired, source, max);
   const position = clampPreviewMiniPlayerPosition(
-    { x: west ? right - size.width : start.x, y: north ? bottom - size.height : start.y },
+    { x: west ? right - size.width : anchor.x, y: north ? bottom - size.height : anchor.y },
     container,
     size,
     obstacles,

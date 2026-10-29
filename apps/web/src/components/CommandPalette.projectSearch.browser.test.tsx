@@ -73,7 +73,8 @@ vi.mock("../hooks/useScratchProject", () => ({
 }));
 vi.mock("../hooks/useNewProject", () => ({ useNewProject: () => vi.fn() }));
 vi.mock("../hooks/useHandleNewThread", () => ({
-  useHandleNewThread: () => ({ handleNewThread: newThreadMock }),
+  useHandleNewThread: () => ({ activeDraftThread: null, activeThread: null, defaultProjectRef: null, handleNewThread: newThreadMock }),
+  useNewThreadHandler: () => newThreadMock,
 }));
 vi.mock("../hooks/useOpenPanelPullRequestUrl", () => ({ useOpenPanelPullRequestUrl: () => null }));
 vi.mock("../connection/useDesktopLocalBootstraps", () => ({ useDesktopLocalBootstraps: () => [] }));
@@ -92,7 +93,7 @@ vi.mock("../state/entities", async (importOriginal) => ({
 }));
 vi.mock("../state/queries", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../state/queries")>()),
-  useThreadSearch: () => ({ matches: [] }),
+  useThreadSearch: () => ({ matches: [], query: "", isLoading: false, error: null }),
 }));
 vi.mock("../state/session", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../state/session")>()),
@@ -167,7 +168,7 @@ describe("command palette project search", () => {
     await loadProjectPinyinConverter();
     navigateMock.mockClear();
     newThreadMock.mockClear();
-    useUiStateStore.getState().setSidebarProjectScopeKey(null);
+    useUiStateStore.getState().setSidebarProjectScopeKeys([]);
     await using _screen = await renderPalette(<input aria-label="Settings field" />);
     await act(() => openCommandPalette());
     await settle();
@@ -186,7 +187,7 @@ describe("command palette project search", () => {
       );
     });
     await settle();
-    expect(useUiStateStore.getState().sidebarProjectScopeKey).not.toBeNull();
+    expect(useUiStateStore.getState().sidebarProjectScopeKeys).not.toHaveLength(0);
     // No threads in the fixture, so the project opens its new-thread draft.
     expect(newThreadMock).toHaveBeenCalledTimes(1);
   });
