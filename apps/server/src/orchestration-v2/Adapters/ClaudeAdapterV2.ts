@@ -224,7 +224,7 @@ function claudePromptCacheTtlMs(
   return undefined;
 }
 // Claude caps the window at the model's context, so a setting at or above it never applies.
-export function claudeSdkContextWindow(
+function claudeSdkContextWindow(
   modelUsage:
     | Readonly<
         Record<
@@ -1658,7 +1658,7 @@ export const CLAUDE_READ_ONLY_T3_MCP_ALLOWED_TOOLS: ReadonlyArray<string> = [
   "mcp__t3-code__t3_preview_list",
   "mcp__t3-code__t3_environment_read",
   "mcp__t3-code__t3_environment_links",
-  "mcp__t3-code__t3_storage_inspect",
+  "mcp__t3-code__storage_inspect",
   "mcp__t3-code__html_preview",
   "mcp__t3-code__html_render",
 ];
@@ -6997,15 +6997,27 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
           yield* reasoningDeltas.flushTurn(input.context.nativeTurnId);
           if (input.context.compaction?.status === "running") {
             const reason = input.result?.subtype === "success" ? input.result.result.trim() : "";
+            // A /compact result names its own failure. Any other turn that ends while
+            // compaction is still running has no confirmed boundary yet.
+            const compactRefusal =
+              input.status === "completed" &&
+              input.result?.subtype === "success" &&
+              input.result.local_command === "compact";
+            const unconfirmed = input.status === "completed" && !compactRefusal;
             yield* emitProviderEvent({
               type: "turn_item.updated",
               driver: CLAUDE_PROVIDER,
               turnItem: {
                 ...input.context.compaction,
-                status: input.status === "completed" ? "interrupted" : input.status,
-                ...(input.status === "completed" ? { completionConfirmed: false } : {}),
-                title:
-                  input.status === "completed"
+                status: compactRefusal
+                  ? "failed"
+                  : input.status === "completed"
+                    ? "interrupted"
+                    : input.status,
+                ...(unconfirmed ? { completionConfirmed: false } : {}),
+                title: compactRefusal
+                  ? "Context compaction failed"
+                  : unconfirmed
                     ? "Context compaction result unconfirmed"
                     : input.status === "failed"
                       ? "Context compaction failed"

@@ -51,7 +51,7 @@ export const layerFromPath = Effect.fn("makeSqlitePersistenceLive")(function* (d
 
   return Layer.provideMerge(
     Layer.mergeAll(
-    layerSetup,
+      layerSetup,
       Layer.effectDiscard(
         Effect.gen(function* () {
           yield* fs.chmod(dbPath, 0o600);

@@ -512,6 +512,7 @@ export default function ChatView(props: ChatViewProps) {
       ? composerDraftTarget
       : scopedThreadKey(composerDraftTarget);
   const artifactDraftTargetRef = useRef(artifactDraftKey);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- publishes the artifact draft key to a ref the attach handler checks before adding files
   useLayoutEffect(() => {
     artifactDraftTargetRef.current = artifactDraftKey;
   }, [artifactDraftKey]);
@@ -2333,6 +2334,7 @@ export default function ChatView(props: ChatViewProps) {
     onDiffPanelOpen,
     closeRightPanelSurface,
   });
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- window listener for thread-panel toggle requests
   useEffect(() => onToggleThreadPanelRequest(toggleThreadPanelStable), [toggleThreadPanelStable]);
   const pullRequestSurfaceAvailable = supportsPullRequests && pullRequestPanelTarget !== null;
   const {
@@ -3466,10 +3468,7 @@ export default function ChatView(props: ChatViewProps) {
                                   compactDisabled={compactDisabled}
                                   showThroughput={settings.turnThroughputEnabled}
                                   disconnected={activeEnvironmentUnavailable || false}
-                                  disabled={
-                                    activeEnvironmentUnavailable ||
-                                    isRevertingCheckpoint
-                                  }
+                                  disabled={activeEnvironmentUnavailable || isRevertingCheckpoint}
                                 />,
                                 contextControlsHost,
                               )

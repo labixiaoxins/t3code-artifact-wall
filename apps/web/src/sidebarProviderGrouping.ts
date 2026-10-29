@@ -12,10 +12,7 @@ import type { ThreadPlacements } from "./sidebarThreadPlacement";
 
 export const providerExpansionKey = (provider: string) => `provider-group:${provider}`;
 
-export function isAutomationThread(thread: {
-  modelSelection: ModelSelection;
-  title?: string;
-}): boolean {
+function isAutomationThread(thread: { modelSelection: ModelSelection; title?: string }): boolean {
   return (
     thread.modelSelection.model === "codex-auto-review" ||
     /^(自动审批|自动化测试|生图执行记录|Call your built-in image generation tool|核心股错杀提醒|长桥账户重大异常监控|(?:港股|美股|长桥)监控｜|每周回顾$|每周复盘｜自动化|Codex 项目收尾试运行|公众号发布前检查试运行)/.test(

@@ -925,7 +925,7 @@ export function shouldPrepareLegacyImportHandoff(input: {
     input.historyOrigin === "v1_import" && !input.hasCompletedRun && input.legacyImportItemCount > 0
   );
 }
-export function appendContextHandoffId(
+function appendContextHandoffId(
   handoffIds: OrchestrationV2ProviderThread["handoffIds"],
   handoffId: OrchestrationV2ContextHandoff["id"] | null,
 ): OrchestrationV2ProviderThread["handoffIds"] {

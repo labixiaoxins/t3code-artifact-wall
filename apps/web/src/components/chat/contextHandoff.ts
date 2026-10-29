@@ -27,7 +27,7 @@ export function hasHandoffBudgetFailure(
 }
 
 /** Absolute thresholds are a fallback only when the provider reports no window size. */
-export const LONG_CONVERSATION_THRESHOLDS = {
+const LONG_CONVERSATION_THRESHOLDS = {
   reminder: { contextRatio: 0.6, tokens: 150_000, items: 800, turns: 30 },
   strong: { contextRatio: 0.8, tokens: 250_000, items: 1500, turns: 50 },
 } as const;

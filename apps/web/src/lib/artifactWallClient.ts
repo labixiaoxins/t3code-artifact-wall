@@ -5,6 +5,8 @@ import { readDesktopPrimaryBearerToken } from "../environments/primary/desktopAu
 
 class ArtifactWallError extends Error {}
 
+const decodeWallArtifactList = Schema.decodeUnknownSync(WallArtifactList);
+
 async function listRequestInit(environmentId: EnvironmentId): Promise<RequestInit> {
   const connection = readPreparedConnection(environmentId);
   if (!connection) throw new ArtifactWallError("连接尚未就绪，请稍后重试");
@@ -40,7 +42,7 @@ async function wallFetch(url: URL | string, init: RequestInit): Promise<Response
   }
 }
 
-export function artifactWallOrigin(environmentId: EnvironmentId): string | null {
+function artifactWallOrigin(environmentId: EnvironmentId): string | null {
   const connection = readPreparedConnection(environmentId);
   if (!connection || connection.httpAuthorization?._tag === "Dpop") return null;
   const origin = new URL(connection.httpBaseUrl, window.location.href);
@@ -69,7 +71,7 @@ export async function loadWallArtifacts(
   if (response.status === 403) throw new ArtifactWallError("此连接无权读取产物");
   if (!response.ok) throw new ArtifactWallError("暂时无法读取产物，请重试");
   try {
-    return Schema.decodeUnknownSync(WallArtifactList)(await response.json()).artifacts;
+    return decodeWallArtifactList(await response.json()).artifacts;
   } catch {
     throw new ArtifactWallError("产物数据读取失败，请重试");
   }

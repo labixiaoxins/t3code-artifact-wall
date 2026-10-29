@@ -75,7 +75,7 @@ function DiskSpaceEnvironment({
     </section>
   );
 }
-export function DiskSpaceReportView({ report }: { readonly report: DiskSpaceReport }) {
+function DiskSpaceReportView({ report }: { readonly report: DiskSpaceReport }) {
   const growth = summarizeGrowth(report.history);
   const total = report.volume?.totalBytes ?? 0;
   const free = report.volume?.freeBytes ?? 0;

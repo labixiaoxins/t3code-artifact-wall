@@ -3,7 +3,7 @@ import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/shell
 import type { ThreadId } from "@t3tools/contracts";
 
 /** Only fields that affect handoff controls; message and title updates are irrelevant. */
-export function handoffShellSummary(
+function handoffShellSummary(
   shells: ReadonlyArray<Omit<EnvironmentThreadShell, "environmentId">>,
   parentThreadId: ThreadId,
 ) {

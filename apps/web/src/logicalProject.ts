@@ -2,8 +2,6 @@ export {
   buildProjectGroups,
   deriveLogicalProjectKeyFromSettings,
   derivePhysicalProjectKey,
-  derivePhysicalProjectKeyFromPath,
-  deriveProjectGroupingOverrideKey,
   getProjectOrderKey,
   selectProjectGroupingSettings,
   type ProjectGroupingMode,
@@ -12,7 +10,17 @@ export {
   type ProjectGroupMember,
 } from "@t3tools/client-runtime/state/project-grouping";
 
-import { deriveLogicalProjectKeyFromSettings as keyFromSettings } from "@t3tools/client-runtime/state/project-grouping";
+import {
+  deriveLogicalProjectKeyFromSettings as keyFromSettings,
+  derivePhysicalProjectKey as physicalProjectKey,
+} from "@t3tools/client-runtime/state/project-grouping";
+
+export function deriveProjectGroupingOverrideKey(
+  project: Parameters<typeof physicalProjectKey>[0],
+): string {
+  return physicalProjectKey(project);
+}
+
 export function deriveLogicalProjectKey(
   project: Parameters<typeof keyFromSettings>[0],
   options?: { readonly groupScratchProjects?: boolean },
