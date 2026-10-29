@@ -1,12 +1,24 @@
-# T3 Code · Xiaoxin Edition C23
+# Xiaoxin T3 Code · Community Edition C25
 
-[简体中文](README.md) · [Download C23](https://github.com/labixiaoxins/t3code-artifact-wall/releases/tag/xiaoxin-c23-20261028) · [Install and recovery](docs/community/README.en.md) · [Changelog](docs/community/CHANGELOG.en.md) · [Upstream](https://github.com/pingdotgg/t3code)
+[简体中文](README.md) · [Download C25](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c25-20261029) · [Install and recovery](docs/community/README.en.md) · [Changelog](docs/community/CHANGELOG.en.md) · [Upstream](https://github.com/pingdotgg/t3code)
+
+## C25 · 2026-10-29
+
+- Fix repeated artifact-count state updates that could create a renderer update loop.
+- Identify revision requests with stable source-thread/path/revision/time/size metadata rather than temporary access IDs; draft matching and comparison guards use the same stable key.
+- Recognize artifact paths next to full-width punctuation.
+- Add optional sidebar font, size and light/dark text preferences while preserving existing defaults.
+- Include context-handoff/UI baseline cleanup and retain the C23 features and complete official 0.1.3 baseline.
+
+C25 is a community build number, not a new official version. Revision checks remain model-executed, without filesystem locks; feedback drafts do not survive a reload. The Electron revision interaction has not been re-accepted click by click; the real-model revision check was performed on web.
+
+**The C23 illustrations and historical checks below retain their original labels. See the [C25 release record](docs/community/C25.en.md) for current verification and limitations.**
 
 **Upgrading from the previous public release:** [Full C13 → C23 comparison](docs/community/C13-TO-C23.en.md), covering search, quota safeguards, run visibility and core changes, with new and retained features distinguished.
 
 A community edition based on the **full official T3 Code 0.1.3 source baseline**, retaining a project-first Chinese workbench and improving long-running work, artifact browsing, storage operations, and everyday composition and model selection.
 
-**C23 is this fork’s build label, not an official version number.** The downloadable application is for Apple silicon Macs. Upstream MIT notices are retained. It is ad-hoc signed and not Apple-notarized. Accounts, subscriptions, chats, projects, private settings and API keys are not included.
+**C25 is this fork’s build label, not an official version number.** The downloadable application is for Apple silicon Macs. Upstream MIT notices are retained. It is ad-hoc signed and not Apple-notarized. Accounts, subscriptions, chats, projects, private settings and API keys are not included.
 
 ![Actual C23 workbench with synthetic test data](assets/community/c23/01-workbench.png)
 
@@ -46,7 +58,7 @@ Compact provider icons replace text labels, giving conversation titles more hori
 
 ![Sidebar hierarchy illustration](assets/community/c23/03-sidebar.png)
 
-Existing Appearance settings still control global interface font, font size, theme and contrast. **This release does not add separate sidebar-only font, size or text-color controls.**
+Existing Appearance settings still control global interface font, font size, theme and contrast. **C25 adds independent sidebar font, size and light/dark text preferences with unchanged defaults.**
 
 ## 3. Less repetition in model selection
 
@@ -78,7 +90,7 @@ The Review action sends an explicit request to the current assistant. Actual del
 
 ## Download and upgrade
 
-Download `T3-Code-Xiaoxin-C23-macOS-arm64.zip` from the [C23 release](https://github.com/labixiaoxins/t3code-artifact-wall/releases/tag/xiaoxin-c23-20261028). Checksums are provided there. C13 and C11 remain available.
+Download `Xiaoxin-T3-Code-C25-macOS-arm64.zip` from the [C25 release](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c25-20261029). Checksums are provided there. C13 and C11 remain available.
 
 For an existing installation, finish tasks, quit normally, and back up the matching application, T3 home and persistent desktop state before replacing the app. Run only one copy. This edition uses the existing T3 application identity and data locations. **Do not let an old binary blindly write a newer database. Restoring an older data snapshot can lose newer work; never overwrite your only current copy.** See [installation and recovery](docs/community/README.en.md).
 
@@ -94,4 +106,6 @@ For an existing installation, finish tasks, quit normally, and back up the match
 
 Code and documentation were assisted by Codex / GPT-6.1-Sol in T3 Code. Product choices and real-use feedback come from Xiaoxin. Independent model reviews are not a substitute for user acceptance.
 
-The publication branch retains this fork’s existing GitHub Actions workflows; CI/automatic-release configuration is unchanged. Application implementation remains the C23 source described above.
+The publication branch retains this fork’s existing GitHub Actions workflows; CI/automatic-release configuration is unchanged. C25 adds a verified 30-file source delta on top of the C23 implementation.
+
+Current verification: [C25](docs/community/C25.en.md).

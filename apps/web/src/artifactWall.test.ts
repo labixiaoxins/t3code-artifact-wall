@@ -2,10 +2,13 @@ import { describe, expect, it } from "vite-plus/test";
 import type { WallArtifact } from "@t3tools/contracts";
 import {
   artifactCounts,
+  artifactRevisionPrompt,
+  artifactVersionKey,
   groupArtifacts,
   previousArtifactImage,
   isArtifactVideo,
   artifactVideoDuration,
+  nextArtifactCount,
 } from "./artifactWall";
 const a = (
   id: string,
@@ -38,6 +41,12 @@ describe("artifact wall presentation", () => {
     const groups = groupArtifacts([other, revised], new Date("2026-10-07T12:00:00Z"));
     expect(groups[0]?.artifacts[0]?.id).toBe("old");
     expect(previousArtifactImage(revised, [other, revised])?.id).toBe("other");
+  });
+  it("keeps the same count state object when the count is unchanged", () => {
+    const first = nextArtifactCount(null, "env:thread", 2);
+    expect(nextArtifactCount(first, "env:thread", 2)).toBe(first);
+    expect(nextArtifactCount(first, "env:thread", 3)).toEqual({ key: "env:thread", count: 3 });
+    expect(nextArtifactCount(first, "env:other", 2)).toEqual({ key: "env:other", count: 2 });
   });
   it("counts each kind including video", () => {
     expect(
@@ -83,5 +92,38 @@ describe("video presentation", () => {
     expect(artifactVideoDuration(NaN)).toBeNull();
     expect(artifactVideoDuration(Infinity)).toBeNull();
     expect(artifactVideoDuration(-1)).toBeNull();
+  });
+});
+
+describe("artifact revision request", () => {
+  it("binds the request to the selected file and asks to retain the original", () => {
+    const artifact = { ...a("v2", "2026-10-29T00:00:00Z"), revision: "sha256:abc" };
+    const prompt = artifactRevisionPrompt(artifact, "  修右手边缘\n保留构图  ");
+    expect(prompt).toContain('"path": "/fiction/v2.png"');
+    expect(prompt).toContain('"sourceThreadId": "fiction"');
+    expect(prompt).toContain('"revision": "sha256:abc"');
+    expect(prompt).toContain("修右手边缘\n保留构图");
+    expect(prompt).not.toContain("artifactId");
+    expect(prompt).toContain("保留原文件");
+    expect(prompt).toContain("等待我对比验收");
+  });
+  it("rejects blank feedback instead of starting an unspecified revision", () => {
+    expect(() => artifactRevisionPrompt(a("v1", "2026-10-29"), "  ")).toThrow();
+  });
+});
+
+describe("artifact stable version identity", () => {
+  it("ignores renewed access capabilities but distinguishes changed files and threads", () => {
+    const original = { ...a("capability-a", "2026-10-29"), revision: "revision-1" };
+    expect(artifactVersionKey({ ...original, id: "capability-b" })).toBe(
+      artifactVersionKey(original),
+    );
+    for (const changed of [
+      { ...original, revision: "revision-2" },
+      { ...original, path: "/other.png" },
+      { ...original, threadId: "other-thread" },
+      { ...original, sizeBytes: 100 },
+    ])
+      expect(artifactVersionKey(changed)).not.toBe(artifactVersionKey(original));
   });
 });

@@ -1,3 +1,4 @@
+import "~/index.css";
 import type { EnvironmentId, ThreadId, WallArtifact } from "@t3tools/contracts";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { render } from "../../../test/render";
@@ -101,5 +102,52 @@ describe("ArtifactWall video filter", () => {
     );
     await vi.waitFor(() => expect(onCount).toHaveBeenCalledWith(5));
     expect(screen.container.querySelector("[data-artifact-wall]")).toBeNull();
+  });
+});
+
+describe("ArtifactWall revision drafts", () => {
+  it("keeps feedback when the composer is unavailable and permits retry", async () => {
+    const onRevise = vi.fn().mockReturnValue(false);
+    await using screen = await render(
+      <ArtifactWall
+        environmentId={"environment-local" as EnvironmentId}
+        threadId={"thread-1" as ThreadId}
+        onAttach={vi.fn()}
+        onRevise={onRevise}
+      />,
+      { router: false }, // The mocked wall does not navigate.
+    );
+    await screen.getByRole("button", { name: "对比 cover.png", exact: true }).click();
+    await expect.element(screen.getByRole("button", { name: "加入返工草稿" })).toBeDisabled();
+    await screen.getByRole("textbox", { name: "修改意见" }).fill("修正右手边缘");
+    await screen.getByRole("button", { name: "加入返工草稿" }).click();
+    await vi.waitFor(() => {
+      expect(
+        document.querySelector('[data-slot="dialog-popup"] [role="alert"]')?.textContent,
+      ).toContain("修改意见已保留");
+    });
+    await expect
+      .element(screen.getByRole("textbox", { name: "修改意见" }))
+      .toHaveValue("修正右手边缘");
+    onRevise.mockReturnValue(true);
+    await screen.getByRole("button", { name: "加入返工草稿" }).click();
+    await expect.element(screen.getByRole("textbox", { name: "修改意见" })).not.toBeInTheDocument();
+    expect(onRevise.mock.calls.at(-1)?.[0]).toContain('"path": "/work/cover.png"');
+  });
+  it("retains an unsent note on closing and reopening the same image", async () => {
+    await using screen = await render(
+      <ArtifactWall
+        environmentId={"environment-local" as EnvironmentId}
+        threadId={"thread-1" as ThreadId}
+        onAttach={vi.fn()}
+        onRevise={() => true}
+      />,
+      { router: false }, // The mocked wall does not navigate.
+    );
+    await screen.getByRole("button", { name: "对比 cover.png", exact: true }).click();
+    await screen.getByRole("textbox", { name: "修改意见" }).fill("保留构图");
+    await screen.getByRole("button", { name: "Esc 关闭" }).click();
+    await screen.getByRole("button", { name: "对比 cover.png", exact: true }).click();
+    await expect.element(screen.getByRole("textbox", { name: "修改意见" })).toHaveValue("保留构图");
   });
 });

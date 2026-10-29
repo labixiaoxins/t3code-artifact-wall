@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { DraftId } from "../../composerDraftStore";
 import { scopeProjectRef } from "@t3tools/client-runtime/environment";
 import { useProjects, useThreadShells } from "../../state/entities";
@@ -33,21 +33,18 @@ export function DraftWorkspaceNotice({
   const settings = useClientSettings(selectProjectGroupingSettings);
   const { environments } = useEnvironments();
   const [choosing, setChoosing] = useState(false);
-  const category = useMemo(
-    () =>
-      buildSidebarProjectSnapshots({
-        projects,
-        settings,
-        primaryEnvironmentId: project.environmentId,
-        resolveEnvironmentLabel: (id) =>
-          environments.find((env) => env.environmentId === id)?.label ?? null,
-      }).find((group) =>
-        group.memberProjects.some(
-          (member) => member.environmentId === project.environmentId && member.id === project.id,
-        ),
+  const category = (() =>
+    buildSidebarProjectSnapshots({
+      projects,
+      settings,
+      primaryEnvironmentId: project.environmentId,
+      resolveEnvironmentLabel: (id) =>
+        environments.find((env) => env.environmentId === id)?.label ?? null,
+    }).find((group) =>
+      group.memberProjects.some(
+        (member) => member.environmentId === project.environmentId && member.id === project.id,
       ),
-    [projects, settings, project, environments],
-  );
+    ))();
   const change = async (event: React.MouseEvent) => {
     if (!category || choosing || !canChange()) return;
     const api = readLocalApi();

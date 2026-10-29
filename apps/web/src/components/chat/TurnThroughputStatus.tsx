@@ -3,8 +3,7 @@ import * as Option from "effect/Option";
 import { useEnvironmentThread } from "../../state/threads";
 import type { ThreadStructure } from "@t3tools/client-runtime/state/shell";
 import { uiText } from "~/i18n";
-import type { OrchestrationV2ThreadProjection } from "@t3tools/contracts";
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import {
   selectTurnThroughput,
   throughputReading,
@@ -19,7 +18,7 @@ export const TurnThroughput = memo(function TurnThroughput({
   projection: ThreadStructure;
   disconnected?: boolean;
 }) {
-  const snapshot = useMemo(() => selectTurnThroughput(projection), [projection]);
+  const snapshot = (() => selectTurnThroughput(projection))();
   const [now, setNow] = useState(() => Date.now());
   const ticking = snapshot?.running === true && !disconnected;
   useEffect(() => {
@@ -63,7 +62,10 @@ export const TurnThroughput = memo(function TurnThroughput({
         <p>
           {snapshot.outputTokens === null
             ? "提供商尚未上报本轮 Token 用量。"
-            : uiText("已上报输出 {0} tokens{1}。", {"0": snapshot.outputTokens.toLocaleString(), "1": snapshot.partial ? "（部分数据）" : ""})}
+            : uiText("已上报输出 {0} tokens{1}。", {
+                "0": snapshot.outputTokens.toLocaleString(),
+                "1": snapshot.partial ? "（部分数据）" : "",
+              })}
           {snapshot.running && reading.reportAgeMs !== null
             ? ` 用量上报于 ${formatThroughputDuration(reading.reportAgeMs)} 前。`
             : ""}
@@ -84,5 +86,10 @@ export function LiveTurnThroughput(props: {
   disconnected: boolean;
 }) {
   const live = useEnvironmentThread(props.environmentId, props.threadId);
-  return <TurnThroughput projection={Option.getOrNull(live.data) ?? props.projection} disconnected={props.disconnected} />;
+  return (
+    <TurnThroughput
+      projection={Option.getOrNull(live.data) ?? props.projection}
+      disconnected={props.disconnected}
+    />
+  );
 }

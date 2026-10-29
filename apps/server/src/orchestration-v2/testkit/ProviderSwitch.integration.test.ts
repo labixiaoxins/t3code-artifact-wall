@@ -85,6 +85,11 @@ interface CapturedTurn {
   readonly nativeThreadHasTurns?: boolean;
 }
 
+function assertWorkspacePrompt(actual: string, userText: string, cwd: string) {
+  const note = `Current task workspace: ${JSON.stringify({ projectId, threadId, cwd, branch: null })}. Historical paths may belong to earlier workspaces; verify the current files and running instance before editing or testing.`;
+  assert.equal(actual, `${note}\n\nUser message:\n${userText}`);
+}
+
 function unimplemented(driver: ProviderDriverKind, detail: string) {
   return Effect.fail(new ProviderAdapter.ProviderAdapterProtocolError({ driver, detail }));
 }
@@ -877,7 +882,9 @@ describe("orchestration v2 provider switching", () => {
             );
           } else {
             assert.equal(handoff.delivery?.status, "injected");
-            assert.equal((yield* Ref.get(capturedTurns)).at(-1)!.text, current);
+            const prompt = (yield* Ref.get(capturedTurns)).at(-1)!.text;
+            if (scenario === "compact-native") assert.equal(prompt, current);
+            else assertWorkspacePrompt(prompt, current, cwd);
             assert.include(
               yield* encodeJson(yield* Ref.get(injectedHistory)),
               "Original request with constraints",
@@ -1005,7 +1012,7 @@ describe("orchestration v2 provider switching", () => {
             yield* wait(3, "completed");
             const retried = yield* orchestrator.getThreadProjection(threadId);
             const lastTurn = (yield* Ref.get(capturedTurns)).at(-1)!;
-            assert.equal(lastTurn.text, retryText);
+            assertWorkspacePrompt(lastTurn.text, retryText, cwd);
             if (failure !== "injection") {
               const delta = yield* encodeJson(
                 (yield* Ref.get(injectedHistory)).slice(historyBeforeRetry),
@@ -1567,7 +1574,7 @@ describe("orchestration v2 provider switching", () => {
           assert.include(deliveredHistory, partialResponse);
           assert.include(deliveredHistory, `run-status=${status}`);
           if (native) {
-            assert.equal(delivered.text, "Continue");
+            assertWorkspacePrompt(delivered.text, "Continue", cwd);
             assert.notInclude(deliveredHistory, '"text":"Continue"');
             assert.include(deliveredHistory, '"role":"assistant"');
             assert.include(deliveredHistory, '"role":"user"');

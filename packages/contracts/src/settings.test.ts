@@ -387,3 +387,37 @@ describe("ServerSettings keepAwake", () => {
     expect(() => decodeServerSettingsPatch({ keepAwake: "always" })).toThrow();
   });
 });
+
+describe("sidebar appearance settings", () => {
+  it("adds defaults to old saved settings without changing existing preferences", () => {
+    const legacy = { fontFamilySans: "Menlo", fontSizeInterface: 18, wordWrap: false };
+    expect(decodeClientSettings(legacy)).toMatchObject({
+      ...legacy,
+      fontFamilySidebar: "",
+      fontSizeSidebar: 0,
+      sidebarTextColorLight: "default",
+      sidebarTextColorDark: "default",
+    });
+  });
+  it("round-trips sidebar values through the storage schema and patch contract", () => {
+    const patch = {
+      fontFamilySidebar: "Menlo",
+      fontSizeSidebar: 18,
+      sidebarTextColorLight: "high-contrast",
+      sidebarTextColorDark: "default",
+    };
+    expect(decodeClientSettingsPatch(patch)).toEqual(patch);
+    const settings = decodeClientSettings(patch);
+    expect(decodeClientSettings(encodeClientSettings(settings))).toEqual(settings);
+  });
+  it.each([-1, 1, 11, 21, 16.5, Number.NaN])(
+    "rejects unsupported sidebar size %s",
+    (fontSizeSidebar) => {
+      expect(() => decodeClientSettingsPatch({ fontSizeSidebar })).toThrow();
+    },
+  );
+  it("rejects arbitrary color strings and oversized family preferences", () => {
+    expect(() => decodeClientSettingsPatch({ sidebarTextColorDark: "#777777" })).toThrow();
+    expect(() => decodeClientSettingsPatch({ fontFamilySidebar: "a".repeat(201) })).toThrow();
+  });
+});

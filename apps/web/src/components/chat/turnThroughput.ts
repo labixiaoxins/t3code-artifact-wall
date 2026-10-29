@@ -1,5 +1,4 @@
 import type { ThreadStructure } from "@t3tools/client-runtime/state/shell";
-import type { OrchestrationV2ThreadProjection } from "@t3tools/contracts";
 import { latestProviderTurnForAttempt } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
 

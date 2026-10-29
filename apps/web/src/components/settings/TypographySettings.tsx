@@ -1,3 +1,4 @@
+import { DEFAULT_SIDEBAR_APPEARANCE } from "../../sidebarAppearance";
 import { uiText } from "~/i18n";
 import type { ReactNode } from "react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
@@ -254,6 +255,7 @@ function FontSettingsGroup() {
   return (
     <>
       <InterfaceFontRow />
+      <SidebarTypographyRows />
       <PromptFontRow />
       <CodeFontRow />
       <TerminalFontRow />
@@ -286,6 +288,7 @@ function SimpleFontRows() {
   return (
     <>
       <InterfaceFontRow preview={<PromptFontPreview />} />
+      <SidebarTypographyRows />
       <CodeFontRow
         title={uiText("Monospace font")}
         description={uiText("Code blocks, diffs, file previews, and the terminal.")}
@@ -368,6 +371,7 @@ function FontFamilySettingsRow({
     value: number;
     defaultValue: number;
     onChange: (v: number) => void;
+    followLabel?: string;
   };
 }) {
   const trimmed = value.trim();
@@ -492,18 +496,25 @@ function FontFamilySettingsRow({
         onValueChange={(next) => {
           if (typeof next !== "string") return;
           const parsed = Number(next);
-          if (Number.isInteger(parsed) && parsed >= size.min && parsed <= size.max) {
+          if (
+            (size.followLabel && parsed === 0) ||
+            (Number.isInteger(parsed) && parsed >= size.min && parsed <= size.max)
+          ) {
             size.onChange(parsed);
           }
         }}
       >
-        <SelectTrigger size="sm" className="w-22 shrink-0" aria-label={size.label}>
+        <SelectTrigger
+          size="sm"
+          className={size.followLabel ? "w-36 shrink-0" : "w-22 shrink-0"}
+          aria-label={size.label}
+        >
           <SelectValue>
-            {size.value}
-            {" px"}
+            {size.value === 0 && size.followLabel ? size.followLabel : `${size.value} px`}
           </SelectValue>
         </SelectTrigger>
         <SelectPopup align="end" alignItemWithTrigger={false}>
+          {size.followLabel && <SelectItem value="0">{size.followLabel}</SelectItem>}
           {Array.from({ length: size.max - size.min + 1 }, (_, index) => size.min + index).map(
             (px) => (
               <SelectItem hideIndicator key={px} value={String(px)}>
@@ -526,5 +537,78 @@ function FontFamilySettingsRow({
     >
       {preview}
     </SettingsRow>
+  );
+}
+
+function SidebarTypographyRows() {
+  const settings = useScopedSettings();
+  const updateSettings = useUpdateScopedSettings();
+  const defaults = useFontDefaultFamilies();
+  return (
+    <>
+      <FontFamilySettingsRow
+        {...searchableSetting("sidebar-font")}
+        description="只调整侧边栏。留空跟随界面字体；字号按现有文字层级等比调整。"
+        defaultFamily={defaults.interfaceFamily}
+        defaultValue=""
+        value={settings.fontFamilySidebar}
+        onValueChange={(fontFamilySidebar) => updateSettings({ fontFamilySidebar })}
+        onReset={() => updateSettings(DEFAULT_SIDEBAR_APPEARANCE)}
+        size={{
+          label: "侧边栏字号",
+          min: MIN_INTERFACE_FONT_SIZE,
+          max: MAX_INTERFACE_FONT_SIZE,
+          value: settings.fontSizeSidebar,
+          defaultValue: 0,
+          followLabel: "跟随界面字号",
+          onChange: (fontSizeSidebar) => updateSettings({ fontSizeSidebar }),
+        }}
+      />
+      {(["light", "dark"] as const).map((theme) => {
+        const key = theme === "light" ? "sidebarTextColorLight" : "sidebarTextColorDark";
+        const label = theme === "light" ? "侧边栏文字颜色（浅色）" : "侧边栏文字颜色（深色）";
+        return (
+          <SettingsRow
+            key={theme}
+            id={`sidebar-colors-${theme}`}
+            title={label}
+            description="默认保留现有颜色；高对比预设增强标题与次要文字。"
+            control={
+              <div className="flex items-center gap-2">
+                <Select
+                  value={settings[key]}
+                  onValueChange={(value) => {
+                    if (value === "default" || value === "high-contrast")
+                      updateSettings({ [key]: value });
+                  }}
+                >
+                  <SelectTrigger aria-label={label}>
+                    <SelectValue>{settings[key] === "default" ? "默认颜色" : "高对比"}</SelectValue>
+                  </SelectTrigger>
+                  <SelectPopup>
+                    <SelectItem value="default">默认颜色</SelectItem>
+                    <SelectItem value="high-contrast">高对比</SelectItem>
+                  </SelectPopup>
+                </Select>
+                <SettingResetButton
+                  label={label}
+                  onClick={() => updateSettings({ [key]: "default" })}
+                />
+              </div>
+            }
+          />
+        );
+      })}
+      <SettingsRow
+        title="恢复侧边栏默认"
+        description="恢复字体、字号和浅色/深色文字颜色。"
+        control={
+          <SettingResetButton
+            label="侧边栏"
+            onClick={() => updateSettings(DEFAULT_SIDEBAR_APPEARANCE)}
+          />
+        }
+      />
+    </>
   );
 }

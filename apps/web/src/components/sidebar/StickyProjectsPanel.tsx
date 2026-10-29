@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useState } from "react";
 import {
   PinIcon,
   PinOffIcon,
@@ -21,11 +21,7 @@ import { Menu, MenuItem, MenuPopup, MenuTrigger } from "../ui/menu";
 import { ProjectFavicon } from "../ProjectFavicon";
 import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
 import type { SidebarThreadSummary } from "../../types";
-import {
-  type StickyProjectIdentity,
-  resolveStickyProjects,
-  isProjectSticky,
-} from "./stickyProjects.logic";
+import { resolveStickyProjects, isProjectSticky } from "./stickyProjects.logic";
 import { useStickyProjectsStore } from "./stickyProjectsStore";
 
 export interface StickyProjectsPanelProps {
@@ -45,23 +41,22 @@ export const StickyProjectsPanel = memo(function StickyProjectsPanel({
   onLocateProject,
   onClose,
 }: StickyProjectsPanelProps) {
-  const { identities, addStickyProject, removeStickyProject, moveGroup } =
-    useStickyProjectsStore();
+  const { identities, addStickyProject, removeStickyProject, moveGroup } = useStickyProjectsStore();
 
-  const resolvedItems = useMemo(
-    () =>
-      resolveStickyProjects({
-        identities,
-        sidebarProjects,
-        threadsByProjectKey,
-        activeProjectKey,
-      }),
-    [identities, sidebarProjects, threadsByProjectKey, activeProjectKey],
+  const resolvedItems = (() =>
+    resolveStickyProjects({
+      identities,
+      sidebarProjects,
+      threadsByProjectKey,
+      activeProjectKey,
+    }))();
+
+  const groupKeys = identities.map(
+    (identity) =>
+      resolvedItems.find((item) =>
+        item.snapshot ? isProjectSticky([identity], item.snapshot) : item.identity === identity,
+      )!.key,
   );
-
-  const groupKeys = identities.map((identity) => resolvedItems.find((item) =>
-    item.snapshot ? isProjectSticky([identity], item.snapshot) : item.identity === identity
-  )!.key);
 
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => {
     const initial = new Set<string>();
@@ -85,10 +80,8 @@ export const StickyProjectsPanel = memo(function StickyProjectsPanel({
     });
   };
 
-  const nonStickyProjects = useMemo(
-    () => sidebarProjects.filter((project) => !isProjectSticky(identities, project)),
-    [sidebarProjects, identities],
-  );
+  const nonStickyProjects = (() =>
+    sidebarProjects.filter((project) => !isProjectSticky(identities, project)))();
 
   return (
     <div
@@ -105,17 +98,14 @@ export const StickyProjectsPanel = memo(function StickyProjectsPanel({
         <div className="flex items-center gap-1.5 font-medium text-xs">
           <PinIcon className="size-3.5 text-primary" />
           <span>常驻项目</span>
-          <span className="text-[11px] text-muted-foreground">({resolvedItems.length})</span>
+          <span className="text-2xs text-muted-foreground">({resolvedItems.length})</span>
         </div>
         <div className="flex items-center gap-1">
           {nonStickyProjects.length > 0 && (
             <Menu>
               <MenuTrigger
                 render={
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                  >
+                  <Button size="xs" variant="ghost">
                     <PlusIcon className="size-3 mr-1" />
                     添加
                   </Button>
@@ -141,12 +131,7 @@ export const StickyProjectsPanel = memo(function StickyProjectsPanel({
               </MenuPopup>
             </Menu>
           )}
-          <Button
-            size="icon-xs"
-            variant="ghost"
-            onClick={onClose}
-            aria-label="关闭常驻项目面板"
-          >
+          <Button size="icon-xs" variant="ghost" onClick={onClose} aria-label="关闭常驻项目面板">
             <XIcon className="size-3.5" />
           </Button>
         </div>
@@ -158,7 +143,7 @@ export const StickyProjectsPanel = memo(function StickyProjectsPanel({
           <div className="flex flex-col items-center justify-center p-6 text-center text-muted-foreground gap-1.5">
             <PinIcon className="size-6 text-muted-foreground/40 mb-1" />
             <p className="text-xs font-medium text-foreground">暂无常驻项目</p>
-            <p className="text-[11px] text-muted-foreground/80 leading-relaxed max-w-[220px]">
+            <p className="text-2xs text-muted-foreground/80 leading-relaxed max-w-[220px]">
               可在侧边栏右键点击项目设为常驻，或点击上方“添加”置顶常用项目。
             </p>
           </div>
@@ -177,7 +162,7 @@ export const StickyProjectsPanel = memo(function StickyProjectsPanel({
                     <span className="truncate text-muted-foreground line-through">
                       不可用项目 ({item.identity.projectId.slice(0, 8)})
                     </span>
-                    <span className="text-[10px] px-1 py-0.5 rounded bg-muted text-muted-foreground border">
+                    <span className="text-3xs px-1 py-0.5 rounded bg-muted text-muted-foreground border">
                       不可用
                     </span>
                   </div>
@@ -186,7 +171,12 @@ export const StickyProjectsPanel = memo(function StickyProjectsPanel({
                     variant="ghost"
                     onClick={() => {
                       for (const identity of identities) {
-                        if (item.snapshot ? isProjectSticky([identity], item.snapshot) : identity === item.identity) removeStickyProject(identity);
+                        if (
+                          item.snapshot
+                            ? isProjectSticky([identity], item.snapshot)
+                            : identity === item.identity
+                        )
+                          removeStickyProject(identity);
                       }
                     }}
                     title="从常驻列表中移除"
@@ -257,10 +247,15 @@ export const StickyProjectsPanel = memo(function StickyProjectsPanel({
                       size="icon-xs"
                       variant="ghost"
                       onClick={() => {
-                      for (const identity of identities) {
-                        if (item.snapshot ? isProjectSticky([identity], item.snapshot) : identity === item.identity) removeStickyProject(identity);
-                      }
-                    }}
+                        for (const identity of identities) {
+                          if (
+                            item.snapshot
+                              ? isProjectSticky([identity], item.snapshot)
+                              : identity === item.identity
+                          )
+                            removeStickyProject(identity);
+                        }
+                      }}
                       aria-label={`取消常驻 ${item.title}`}
                       title="取消常驻"
                     >
@@ -273,7 +268,7 @@ export const StickyProjectsPanel = memo(function StickyProjectsPanel({
                 {isExpanded && (
                   <div className="pl-6 pr-2 pt-1 pb-1 space-y-0.5">
                     {item.recentThreads.length === 0 ? (
-                      <div className="text-[11px] text-muted-foreground/70 py-1 pl-1">
+                      <div className="text-2xs text-muted-foreground/70 py-1 pl-1">
                         暂无未归档会话
                       </div>
                     ) : (
@@ -290,7 +285,7 @@ export const StickyProjectsPanel = memo(function StickyProjectsPanel({
                           <span className="truncate flex-1 font-normal group-hover/thread:text-foreground">
                             {thread.title || "未命名会话"}
                           </span>
-                          <span className="text-[10px] text-muted-foreground/70 ml-2 whitespace-nowrap">
+                          <span className="text-3xs text-muted-foreground/70 ml-2 whitespace-nowrap">
                             {formatRelativeTimeLabel(thread.updatedAt ?? thread.createdAt)}
                           </span>
                         </button>
@@ -318,12 +313,12 @@ export const StickyProjectsPanel = memo(function StickyProjectsPanel({
       </div>
 
       {/* Footer Info */}
-      <div className="px-3 py-1.5 border-t border-border/40 bg-muted/20 text-[10px] text-muted-foreground flex items-center justify-between">
+      <div className="px-3 py-1.5 border-t border-border/40 bg-muted/20 text-3xs text-muted-foreground flex items-center justify-between">
         <span>支持键盘操作 · 重命名自动同步</span>
         <button
           type="button"
           onClick={onClose}
-          className="hover:underline text-[10px] text-muted-foreground"
+          className="hover:underline text-3xs text-muted-foreground"
         >
           返回 (Esc)
         </button>
@@ -351,8 +346,9 @@ export function StickyProjectsTrigger({
 }: StickyProjectsTriggerProps) {
   const [open, setOpen] = useState(false);
   const identities = useStickyProjectsStore((s) => s.identities);
-  const stickyCount = useMemo(() => resolveStickyProjects({ identities, sidebarProjects, threadsByProjectKey, activeProjectKey }).length,
-    [identities, sidebarProjects, threadsByProjectKey, activeProjectKey]);
+  const stickyCount = (() =>
+    resolveStickyProjects({ identities, sidebarProjects, threadsByProjectKey, activeProjectKey })
+      .length)();
 
   const triggerButton = (
     <Button
@@ -363,7 +359,7 @@ export function StickyProjectsTrigger({
       <PinIcon className="size-3" />
       <span>常驻项目</span>
       {stickyCount > 0 && (
-        <span className="rounded-full bg-primary/10 px-1 text-[10px] font-medium text-primary">
+        <span className="rounded-full bg-primary/10 px-1 text-3xs font-medium text-primary">
           {stickyCount}
         </span>
       )}
@@ -374,17 +370,17 @@ export function StickyProjectsTrigger({
     return (
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger render={triggerButton} />
-          <SheetPopup side="bottom" className="max-h-[85vh] overflow-hidden" showCloseButton={false}>
-            <SheetTitle className="sr-only">常驻项目</SheetTitle>
-            <StickyProjectsPanel
-              sidebarProjects={sidebarProjects}
-              threadsByProjectKey={threadsByProjectKey}
-              activeProjectKey={activeProjectKey}
-              onSelectThread={onSelectThread}
-              onLocateProject={onLocateProject}
-              onClose={() => setOpen(false)}
-            />
-          </SheetPopup>
+        <SheetPopup side="bottom" className="max-h-[85vh] overflow-hidden" showCloseButton={false}>
+          <SheetTitle className="sr-only">常驻项目</SheetTitle>
+          <StickyProjectsPanel
+            sidebarProjects={sidebarProjects}
+            threadsByProjectKey={threadsByProjectKey}
+            activeProjectKey={activeProjectKey}
+            onSelectThread={onSelectThread}
+            onLocateProject={onLocateProject}
+            onClose={() => setOpen(false)}
+          />
+        </SheetPopup>
       </Sheet>
     );
   }
@@ -392,13 +388,7 @@ export function StickyProjectsTrigger({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger render={triggerButton} />
-      <PopoverPopup
-        side="bottom"
-        align="start"
-        sideOffset={6}
-        width="md"
-        padding="none"
-      >
+      <PopoverPopup side="bottom" align="start" sideOffset={6} width="md" padding="none">
         <StickyProjectsPanel
           sidebarProjects={sidebarProjects}
           threadsByProjectKey={threadsByProjectKey}

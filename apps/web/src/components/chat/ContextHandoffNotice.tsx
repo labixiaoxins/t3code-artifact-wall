@@ -1,7 +1,7 @@
 import type { ThreadStructure } from "@t3tools/client-runtime/state/shell";
 import { uiText } from "~/i18n";
 import { latestContextUsage } from "./contextUsage";
-import type { EnvironmentId, OrchestrationV2ThreadProjection } from "@t3tools/contracts";
+import type { EnvironmentId } from "@t3tools/contracts";
 import { CommandId, MessageId, ThreadId } from "@t3tools/contracts";
 import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/shell";
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";

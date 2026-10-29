@@ -79,3 +79,21 @@ describe("clientPersistenceStorage", () => {
     expect(write).not.toHaveBeenCalled();
   });
 });
+
+it("persists sidebar appearance across browser settings reloads", async () => {
+  getTestWindow();
+  const settings = {
+    ...DEFAULT_CLIENT_SETTINGS,
+    fontFamilySidebar: "Menlo",
+    fontSizeSidebar: 18,
+    sidebarTextColorLight: "high-contrast" as const,
+    sidebarTextColorDark: "default" as const,
+  };
+  const { readBrowserClientSettings, writeBrowserClientSettings } =
+    await import("./clientPersistenceStorage");
+  writeBrowserClientSettings(settings);
+  vi.resetModules();
+  const reloaded = await import("./clientPersistenceStorage");
+  expect(reloaded.readBrowserClientSettings()).toEqual(settings);
+  expect(readBrowserClientSettings()).toEqual(settings);
+});

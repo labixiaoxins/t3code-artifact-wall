@@ -4,7 +4,6 @@ import { uiText } from "~/i18n";
 import { ContinuationHistoryPanel } from "./ContinuationHistoryPanel";
 import { ArtifactWall } from "./ArtifactWall";
 import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/shell";
-import type { OrchestrationV2ThreadProjection } from "@t3tools/contracts";
 import type {
   EditorId,
   EnvironmentId,
@@ -26,6 +25,7 @@ import ProjectScriptsControl, {
 import { memo, useState, type ComponentProps } from "react";
 import { InspectorTabBar } from "./InspectorTabBar";
 import { resolveInspectorTab, useInspectorTab, type InspectorTab } from "../../inspectorTabs";
+import { nextArtifactCount, type ArtifactCountState } from "../../artifactWall";
 import { ThreadDetailsCard } from "./ThreadDetailsCard";
 import { OpenInPicker } from "./OpenInPicker";
 import { ThreadDetailsSection } from "./ThreadDetailsSection";
@@ -100,7 +100,7 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
   const [storedTab, setStoredTab] = useInspectorTab();
   const tab = resolveInspectorTab(storedTab, availableTabs);
   const countKey = `${props.environmentId}:${props.threadId}`;
-  const [artifactCount, setArtifactCount] = useState<{ key: string; count: number } | null>(null);
+  const [artifactCount, setArtifactCount] = useState<ArtifactCountState | null>(null);
   const tabLabels: Record<InspectorTab, string> = {
     artifacts: artifactCount?.key === countKey ? `产物 ${artifactCount.count}` : "产物",
     history: "续聊",
@@ -161,8 +161,11 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
               environmentId={props.environmentId}
               threadId={props.threadId}
               onAttach={props.onAttachArtifactFiles}
+              {...(props.continuation ? { onRevise: props.continuation.onQuote } : {})}
               active={tab === "artifacts"}
-              onCount={(count) => setArtifactCount({ key: countKey, count })}
+              onCount={(count) =>
+                setArtifactCount((previous) => nextArtifactCount(previous, countKey, count))
+              }
             />
           ) : null}
           {tab === "run" ? (
@@ -170,92 +173,92 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
           ) : null}
           {tab === "project" ? (
             <>
-          <ThreadDetailsSection
+              <ThreadDetailsSection
                 headingId={"thread-details-workspace-heading"}
                 title={uiText("Workspace")}
-            separated={false}
-            showHeading={false}
-          >
+                separated={false}
+                showHeading={false}
+              >
                 <div className={"flex flex-col"}>
-              {density === "full" ? (
-                <BranchToolbar
+                  {density === "full" ? (
+                    <BranchToolbar
                       layout={"panel"}
                       panelSection={"workspace"}
-                  availableEnvironments={props.availableEnvironments}
-                  {...(props.onEnvironmentChange
-                    ? { onEnvironmentChange: props.onEnvironmentChange }
-                    : {})}
-                  autoEnvironmentLabel={props.autoEnvironmentLabel}
-                  onAutoEnvironment={props.onAutoEnvironment}
-                  {...branchToolbarProps}
-                />
-              ) : null}
-              {density !== "essential" && props.showOpenInPicker ? (
-                <OpenInPicker
-                  keybindings={props.keybindings}
-                  environmentId={props.environmentId}
-                  availableEditors={props.availableEditors}
-                  openInCwd={props.gitCwd}
-                  enableShortcut={props.openInShortcutEnabled}
+                      availableEnvironments={props.availableEnvironments}
+                      {...(props.onEnvironmentChange
+                        ? { onEnvironmentChange: props.onEnvironmentChange }
+                        : {})}
+                      autoEnvironmentLabel={props.autoEnvironmentLabel}
+                      onAutoEnvironment={props.onAutoEnvironment}
+                      {...branchToolbarProps}
+                    />
+                  ) : null}
+                  {density !== "essential" && props.showOpenInPicker ? (
+                    <OpenInPicker
+                      keybindings={props.keybindings}
+                      environmentId={props.environmentId}
+                      availableEditors={props.availableEditors}
+                      openInCwd={props.gitCwd}
+                      enableShortcut={props.openInShortcutEnabled}
                       displayMode={"panel"}
-                />
-              ) : null}
-              {props.activeProjectScripts ? (
-                <ProjectScriptsControl
-                  environmentId={props.environmentId}
+                    />
+                  ) : null}
+                  {props.activeProjectScripts ? (
+                    <ProjectScriptsControl
+                      environmentId={props.environmentId}
                       displayMode={"panel"}
-                  scripts={props.activeProjectScripts}
-                  fileScripts={fileScripts}
-                  preferredScriptId={props.preferredScriptId}
-                  onRunScript={props.onRunProjectScript}
-                  onAddScript={props.onAddProjectScript}
-                  onUpdateScript={props.onUpdateProjectScript}
-                  onDeleteScript={props.onDeleteProjectScript}
-                />
-              ) : null}
-            </div>
-          </ThreadDetailsSection>
-          {props.gitCwd ? (
-            <ThreadDetailsSection
+                      scripts={props.activeProjectScripts}
+                      fileScripts={fileScripts}
+                      preferredScriptId={props.preferredScriptId}
+                      onRunScript={props.onRunProjectScript}
+                      onAddScript={props.onAddProjectScript}
+                      onUpdateScript={props.onUpdateProjectScript}
+                      onDeleteScript={props.onDeleteProjectScript}
+                    />
+                  ) : null}
+                </div>
+              </ThreadDetailsSection>
+              {props.gitCwd ? (
+                <ThreadDetailsSection
                   headingId={"thread-details-version-control-heading"}
                   title={uiText("Version Control")}
-              showHeading={false}
-              separated={density === "full"}
-            >
+                  showHeading={false}
+                  separated={density === "full"}
+                >
                   <div className={"flex flex-col"}>
-                {props.isGitRepo ? (
+                    {props.isGitRepo ? (
                       <BranchToolbar
                         layout={"panel"}
                         panelSection={"branch"}
                         {...branchToolbarProps}
                       />
-                ) : null}
-                {props.activeProjectName ? (
-                  <GitActionsControl
+                    ) : null}
+                    {props.activeProjectName ? (
+                      <GitActionsControl
                         displayMode={"panel"}
-                    compact={density !== "full"}
-                    gitCwd={props.gitCwd}
-                    activeThreadRef={activeThreadRef}
-                    {...(props.draftId ? { draftId: props.draftId } : {})}
-                    {...(props.onOpenChanges ? { onOpenChanges: props.onOpenChanges } : {})}
-                  />
-                ) : null}
-              </div>
-            </ThreadDetailsSection>
-          ) : null}
-          {density === "full" && !props.draftId ? (
+                        compact={density !== "full"}
+                        gitCwd={props.gitCwd}
+                        activeThreadRef={activeThreadRef}
+                        {...(props.draftId ? { draftId: props.draftId } : {})}
+                        {...(props.onOpenChanges ? { onOpenChanges: props.onOpenChanges } : {})}
+                      />
+                    ) : null}
+                  </div>
+                </ThreadDetailsSection>
+              ) : null}
+              {density === "full" && !props.draftId ? (
                 <ThreadAutomationsPanel
                   environmentId={props.environmentId}
                   threadId={props.threadId}
                 />
-          ) : null}
-          {density === "full" && !props.draftId ? (
-            <ThreadRelationshipsPanel
-              environmentId={props.environmentId}
-              threadId={props.threadId}
-            />
-          ) : null}
-        </>
+              ) : null}
+              {density === "full" && !props.draftId ? (
+                <ThreadRelationshipsPanel
+                  environmentId={props.environmentId}
+                  threadId={props.threadId}
+                />
+              ) : null}
+            </>
           ) : null}
         </>
       )}

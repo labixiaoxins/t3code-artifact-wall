@@ -337,6 +337,12 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["typography family size system sans"],
   },
   {
+    id: "sidebar-font",
+    title: "侧边栏",
+    to: "/settings/appearance",
+    searchTerms: ["sidebar font family size color 侧边栏 字体 字号 颜色"],
+  },
+  {
     id: "prompt-font",
     title: uiText("Prompt font"),
     to: "/settings/appearance",

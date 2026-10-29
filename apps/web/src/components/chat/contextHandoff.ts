@@ -1,9 +1,5 @@
 import type { ThreadStructure } from "@t3tools/client-runtime/state/shell";
-import type {
-  OrchestrationV2ThreadProjection,
-  OrchestrationV2ThreadShell,
-  ThreadId,
-} from "@t3tools/contracts";
+import type { OrchestrationV2ThreadShell, ThreadId } from "@t3tools/contracts";
 
 /** A budget rejection occurs before the provider runs; repeating a normal turn cannot recover it.
  * Only the latest run matters, so a successful compaction clears the recovery state.

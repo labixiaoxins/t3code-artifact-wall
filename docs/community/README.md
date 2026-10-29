@@ -1,10 +1,10 @@
-# 安装与回退 · C23
+# 安装与回退 · C25
 
 [English](README.en.md) · [功能图解](../../README.md)
 
 ## 下载和安装
 
-1. 从 [C23 Release](https://github.com/labixiaoxins/t3code-artifact-wall/releases/tag/xiaoxin-c23-20261028) 下载 `T3-Code-Xiaoxin-C23-macOS-arm64.zip` 和 `SHA256SUMS.txt`。这是 Apple 芯片 Mac 包；最低 macOS 要求以同页 release-manifest.json 为准。
+1. 从 [C25 Release](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c25-20261029) 下载 `Xiaoxin-T3-Code-C25-macOS-arm64.zip` 和 `SHA256SUMS.txt`。这是 Apple 芯片 Mac 包；最低 macOS 要求以同页 release-manifest.json 为准。
 2. 在下载目录运行 `shasum -a 256 -c SHA256SUMS.txt`，按提示核对已下载文件；若只下载了部分附件，可只校验对应行。解压后将 App 放进“应用程序”。不要直接在 ZIP、外盘归档或下载暂存中长期运行。
 3. 此包为未经 Apple 公证的社区临时签名应用。首次被系统阻止时，核对本仓库、校验值及应用来源，再在“系统设置 → 隐私与安全性”使用系统允许的打开方式。不要关闭全局安全防护。
 4. 登录自己的模型提供方账号。本包不附带维护者账号、API 地址、订阅、私人技能或聊天资料。
@@ -29,7 +29,7 @@
 
 ## 从源码运行
 
-源码分支 `community/xiaoxin-c23`，发布 tag `xiaoxin-c23-20261028`。安装根 `package.json` 要求的 Node.js 与 Vite+，再执行 `vp i` 和 `vp run dev --no-seed`。开发 home 与正式资料分开；不要把正式 `~/.t3/userdata` 当作测试服务器的数据目录。
+源码分支 `community/xiaoxin-c25`，发布 tag `xiaoxin-c25-20261029`。安装根 `package.json` 要求的 Node.js 与 Vite+，再执行 `vp i` 和 `vp run dev --no-seed`。开发 home 与正式资料分开；不要把正式 `~/.t3/userdata` 当作测试服务器的数据目录。
 
 官方基线为 0.1.3；构建阶段使用 `scripts/update-release-package-versions.ts 0.1.3` 对齐发行包版本。仓库 package.json 中的基础版本字段不应单独被当成已安装发行身份。
 

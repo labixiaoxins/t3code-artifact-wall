@@ -1,5 +1,16 @@
 # Community changelog
 
+## C25 · 2026-10-29
+
+- Fix repeated artifact-count state updates that could create a renderer update loop.
+- Identify revision requests with stable source-thread/path/revision/time/size metadata rather than temporary access IDs; draft matching and comparison guards use the same stable key.
+- Recognize artifact paths next to full-width punctuation.
+- Add optional sidebar font, size and light/dark text preferences while preserving existing defaults.
+- Include context-handoff/UI baseline cleanup and retain the C23 features and complete official 0.1.3 baseline.
+
+C25 is a community build number, not a new official version. Revision checks remain model-executed, without filesystem locks; feedback drafts do not survive a reload. The Electron revision interaction has not been re-accepted click by click; the real-model revision check was performed on web.
+
+
 ## C23 · 2026-10-28
 
 Added a [full C13 → C23 comparison](C13-TO-C23.en.md), covering search, optional quota safeguards, run visibility, storage, upstream integration and retained capabilities.
@@ -12,7 +23,7 @@ Official baseline: `d2c440312e5f39d59827ed466838a623516454d6`. Installed impleme
 
 ## Earlier releases
 
-- [C13 · Project workbench and interface showcase](https://github.com/labixiaoxins/t3code-artifact-wall/releases/tag/xiaoxin-c13-20261026)
-- [C11 · Earlier community edition](https://github.com/labixiaoxins/t3code-artifact-wall/releases/tag/xiaoxin-c11-20261024)
+- [C13 · Project workbench and interface showcase](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c13-20261026)
+- [C11 · Earlier community edition](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c11-20261024)
 
 Historical releases remain available. Their own tags describe their upstream baseline and limitations.

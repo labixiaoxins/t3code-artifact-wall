@@ -2,6 +2,7 @@ import { scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime/environ
 import type { ClientSettings } from "@t3tools/contracts/settings";
 import { createBrowserHistory, createHashHistory } from "@tanstack/react-router";
 
+import { applySidebarAppearance } from "./sidebarAppearance";
 import { applyAppearanceContrast } from "./appearanceContrast";
 import { applyAppearanceFontVariables } from "./appearanceFonts";
 import { startElectronBrowserHost } from "./browser/ElectronBrowserHost";
@@ -56,6 +57,14 @@ function startClientAppearance(): void {
     const settings = getClientSettings();
     const previous = applied;
     applied = settings;
+    if (
+      previous?.fontFamilySidebar !== settings.fontFamilySidebar ||
+      previous.fontSizeSidebar !== settings.fontSizeSidebar ||
+      previous.sidebarTextColorLight !== settings.sidebarTextColorLight ||
+      previous.sidebarTextColorDark !== settings.sidebarTextColorDark
+    ) {
+      applySidebarAppearance(root, settings);
+    }
     if (previous?.diffColorScheme !== settings.diffColorScheme) {
       root.dataset.diffColorScheme = settings.diffColorScheme;
     }

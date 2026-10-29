@@ -81,7 +81,7 @@ export function resolveArtifactReference(value: string, cwd: string): string | n
   const extension = NodePath.extname(path).slice(1).toLowerCase();
   return EXTENSIONS.has(extension) ? path : null;
 }
-/** Quoted/Markdown paths retain spaces; bare paths are intentionally conservative. */
+/** Quoted/Markdown paths retain spaces; bare paths are intentionally conservative and stop at full-width punctuation. */
 export function referencedPaths(value: unknown): string[] {
   const paths: string[] = [];
   const visit = (item: unknown, depth: number) => {
@@ -98,7 +98,7 @@ export function referencedPaths(value: unknown): string[] {
         }
       }
       const pattern =
-        /\]\(<?([^\n]*?\.(?:png|jpe?g|webp|gif|html|pdf|pptx|mp4|mov|m4v|webm|md|docx|xlsx|csv|txt))(?:\:\d+)?>?\)|[`"']([^\n`"']*?\.(?:png|jpe?g|webp|gif|html|pdf|pptx|mp4|mov|m4v|webm|md|docx|xlsx|csv|txt))[`"']|(?:^|[\s=(])((?:\/|\.\.?\/)?[^\s<>`"'()[\]{}:,;]+\.(?:png|jpe?g|webp|gif|html|pdf|pptx|mp4|mov|m4v|webm|md|docx|xlsx|csv|txt))(?=$|[\s)\],;:.])/gim;
+        /\]\(<?([^\n]*?\.(?:png|jpe?g|webp|gif|html|pdf|pptx|mp4|mov|m4v|webm|md|docx|xlsx|csv|txt))(?:\:\d+)?>?\)|[`"']([^\n`"']*?\.(?:png|jpe?g|webp|gif|html|pdf|pptx|mp4|mov|m4v|webm|md|docx|xlsx|csv|txt))[`"']|(?:^|[\s=(：，。；！？、（）【】《》「」『』“”‘’])((?:\/|\.\.?\/)?[^\s<>`"'()[\]{}:,;：，。；！？、（）【】《》「」『』“”‘’]+\.(?:png|jpe?g|webp|gif|html|pdf|pptx|mp4|mov|m4v|webm|md|docx|xlsx|csv|txt))(?=$|[\s)\],;:.：，。；！？、（）【】《》「」『』“”‘’])/gim;
       for (const match of item.matchAll(pattern)) {
         const path = (match[1] ?? match[2] ?? match[3])?.replace(/^<|>$/g, "");
         if (path) paths.push(path);

@@ -121,6 +121,11 @@ export const InterfaceFontSize = Schema.Int.check(
 );
 export type InterfaceFontSize = typeof InterfaceFontSize.Type;
 export const DEFAULT_INTERFACE_FONT_SIZE: InterfaceFontSize = 16;
+// Zero preserves the existing rem scale, including a user-selected interface size.
+export const SidebarFontSize = Schema.Union([Schema.Literal(0), InterfaceFontSize]);
+export type SidebarFontSize = typeof SidebarFontSize.Type;
+export const SidebarTextColorPreset = Schema.Literals(["default", "high-contrast"]);
+export type SidebarTextColorPreset = typeof SidebarTextColorPreset.Type;
 export const MIN_PROMPT_FONT_SIZE = 12;
 export const MAX_PROMPT_FONT_SIZE = 20;
 export const PromptFontSize = Schema.Int.check(
@@ -358,6 +363,14 @@ export const ClientSettingsSchema = Schema.Struct({
   ),
   fontSizeInterface: InterfaceFontSize.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_INTERFACE_FONT_SIZE)),
+  ),
+  fontFamilySidebar: FontFamilyPreference.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
+  fontSizeSidebar: SidebarFontSize.pipe(Schema.withDecodingDefault(Effect.succeed(0))),
+  sidebarTextColorLight: SidebarTextColorPreset.pipe(
+    Schema.withDecodingDefault(Effect.succeed("default")),
+  ),
+  sidebarTextColorDark: SidebarTextColorPreset.pipe(
+    Schema.withDecodingDefault(Effect.succeed("default")),
   ),
   fontSizePrompt: PromptFontSize.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_PROMPT_FONT_SIZE)),
@@ -1542,6 +1555,10 @@ export const ClientSettingsPatch = Schema.Struct({
   glassOpacity: Schema.optionalKey(GlassOpacity),
   onboardingCompletedAt: Schema.optionalKey(Schema.NullOr(Schema.String)),
   fontSizeInterface: Schema.optionalKey(InterfaceFontSize),
+  fontFamilySidebar: Schema.optionalKey(FontFamilyPreference),
+  fontSizeSidebar: Schema.optionalKey(SidebarFontSize),
+  sidebarTextColorLight: Schema.optionalKey(SidebarTextColorPreset),
+  sidebarTextColorDark: Schema.optionalKey(SidebarTextColorPreset),
   fontSizePrompt: Schema.optionalKey(PromptFontSize),
   fontSizeCode: Schema.optionalKey(CodeFontSize),
   fontSizeTerminal: Schema.optionalKey(TerminalFontSize),

@@ -1,12 +1,24 @@
-# T3 Code · 小新定制版 C23
+# Xiaoxin T3 Code · 小新定制版 C25
 
-[English](README.en.md) · [下载 C23](https://github.com/labixiaoxins/t3code-artifact-wall/releases/tag/xiaoxin-c23-20261028) · [安装与回退](docs/community/README.md) · [更新记录](docs/community/CHANGELOG.md) · [上游项目](https://github.com/pingdotgg/t3code)
+[English](README.en.md) · [下载 C25](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c25-20261029) · [安装与回退](docs/community/README.md) · [更新记录](docs/community/CHANGELOG.md) · [上游项目](https://github.com/pingdotgg/t3code)
+
+## C25 · 2026-10-29
+
+- 修复产物数量回调的重复状态更新，避免产物墙和详情面板相互重渲染。
+- 产物返工采用稳定版本信息（来源会话、路径、revision、时间、大小），不再将临时访问 ID 当作文件版本；反馈草稿匹配和对比禁用同步使用稳定键。
+- 修复全角标点相邻的产物路径识别。
+- 新增独立侧栏字体、字号、浅色/深色文字颜色偏好；默认值沿用既有外观。
+- 纳入交接上下文及相关 UI 的基线整理，保留 C23 的功能和完整官方 0.1.3 基线。
+
+这是社区构建编号 C25，不是新的官方版本。返工先核对版本并另存新文件；版本核对仍由模型执行，未实现文件系统锁。页面刷新后反馈草稿会丢失。Electron 内的返工交互尚未重新逐项点击验收，真实模型返工补验在网页版完成。
+
+**以下 C23 图示与历史验证记录继续保留；C25 的新增验证与限制见 [C25 发布记录](docs/community/C25.md)。**
 
 **从上次公开版升级：** [C13 → C23 完整对照](docs/community/C13-TO-C23.md)，包含搜索、额度保护、运行详情和内核变化，区分新增与原有保留功能。
 
 基于 **官方 T3 Code 0.1.3 完整源码**的社区定制版，保留项目优先的中文工作台，重点改进长期任务、成果查看、空间管理和每天都会用到的输入与模型选择。
 
-**C23 是本分支的构建编号，不是官方版本号。** 本次下载供 Apple 芯片 Mac 使用；上游 MIT 许可与署名保留。社区临时签名，未经 Apple 公证，不附带账号、订阅、聊天、项目、私人配置或 API 密钥。
+**C25 是本分支的构建编号，不是官方版本号。** 本次下载供 Apple 芯片 Mac 使用；上游 MIT 许可与署名保留。社区临时签名，未经 Apple 公证，不附带账号、订阅、聊天、项目、私人配置或 API 密钥。
 
 ![C23 实际工作台，使用合成测试数据](assets/community/c23/01-workbench.png)
 
@@ -46,7 +58,7 @@
 
 ![侧栏信息层级示意](assets/community/c23/03-sidebar.png)
 
-现有“设置 → 外观 → 字体排版”仍可调整全局界面字体与字号，主题与对比度选项仍可用；**本版没有增加独立的侧栏字体、字号或文字颜色选择器**。
+现有“设置 → 外观 → 字体排版”仍可调整全局界面字体与字号，主题与对比度选项仍可用；**C25 新增独立的侧栏字体、字号和浅色/深色文字偏好，默认保持既有外观**。
 
 ## 3. 模型菜单减少重复
 
@@ -78,7 +90,7 @@
 
 ## 下载和升级
 
-前往 [C23 Release](https://github.com/labixiaoxins/t3code-artifact-wall/releases/tag/xiaoxin-c23-20261028)，下载 `T3-Code-Xiaoxin-C23-macOS-arm64.zip`；SHA256 在同页校验文件中。C13 / C11 历史发行保留。
+前往 [C25 Release](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c25-20261029)，下载 `Xiaoxin-T3-Code-C25-macOS-arm64.zip`；SHA256 在同页校验文件中。C13 / C11 历史发行保留。
 
 已有 T3 请先完成任务并正常退出，备份同一时点的应用、T3 home 与桌面持久状态，再替换应用；只运行一份。它沿用 T3 的应用身份和数据目录，不是自动隔离的第二套软件。**旧程序不应盲写新数据库；回退数据会丢失备份之后的新增内容，不要覆盖唯一现存资料。** 具体步骤见 [安装与回退](docs/community/README.md)。
 
@@ -94,4 +106,6 @@
 
 代码与文档由 Codex / GPT-6.1-Sol 在 T3 Code 中辅助实现，产品取舍与最终使用反馈来自小新。独立模型评审不代替使用者验收。
 
-发布分支保留本 fork 既有 GitHub Actions 工作流，未更新 CI/自动发行配置；应用实现仍对应上述 C23 源码。
+发布分支保留本 fork 既有 GitHub Actions 工作流，未更新 CI/自动发行配置。C25 基于 C23 实现追加 30 个源码文件的新增/修改；下载包 ASAR 与已安装验收的 C25 一致。
+
+最新验证记录：[C25](docs/community/C25.md)。

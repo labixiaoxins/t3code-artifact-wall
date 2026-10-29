@@ -7,7 +7,7 @@ import { isCommandPaletteOpen } from "../../commandPaletteBus";
 import { isModelPickerOpen } from "../../modelPickerVisibility";
 import { sidebarProviderLabel } from "../../sidebarProviderGrouping";
 import { InboxStatusMark } from "./InboxStatusMark";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { BookmarkIcon, InboxIcon, XIcon } from "lucide-react";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { ScopedThreadRef } from "@t3tools/contracts";
@@ -79,22 +79,19 @@ export function WorkbenchInbox({
   useEffect(() => {
     if (activeKey) setStorageError(!update("visits", activeKey, new Date().toISOString()));
   }, [activeKey, update]);
-  const projectByThread = useMemo(() => {
+  const projectByThread = (() => {
     const result = new Map<string, SidebarProjectSnapshot>();
     for (const project of projects)
       for (const key of project.providerThreadKeys ?? []) result.set(key, project);
     return result;
-  }, [projects]);
-  const reasons = useMemo(
-    () =>
-      new Map(
-        threads.map((thread) => [
-          inboxThreadKey(thread),
-          inboxReason(thread, localVisits[inboxThreadKey(thread)]),
-        ]),
-      ),
-    [threads, localVisits],
-  );
+  })();
+  const reasons = (() =>
+    new Map(
+      threads.map((thread) => [
+        inboxThreadKey(thread),
+        inboxReason(thread, localVisits[inboxThreadKey(thread)]),
+      ]),
+    ))();
   const actionable = threads.filter((thread) =>
     ["待授权", "待回答"].includes(reasons.get(inboxThreadKey(thread)) ?? ""),
   );
@@ -103,10 +100,7 @@ export function WorkbenchInbox({
       reasons.get(inboxThreadKey(thread)) === "运行失败" &&
       acknowledgedErrors[inboxThreadKey(thread)] !== thread.latestRun?.runId,
   );
-  const attention = useMemo(
-    () => sortedAttentionThreads(threads, acknowledgedErrors, localVisits),
-    [threads, acknowledgedErrors, localVisits],
-  );
+  const attention = (() => sortedAttentionThreads(threads, acknowledgedErrors, localVisits))();
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.repeat || isCommandPaletteOpen() || isModelPickerOpen())
@@ -142,14 +136,8 @@ export function WorkbenchInbox({
     useUiStateStore.getState().markThreadVisited(inboxThreadKey(thread), visitedAt);
     setStorageError(!update("visits", inboxThreadKey(thread), visitedAt));
   };
-  const visitHistory = useMemo(
-    () => resumeVisits(threads, localVisits, visits),
-    [threads, localVisits, visits],
-  );
-  const recent = useMemo(
-    () => resumableThreads(threads, visitHistory, saved),
-    [threads, visitHistory, saved],
-  );
+  const visitHistory = (() => resumeVisits(threads, localVisits, visits))();
+  const recent = (() => resumableThreads(threads, visitHistory, saved))();
   const current = threads.find((thread) => inboxThreadKey(thread) === activeKey);
   const change = (
     field: "saved" | "acknowledgedErrors",
@@ -336,7 +324,7 @@ export function WorkbenchInbox({
                             {reason ? <InboxStatusMark reason={reason} /> : null}
                             <button
                               type="button"
-                              className="min-w-0 flex-1 text-left outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+                              className="min-w-0 flex-1 text-left outline-hidden focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
                               onClick={() =>
                                 navigate(scopeThreadRef(thread.environmentId, thread.id))
                               }

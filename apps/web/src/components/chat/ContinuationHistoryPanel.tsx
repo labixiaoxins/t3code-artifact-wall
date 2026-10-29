@@ -1,13 +1,13 @@
 import type { ThreadStructure } from "@t3tools/client-runtime/state/shell";
 import { readUiLocale } from "~/i18n";
-import type { EnvironmentId, OrchestrationV2ThreadProjection, ThreadId } from "@t3tools/contracts";
+import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import {
   presentThreadShell,
   type EnvironmentThreadShell,
 } from "@t3tools/client-runtime/state/shell";
 import { useNavigate } from "@tanstack/react-router";
 import * as Option from "effect/Option";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useEnvironmentThread, threadEnvironment } from "../../state/threads";
 import { useThreadShells, useProjects } from "../../state/entities";
 import { useArchivedThreadSnapshots } from "../../lib/archivedThreadsState";
@@ -36,19 +36,16 @@ export function ContinuationHistoryPanel(props: {
   emptyLabel?: string;
 }) {
   const shells = useThreadShells();
-  const environmentIds = useMemo(() => [props.environmentId], [props.environmentId]);
+  const environmentIds = (() => [props.environmentId])();
   const archived = useArchivedThreadSnapshots(environmentIds);
   const connection = useAtomValue(environmentCatalog.stateAtom(props.environmentId));
   const phase = Option.getOrNull(AsyncResult.value(connection))?.phase;
   const disconnected = phase !== undefined && phase !== "connected";
-  const archivedShells = useMemo(
-    () =>
-      archived.snapshots.flatMap((entry) =>
-        entry.snapshot.threads.map((thread) => presentThreadShell(entry.environmentId, thread)),
-      ),
-    [archived.snapshots],
-  );
-  const threads = useMemo(() => {
+  const archivedShells = (() =>
+    archived.snapshots.flatMap((entry) =>
+      entry.snapshot.threads.map((thread) => presentThreadShell(entry.environmentId, thread)),
+    ))();
+  const threads = (() => {
     const merged = new Map<ThreadId, EnvironmentThreadShell>();
     for (const thread of archivedShells) merged.set(thread.id, thread);
     for (const thread of shells) {
@@ -56,7 +53,7 @@ export function ContinuationHistoryPanel(props: {
     }
     merged.set(props.thread.id, props.thread);
     return [...merged.values()];
-  }, [archivedShells, shells, props.environmentId, props.thread]);
+  })();
   const chain = buildContinuationChain(props.thread, threads);
   const children = threads.filter(
     (thread) =>
@@ -225,10 +222,7 @@ function OriginalThreadHistory({
     path,
     fileOpen && path !== null && cwd !== "",
   );
-  const messages = useMemo(
-    () => continuationMessages(original?.visibleTurnItems ?? [], query),
-    [original?.visibleTurnItems, query],
-  );
+  const messages = (() => continuationMessages(original?.visibleTurnItems ?? [], query))();
   const scroller = useRef<HTMLDivElement | null>(null);
   const scrollAnchor = useRef<{ height: number; top: number } | null>(null);
   const busy = useRef(false);

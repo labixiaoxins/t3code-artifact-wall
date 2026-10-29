@@ -144,6 +144,19 @@ describe("artifact collection", () => {
     expect(resolveArtifactReference("a.exe", "/fiction")).toBeNull();
     expect(resolveArtifactReference("/fiction/a%20b.png", "/fiction")).toBe("/fiction/a b.png");
   });
+  it("recognises bare paths next to full-width Chinese punctuation", () => {
+    expect(referencedPaths("已生成：/fiction/a.png")).toEqual(["/fiction/a.png"]);
+    expect(referencedPaths("已生成 /fiction/a.png。")).toEqual(["/fiction/a.png"]);
+    expect(referencedPaths("文件在（/fiction/a.png），另存为 ./b.pdf；")).toEqual([
+      "/fiction/a.png",
+      "./b.pdf",
+    ]);
+    expect(referencedPaths("见：./out/报告.docx、./out/表.xlsx！")).toEqual([
+      "./out/报告.docx",
+      "./out/表.xlsx",
+    ]);
+    expect(referencedPaths("https://example.test/a.png：说明")).toEqual([]);
+  });
   it("excludes tmp, cache, git, modules, browser screenshots and configured directories", () => {
     for (const value of [
       "/tmp/a.png",

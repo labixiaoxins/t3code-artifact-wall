@@ -1,12 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
 import type { SidebarThreadSummary } from "../../types";
@@ -53,19 +45,16 @@ export function ThreadMoveProvider({
   revealProject: (key: string) => void;
 }) {
   const [movingKey, setMovingKey] = useState<string | null>(null);
-  const threadByKey = useMemo(
-    () =>
-      new Map(
-        threads.map((thread) => [
-          scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)),
-          thread,
-        ]),
-      ),
-    [threads],
-  );
+  const threadByKey = (() =>
+    new Map(
+      threads.map((thread) => [
+        scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)),
+        thread,
+      ]),
+    ))();
   const [pendingReveal, setPendingReveal] = useState<{ threadKey: string } | null>(null);
   const revealed = useRef<typeof pendingReveal>(null);
-  const workspaceByKey = useMemo(() => {
+  const workspaceByKey = (() => {
     const members = projects.flatMap((project) => project.memberProjects);
     return new Map(
       threads.map((thread) => [
@@ -78,7 +67,7 @@ export function ThreadMoveProvider({
           null,
       ]),
     );
-  }, [projects, threads]);
+  })();
   useEffect(() => {
     if (!pendingReveal || revealed.current === pendingReveal) return;
     const group = groups.find((candidate) =>
@@ -126,7 +115,7 @@ export function ThreadMoveProvider({
     };
   }, [groups, pendingReveal, revealProject]);
   const moving = movingKey ? threadByKey.get(movingKey) : null;
-  const context = useMemo<MoveContext>(() => {
+  const context = ((): MoveContext => {
     const save = (threadKey: string, target: SidebarProjectSnapshot | null) => {
       const thread = threadByKey.get(threadKey);
       if (!thread) {
@@ -210,7 +199,7 @@ export function ThreadMoveProvider({
         else toastManager.add({ type: "error", title: "目标项目不可用" });
       },
     };
-  }, [groups, projects, threadByKey, workspaceByKey]);
+  })();
 
   return (
     <Context.Provider value={context}>

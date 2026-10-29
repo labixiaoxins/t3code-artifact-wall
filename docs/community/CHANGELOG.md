@@ -1,5 +1,16 @@
 # 社区更新记录
 
+## C25 · 2026-10-29
+
+- 修复产物数量回调的重复状态更新，避免产物墙和详情面板相互重渲染。
+- 产物返工采用稳定版本信息（来源会话、路径、revision、时间、大小），不再将临时访问 ID 当作文件版本；反馈草稿匹配和对比禁用同步使用稳定键。
+- 修复全角标点相邻的产物路径识别。
+- 新增独立侧栏字体、字号、浅色/深色文字颜色偏好；默认值沿用既有外观。
+- 纳入交接上下文及相关 UI 的基线整理，保留 C23 的功能和完整官方 0.1.3 基线。
+
+这是社区构建编号 C25，不是新的官方版本。返工先核对版本并另存新文件；版本核对仍由模型执行，未实现文件系统锁。页面刷新后反馈草稿会丢失。Electron 内的返工交互尚未重新逐项点击验收，真实模型返工补验在网页版完成。
+
+
 ## C23 · 2026-10-28
 
 补充 [C13 → C23 完整对照](C13-TO-C23.md)：明确全文检索、可选额度保护、运行详情、存储操作、上游完整升级及原有保留能力。
@@ -12,7 +23,7 @@ C21 曾加入手动调高，C22 已按反馈移除；C23 最终状态没有拖�
 
 ## 历史发行
 
-- [C13 · 项目工作台和界面模板](https://github.com/labixiaoxins/t3code-artifact-wall/releases/tag/xiaoxin-c13-20261026)
-- [C11 · 早期定制版](https://github.com/labixiaoxins/t3code-artifact-wall/releases/tag/xiaoxin-c11-20261024)
+- [C13 · 项目工作台和界面模板](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c13-20261026)
+- [C11 · 早期定制版](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c11-20261024)
 
 历史发行保留，旧包的官方基线和适用说明以各自 tag 为准。

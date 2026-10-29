@@ -1,7 +1,7 @@
 import { uiText } from "~/i18n";
 import { usePreparedConnection } from "../../state/session";
 import type { EnvironmentId, ThreadId, WallArtifact } from "@t3tools/contracts";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FileIcon, GlobeIcon, XIcon } from "lucide-react";
 import {
   artifactCounts,
@@ -9,8 +9,9 @@ import {
   isArtifactVideo,
   artifactVideoDuration,
   groupArtifacts,
-  previousArtifactImage,
   ARTIFACT_DRAG_TYPE,
+  artifactRevisionPrompt,
+  artifactVersionKey,
 } from "../../artifactWall";
 import { artifactFileUrl, fileFromArtifact, loadWallArtifacts } from "../../lib/artifactWallClient";
 import { useAtomCommand } from "../../state/use-atom-command";
@@ -25,12 +26,14 @@ export function ArtifactWall({
   environmentId,
   threadId,
   onAttach,
+  onRevise,
   active = true,
   onCount,
 }: {
   environmentId: EnvironmentId;
   threadId: ThreadId;
   onAttach: (files: File[]) => void;
+  onRevise?: (prompt: string) => boolean;
   /** An inactive wall keeps loading (for the tab count) but renders nothing, so no thumbnails load. */
   active?: boolean;
   onCount?: (count: number) => void;
@@ -49,6 +52,7 @@ export function ArtifactWall({
   const [selected, setSelected] = useState<WallArtifact | null>(null);
   const [comparison, setComparison] = useState<WallArtifact | null>(null);
   const [split, setSplit] = useState(50);
+  const [revisionNotes, setRevisionNotes] = useState<Record<string, string>>({});
   const [thumbCount, setThumbCount] = useState(40);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -102,16 +106,13 @@ export function ArtifactWall({
     setComparison(null);
     setActionError(null);
   }, [key, filter]);
-  const filtered = useMemo(
-    () => artifacts.filter((a) => filter === "all" || a.kind === filter),
-    [artifacts, filter],
-  );
+  const filtered = (() => artifacts.filter((a) => filter === "all" || a.kind === filter))();
   const counts = artifactCounts(artifacts);
   useEffect(() => {
     onCount?.(counts.all);
   }, [counts.all, onCount]);
   const groups = groupArtifacts(filtered.slice(0, visible));
-  const images = useMemo(() => artifacts.filter((a) => a.kind === "image"), [artifacts]);
+  const images = (() => artifacts.filter((a) => a.kind === "image"))();
   useEffect(() => {
     const element = loadMore.current;
     if (!element || visible >= filtered.length) return;
@@ -126,9 +127,29 @@ export function ArtifactWall({
   }, [visible, filtered.length]);
   const compare = (a: WallArtifact) => {
     setSelected(a);
-    setComparison(isArtifactVideo(a) ? null : previousArtifactImage(a, artifacts));
+    setComparison(null);
     setSplit(50);
     setThumbCount(40);
+  };
+  const revisionKey = selected ? `${key}:${artifactVersionKey(selected)}` : "";
+  const revisionNote = revisionNotes[revisionKey] ?? "";
+  // Access IDs are renewed on every listing; match the file by its stable version instead.
+  const currentSelected = selected
+    ? artifacts.find((a) => artifactVersionKey(a) === artifactVersionKey(selected))
+    : undefined;
+  const selectedIsCurrent = currentSelected !== undefined;
+  const requestRevision = () => {
+    if (!selected || !selectedIsCurrent || !onRevise || !revisionNote.trim()) return;
+    try {
+      if (!onRevise(artifactRevisionPrompt(selected, revisionNote))) {
+        setActionError("输入框暂不可用，修改意见已保留，请稍后重试。");
+        return;
+      }
+      setRevisionNotes((notes) => ({ ...notes, [revisionKey]: "" }));
+      setSelected(null);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "无法加入草稿，修改意见已保留。");
+    }
   };
   const reveal = async (a: WallArtifact) => {
     const result = await openInEditor({
@@ -137,22 +158,19 @@ export function ArtifactWall({
     });
     if (result._tag === "Failure") setActionError("无法在 Finder 中显示此文件");
   };
-  const attach = useCallback(
-    async (a: WallArtifact) => {
-      setBusy(true);
-      setActionError(null);
-      try {
-        const file = await fileFromArtifact(environmentId, a);
-        onAttach([file]);
-        setSelected(null);
-      } catch (error) {
-        setActionError(error instanceof Error ? error.message : "无法附加此文件");
-      } finally {
-        setBusy(false);
-      }
-    },
-    [environmentId, onAttach],
-  );
+  const attach = async (a: WallArtifact) => {
+    setBusy(true);
+    setActionError(null);
+    try {
+      const file = await fileFromArtifact(environmentId, a);
+      onAttach([file]);
+      setSelected(null);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "无法附加此文件");
+    } finally {
+      setBusy(false);
+    }
+  };
   const openPage = (a: WallArtifact) =>
     window.open(artifactFileUrl(environmentId, a.id) ?? "", "_blank", "noopener,noreferrer");
   const dragArtifact = (event: React.DragEvent, a: WallArtifact) => {
@@ -434,7 +452,7 @@ export function ArtifactWall({
                 Esc 关闭
               </Button>
             </div>
-            {selected && !artifacts.some((artifact) => artifact.id === selected.id) ? (
+            {selected && !selectedIsCurrent ? (
               <p role="alert" className="text-xs text-muted-foreground">
                 文件已更新或移除。请关闭预览，再打开最新版本。
               </p>
@@ -448,7 +466,7 @@ export function ArtifactWall({
                   >
                     <video
                       key={selected.id}
-                      src={artifactFileUrl(environmentId, selected.id) ?? undefined}
+                      src={artifactFileUrl(environmentId, currentSelected?.id ?? selected.id) ?? undefined}
                       controls
                       playsInline
                       preload="metadata"
@@ -469,7 +487,7 @@ export function ArtifactWall({
                       />
                     ) : null}
                     <img
-                      src={artifactFileUrl(environmentId, selected.id) ?? undefined}
+                      src={artifactFileUrl(environmentId, currentSelected?.id ?? selected.id) ?? undefined}
                       alt={selected.name}
                       className="absolute inset-0 size-full object-contain"
                       style={comparison ? { clipPath: `inset(0 0 0 ${split}%)` } : undefined}
@@ -517,13 +535,16 @@ export function ArtifactWall({
                         setThumbCount((n) => n + 40);
                     }}
                   >
+                    <Button size="xs" variant="ghost" onClick={() => setComparison(null)}>
+                      单图查看
+                    </Button>
                     {images.slice(0, thumbCount).map((a) => (
                       <button
                         type="button"
                         key={a.id}
                         className={`size-10 shrink-0 overflow-hidden rounded-md border ${comparison?.id === a.id ? "border-primary" : "border-border"}`}
                         aria-label={`选择对比 ${a.name}`}
-                        disabled={a.id === selected.id}
+                        disabled={artifactVersionKey(a) === artifactVersionKey(selected)}
                         onClick={() => setComparison(a)}
                       >
                         {thumb(a, "size-full object-cover")}
@@ -535,6 +556,37 @@ export function ArtifactWall({
                   <p role="alert" className="text-xs text-destructive">
                     {actionError}
                   </p>
+                ) : null}
+                {selected.kind === "image" && onRevise ? (
+                  <div className="flex shrink-0 flex-col gap-2">
+                    <label htmlFor="artifact-revision-note" className="text-xs">
+                      修改意见
+                    </label>
+                    <textarea
+                      id="artifact-revision-note"
+                      rows={2}
+                      maxLength={8000}
+                      className="w-full resize-y rounded-md border border-border bg-background p-2 text-sm"
+                      placeholder="例如：修正人物右手边缘，保留构图和其他区域。"
+                      value={revisionNote}
+                      onChange={(event) => {
+                        const note = event.currentTarget.value;
+                        setRevisionNotes((notes) => ({ ...notes, [revisionKey]: note }));
+                      }}
+                    />
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        加入当前会话草稿后发送；完成后选择两张图片对比。
+                      </span>
+                      <Button
+                        size="sm"
+                        disabled={!selectedIsCurrent || !revisionNote.trim()}
+                        onClick={requestRevision}
+                      >
+                        加入返工草稿
+                      </Button>
+                    </div>
+                  </div>
                 ) : null}
                 <div className="flex shrink-0 flex-wrap justify-end gap-2">
                   <Button size="sm" variant="outline" onClick={() => void reveal(selected)}>

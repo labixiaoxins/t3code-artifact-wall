@@ -2657,3 +2657,51 @@ code {
     max-height: 45dvh;
   }
 }
+
+/* Sidebar overrides stay local; absent size/color choices preserve the existing tokens. */
+[data-app-sidebar] {
+  font-family: var(--font-sidebar, var(--font-sans));
+}
+html[data-sidebar-font-size] [data-app-sidebar] {
+  font-size: var(--font-size-sidebar);
+  --text-3xs: calc(var(--font-size-sidebar) * 0.625);
+  --text-2xs: calc(var(--font-size-sidebar) * 0.6875);
+  --text-xs: calc(var(--font-size-sidebar) * 0.75);
+  --text-sm: calc(var(--font-size-sidebar) * 0.875);
+  --text-base: var(--font-size-sidebar);
+  --text-lg: calc(var(--font-size-sidebar) * 1.125);
+  --text-xl: calc(var(--font-size-sidebar) * 1.25);
+}
+html[data-sidebar-text-light="high-contrast"]:not(.dark) [data-app-sidebar] {
+  --sidebar-preset-title: #0f172a;
+  --sidebar-preset-secondary: #334155;
+}
+html.dark[data-sidebar-text-dark="high-contrast"] [data-app-sidebar] {
+  --sidebar-preset-title: #ffffff;
+  --sidebar-preset-secondary: #cbd5e1;
+}
+html[data-sidebar-text-light="high-contrast"]:not(.dark) [data-app-sidebar],
+html.dark[data-sidebar-text-dark="high-contrast"] [data-app-sidebar] {
+  /* Use the current theme's light/dark surfaces; keep contrast independent of the global slider. */
+  --contrast-sidebar-foreground: var(--sidebar-preset-title);
+  --contrast-sidebar-muted-foreground: var(--sidebar-preset-secondary);
+  --contrast-foreground: var(--sidebar-preset-title);
+  --contrast-muted-foreground: var(--sidebar-preset-secondary);
+  color: var(--sidebar-preset-title);
+  & [class*="text-sidebar-muted-foreground"],
+  & [class*="text-muted-foreground"] {
+    color: var(--sidebar-preset-secondary);
+  }
+  & [class*="text-sidebar-foreground"],
+  & [class*="text-foreground"] {
+    color: var(--sidebar-preset-title);
+  }
+}
+
+/* These custom Tailwind steps are inlined, so override their utilities as well. */
+html[data-sidebar-font-size] [data-app-sidebar] .text-3xs {
+  font-size: calc(var(--font-size-sidebar) * 0.625);
+}
+html[data-sidebar-font-size] [data-app-sidebar] .text-2xs {
+  font-size: calc(var(--font-size-sidebar) * 0.6875);
+}
