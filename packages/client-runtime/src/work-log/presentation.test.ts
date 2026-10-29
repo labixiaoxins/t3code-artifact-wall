@@ -7,7 +7,6 @@ import {
   type WorkLogPresentationEntry,
   workEntryIndicatesToolFailure,
   workEntryDisplayIndicatesToolFailure,
-  workEntryIndicatesToolSuccess,
   contextCompactionLabel,
 } from "./presentation.js";
 function commandItem(

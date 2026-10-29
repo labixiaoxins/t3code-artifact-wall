@@ -6,6 +6,7 @@ import {
   deriveThreadRelationshipGraph,
   immediateThreadRelationships,
   orderWebThreadLineageRows,
+  relatedThreadIds,
   resolveMergeBackTargetThreadId,
   threadRelationshipRowStatus,
 } from "./threadRelationships.ts";

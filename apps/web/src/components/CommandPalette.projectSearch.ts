@@ -1,6 +1,6 @@
 import { normalizeSearchText } from "../lib/utils";
 
-export const PROJECT_SEARCH_LIMIT = 5;
+const PROJECT_SEARCH_LIMIT = 5;
 
 const CJK = /[㐀-鿿]/u;
 const NON_ALPHANUMERIC = /[^\p{L}\p{N}]/gu;
@@ -68,7 +68,7 @@ export interface ProjectSearchCandidate<TItem> {
 }
 
 // Higher is better; 0 means no match.
-export const PROJECT_MATCH_RANK = {
+const PROJECT_MATCH_RANK = {
   none: 0,
   path: 1,
   contains: 2,
@@ -86,7 +86,7 @@ function startsWithWord(field: string, token: string): boolean {
   return false;
 }
 
-export function rankProjectSearchMatch(
+function rankProjectSearchMatch(
   candidate: Pick<ProjectSearchCandidate<unknown>, "title" | "displayName" | "workspaceRoot">,
   normalizedQuery: string,
   toPinyin: ProjectPinyinConverter | null,

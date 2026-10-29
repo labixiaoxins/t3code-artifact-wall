@@ -7,11 +7,11 @@ export interface PinnedProject {
   readonly at: number;
 }
 
-export const SIDEBAR_GROUPING_STORAGE_KEY = "t3code:sidebar-grouping:v1";
-export const SIDEBAR_PINNED_STORAGE_KEY = "t3code:sidebar-pinned-projects:v1";
+const SIDEBAR_GROUPING_STORAGE_KEY = "t3code:sidebar-grouping:v1";
+const SIDEBAR_PINNED_STORAGE_KEY = "t3code:sidebar-pinned-projects:v1";
 /** Marks a merged project row: threads from every model, instead of one model's slice. */
 export const PROJECT_FIRST_LABEL = "项目";
-export const RECENT_PROJECT_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
+const RECENT_PROJECT_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 
 export function isProjectFirst(project: Pick<SidebarProjectSnapshot, "providerLabel">): boolean {
   return project.providerLabel === PROJECT_FIRST_LABEL;

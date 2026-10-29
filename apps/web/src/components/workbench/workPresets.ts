@@ -1,5 +1,5 @@
 import { uiText } from "~/i18n";
-import { ModelSelection, type EnvironmentId, type ServerProvider } from "@t3tools/contracts";
+import { ModelSelection, type ServerProvider } from "@t3tools/contracts";
 import * as Schema from "effect/Schema";
 import * as Equal from "effect/Equal";
 import { getLocalStorageItem, setLocalStorageItem } from "../../hooks/useLocalStorage";
@@ -35,7 +35,6 @@ export const EMPTY_PRESET_SCOPE: typeof ScopeSchema.Type = {
   initialized: false,
 };
 export const CHANGE_MAX_AGE = 30 * 24 * 60 * 60_000;
-export const REVIEW_PARTICIPANTS = "GPT-6.1-Sol · Gemini 3.8 Flash · Grok 4.7";
 
 export function pruneChanges(state: WorkbenchState, now: number): WorkbenchState {
   return {
@@ -106,15 +105,6 @@ export function writeWorkbench(update: (state: WorkbenchState) => WorkbenchState
   window.dispatchEvent(
     new CustomEvent("t3code:local_storage_change", { detail: { key: WORKBENCH_KEY } }),
   );
-}
-
-export function nextTaskPreset(environmentId: EnvironmentId): ModelSelection | null {
-  try {
-    const scope = readWorkbench().scopes[environmentId];
-    return scope?.selectedId ? (scope.presets[scope.selectedId]?.selection ?? null) : null;
-  } catch {
-    return null;
-  }
 }
 
 export function starterPresets(providers: readonly ServerProvider[]): readonly WorkPreset[] {

@@ -16,6 +16,7 @@ import {
   type OrchestrationV2ProviderThread,
   type OrchestrationV2ProviderTurn,
   type OrchestrationV2RuntimeRequest,
+  type OrchestrationV2Subagent,
   type OrchestrationV2TurnItem,
   ProjectId,
   type ProviderApprovalDecision,
@@ -566,6 +567,7 @@ function codexReplayPreamble(input: {
   readonly nativeTurnId: string;
   readonly prompt: string;
   readonly sentPrompt?: string;
+  readonly effort?: string;
 }): Array<CodexReplay.CodexAppServerReplayEntry> {
   return [
     {
@@ -664,7 +666,14 @@ function codexReplayPreamble(input: {
           approvalsReviewer: "user",
           sandboxPolicy: { type: "dangerFullAccess" },
           summary: "detailed",
-          collaborationMode: { mode: "default", settings: { model: "gpt-5.4" } },
+          ...(input.effort === undefined ? {} : { effort: input.effort }),
+          collaborationMode: {
+            mode: "default",
+            settings: {
+              model: "gpt-5.4",
+              ...(input.effort === undefined ? {} : { reasoning_effort: input.effort }),
+            },
+          },
         },
       },
     },
@@ -5132,6 +5141,73 @@ describe("CodexAdapterV2 post-settle continuation", () => {
     ),
   );
 
+  const MCP_APP_DEFERRED_RESULT = {
+    content: [{ type: "text", text: "An interactive form is being shown to the user." }],
+    structuredContent: { status: "awaiting_user_submission" },
+  };
+  const mcpAppDeferredTranscript = makeCodexReplayTranscript({
+    scenario: MCP_APP_SCENARIO,
+    entries: mcpAppTranscript.entries.map((entry) =>
+      entry.type === "emit_inbound" && entry.label === "item/completed/app-tool"
+        ? {
+            ...entry,
+            frame: {
+              method: "item/completed",
+              params: {
+                item: {
+                  ...mcpAppToolItem("inProgress"),
+                  status: "failed",
+                  result: MCP_APP_DEFERRED_RESULT,
+                },
+                threadId: MCP_APP_NATIVE_THREAD,
+                turnId: MCP_APP_NATIVE_TURN,
+                completedAtMs: 1782622441500,
+              },
+            },
+          }
+        : entry,
+    ),
+  });
+
+  it.effect("captures the app of a tool call that defers to its form", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const appCaptured = yield* Deferred.make<OrchestrationV2TurnItem>();
+        const harness = yield* makeCodexReplayHarness(mcpAppDeferredTranscript, (event) =>
+          event.type === "turn_item.updated" &&
+          event.turnItem.type === "dynamic_tool" &&
+          event.turnItem.status === "failed"
+            ? Deferred.succeed(appCaptured, event.turnItem)
+            : Effect.void,
+        );
+        const now = yield* DateTime.now;
+
+        yield* harness.runtime.startTurn(
+          makeCodexTestTurnInput({
+            threadId: harness.threadId,
+            providerThread: harness.providerThread,
+            now,
+            attemptId: RunAttemptId.make("attempt-codex-mcp-app-deferred"),
+            text: MCP_APP_PROMPT,
+          }),
+        );
+        const item = yield* Deferred.await(appCaptured);
+
+        const output = item.type === "dynamic_tool" ? (item.output as Record<string, unknown>) : {};
+        assert.equal(
+          readMcpAppReference(output[MCP_APP_OUTPUT_KEY])?.resourceUri,
+          MCP_APP_RESOURCE,
+        );
+        assert.deepEqual(output.result, { ...MCP_APP_DEFERRED_RESULT, isError: true });
+        assert.isFalse(yield* harness.hasPendingBackgroundWork);
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(IdAllocator.layer, McpProviderSessions.layer, NodeServices.layer),
+        ),
+      ),
+    ),
+  );
+
   const ORPHAN_WAIT_SCENARIO = "codex-orphaned-dynamic-tool";
   const ORPHAN_WAIT_NATIVE_THREAD = "native-codex-orphan-wait-thread";
   const ORPHAN_WAIT_NATIVE_TURN = "native-codex-orphan-wait-turn";
@@ -6206,6 +6282,101 @@ describe("CodexAdapterV2 post-settle continuation", () => {
             { id: "reasoningEffort", value: "low" },
             { id: "serviceTier", value: "ultrafast" },
           ]);
+        }).pipe(
+          Effect.provide(
+            Layer.mergeAll(IdAllocator.layer, McpProviderSessions.layer, NodeServices.layer),
+          ),
+        ),
+      ),
+  );
+
+  it.effect.each(["activity", "spawn", "activity then spawn"] as const)(
+    "creates a child from %s without the parent's effort",
+    (source) =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const created = yield* Deferred.make<OrchestrationV2AppThread>();
+          const completed = yield* Deferred.make<OrchestrationV2Subagent>();
+          const activity = {
+            type: "subAgentActivity",
+            id: "call-codex-resume-spawn",
+            kind: "started",
+            agentThreadId: RESUME_CHILD_THREAD,
+            agentPath: "/root/resume_agent",
+          };
+          const spawn = {
+            type: "collabAgentToolCall",
+            id: "call-codex-resume-spawn",
+            tool: "spawnAgent",
+            status: "completed",
+            senderThreadId: RESUME_NATIVE_THREAD,
+            receiverThreadIds: [RESUME_CHILD_THREAD],
+            model: "gpt-5.4",
+            reasoningEffort: "high",
+            agentsStates: { [RESUME_CHILD_THREAD]: { status: "completed", message: "finished" } },
+          };
+          const items =
+            source === "activity" ? [activity] : source === "spawn" ? [spawn] : [activity, spawn];
+          const harness = yield* makeCodexReplayHarness(
+            makeCodexReplayTranscript({
+              scenario: RESUME_SCENARIO,
+              entries: [
+                ...codexReplayPreamble({
+                  nativeThreadId: RESUME_NATIVE_THREAD,
+                  nativeTurnId: RESUME_NATIVE_TURN,
+                  prompt: RESUME_PROMPT,
+                  effort: "low",
+                }),
+                ...items.map((item) => ({
+                  type: "emit_inbound" as const,
+                  frame: {
+                    method: "item/completed",
+                    params: {
+                      item,
+                      threadId: RESUME_NATIVE_THREAD,
+                      turnId: RESUME_NATIVE_TURN,
+                      completedAtMs: 1782622441000,
+                    },
+                  },
+                })),
+              ],
+            }),
+            (event) =>
+              event.type === "app_thread.created"
+                ? Deferred.succeed(created, event.appThread)
+                : event.type === "subagent.updated" && event.subagent.status === "completed"
+                  ? Deferred.succeed(completed, event.subagent)
+                  : Effect.void,
+          );
+          yield* harness.runtime.startTurn({
+            ...makeCodexTestTurnInput({
+              threadId: harness.threadId,
+              providerThread: harness.providerThread,
+              now: yield* DateTime.now,
+              attemptId: RunAttemptId.make("attempt-child-effort"),
+              text: RESUME_PROMPT,
+            }),
+            modelSelection: {
+              ...CODEX_TEST_MODEL_SELECTION,
+              options: [{ id: "reasoningEffort", value: "low" }],
+            },
+          });
+          const child = yield* Deferred.await(created);
+          assert.equal(
+            child.modelSelection.options?.find(({ id }) => id === "reasoningEffort")?.value,
+            source === "spawn" ? "high" : undefined,
+          );
+          if (source !== "activity") {
+            const task = yield* Deferred.await(completed);
+            assert.equal(
+              task.modelSelection?.options?.find(({ id }) => id === "reasoningEffort")?.value,
+              "high",
+            );
+            assert.lengthOf(
+              harness.events.filter((event) => event.type === "app_thread.created"),
+              1,
+            );
+          }
         }).pipe(
           Effect.provide(
             Layer.mergeAll(IdAllocator.layer, McpProviderSessions.layer, NodeServices.layer),

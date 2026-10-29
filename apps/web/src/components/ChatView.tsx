@@ -311,7 +311,7 @@ import { useThreadLinkedPullRequest } from "./pullRequest/useThreadLinkedPullReq
 import { useProactivePanels } from "../hooks/useProactivePanels";
 import { useIncrementalTimelineEntries } from "../hooks/useIncrementalTimelineEntries";
 import { useRightPanelSurfaceClose } from "../hooks/useRightPanelSurfaceClose";
-import type { ComposerBannerStackItem } from "./chat/ComposerBannerStack";
+import { ComposerBannerStack, type ComposerBannerStackItem } from "./chat/ComposerBannerStack";
 import { modelFallbackBannerItem } from "./chat/ComposerUsageLimits";
 import { ComposerSurface } from "./chat/ComposerSurface";
 import { resolveThreadSyncPhase } from "../threadSync";
@@ -512,6 +512,7 @@ export default function ChatView(props: ChatViewProps) {
       ? composerDraftTarget
       : scopedThreadKey(composerDraftTarget);
   const artifactDraftTargetRef = useRef(artifactDraftKey);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- publishes the artifact draft key to a ref the attach handler checks before adding files
   useLayoutEffect(() => {
     artifactDraftTargetRef.current = artifactDraftKey;
   }, [artifactDraftKey]);
@@ -2333,6 +2334,7 @@ export default function ChatView(props: ChatViewProps) {
     onDiffPanelOpen,
     closeRightPanelSurface,
   });
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- window listener for thread-panel toggle requests
   useEffect(() => onToggleThreadPanelRequest(toggleThreadPanelStable), [toggleThreadPanelStable]);
   const pullRequestSurfaceAvailable = supportsPullRequests && pullRequestPanelTarget !== null;
   const {
@@ -2622,6 +2624,12 @@ export default function ChatView(props: ChatViewProps) {
     : EMPTY_PROVIDER_SKILLS;
   const threadFindEnabled = isServerThread && serverConfig?.threadFind === true;
   const isThreadFindActive = useThreadFindOpen(activeThreadRef, threadFindEnabled);
+  const openThreadFindStable = useStableCallback((threadRef: ScopedThreadRef) => {
+    if (threadFindEnabled && scopedThreadKey(threadRef) === activeThreadKey) {
+      openThreadFind(activeThreadKey);
+    }
+  });
+
   useChatShortcuts({
     enabled: activeThreadId !== null && !backgroundThread,
     keybindings,
@@ -3216,6 +3224,7 @@ export default function ChatView(props: ChatViewProps) {
             {...(activeDraftLogicalProjectKey
               ? { onOpenProjectSettings: handleOpenDraftProjectSettingsStable }
               : {})}
+            {...(threadFindEnabled ? { onFindInThread: openThreadFindStable } : {})}
           />
         </header>
         <div className="relative flex min-h-0 min-w-0 flex-1">
@@ -3459,10 +3468,7 @@ export default function ChatView(props: ChatViewProps) {
                                   compactDisabled={compactDisabled}
                                   showThroughput={settings.turnThroughputEnabled}
                                   disconnected={activeEnvironmentUnavailable || false}
-                                  disabled={
-                                    activeEnvironmentUnavailable ||
-                                    isRevertingCheckpoint
-                                  }
+                                  disabled={activeEnvironmentUnavailable || isRevertingCheckpoint}
                                 />,
                                 contextControlsHost,
                               )
@@ -3526,7 +3532,7 @@ export default function ChatView(props: ChatViewProps) {
                                             : projectCloneSendBlockReason
                               }
                               isPreparingWorktree={isPreparingWorktree && !sendQueuesBehindSetup}
-                              bannerItems={composerBannerItems}
+                              bannerItems={isDraftHeroState ? [] : composerBannerItems}
                               resumeCompactionTokens={resumeCompactionTokens}
                               keepFullHistory={keepFullHistory}
                               onToggleKeepFullHistory={toggleKeepFullHistoryStable}
@@ -3692,6 +3698,12 @@ export default function ChatView(props: ChatViewProps) {
                           )}
                         </div>
                       </div>
+                      {isDraftHeroState && composerBannerItems.length > 0 ? (
+                        // Out of flow, like the headline, so a notice never moves the centered composer.
+                        <div className="absolute inset-x-0 top-full flex flex-col gap-1 pt-4">
+                          <ComposerBannerStack items={composerBannerItems} detached />
+                        </div>
+                      ) : null}
                     </ComposerSurface.Shell>
                     <div
                       aria-hidden
