@@ -232,12 +232,14 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
       settingKeys={["fallbackModelSelection"]}
       mixed={mixedFallback}
       id="fallback-model"
-      title="Fallback model"
-      description="Used for new threads when the default model's provider is out of usage."
+      title={uiText("Fallback model")}
+      description={uiText(
+        "Used for new threads when the default model's provider is out of usage.",
+      )}
       resetAction={
         mixedFallback || settings.fallbackModelSelection !== null ? (
           <SettingResetButton
-            label="fallback model"
+            label={uiText("fallback model")}
             onClick={() => updateSettings({ fallbackModelSelection: null })}
           />
         ) : null
@@ -264,7 +266,7 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
               if (reason) {
                 toastManager.add({
                   type: "error",
-                  title: "Fallback model not saved",
+                  title: uiText("Fallback model not saved"),
                   description: reason,
                 });
                 return;
@@ -273,7 +275,7 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
             }}
           />
         ) : (
-          <span className="text-sm text-muted-foreground">No providers available</span>
+          <span className="text-sm text-muted-foreground">{uiText("No providers available")}</span>
         )
       }
     />
@@ -397,7 +399,9 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
             settingKeys={["removeAgentCreditsOnMerge"]}
             mixed={mixedAgentCredits}
             {...searchableSetting("remove-agent-credits-on-merge")}
-            description="Remove recognized agent credit lines from merge and squash messages on hosts that support it, keeping human co-authors. Includes auto-merge. Excludes merge queues, stack merges, and existing commits."
+            description={uiText(
+              "Remove recognized agent credit lines from merge and squash messages on hosts that support it, keeping human co-authors. Includes auto-merge. Excludes merge queues, stack merges, and existing commits.",
+            )}
             resetAction={
               settings.removeAgentCreditsOnMerge ? (
                 <SettingResetButton

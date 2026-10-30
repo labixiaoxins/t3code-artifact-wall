@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useState } from "react";
 import {
   DEFAULT_SNOOZE_PRESETS,
@@ -186,11 +187,13 @@ export function SnoozePresetsRow() {
       serverScoped
       settingKeys={["snoozePresets"]}
       {...searchableSetting("snooze-options")}
-      description="Choices in every snooze menu, listed soonest first. Weekdays mean the next one after today."
+      description={uiText(
+        "Choices in every snooze menu, listed soonest first. Weekdays mean the next one after today.",
+      )}
       resetAction={
         !mixed && sameSnoozePresets(presets, DEFAULT_SNOOZE_PRESETS) ? null : (
           <SettingResetButton
-            label="snooze options"
+            label={uiText("snooze options")}
             onClick={() => {
               const sorted = sortSnoozeRows(
                 DEFAULT_SNOOZE_PRESETS,
@@ -281,7 +284,7 @@ function SnoozePresetList(props: {
           <div
             key={props.keys[index]}
             role="group"
-            aria-label={`Snooze option ${index + 1}`}
+            aria-label={uiText("Snooze option {0}", { 0: index + 1 })}
             className="flex flex-wrap items-center gap-2"
           >
             <SnoozePresetFields preset={preset} onChange={(next) => props.onChange(index, next)} />
@@ -297,7 +300,7 @@ function SnoozePresetList(props: {
               <Button
                 variant="ghost-muted"
                 size="icon-sm"
-                aria-label={`Remove snooze option ${index + 1}`}
+                aria-label={uiText("Remove snooze option {0}", { 0: index + 1 })}
                 onClick={() => props.onRemove(index)}
               >
                 <XIcon />
@@ -307,7 +310,9 @@ function SnoozePresetList(props: {
         );
       })}
       <p className="text-xs text-muted-foreground">
-        {menuOrder.length === 0 ? "Menus offer only Custom…" : `Menu now: ${menuOrder.join(" · ")}`}
+        {menuOrder.length === 0
+          ? "Menus offer only Custom…"
+          : uiText("Menu now: {0}", { 0: menuOrder.join(" · ") })}
       </p>
       <div>
         <Button
@@ -317,11 +322,11 @@ function SnoozePresetList(props: {
           onClick={props.onAdd}
         >
           <PlusIcon />
-          Add option
+          {uiText("Add option")}
         </Button>
         {props.presets.length >= MAX_SNOOZE_PRESETS ? (
           <span className="ps-2 text-xs text-muted-foreground">
-            Up to {MAX_SNOOZE_PRESETS} options
+            {uiText("Up to {count} options", { count: MAX_SNOOZE_PRESETS })}
           </span>
         ) : null}
       </div>
@@ -356,7 +361,7 @@ function SnoozePresetFields(props: {
           onChange(next);
         }}
       >
-        <SelectTrigger size="sm" className="w-32" aria-label="When">
+        <SelectTrigger size="sm" className="w-32" aria-label={uiText("When")}>
           <SelectValue />
         </SelectTrigger>
         <SelectPopup>
@@ -374,13 +379,13 @@ function SnoozePresetFields(props: {
         />
       ) : (
         <>
-          <span className="text-xs text-muted-foreground">at</span>
+          <span className="text-xs text-muted-foreground">{uiText("at")}</span>
           <Input
             nativeInput
             size="sm"
             type="time"
             className="w-32"
-            aria-label="Time"
+            aria-label={uiText("Time")}
             value={preset.time}
             onChange={(event) => {
               if (/^\d{2}:\d{2}$/.test(event.target.value)) {
@@ -430,9 +435,9 @@ function DurationFields(props: { minutes: number; onChange: (minutes: number) =>
         }}
       >
         <NumberFieldGroup>
-          <NumberFieldDecrement aria-label="Decrease" />
+          <NumberFieldDecrement aria-label={uiText("Decrease")} />
           <NumberFieldInput
-            aria-label="Amount"
+            aria-label={uiText("Amount")}
             // Base UI commits on blur but not on Enter; refocus so keyboard users stay put.
             onKeyDown={(event) => {
               if (event.key !== "Enter") return;
@@ -441,7 +446,7 @@ function DurationFields(props: { minutes: number; onChange: (minutes: number) =>
               input.focus();
             }}
           />
-          <NumberFieldIncrement aria-label="Increase" />
+          <NumberFieldIncrement aria-label={uiText("Increase")} />
         </NumberFieldGroup>
       </NumberField>
       <Select
@@ -454,7 +459,7 @@ function DurationFields(props: { minutes: number; onChange: (minutes: number) =>
           }
         }}
       >
-        <SelectTrigger size="sm" className="w-28" aria-label="Unit">
+        <SelectTrigger size="sm" className="w-28" aria-label={uiText("Unit")}>
           <SelectValue />
         </SelectTrigger>
         <SelectPopup>

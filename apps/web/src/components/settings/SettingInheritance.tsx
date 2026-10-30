@@ -114,7 +114,7 @@ export function settingInheritanceLayers(
   if (fileBacked && target.projectId !== null) {
     layers.push({
       key: "t3.json",
-      label: "t3.json",
+      label: uiText("t3.json"),
       value: source === "t3.json" ? formatValue(key, target.settings[key]) : "Inherits",
       effective: source === "t3.json",
       set: source === "t3.json",
@@ -178,7 +178,11 @@ export function SettingInheritance({
   const hasMultipleEnvironments = new Set(targets.map((target) => target.environmentId)).size > 1;
   const overrideSummary =
     overridingProjects.length > 0
-      ? `${summary} · ${overridingProjects.length} project ${overridingProjects.length === 1 ? "override" : "overrides"}`
+      ? uiText("{0} · {1} project {2}", {
+          0: summary,
+          1: overridingProjects.length,
+          2: overridingProjects.length === 1 ? "override" : "overrides",
+        })
       : summary;
   const chains = targets.flatMap((target) => {
     const environment = environments.find(
@@ -367,7 +371,7 @@ export function SettingInheritance({
                     {chain}
                     {hasMultipleEnvironments ? (
                       <p className="px-2 pt-1.5 text-xs text-muted-foreground">
-                        Same on all machines
+                        {uiText("Same on all machines")}
                       </p>
                     ) : null}
                   </>

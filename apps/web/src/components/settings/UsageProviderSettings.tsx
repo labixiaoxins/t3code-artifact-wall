@@ -101,7 +101,7 @@ export function UsageProviderSettings({
                 title={label}
                 description={
                   <span className={"break-all"}>
-                    {"CLI Proxy"}
+                    {uiText("CLI Proxy")}
                     {source.enabled ? "" : uiText("· Disabled")}
                     {label !== source.url ? ` · ${source.url}` : ""}
                   </span>

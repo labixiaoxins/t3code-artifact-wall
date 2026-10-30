@@ -164,7 +164,7 @@ export function CustomModelEditor({
           }
           aria-label={uiText("Default choice")}
         />
-        {"Default" + " "}
+        {uiText("Default")}
       </label>
       <Button
         size="icon-micro"
@@ -188,7 +188,7 @@ export function CustomModelEditor({
     >
       <div className="flex flex-wrap items-center gap-2">
         <span className="w-14 shrink-0 text-2xs text-muted-foreground">
-          {"Option" + " "} {index + 1}
+          {uiText("Option {number}", { number: index + 1 })}
         </span>
         {presets.length > 0 ? (
           <Select
@@ -218,7 +218,7 @@ export function CustomModelEditor({
             size="compact"
             value={descriptor.id}
             onChange={(event) => updateDescriptor(descriptor.key, { id: event.target.value })}
-            placeholder="optionId"
+            placeholder={uiText("optionId")}
             font="mono"
             className="w-36"
             spellCheck={false}
@@ -273,7 +273,7 @@ export function CustomModelEditor({
             }
           >
             <PlusIcon className="size-3" />
-            {"Add choice" + " "}
+            {uiText("Add choice")}
           </Button>
         </div>
       ) : null}
@@ -361,7 +361,7 @@ export function CustomModelEditor({
             onClick={() => addDescriptor(emptyEditorDescriptor())}
           >
             <PlusIcon className="size-3" />
-            {"Custom option" + " "}
+            {uiText("Custom option")}
           </Button>
         </div>
       </div>

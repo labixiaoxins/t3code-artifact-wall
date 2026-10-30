@@ -1,3 +1,4 @@
+import { uiTextNodes } from "~/i18n/rich";
 import { pipe } from "effect/Function";
 import { uiText } from "~/i18n";
 import { ACP_REGISTRY_MAX_AGENTS, AuthProvidersManageScope } from "@t3tools/contracts";
@@ -157,7 +158,7 @@ export function AcpRegistrySearchStep({
             aria-label={uiText("Search ACP Registry")}
             disabled={preparingId !== null}
             onChange={(event) => registry.type(event.currentTarget.value)}
-            placeholder="Search agents…"
+            placeholder={uiText("Search agents…")}
             size="sm"
             type="search"
             value={query}
@@ -282,10 +283,7 @@ function AcpRegistryAgentRow({
                   </Button>
                 }
               />
-              <TooltipPopup>
-                {"About "}
-                {agent.name}
-              </TooltipPopup>
+              <TooltipPopup>{uiTextNodes("About {0}", { "0": agent.name })}</TooltipPopup>
             </Tooltip>
           ) : null}
           <Button

@@ -1,3 +1,4 @@
+import { uiTextNodes } from "~/i18n/rich";
 import { uiText } from "~/i18n";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { ExternalLinkIcon } from "lucide-react";
@@ -29,7 +30,7 @@ export function SourceControlTokenSettings({
     readHostCredentialSettings(settings, definition.kind),
   );
   const updateSettings = useAtomCommand(serverEnvironment.updateSettings, {
-    label: `save ${definition.label} token`,
+    label: uiText("save {0} token", { 0: definition.label }),
   });
   const defaultHost = definition.publicHost ?? "";
   const [host, setHost] = useState(defaultHost);
@@ -68,30 +69,37 @@ export function SourceControlTokenSettings({
       {/* Locked while saving: a successful save clears the draft, which would drop edits made mid-request. */}
       <fieldset disabled={saving} className="contents">
         <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
-          {uiText("A token saved here is used before")}{" "}
-          <code className="rounded bg-muted px-1 py-px text-2xs">{credentials.tokenEnvVar}</code>{" "}
-          {uiText("and the")}{" "}
-          <code className="rounded bg-muted px-1 py-px text-2xs">{credentials.cliName}</code>
-          {" login, so "}
-          {definition.label}
-          {" works without the "}
-          {credentials.cliLabel}
-          {". Give it"} {credentials.tokenAccess}
-          {"."}{" "}
-          {normalizedHost || defaultHost ? (
-            <InlineButton
-              render={
-                <a
-                  href={credentials.newTokenUrl(normalizedHost || defaultHost)}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                />
-              }
-            >
-              {uiText("Create a token")}
-              <ExternalLinkIcon aria-hidden className="size-3" />
-            </InlineButton>
-          ) : null}
+          {uiTextNodes(
+            "A token saved here is used before {0} and the {1} login, so {2} works without the {3}. Give it {4}. {5}",
+            {
+              "0": (
+                <code className="rounded bg-muted px-1 py-px text-2xs">
+                  {credentials.tokenEnvVar}
+                </code>
+              ),
+              "1": (
+                <code className="rounded bg-muted px-1 py-px text-2xs">{credentials.cliName}</code>
+              ),
+              "2": definition.label,
+              "3": credentials.cliLabel,
+              "4": uiText(credentials.tokenAccess),
+              "5":
+                normalizedHost || defaultHost ? (
+                  <InlineButton
+                    render={
+                      <a
+                        href={credentials.newTokenUrl(normalizedHost || defaultHost)}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                      />
+                    }
+                  >
+                    {uiText("Create a token")}
+                    <ExternalLinkIcon aria-hidden className="size-3" />
+                  </InlineButton>
+                ) : null,
+            },
+          )}
         </p>
         <div className="grid gap-3 sm:grid-cols-[12rem_1fr]">
           <div className="grid gap-1.5">
@@ -121,7 +129,10 @@ export function SourceControlTokenSettings({
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs text-muted-foreground">
             {savedHosts.length === 0
-              ? `No token saved; the server uses ${credentials.tokenEnvVar} or the ${credentials.cliName} login.`
+              ? uiText("No token saved; the server uses {0} or the {1} login.", {
+                  0: credentials.tokenEnvVar,
+                  1: credentials.cliName,
+                })
               : uiText("Saved for {0}.", { "0": savedHosts.join(", ") })}
           </p>
           <div className="flex shrink-0 gap-2">

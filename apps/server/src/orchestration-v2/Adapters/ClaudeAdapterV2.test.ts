@@ -5607,68 +5607,73 @@ describe("ClaudeAdapterV2 background wake turns", () => {
     ),
   );
 
-  it.effect("keeps an unreported /compact failure's reason on the compaction, not as a reply", () =>
-    Effect.gen(function* () {
-      const harness = yield* makeWakeHarness;
-      const now = yield* DateTime.now;
-      yield* harness.runtime.startTurn(
-        makeClaudeTestTurnInput({
-          threadId: harness.threadId,
-          providerThread: harness.providerThread,
-          now,
-          attemptId: RunAttemptId.make("attempt-claude-compaction-unreported"),
-          text: "/compact",
-          attachments: [],
-        }),
-      );
-      // Claude can refuse a /compact without a compact_result: the only reason is the result text.
-      yield* Queue.offerAll(harness.sdkMessages, [
-        claudeSdkFrame({
-          type: "system",
-          subtype: "status",
-          status: "compacting",
-          uuid: "00000000-0000-4000-8000-000000000620",
-          session_id: WAKE_NATIVE_SESSION,
-        }),
-        claudeSdkFrame({
-          ...makeAssistantTextFrame({
-            uuid: "00000000-0000-4000-8000-000000000622",
-            text: "Not enough messages to compact.",
+  it.effect.each([
+    { terminalReason: null, status: "failed" },
+    { terminalReason: "aborted_tools", status: "interrupted" },
+  ] as const)(
+    "keeps an unreported /compact reason with $status status, not as a reply",
+    ({ terminalReason, status }) =>
+      Effect.gen(function* () {
+        const harness = yield* makeWakeHarness;
+        const now = yield* DateTime.now;
+        yield* harness.runtime.startTurn(
+          makeClaudeTestTurnInput({
+            threadId: harness.threadId,
+            providerThread: harness.providerThread,
+            now,
+            attemptId: RunAttemptId.make("attempt-claude-compaction-unreported"),
+            text: "/compact",
+            attachments: [],
           }),
-          local_command_source:
-            "<local-command-stdout>Not enough messages to compact.</local-command-stdout>",
-        }),
-        claudeSdkFrame({
-          ...makeResultFrame({
-            uuid: "00000000-0000-4000-8000-000000000621",
-            result: "Not enough messages to compact.",
-            numTurns: 0,
-            terminalReason: null,
+        );
+        // Claude can refuse a /compact without a compact_result: the only reason is the result text.
+        yield* Queue.offerAll(harness.sdkMessages, [
+          claudeSdkFrame({
+            type: "system",
+            subtype: "status",
+            status: "compacting",
+            uuid: "00000000-0000-4000-8000-000000000620",
+            session_id: WAKE_NATIVE_SESSION,
           }),
-          local_command: "compact",
-        }),
-      ]);
-      yield* Queue.take(harness.terminalReceipts);
-      const settled = harness.events
-        .flatMap((event) =>
-          event.type === "turn_item.updated" && event.turnItem.type === "compaction"
-            ? [event.turnItem]
-            : [],
-        )
-        .at(-1);
-      assert.equal(settled?.status, "failed");
-      assert.equal(settled?.summary, "Not enough messages to compact.");
-      assert.isFalse(
-        harness.events.some(
-          (event) =>
-            event.type === "turn_item.updated" && event.turnItem.type === "assistant_message",
+          claudeSdkFrame({
+            ...makeAssistantTextFrame({
+              uuid: "00000000-0000-4000-8000-000000000622",
+              text: "Not enough messages to compact.",
+            }),
+            local_command_source:
+              "<local-command-stdout>Not enough messages to compact.</local-command-stdout>",
+          }),
+          claudeSdkFrame({
+            ...makeResultFrame({
+              uuid: "00000000-0000-4000-8000-000000000621",
+              result: "Not enough messages to compact.",
+              numTurns: 0,
+              terminalReason,
+            }),
+            local_command: "compact",
+          }),
+        ]);
+        yield* Queue.take(harness.terminalReceipts);
+        const settled = harness.events
+          .flatMap((event) =>
+            event.type === "turn_item.updated" && event.turnItem.type === "compaction"
+              ? [event.turnItem]
+              : [],
+          )
+          .at(-1);
+        assert.equal(settled?.status, status);
+        assert.equal(settled?.summary, "Not enough messages to compact.");
+        assert.isFalse(
+          harness.events.some(
+            (event) =>
+              event.type === "turn_item.updated" && event.turnItem.type === "assistant_message",
+          ),
+        );
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(IdAllocator.layer, McpProviderSessions.layer, NodeServices.layer),
         ),
-      );
-    }).pipe(
-      Effect.provide(
-        Layer.mergeAll(IdAllocator.layer, McpProviderSessions.layer, NodeServices.layer),
       ),
-    ),
   );
 
   it.effect.each([

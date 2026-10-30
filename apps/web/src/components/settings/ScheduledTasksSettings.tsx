@@ -1,3 +1,4 @@
+import { uiTextNodes } from "~/i18n/rich";
 import { uiText } from "~/i18n";
 import { useAtomValue } from "@effect/atom-react";
 import { connectionStatusTitle } from "@t3tools/client-runtime/connection";
@@ -166,9 +167,9 @@ function WebhookFiltersField({
         <div className="min-w-0 space-y-1">
           <Label>{uiText("Filters")}</Label>
           <p className="text-sm text-muted-foreground">
-            {
-              "Run only when every filter matches. Other requests are logged as filtered. Separate \u201Cis one of\u201D values with commas; a value can't contain a comma."
-            }
+            {uiText(
+              "Run only when every filter matches. Other requests are logged as filtered. Separate “is one of” values with commas; a value can't contain a comma.",
+            )}
           </p>
         </div>
         <Button
@@ -179,7 +180,7 @@ function WebhookFiltersField({
           onClick={() => onChange([...filters, emptyWebhookFilterDraft()])}
         >
           <PlusIcon />
-          {"Add filter"}
+          {uiText("Add filter")}
         </Button>
       </div>
       {filters.map((filter, index) => (
@@ -190,7 +191,7 @@ function WebhookFiltersField({
           <div className="flex items-center gap-2">
             <div className="grid min-w-0 flex-1 grid-cols-1">
               <Input
-                aria-label={`Filter ${index + 1} path`}
+                aria-label={uiText("Filter {0} path", { 0: index + 1 })}
                 placeholder="body.action"
                 value={filter.path}
                 onChange={(event) => update(index, { path: event.target.value })}
@@ -199,7 +200,7 @@ function WebhookFiltersField({
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label={`Remove filter ${index + 1}`}
+              aria-label={uiText("Remove filter {0}", { 0: index + 1 })}
               onClick={() => onChange(removeWebhookFilterDraft(filters, filter.id))}
             >
               <Trash2Icon />
@@ -214,7 +215,7 @@ function WebhookFiltersField({
               }}
             >
               <div className="grid w-44 shrink-0 grid-cols-1">
-                <SelectTrigger size="sm" aria-label={`Filter ${index + 1} test`}>
+                <SelectTrigger size="sm" aria-label={uiText("Filter {0} test", { 0: index + 1 })}>
                   <SelectValue>
                     {WEBHOOK_FILTER_OPS.find((option) => option.op === filter.op)?.label}
                   </SelectValue>
@@ -231,7 +232,7 @@ function WebhookFiltersField({
             {filter.op === "exists" ? null : (
               <div className="grid min-w-0 flex-1 grid-cols-1">
                 <Input
-                  aria-label={`Filter ${index + 1} value`}
+                  aria-label={uiText("Filter {0} value", { 0: index + 1 })}
                   placeholder={filter.op === "in" ? "opened, reopened" : uiText("opened")}
                   value={filter.value}
                   onChange={(event) => update(index, { value: event.target.value })}
@@ -280,8 +281,8 @@ export function scheduleLabel(schedule: ScheduledTaskSchedule): string {
   if (schedule.type === "interval") {
     const minutes = schedule.everyMs / 60000;
     return Number.isInteger(minutes)
-      ? `Every ${minutes} min`
-      : `Every ${Math.round(schedule.everyMs / 1000)} sec`;
+      ? uiText("Every {0} min", { 0: minutes })
+      : uiText("Every {0} sec", { 0: Math.round(schedule.everyMs / 1000) });
   }
   const weekdays = schedule.weekdays ?? [];
   const days =
@@ -633,7 +634,7 @@ function ScheduledTaskEnvironmentSection({
           description={tasksQuery.error}
         />
       ) : !tasks ? (
-        <SettingsRow title="Loading scheduled tasks…" role="status" />
+        <SettingsRow title={uiText("Loading scheduled tasks…")} role="status" />
       ) : (
         <>
           {taskId && !linkedTask ? (
@@ -724,8 +725,9 @@ function ScheduledTaskRow({
               uiText("Listening")
             ) : task.nextRunAt ? (
               <>
-                {"Next run "}
-                <ScheduledRelativeLabel value={task.nextRunAt} />
+                {uiTextNodes("Next run {0}", {
+                  "0": <ScheduledRelativeLabel value={task.nextRunAt} />,
+                })}
               </>
             ) : (
               uiText("Not scheduled")
@@ -877,12 +879,14 @@ function WebhookDeliveriesDialog({
               ) : null}
               <DeliveryBlock
                 title={
-                  selected.pendingWindow ? "Scheduled run" : uiText("Prompt sent to the agent")
+                  selected.pendingWindow
+                    ? uiText("Scheduled run")
+                    : uiText("Prompt sent to the agent")
                 }
               >
                 {selected.renderedPrompt ??
                   (selected.pendingWindow
-                    ? "Run scheduled when the window closes; no run started yet."
+                    ? uiText("Run scheduled when the window closes; no run started yet.")
                     : uiText("No run was started for this request."))}
               </DeliveryBlock>
               {selected.missingFields.length > 0 ? (
@@ -1025,7 +1029,7 @@ function WebhookEndpointField({
       <div className="flex items-center gap-2">
         <Input
           readOnly
-          aria-label="Webhook URL"
+          aria-label={uiText("Webhook URL")}
           value={url}
           onFocus={(event) => event.currentTarget.select()}
         />
@@ -1060,10 +1064,10 @@ function WebhookDeliveryMode({ environmentId }: { readonly environmentId: Enviro
   return (
     <p className="text-xs text-muted-foreground">
       {cloudLink.data.holdWebhooksWhileOffline
-        ? "Held for up to 24 hours while this environment is offline. "
-        : "Forwarded live. Requests fail while this environment is offline. "}
+        ? uiText("Held for up to 24 hours while this environment is offline. ")
+        : uiText("Forwarded live. Requests fail while this environment is offline. ")}
       <Link to="/settings/access" className="underline underline-offset-2">
-        {"Change in Sharing & access"}
+        {uiText("Change in Sharing & access")}
       </Link>
     </p>
   );
@@ -1283,9 +1287,9 @@ function ScheduledTaskEditorForm({
       <DialogHeader>
         <DialogTitle>{draft.editingId ? uiText("Edit task") : uiText("New task")}</DialogTitle>
         <DialogDescription>
-          {
-            "Run a prompt automatically on an interval, at a fixed time, or when a webhook is called."
-          }
+          {uiText(
+            "Run a prompt automatically on an interval, at a fixed time, or when a webhook is called.",
+          )}
         </DialogDescription>
       </DialogHeader>
       <DialogPanel>
@@ -1558,7 +1562,7 @@ function ScheduledTaskEditorForm({
                   onChange={(filters) => setDraft((current) => ({ ...current, filters }))}
                 />
                 <Field
-                  label="Replay key"
+                  label={uiText("Replay key")}
                   hint="template, optional"
                   htmlFor="scheduled-task-replay-key"
                 >
@@ -1572,7 +1576,7 @@ function ScheduledTaskEditorForm({
                   />
                 </Field>
                 <Field
-                  label="Coalesce key"
+                  label={uiText("Coalesce key")}
                   hint="template, optional"
                   htmlFor="scheduled-task-coalesce-key"
                 >
@@ -1586,7 +1590,7 @@ function ScheduledTaskEditorForm({
                   />
                 </Field>
                 <Field
-                  label="Coalesce window"
+                  label={uiText("Coalesce window")}
                   hint="seconds, 10–3600"
                   htmlFor="scheduled-task-coalesce-window"
                 >
@@ -1607,9 +1611,9 @@ function ScheduledTaskEditorForm({
                   />
                 </Field>
                 <p className="text-xs text-muted-foreground">
-                  {
-                    "Replay keys suppress repeat deliveries for 7 days. Coalescing runs the latest payload once when the window from the first delivery closes. Empty keys run normally."
-                  }
+                  {uiText(
+                    "Replay keys suppress repeat deliveries for 7 days. Coalescing runs the latest payload once when the window from the first delivery closes. Empty keys run normally.",
+                  )}
                 </p>
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0 space-y-1">
@@ -1667,8 +1671,8 @@ function ScheduledTaskEditorForm({
                           <SelectValue>{draft.signatureEncoding}</SelectValue>
                         </SelectTrigger>
                         <SelectPopup>
-                          <SelectItem value="hex">{"hex"}</SelectItem>
-                          <SelectItem value="base64">{"base64"}</SelectItem>
+                          <SelectItem value="hex">{uiText("hex")}</SelectItem>
+                          <SelectItem value="base64">{uiText("base64")}</SelectItem>
                         </SelectPopup>
                       </Select>
                     </Field>

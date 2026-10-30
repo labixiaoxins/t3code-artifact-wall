@@ -1,5 +1,21 @@
 // Adapted from ZhiweiXiao98/t3code b604575 (MIT). Application UI copy only.
 export const zhCN: Readonly<Record<string, string>> = {
+  "Keep titles to a few words. Lead with the main subject.": "标题保持简短，以主要内容开头。",
+  "Show Dev or Nightly artwork in the sidebar header.": "在侧栏顶部显示开发版或每夜构建版的图案。",
+  "Sign in with GitHub": "使用 GitHub 登录",
+  "Checking releases…": "正在检查版本…",
+  "Scheduled run": "计划执行",
+  "Run scheduled when the window closes; no run started yet.":
+    "将在时间窗口结束后执行，目前尚未开始。",
+  "Held for up to 24 hours while this environment is offline. ": "此环境离线时最多保留 24 小时。",
+  "Forwarded live. Requests fail while this environment is offline. ":
+    "实时转发；此环境离线时请求会失败。",
+  "Agent settings": "智能体",
+  "Code settings": "代码",
+  "Up to {count} options": "最多 {count} 个选项",
+  "{enabled} of {total} on": "已开启 {enabled}/{total} 项",
+  "Switch to {label}": "切换至{label}",
+  "Waiting for approval · code expires at {time}": "等待授权 · 验证码将在 {time} 过期",
   "Not measured": "未测量",
   "Preview cleanup of rotated logs older than 30 days": "预览清理 30 天前的轮转日志",
   "A verified compressed copy is kept for recovery.": "保留已校验压缩副本，可恢复。",
@@ -2181,12 +2197,15 @@ export const zhCN: Readonly<Record<string, string>> = {
   "Reopen pull request": "重新打开拉取请求",
   "Revert changes": "还原更改",
   "Added to the composer": "已添加到输入区",
+  // oxlint-disable-next-line t3code/no-em-dash-copy -- Exact upstream strings are translation lookup keys.
   "The question is in the composer — read it over, then send.": "问题已加入输入区，请检查后发送。",
+  // oxlint-disable-next-line t3code/no-em-dash-copy -- Exact upstream strings are translation lookup keys.
   "The pull request is in the composer — type your question, then send.":
     "拉取请求已加入输入区，请输入问题后发送。",
   "Could not open a thread": "无法打开任务",
   "Try again from the project, or open a thread first.": "请从项目中重试，或先打开一个任务。",
   "Asked in a thread": "已在任务中提问",
+  // oxlint-disable-next-line t3code/no-em-dash-copy -- Exact upstream strings are translation lookup keys.
   "The task is in the composer — read it over, then send.": "任务已加入输入区，请检查后发送。",
   "Preparing the pull request checkout...": "正在准备拉取请求检出目录...",
   "Could not open a thread for the checkout": "无法为检出目录打开任务",
@@ -2227,6 +2246,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   "{count} file": "{count} 个文件",
   "{count} files": "{count} 个文件",
   "Some of this diff was not shown": "部分差异未显示",
+  // oxlint-disable-next-line t3code/no-em-dash-copy -- Exact upstream strings are translation lookup keys.
   "The host withheld part of this diff — a binary file, or a change too large to inline.":
     "托管服务省略了部分差异，可能是二进制文件，也可能是更改过大而无法内嵌显示。",
   "Line comments are written from the whole change": "行评论将基于整个更改创建",
@@ -2272,6 +2292,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   "Matched in the description": "在说明中匹配",
   "The reaction could not be saved": "无法保存回应",
   "Add a reaction": "添加回应",
+  // oxlint-disable-next-line t3code/no-em-dash-copy -- Exact upstream strings are translation lookup keys.
   "Pending — sent when you submit the review": "待提交，将在提交评审时发送",
   "Discard this comment": "放弃此评论",
   Unresolve: "标记为未解决",
@@ -2315,6 +2336,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   "No entries from this folder are available in the partial workspace index.":
     "部分工作区索引中没有此文件夹的可用条目。",
   "This folder is empty.": "此文件夹为空。",
+  // oxlint-disable-next-line t3code/no-em-dash-copy -- Exact upstream strings are translation lookup keys.
   "Refresh failed — retry": "刷新失败，点击重试",
   "Some workspace entries are not shown.": "部分工作区条目未显示。",
   "Browse {path}": "浏览 {path}",
@@ -2896,6 +2918,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   "Failed to wake thread": "唤醒任务失败",
   "Failed to switch checkout": "切换检出目录失败",
   "Checkout switched, but the thread could not be updated": "检出目录已切换，但无法更新任务",
+  // oxlint-disable-next-line t3code/no-em-dash-copy -- Exact upstream strings are translation lookup keys.
   "Branch changed — was": "分支已更改，原分支为",
   "This thread last ran on {previous}. Sending will continue on {current}.":
     "此任务上次在 {previous} 上运行，发送后将在 {current} 上继续。",
@@ -3016,6 +3039,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   "Manage usage": "管理用量",
   "Open in": "打开方式",
   "Open in…": "选择打开方式…",
+  // oxlint-disable-next-line t3code/no-em-dash-copy -- Exact upstream strings are translation lookup keys.
   "Mesh your devices together — publish this environment and connect the rest, all in one place.":
     "将设备连接起来：在此发布当前环境并连接其他设备。",
   "Connect your agents": "连接智能体",
@@ -3082,6 +3106,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   "Converted to draft": "已转换为草稿",
   "Pull request reopened": "拉取请求已重新打开",
   "Branch updated with the base branch": "分支已根据基础分支更新",
+  // oxlint-disable-next-line t3code/no-em-dash-copy -- Exact upstream strings are translation lookup keys.
   "Auto-merge turned on — merges as soon as this is ready, sooner if it already is":
     "已启用自动合并；准备就绪后会立即合并，若当前已就绪则会马上合并",
   "Auto-merge turned off": "已停用自动合并",
@@ -3107,6 +3132,7 @@ export const zhCN: Readonly<Record<string, string>> = {
     "托管服务拒绝了操作。请确认你拥有写入权限，或此请求由你创建。",
   "The host refused it. Check that you have write access, and that the branch still exists.":
     "托管服务拒绝了操作。请确认你拥有写入权限且分支仍然存在。",
+  // oxlint-disable-next-line t3code/no-em-dash-copy -- Exact upstream strings are translation lookup keys.
   "The host refused it. Check that you have write access to the branch — one from a fork also needs its author to allow edits from maintainers — and that it does not conflict with the base.":
     "托管服务拒绝了操作。请确认你拥有该分支的写入权限；来自复刻仓库的分支还需作者允许维护者编辑，并确保它与基础分支没有冲突。",
   "The host refused it. Check that this repository allows auto-merge, that you have write access, and that there is something left for it to wait on.":
@@ -3248,6 +3274,7 @@ export const zhCN: Readonly<Record<string, string>> = {
     "连接 CLIProxyAPI Hub，在“用量 → 限额”中显示其账号。",
   "Not installed on this machine.": "此设备上未安装。",
   "Needs Keychain access to read its cookies.": "需要访问系统钥匙串才能读取 Cookie。",
+  // oxlint-disable-next-line t3code/no-em-dash-copy -- Exact upstream strings are translation lookup keys.
   "No encryption key in your Keychain — sign in to that browser once, then retry.":
     "系统钥匙串中没有加密密钥。请先在该浏览器中登录一次，然后重试。",
   "Quit the browser first so its cookie database can be read.":
@@ -3991,8 +4018,9 @@ export const zhCN: Readonly<Record<string, string>> = {
   "Search languages": "搜索语言",
   "No matching languages.": "没有匹配的语言。",
   "More approval options": "更多批准选项",
+  // oxlint-disable-next-line t3code/no-em-dash-copy -- Exact upstream strings are translation lookup keys.
   "Provider process is gone — interrupt or restart the run to respond.":
-    "模型通道进程已退出——请中断或重启运行后再回复。",
+    "模型通道进程已退出，请中断或重启运行后再回复。",
   "Plan ready": "方案已就绪",
   Interrupt: "中断",
   Full: "完整",
@@ -4806,8 +4834,9 @@ export const zhCN: Readonly<Record<string, string>> = {
   "Let T3 Code read": "允许 T3 Code 读取",
   "&rsquo;s cookies": "的 Cookie",
   "To import cookies from": "要从以下来源导入 Cookie：",
+  // oxlint-disable-next-line t3code/no-em-dash-copy -- Exact upstream strings are translation lookup keys.
   ", T3 Code needs Full Disk Access. Turn it on in System Settings, then come back to finish the import — you can revoke it again once the import is done.":
-    "，T3 Code 需要完全磁盘访问权限。请在系统设置中开启，然后返回完成导入——导入完成后可以再次关闭。",
+    "，T3 Code 需要完全磁盘访问权限。请在系统设置中开启，然后返回完成导入，导入完成后可以再次关闭。",
   "Full Disk Access": "完全磁盘访问权限",
   "Access is still required. Quit and reopen T3 Code if you just allowed it, then retry the import.":
     "仍需要访问权限。若刚刚允许，请退出并重新打开 T3 Code，然后重试导入。",
@@ -4908,7 +4937,8 @@ export const zhCN: Readonly<Record<string, string>> = {
   "Create a new link to share from this client.": "创建新链接，以便从此客户端分享。",
   "Copy the token and pair from another client using this backend&apos;s reachable host.":
     "复制令牌，并使用此后端可访问的主机从另一客户端配对。",
-  "Pairing link — scan to open on another device": "配对链接——扫码后在另一台设备上打开",
+  // oxlint-disable-next-line t3code/no-em-dash-copy -- Exact upstream strings are translation lookup keys.
+  "Pairing link — scan to open on another device": "配对链接，扫码后在另一台设备上打开",
   "Endpoint the pairing QR code and URL use": "配对二维码和 URL 使用的端点",
   "No QR for this endpoint. Another device scanning a loopback link would dial itself; copy the URL for use on this machine instead.":
     "此端点没有二维码。另一台设备扫描回环链接会连到它自己；请复制 URL，在这台机器上使用。",
@@ -5322,8 +5352,9 @@ export const zhCN: Readonly<Record<string, string>> = {
   "Change in Connections": "在连接中更改",
   "scheduled task upsert": "保存计划任务",
   "Edit task": "编辑任务",
+  // oxlint-disable-next-line t3code/no-em-dash-copy -- Exact upstream strings are translation lookup keys.
   "Run a prompt automatically — on an interval, at a fixed time, or when a webhook is called.":
-    "自动运行一段提示词——按间隔、在固定时间，或在 Webhook 被调用时。",
+    "自动运行一段提示词，按间隔、在固定时间，或在 Webhook 被调用时。",
   "Reconnect this environment before saving.": "保存前请重新连接此环境。",
   "Runs on": "运行于",
   "Unavailable environment": "环境不可用",
@@ -5499,7 +5530,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   "Applying settings for": "正在为",
   across: "跨这些环境应用设置：",
   "No environments": "无环境",
-  SnapShots: "SnapShots",
+  SnapShots: "窗口截图",
   "Enable snapshots": "启用快照",
   "Include text and controls when the app makes them available.":
     "在应用提供文本和控件时把它们包含进来。",
@@ -6215,7 +6246,8 @@ export const zhCN: Readonly<Record<string, string>> = {
   "{0} accent color for {1}": "{0} {1} 的强调色",
   "Clear {0}": "清除 {0}",
   VARIABLE_NAME: "VARIABLE_NAME",
-  "{0} — view details": "{0} — 查看详情",
+  // oxlint-disable-next-line t3code/no-em-dash-copy -- Exact upstream strings are translation lookup keys.
+  "{0} — view details": "{0}，查看详情",
   "Install {0}": "安装 {0}",
   "Select {0}": "选择 {0}",
   "Updating · {0}": "正在更新 · {0}",
@@ -6459,4 +6491,387 @@ export const zhCN: Readonly<Record<string, string>> = {
   "untouched for {days} d": "已 {days} 天未改动",
   "{count} smaller workspaces are counted but not listed.":
     "另有 {count} 个较小的工作区已计入总数，未逐个列出。",
+  "More providers": "更多服务商",
+  Word: "文字",
+  "Show reasoning effort in the composer as its name, such as High, or as bars.":
+    "以文字（如“高”）或条形图显示输入框中的推理强度。",
+  "effort display": "推理强度显示",
+  "Effort display": "推理强度显示",
+  "Word (default)": "文字（默认）",
+  Bars: "条形图",
+  "Typeset LaTeX math, such as $x^2$ or \\[x^2\\], in messages and Markdown previews. The composer keeps TeX source editable.":
+    "在消息与 Markdown 预览中排版 LaTeX 公式，例如 $x^2$ 或 \\[x^2\\]；输入框中仍可编辑 TeX 源码。",
+  "math rendering": "公式渲染",
+  "Render math": "渲染公式",
+  "Pairing link. Scan to open on another device": "配对链接，扫码后在另一台设备上打开",
+  "Diagnostics copied": "已复制诊断信息",
+  "Could not copy diagnostics": "无法复制诊断信息",
+  "What to try": "建议尝试",
+  "More info": "了解更多",
+  "Retry now": "立即重试",
+  "Copy diagnostics": "复制诊断信息",
+  "Add direct route": "添加直连地址",
+  "Reclaim freed database space": "回收数据库空闲空间",
+  "Old history is cleaned up automatically, but these databases still hold the freed space. Run the command on each machine to return it to disk; it pauses and restarts the background service. Quit the desktop app first if it hosts the environment.":
+    "旧历史会自动清理，但数据库可能仍占用已腾出的空间。在各台机器运行以下命令可归还磁盘空间；执行时会暂停并重启后台服务。如果环境由桌面应用托管，请先退出桌面应用。",
+  "Android list may be incomplete": "Android 设备列表可能不完整",
+  "Device host not saved": "设备主机未保存",
+  "Local simulators": "本地模拟器",
+  "Testing connection": "正在测试连接",
+  "Can't connect": "无法连接",
+  "Add source": "添加来源",
+  "Machine over SSH": "通过 SSH 连接的机器",
+  "EAS Simulator": "EAS 模拟器",
+  "Simlock pool (alpha)": "Simlock 设备池（早期测试）",
+  "Device sources": "设备来源",
+  "The environment's server signs in to Expo and starts the sessions. Without a token here it uses EXPO_TOKEN, then its eas login.":
+    "由环境所在服务器登录 Expo 并启动会话。未在此填写令牌时，优先使用 EXPO_TOKEN，其次使用 eas 登录状态。",
+  "Expo access token": "Expo 访问令牌",
+  "Clear access token": "清除访问令牌",
+  " Check account": " 检查账号",
+  "EAS project": "EAS 项目",
+  "From the thread's project": "使用会话所属项目",
+  "Sessions bill the project's Expo account. \"From the thread's project\" reads extra.eas.projectId from the project's app config.":
+    "会话费用计入该项目的 Expo 账号。“使用会话所属项目”会从项目应用配置中读取 extra.eas.projectId。",
+  "Expo allows sessions of up to 40 minutes on free accounts and 115 on paid ones, and ends one after the idle minutes without activity, so idle minutes must be smaller than session minutes.":
+    "Expo 免费账号的单次会话最长为 40 分钟，付费账号为 115 分钟。达到空闲时长后会结束会话，因此空闲时长必须小于会话时长。",
+  " Save host": " 保存主机",
+  "What the address bar searches when you type something that isn't a URL.":
+    "在地址栏输入非网址内容时使用的搜索引擎。",
+  "search engine": "搜索引擎",
+  "Search engine": "搜索引擎",
+  "Custom search URL": "自定义搜索网址",
+  "Use %s where the search terms go.": "用 %s 标记搜索词的位置。",
+  "Clicking a pull request link opens it in T3 Code. Turn off to open pull request links like any other link, on your git host.":
+    "点击拉取请求链接时在 T3 Code 内打开。关闭后，会像其他链接一样在代码托管平台打开。",
+  "Open simulators and emulators in the Device panel. Hub:": "在设备面板中打开模拟器。设备中心：",
+  "New agent sessions can open and drive these devices. agent-device:":
+    "新智能体会话可以打开并操作这些设备。agent-device：",
+  "Agent access": "智能体访问",
+  Browsing: "浏览",
+  Recordings: "录制",
+  Beta: "测试功能",
+  "Group sidebar threads into project folders. Pinned threads stay on top, and Snoozed and Settled stay below the folders.":
+    "按项目文件夹整理侧栏会话。置顶会话仍在顶部，稍后处理和已结束会话位于文件夹下方。",
+  "Boring sidebar (group by project)": "简洁侧栏（按项目分组）",
+  "In the boring sidebar, show folder threads on two lines: the title, then the branch, pull request, and agent.":
+    "在简洁侧栏中以两行显示会话：第一行是标题，第二行是分支、拉取请求和智能体。",
+  "Two-line folder rows": "文件夹内会话显示两行",
+  "Share a thread with a guest who watches it live in their browser and sends messages you approve. Sign in to T3 Connect to use guest links.":
+    "将会话分享给访客；访客可在浏览器实时查看，并发送需要你批准的消息。登录 T3 Connect 后可使用访客链接。",
+  "Sharing & access": "共享与访问",
+  "Guest links": "访客链接",
+  "Linked environments": "关联环境",
+  "Simlock device hosts": "Simlock 设备主机",
+  "What agents here may do there": "本机智能体可在对方执行的操作",
+  "An agent never gets more access there than its own mode here. Below full access, it can change only threads this link started, not that machine's own threads, projects or settings.":
+    "智能体在对方的权限不会超过其在本机的权限。非完全访问模式下，只能修改通过此关联创建的会话，不能修改对方原有的会话、项目或设置。",
+  Machine: "机器",
+  "Another address…": "其他地址…",
+  "Could not load linked environments": "无法加载关联环境",
+  "Loading linked environments…": "正在加载关联环境…",
+  "No linked environments": "暂无关联环境",
+  "Link another machine running T3 Code, such as a VPS, so agents here can launch and drive threads there.":
+    "关联另一台运行 T3 Code 的机器（例如 VPS），让本机智能体在对方创建并执行会话。",
+  "unlink environment": "解除环境关联",
+  "link environment": "关联环境",
+  "Link an environment": "关联环境",
+  "Agents here can then launch, message and wait on threads there. It appears in that environment's Connections, where it can be revoked.":
+    "关联后，本机智能体可在对方启动会话、发送消息并等待结果。关联会显示在对方的连接设置中，可随时撤销。",
+  "Already linked. Linking again renews it with the access you pick.":
+    "已关联。再次关联会按所选权限更新此关联。",
+  Address: "地址",
+  "iPhone and iPad": "iPhone 与 iPad",
+  "Connect to your server from your phone or tablet.": "通过手机或平板连接服务器。",
+  "Scan with your phone camera.": "使用手机相机扫码。",
+  "Fallback model": "备用模型",
+  "Used for new threads when the default model's provider is out of usage.":
+    "默认模型所属服务商额度耗尽时，新会话使用此模型。",
+  "fallback model": "备用模型",
+  "Fallback model not saved": "备用模型未保存",
+  "Remove recognized agent credit lines from merge and squash messages on hosts that support it, keeping human co-authors. Includes auto-merge. Excludes merge queues, stack merges, and existing commits.":
+    "在支持的代码托管平台，合并和压缩合并时移除已识别的智能体署名，保留人类共同作者。适用于自动合并，不影响合并队列、堆叠合并和现有提交。",
+  "Show all environments": "显示所有环境",
+  "This interval is configured here, then the shared Background activity policy decides whether provider probes may run when the timer fires. Custom intervals appear as Advanced in Maintenance settings.":
+    "在此设置检查间隔。计时器触发时，由共用的后台活动策略决定是否检查服务商状态。自定义间隔会在维护设置中显示为“高级”。",
+  "Machines you trust here can read PR data through each other's source control access. Enable both machines. Read and act may use broader permissions than the machine that owns them. This applies only to this device.":
+    "受信任的机器可借助彼此的代码托管访问权限读取拉取请求数据。需在两台机器上都开启。读取和操作可能使用超出数据所属机器自身权限的授权。此设置仅适用于当前设备。",
+  "Could not save pull request routing permission": "无法保存拉取请求路由权限",
+  "Get more tunnels": "获取更多隧道",
+  "Hold webhook requests while this environment is offline": "环境离线时暂存 Webhook 请求",
+  "Run only when every filter matches. Other requests are logged as filtered. Separate “is one of” values with commas; a value can't contain a comma.":
+    "仅在所有筛选条件都匹配时运行；其他请求记为已过滤。“属于以下之一”的值以逗号分隔，单个值不能包含逗号。",
+  "Add filter": "添加筛选条件",
+  "Change in Sharing & access": "前往共享与访问修改",
+  "Run a prompt automatically on an interval, at a fixed time, or when a webhook is called.":
+    "按间隔、指定时间或 Webhook 调用自动执行提示词。",
+  "Replay key": "重复请求识别键",
+  "Coalesce key": "合并请求识别键",
+  "Coalesce window": "请求合并时长",
+  "Replay keys suppress repeat deliveries for 7 days. Coalescing runs the latest payload once when the window from the first delivery closes. Empty keys run normally.":
+    "重复请求识别键在 7 天内阻止重复投递。合并请求会从首次投递开始计时，窗口结束后仅运行最新一次请求。识别键为空时正常运行。",
+  "Same on all machines": "所有机器一致",
+  Legacy: "旧版",
+  "Fold working and monitoring threads into a Working section. They return to the top of the inbox when they need you. The boring sidebar in Labs has no Working section.":
+    "将执行中和监控中的会话收进“工作中”分组；需要你处理时会回到收件箱顶部。实验功能中的简洁侧栏不显示此分组。",
+  Display: "显示",
+  "Follow-ups": "后续任务",
+  Diffs: "差异",
+  "When to compact an idle Claude thread over 200,000 tokens: after you return, just before its prompt cache expires, or never. Each Claude provider can override this.":
+    "Claude 空闲会话超过 200,000 tokens 后的压缩时机：返回时、提示缓存即将过期时，或不自动压缩。各 Claude 服务商可单独覆盖此设置。",
+  "compact idle threads": "压缩空闲会话",
+  "Compact idle threads": "压缩空闲会话",
+  "New projects": "新项目",
+  "Resume after usage limits": "额度恢复后继续",
+  "Snooze usage-limit stops until reset. Pair with resume to continue on wake.":
+    "因额度限制停止的会话暂缓到额度重置；配合自动继续，可在唤醒后接着执行。",
+  "Snooze until limits reset": "暂缓至额度重置",
+  "Auto-settle": "自动结束",
+  Updates: "更新",
+  Legal: "法律信息",
+  "No matches found.": "未找到匹配项。",
+  "Environment scope": "环境范围",
+  "Settings sections": "设置分类",
+  "Gateway URL": "网关地址",
+  "A lease ends after the lease minutes even while in use.":
+    "租用到期后会结束，即使设备仍在使用中。",
+  "Clear agent token": "清除智能体令牌",
+  "Choices in every snooze menu, listed soonest first. Weekdays mean the next one after today.":
+    "各稍后处理菜单中的选项，按时间先后排列。星期选项指今天之后的下一个对应日期。",
+  "snooze options": "稍后处理选项",
+  "Add option": "添加选项",
+  "Up to": "最多",
+  options: "个选项",
+  at: "时间",
+  Decrease: "减少",
+  Amount: "数量",
+  Increase: "增加",
+  "Signed-in GitHub account": "已登录的 GitHub 账号",
+  "Show account": "显示账号",
+  "Hide account": "隐藏账号",
+  "Copy code & open GitHub": "复制验证码并打开 GitHub",
+  "Waiting for approval · code expires at": "等待授权，验证码到期时间：",
+  "Reaches repositories in accounts and organizations that installed the app.":
+    "可访问已安装该应用的账号和组织中的仓库。",
+  "Install on an organization": "安装到组织",
+  "Manage on GitHub": "在 GitHub 管理",
+  "Or use your own credentials": "或使用自己的凭据",
+  "Source control providers": "代码托管服务商",
+  "Writing & review": "撰写与审查",
+  Folder: "文件夹",
+  " Searching themes...": " 正在搜索主题…",
+  "Choose what the thread details card shows. You can also right-click the card.":
+    "选择会话详情卡片显示的内容，也可右键点击卡片进行设置。",
+  "thread details": "会话详情",
+  "Appended to the prompt for new and regenerated thread titles.":
+    "附加到新建和重新生成会话标题的提示词中。",
+  "thread title instructions": "会话标题指令",
+  "Thread title instructions": "会话标题指令",
+  "Set the prompt, code, and terminal fonts separately instead of one monospace font.":
+    "分别设置提示词、代码和终端字体，而非共用一种等宽字体。",
+  "Separate fonts": "分别设置字体",
+  "Uses the latest commit of the base branch’s tracked remote branch, even if its name differs. Otherwise uses the same-named branch on origin. Uses your local branch if that remote branch is missing.":
+    "使用基础分支所跟踪远端分支的最新提交，即使两者名称不同。未设置跟踪时，使用 origin 上的同名分支；若远端分支不存在，则使用本地分支。",
+  "new worktrees start from remote": "新工作树从远端创建",
+  "Start new worktrees from remote by default": "默认从远端创建新工作树",
+  Creation: "创建",
+  Branches: "分支",
+  "Invalid age limit": "时间限制无效",
+  "Invalid webhook settings": "Webhook 设置无效",
+  "Coalesce window must be whole seconds from 10 to 3600.":
+    "合并时长必须为 10 至 3600 之间的整数秒。",
+  "Snooze options": "稍后处理选项",
+  "Simlock device hosts (alpha)": "Simlock 设备主机（早期测试）",
+  "Start from remote": "从远端创建",
+  "Agents can use devices": "允许智能体使用设备",
+  "Use devices": "使用设备",
+  "Pull request sharing": "拉取请求共享",
+  "Diffs & pull requests": "差异与拉取请求",
+  Maintenance: "维护",
+  Labs: "实验功能",
+
+  "Show the quota of every account the hub pools, next to the providers on {0}. The key stays on that server.":
+    "在 {0} 的服务商旁显示此中心汇集的各账号额度。密钥仅保存在该服务器上。",
+  "{0}Archived{1} · Created {2}": "{0}已归档{1}，创建于 {2}",
+  "Quit {0} to import": "退出 {0} 后导入",
+  "{0} is open, so its cookies can't be read yet. Quit it, then continue.":
+    "{0} 正在运行，暂时无法读取其 Cookie。请退出后继续。",
+  "Let T3 Code read {0}'s cookies": "允许 T3 Code 读取 {0} 的 Cookie",
+  "To import cookies from {0}, T3 Code needs Full Disk Access. Turn it on in System Settings, then come back to finish the import. You can revoke it again once the import is done.":
+    "从 {0} 导入 Cookie 需要为 T3 Code 开启“完全磁盘访问权限”。请前往系统设置开启，再返回完成导入；完成后可撤销该权限。",
+  "Import from {0}": "从 {0} 导入",
+  "Choose which cookies to import for {0}.": "选择要为 {0} 导入的 Cookie。",
+  "Checking {0}": "正在检查 {0}",
+  "Couldn't import from {0}": "无法从 {0} 导入",
+  "{0}{1}. The link will be kept.": "{0}{1}。链接将保留。",
+  "attempt {0}": "第 {0} 次尝试",
+  "Share a thread with a guest who watches it live in their browser and sends messages you approve. Needs T3 Connect: sign in and link this machine in {0}. While it is off, every guest link stops working.":
+    "将会话分享给访客；访客可在浏览器实时查看，并发送需要你批准的消息。需登录 T3 Connect，并在{0}中关联本机。关闭后，所有访客链接都会失效。",
+  "Let agents here work on your other machines, and theirs here. Turn it on for each machine, then link them in {0}. While it is off, nothing new starts over a link; tasks already running finish.":
+    "允许本机智能体在其他机器上工作，也允许对方在本机工作。请在各机器开启，再前往{0}进行关联。关闭后，不再通过关联启动新任务；已运行的任务会继续完成。",
+  "Let the Device panel lease simulators and emulators from your own {0} pool, added in {1}. An alpha that may change or break. T3 Code never installs Simlock.":
+    "允许设备面板从你在{1}中添加的 {0} 设备池租用模拟器。这是早期测试功能，可能变化或失效。T3 Code 不会安装 Simlock。",
+  "This app has no address for {0} that another machine can reach. Enter its https or Tailscale address.":
+    "此应用没有可供其他机器访问 {0} 的地址。请输入其 HTTPS 或 Tailscale 地址。",
+  "Create a link on {0}: Settings → Connections → Create link, then paste its code here.":
+    "在 {0} 上打开“设置 → 连接 → 创建关联”，再将关联码粘贴到这里。",
+  "We do not recommend managing multiple {0} accounts in T3 Code. {1}":
+    "不建议在 T3 Code 中管理多个 {0} 账号。{1}",
+  "This instance uses {0}, which is not available in this build. Its configuration is preserved.":
+    "此实例使用 {0}，当前版本不支持该服务商。其配置已保留。",
+  "Checked {0} {1}": "检查于 {0} {1}",
+  "Checked {0}": "检查于 {0}",
+
+  "Leases, drives, and streams devices. Create one{0} with {1}, or leave it blank to add it later. A blank token uses the machine's {2} when its {3} is this gateway.":
+    "用于租用、操作和传输设备画面。使用 {1} 创建令牌{0}，也可留空后再添加。留空时，若机器的 {3} 指向此网关，则使用其 {2}。",
+  "Sign in with {0} on the server host, then rescan to choose accounts here.":
+    "在服务器上运行 {0} 登录，然后重新扫描，即可在此选择账号。",
+  "Choose which {0} login each {1} host uses, or turn a host off.":
+    "选择各 {1} 主机使用的 {0} 登录账号，也可关闭某台主机。",
+  "Active {0} account{1}": "当前 {0} 账号{1}",
+  "The chosen login is no longer signed in, so the active {0} login is used.":
+    "所选账号已退出登录，将改用当前 {0} 登录账号。",
+  "can't be used: {0}": "无法使用：{0}",
+  "{0} is set on the server, so it overrides the account chosen here until it is unset.":
+    "服务器已设置 {0}，在取消该设置前，它会覆盖此处所选账号。",
+  "Support for {0} is coming soon.": "即将支持 {0}。",
+  "Not available on this server: {0}": "此服务器尚不可用：{0}",
+  "Available. {0}": "可用。{0}",
+  "{0} is not authenticated on this server. Sign in or configure credentials using the {1} tool on the server host to enable change request features.":
+    "{0} 尚未在此服务器认证。请在服务器上使用 {1} 工具登录或配置凭据，以启用变更请求功能。",
+  "Could not verify {0}. {1}": "无法验证 {0}。{1}",
+  "{0}Scan": "{0}扫描",
+  "A token saved here is used before {0} and the {1} login, so {2} works without the {3}. Give it {4}. {5}":
+    "此处保存的令牌优先于 {0} 和 {1} 登录，因此 {2} 无需 {3} 即可使用。请授予其{4}。{5}",
+  "{0}: {1} more results.": "{0}：另有 {1} 条结果。",
+  "{0}: Nothing needed cleanup.": "{0}：没有需要清理的内容。",
+  "{0} endpoint": "{0} 端点",
+  "Running: {0}{1}": "运行中：{0}{1}",
+  "from {0}": "来源：{0}",
+  "Reconnect {0} to change its settings.": "重新连接 {0} 后可修改其设置。",
+  "{0} can now be reached over SSH {1}.": "现在可通过 SSH {1} 连接 {0}。",
+  "{0} is ready over an SSH-managed tunnel.": "{0} 的 SSH 托管隧道已就绪。",
+  "An instance named '{0}' already exists.": "已存在名为“{0}”的实例。",
+  "Connected for {0}": "已连接 {0}",
+  "Last connected at {0}": "上次连接：{0}",
+  " {0} skipped.": " 已跳过 {0} 项。",
+  "retrying in {0}s": "{0} 秒后重试",
+  "Revoked {0} clients": "已撤销 {0} 个客户端",
+  "Failed to switch the backend {0}.": "无法将后端切换为{0}。",
+  "Remove {0} from this device?\nThis forgets its pairing, credentials, and cached threads here. Switch it off instead to keep it saved.":
+    "要从此设备移除 {0} 吗？\n这会删除本机保存的配对、凭据和会话缓存。若要保留，请改为关闭此环境。",
+  "{0} GiB on {1}": "{1} 上占用 {0} GiB",
+
+  "{0}. Per-machine results": "{0}。各机器的结果",
+  "This connection cannot change settings on {0}.": "此连接无权修改 {0} 上的设置。",
+  "{0}: {1} of {2} environments failed": "{0}：{2} 个环境中有 {1} 个失败",
+  "{0}: connection checks passed": "{0}：连接检查通过",
+  "Send SIGKILL to process {0}? This cannot be handled by the process.":
+    "要向进程 {0} 发送 SIGKILL 吗？进程无法处理或拦截该信号。",
+  "Failed to send {0}.": "无法发送 {0}。",
+  "Signed in as {0} with {1}.": "已通过 {1} 登录为 {0}。",
+  "failed: {0}.": "失败：{0}。",
+  'Forget {0}? Agents here stop working there. Revoke "T3 Code · …" in {1}\'s Connections to end the session there too.':
+    "要取消关联 {0} 吗？本机智能体将停止在对方工作。要同时结束对方的授权会话，请在 {1} 的连接设置中撤销“T3 Code · …”。",
+  "Expires in {0} {1}. Link it again to renew.": "将在 {0} {1}后过期。再次关联即可续期。",
+  "Linked {0}": "已关联 {0}",
+  "{0} link": "{0} 链接",
+  "{0}, view details": "{0}，查看详情",
+
+  "Waiting for {0}'s configuration.": "正在等待 {0} 的配置。",
+  "{0} pull request routing": "{0} 拉取请求路由",
+  "Failed to send {0} to process {1}.": "无法向进程 {1} 发送 {0}。",
+  "Reconnecting: {0}": "正在重连：{0}",
+  "Connection failed: {0}": "连接失败：{0}",
+  "\nUpdate available: {0} → {1}": "\n有可用更新：{0} → {1}",
+  "Fix: {0}": "修复建议：{0}",
+  "Filter {0} path": "筛选条件 {0} 的路径",
+  "Remove filter {0}": "移除筛选条件 {0}",
+  "Filter {0} test": "筛选条件 {0} 的比较方式",
+  "Filter {0} value": "筛选条件 {0} 的值",
+  "Every {0} min": "每 {0} 分钟",
+  "Every {0} sec": "每 {0} 秒",
+  "{0} · {1} project {2}": "{0} · {1} 个项目{2}",
+  "{0} machines still run": "仍有 {0} 台机器运行",
+  "This will reset: {0}.": "将重置：{0}。",
+  "Press {0} + Enter for single-line prompts or {1} + Shift + Enter for multiline prompts to do the opposite for one message.":
+    "单行提示词按 {0} + Enter，多行提示词按 {1} + Shift + Enter，可为当前消息临时使用相反行为。",
+
+  "Agent token · {0}": "智能体令牌 · {0}",
+  "Using this machine's agent-device token ({0}).": "正在使用本机 agent-device 令牌（{0}）。",
+  "Accepted as {0}.": "已接受为 {0}。",
+  'T3 Code already uses this for "{0}".': "T3 Code 已将此快捷键用于“{0}”。",
+  "Snooze option {0}": "稍后处理选项 {0}",
+  "Remove snooze option {0}": "移除稍后处理选项 {0}",
+  "Menu now: {0}": "当前菜单：{0}",
+  "save {0} account settings": "保存 {0} 账号设置",
+  "Hide {0} accounts": "隐藏 {0} 账号",
+  "Reveal {0} accounts": "显示 {0} 账号",
+  "Use {0} on {1}": "在 {1} 上使用 {0}",
+  "{0} account for {1}": "{1} 使用的 {0} 账号",
+  "{0} reports this login as invalid.": "{0} 报告此登录已失效。",
+  "sign out of {0}": "退出 {0}",
+  "Source control providers{0}": "代码托管服务商{0}",
+  "save {0} token": "保存 {0} 令牌",
+  "No token saved; the server uses {0} or the {1} login.":
+    "尚未保存令牌；服务器将使用 {0} 或 {1} 登录。",
+  "{0} on every machine": "每台机器上的 {0}",
+  "{0} removed, {1} kept{2}": "已移除 {0} 项，保留 {1} 项{2}",
+  "Last run {0}. {1} recovered.{2}": "上次运行：{0}。已回收 {1}。{2}",
+
+  "That file is {0}. Theme files are only a few KB, so this one was not read (limit {1}).":
+    "该文件大小为 {0}。主题文件通常只有几 KB，因此未读取此文件（上限为 {1}）。",
+  "{0}: too large": "{0}：文件过大",
+  'Too many copies of "{0}".': "“{0}”的副本过多。",
+  "Thread details: {0} of {1} on": "会话详情：已开启 {0}/{1} 项",
+  "Could not find the latest {0} release on npm. Try again later.":
+    "无法在 npm 找到最新的 {0} 版本，请稍后重试。",
+  "Could not switch to {0}": "无法切换到 {0}",
+  "This app downloaded {0}, not {1} or newer.": "此应用下载了 {0}，并非 {1} 或更新版本。",
+  "Switch to {0}?": "切换到 {0}？",
+  "{0} sessions": "{0} 会话",
+  "Up to {0} at once, each stopped after {1} min or {2} idle min":
+    "同时最多 {0} 个，每个在运行 {1} 分钟或空闲 {2} 分钟后停止",
+  "Enter whole minutes from 1 to {0}, or leave it blank.":
+    "请输入 1 至 {0} 之间的整数分钟，或留空。",
+  "{0} must contain a valid request placeholder.": "{0} 必须包含有效的请求占位符。",
+  "{0} devices": "{0} 台设备",
+  "Up to {0} at once, each released after {1} min": "同时最多 {0} 台，每台在 {1} 分钟后释放",
+  " per environment": "（每个环境分别创建）",
+  " Saving restarts this host, which releases its devices.": " 保存会重启此主机并释放其设备。",
+  "read and write access to pull requests and contents": "对拉取请求和仓库内容的读写权限",
+
+  "Install the GitCafe CLI with `bun install -g @gitcafe/cli`, then run `cafe auth login --host https://git.cafe/api`, save a token in Settings, or set CAFE_TOKEN on the server.":
+    "运行 `bun install -g @gitcafe/cli` 安装 GitCafe CLI，再运行 `cafe auth login --host https://git.cafe/api` 登录；也可在设置中保存令牌，或在服务器设置 CAFE_TOKEN。",
+  "GitCafe authentication status could not be read. Run `cafe auth login --host https://git.cafe/api`.":
+    "无法读取 GitCafe 认证状态。请运行 `cafe auth login --host https://git.cafe/api`。",
+
+  "Add a Bitbucket token in Settings → Source Control.":
+    "在“设置 → 版本控制”中添加 Bitbucket 令牌。",
+  "GitLab CLI is not authenticated. Run `glab auth login` and retry.":
+    "GitLab CLI 尚未认证。请运行 `glab auth login` 后重试。",
+  "Azure DevOps CLI is not authenticated. Run `az devops login` and retry.":
+    "Azure DevOps CLI 尚未认证。请运行 `az devops login` 后重试。",
+  "Bitbucket needs API credentials on the server. Add them in Settings → Source Control.":
+    "Bitbucket 需要服务器上的 API 凭据。请在“设置 → 版本控制”中添加。",
+  "Bitbucket rejected the configured credentials. Check them in Settings → Source Control.":
+    "Bitbucket 拒绝了当前凭据。请在“设置 → 版本控制”中检查。",
+
+  "Image artifacts": "图片产物",
+  "Image revision comments": "图片修改意见",
+  "Show revision comments and rework drafts in the image viewer. Off by default; viewing, comparing and attaching images remain available.":
+    "在图片查看器中显示修改意见与返工草稿。默认关闭，不影响看图、对比或附加图片。",
+  "Add an account or configure a provider on {environment}.":
+    "在 {environment} 上添加账号或配置服务商。",
+  "Option {number}": "选项 {number}",
+  "Sign in on {environment}.": "在 {environment} 上登录。",
+  "Starting sign-in…": "正在启动登录…",
+  "Checking your account…": "正在检查账号…",
+  "Complete sign-in in the terminal below.": "请在下方终端中完成登录。",
+  "Enter your credentials below.": "请在下方输入凭据。",
+  "Finish signing in in your browser.": "请在浏览器中完成登录。",
+  "Signed in.": "已登录。",
+
+  "Install `fj` 0.6 or later from https://codeberg.org/forgejo-contrib/forgejo-cli and run `fj --host <server-url> auth add-token`, or install `tea` 0.16 or later from https://gitea.com/gitea/tea and run `tea login add` for each Forgejo or Gitea server.":
+    "从 https://codeberg.org/forgejo-contrib/forgejo-cli 安装 fj 0.6 或更新版本，并运行 `fj --host <server-url> auth add-token`；也可从 https://gitea.com/gitea/tea 安装 tea 0.16 或更新版本，再为各 Forgejo/Gitea 服务器运行 `tea login add`。",
 };

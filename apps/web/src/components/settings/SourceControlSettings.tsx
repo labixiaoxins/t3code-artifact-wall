@@ -1,3 +1,5 @@
+import { sourceControlDetail } from "./SourceControlSettings.logic";
+import { uiTextNodes } from "~/i18n/rich";
 import { uiText } from "~/i18n";
 import { RefreshIcon } from "~/components/ui/refresh-icon";
 import { ChevronDownIcon } from "lucide-react";
@@ -82,9 +84,9 @@ function RedactedAccount(props: { readonly account: string | null }) {
   return (
     <RedactedSensitiveText
       value={props.account}
-      ariaLabel="Toggle source control account visibility"
-      revealTooltip="Click to reveal account"
-      hideTooltip="Click to hide account"
+      ariaLabel={uiText("Toggle source control account visibility")}
+      revealTooltip={uiText("Click to reveal account")}
+      hideTooltip={uiText("Click to hide account")}
     />
   );
 }
@@ -140,18 +142,12 @@ function itemSummary({
   readonly authAccount: string | null;
 }) {
   if (isVcsNotReady(item)) {
-    return (
-      <span>
-        {"Support for "}
-        {item.label} {uiText("is coming soon.")}
-      </span>
-    );
+    return <span>{uiTextNodes("Support for {0} is coming soon.", { "0": item.label })}</span>;
   }
   if (item.status !== "available") {
     return (
       <span>
-        {"Not available on this server: "}
-        {item.installHint}
+        {uiTextNodes("Not available on this server: {0}", { "0": uiText(item.installHint) })}
       </span>
     );
   }
@@ -177,37 +173,37 @@ function itemSummary({
       );
     }
     if (!item.executable && auth.status === "unauthenticated") {
-      return (
-        <span>
-          {"Available. "}
-          {item.installHint}
-        </span>
-      );
+      return <span>{uiTextNodes("Available. {0}", { "0": uiText(item.installHint) })}</span>;
     }
     if (auth.status === "unauthenticated" && auth.accounts?.some((entry) => entry.authenticated)) {
       return (
         <span>
-          {optionLabel(auth.detail) ?? uiText("Every {0} host is turned off.", { "0": item.label })}
+          {sourceControlDetail(optionLabel(auth.detail), "Every {0} host is turned off.", {
+            "0": item.label,
+          })}
         </span>
       );
     }
     if (auth.status === "unauthenticated") {
       return (
         <span>
-          {item.label}{" "}
-          {"is not authenticated on this server. Sign in or configure credentials using the "}
-          <code className="rounded bg-muted px-1 py-px text-2xs">{item.executable}</code>{" "}
-          {"tool on the server host to enable change request features. "}
+          {uiTextNodes(
+            "{0} is not authenticated on this server. Sign in or configure credentials using the {1} tool on the server host to enable change request features.",
+            {
+              "0": item.label,
+              "1": <code className="rounded bg-muted px-1 py-px text-2xs">{item.executable}</code>,
+            },
+          )}
         </span>
       );
     }
     const authDetail = optionLabel(auth.detail);
     return (
       <span>
-        {"Could not verify "}
-        {item.label}
-        {". "}
-        {authDetail ?? item.installHint}
+        {uiTextNodes("Could not verify {0}. {1}", {
+          "0": item.label,
+          "1": sourceControlDetail(authDetail, item.installHint),
+        })}
       </span>
     );
   }
@@ -371,8 +367,7 @@ function EmptySourceControlDiscovery({
         </EmptyHeader>
         <EmptyContent>
           <Button size="sm" variant="outline" onClick={onScan} disabled={isPending}>
-            <RefreshIcon size="sm" refreshing={isPending} />
-            {"Scan "}
+            {uiTextNodes("{0}Scan", { "0": <RefreshIcon size="sm" refreshing={isPending} /> })}
           </Button>
         </EmptyContent>
       </Empty>
@@ -421,7 +416,7 @@ export function SourceControlSettingsPanel() {
             {credentials.appSignIn && item.appSignIn === true ? (
               <div className="flex items-center gap-3 text-2xs text-muted-foreground">
                 <span aria-hidden className="h-px flex-1 bg-border" />
-                Or use your own credentials
+                {uiText("Or use your own credentials")}
                 <span aria-hidden className="h-px flex-1 bg-border" />
               </div>
             ) : null}
@@ -495,7 +490,7 @@ export function SourceControlSettingsPanel() {
             title={uiText("Version Control{0}", { "0": environmentSuffix })}
             headerAction={scanButton}
           />
-          <SourceControlSectionSkeleton title="Source control providers" />
+          <SourceControlSectionSkeleton title={uiText("Source control providers")} />
         </>
       ) : hasDiscoveryItems ? (
         <>
@@ -515,8 +510,8 @@ export function SourceControlSettingsPanel() {
               id={hasVersionControlSystems ? undefined : searchableSetting("source-control").id}
               title={
                 hasVersionControlSystems
-                  ? "Source control providers"
-                  : `Source control providers${environmentSuffix}`
+                  ? uiText("Source control providers")
+                  : uiText("Source control providers{0}", { 0: environmentSuffix })
               }
               headerAction={hasVersionControlSystems ? null : scanButton}
             >

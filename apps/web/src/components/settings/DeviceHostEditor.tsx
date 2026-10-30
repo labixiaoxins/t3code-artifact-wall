@@ -92,7 +92,7 @@ function DeviceHostEditorForm({
     ? "Checking environments…"
     : results
       ? failed
-        ? `${failed} of ${targets.length} failed`
+        ? uiText("{0} of {1} failed", { 0: failed, 1: targets.length })
         : "Connection checks passed"
       : "Check access before saving";
   return (
@@ -124,7 +124,7 @@ function DeviceHostEditorForm({
               const label = event.target.value;
               setDraft((current) => ({ ...current, label }));
             }}
-            placeholder="Mac mini"
+            placeholder={uiText("Mac mini")}
           />
         </label>
         <label className="block space-y-1.5 text-sm">
@@ -200,7 +200,7 @@ function DeviceHostEditorForm({
               <div className="min-w-0 text-xs [--inline-button-white-space:normal]">
                 <CollapsibleTrigger
                   disabled={!results}
-                  aria-label={`${checkSummary}. Per-machine results`}
+                  aria-label={uiText("{0}. Per-machine results", { 0: checkSummary })}
                   render={<InlineButton tone="muted" />}
                 >
                   <span role="status" className="text-left">

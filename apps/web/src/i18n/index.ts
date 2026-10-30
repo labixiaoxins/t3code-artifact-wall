@@ -1,7 +1,7 @@
 import { zhCN } from "./catalog";
 
 export type UiLocale = "zh-CN" | "en";
-export const UI_LOCALE_KEY = "t3code:ui-locale:v1";
+const UI_LOCALE_KEY = "t3code:ui-locale:v1";
 let sessionLocale: UiLocale | undefined;
 
 export function readUiLocale(): UiLocale {

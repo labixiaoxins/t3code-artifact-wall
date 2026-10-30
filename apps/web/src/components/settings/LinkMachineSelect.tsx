@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import type { LinkableMachine } from "@t3tools/client-runtime/link-request";
 import { useId } from "react";
 
@@ -13,7 +14,7 @@ export function LinkMachineBadge({ machine }: { readonly machine: LinkableMachin
   if (machine.linked) {
     return (
       <Badge variant="success" size="sm">
-        Linked
+        {uiText("Linked")}
       </Badge>
     );
   }
@@ -50,7 +51,7 @@ export function LinkMachineSelect({
   return (
     <div className="space-y-1.5">
       <span id={labelId} className="block text-xs font-medium text-foreground">
-        Machine
+        {uiText("Machine")}
       </span>
       <Select
         value={value}
@@ -78,7 +79,7 @@ export function LinkMachineSelect({
             </SelectItem>
           ))}
           <SelectItem value={ANOTHER_ADDRESS} hideIndicator>
-            Another address…
+            {uiText("Another address…")}
           </SelectItem>
         </SelectPopup>
       </Select>

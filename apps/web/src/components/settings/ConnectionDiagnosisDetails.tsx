@@ -1,3 +1,4 @@
+import { uiTextNodes } from "~/i18n/rich";
 import { uiText } from "~/i18n";
 import { useAtomValue } from "@effect/atom-react";
 import {
@@ -71,7 +72,7 @@ function RetryCountdown({ retryAt }: { readonly retryAt: number }) {
 
 function RetryCountdownTicker({ retryAt }: { readonly retryAt: number }) {
   const seconds = Math.ceil((retryAt - useNowSecond()) / 1_000);
-  return <>{seconds > 0 ? `retrying in ${seconds}s` : "retrying"}</>;
+  return <>{seconds > 0 ? uiText("retrying in {0}s", { 0: seconds }) : "retrying"}</>;
 }
 
 /** The collapsed failure: the full headline, then the retry state and a Details toggle. */
@@ -94,7 +95,7 @@ export function ConnectionDiagnosisSummary({
       <p className="flex flex-wrap items-center gap-1 text-muted-foreground">
         {retryAt !== null ? <RetryCountdown retryAt={retryAt} /> : null}
         {retryAt !== null && attempt > 0 ? <span aria-hidden>·</span> : null}
-        {attempt > 0 ? <span>attempt {attempt}</span> : null}
+        {attempt > 0 ? <span>{uiTextNodes("attempt {0}", { "0": attempt })}</span> : null}
         {retryAt !== null || attempt > 0 ? <span aria-hidden>·</span> : null}
         <button
           type="button"
@@ -130,12 +131,12 @@ export function ConnectionDiagnosisPanel({
 }) {
   const { copyToClipboard } = useCopyToClipboard({
     target: "connection diagnostics",
-    onCopy: () => toastManager.add({ type: "success", title: "Diagnostics copied" }),
+    onCopy: () => toastManager.add({ type: "success", title: uiText("Diagnostics copied") }),
     onError: (error) =>
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: "Could not copy diagnostics",
+          title: uiText("Could not copy diagnostics"),
           description: error.message,
         }),
       ),
@@ -160,7 +161,7 @@ export function ConnectionDiagnosisPanel({
         ))}
       </ol>
       <div>
-        <p className="font-medium text-foreground">What to try</p>
+        <p className="font-medium text-foreground">{uiText("What to try")}</p>
         <ol className="list-decimal pl-4 text-muted-foreground">
           {diagnosis.steps.map((step) => (
             <li key={step}>{step}</li>
@@ -173,7 +174,7 @@ export function ConnectionDiagnosisPanel({
             rel="noreferrer"
             className="text-muted-foreground underline underline-offset-2 hover:text-foreground"
           >
-            More info
+            {uiText("More info")}
           </a>
         ) : null}
       </div>
@@ -187,7 +188,7 @@ export function ConnectionDiagnosisPanel({
       </dl>
       <div className="flex flex-wrap gap-2">
         <Button type="button" size="xs" variant="outline" onClick={onRetry}>
-          Retry now
+          {uiText("Retry now")}
         </Button>
         <Button
           type="button"
@@ -198,11 +199,11 @@ export function ConnectionDiagnosisPanel({
             copyToClipboard(text, undefined);
           }}
         >
-          Copy diagnostics
+          {uiText("Copy diagnostics")}
         </Button>
         {onAddRoute ? (
           <Button type="button" size="xs" variant="outline" onClick={onAddRoute}>
-            Add direct route
+            {uiText("Add direct route")}
           </Button>
         ) : null}
       </div>

@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import {
   SimlockDeviceHostConfig,
   type EnvironmentId,
@@ -44,8 +45,11 @@ export function simlockDeviceHostProblem(host: SimlockDeviceHostConfigType): str
 }
 
 export function simlockLeaseLimits(host: SimlockDeviceHostConfigType) {
-  const devices = host.maxLeases === 1 ? "1 device" : `${host.maxLeases} devices`;
-  return `Up to ${devices} at once, each released after ${host.maxLeaseMinutes} min`;
+  const devices = host.maxLeases === 1 ? "1 device" : uiText("{0} devices", { 0: host.maxLeases });
+  return uiText("Up to {0} at once, each released after {1} min", {
+    0: devices,
+    1: host.maxLeaseMinutes,
+  });
 }
 
 export interface SimlockHostEnvironment {

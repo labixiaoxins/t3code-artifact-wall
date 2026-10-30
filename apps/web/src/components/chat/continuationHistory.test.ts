@@ -35,7 +35,7 @@ describe("continuation history", () => {
   });
   it("quotes multiline messages, neutralizes title newlines, and caps Unicode characters", () => {
     expect(continuationQuote("第一行\n第二行", "标题\n下一行")).toBe(
-      "\n\n> 第一行\n> 第二行\n\n— 原会话《标题 下一行》\n\n",
+      "\n\n> 第一行\n> 第二行\n\n来源：原会话《标题 下一行》\n\n",
     );
     const quote = continuationQuote("🧪".repeat(1501), "虚构标题");
     expect(Array.from(quote.match(/> (.+)/u)![1]!)).toHaveLength(1500);

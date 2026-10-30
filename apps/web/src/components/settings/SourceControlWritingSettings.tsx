@@ -56,7 +56,7 @@ const MODE_OPTIONS: Record<
     ),
   },
   conventional_commits: {
-    label: "Conventional Commits",
+    label: uiText("Conventional Commits"),
     description: uiText("Use Conventional Commit prefixes and keep change request text concise."),
   },
   custom: {
@@ -176,7 +176,7 @@ export function SourceControlWritingSettingsSection() {
     (entry) => entry.instanceId === reviewGuideSelection.instanceId,
   );
   return (
-    <SettingsSection id="source-control-text-generation" title="Writing & review">
+    <SettingsSection id="source-control-text-generation" title={uiText("Writing & review")}>
       <SettingsRow
         serverScoped
         settingKeys={["sourceControlWritingStyle"]}

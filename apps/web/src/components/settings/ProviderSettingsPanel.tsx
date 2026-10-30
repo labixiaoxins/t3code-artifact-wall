@@ -1,3 +1,4 @@
+import { uiTextNodes } from "~/i18n/rich";
 import { uiText } from "~/i18n";
 import { SettingsGroup } from "./SettingsGroup";
 import { RefreshIcon } from "~/components/ui/refresh-icon";
@@ -173,15 +174,13 @@ function ProviderLastChecked({ environmentId }: { environmentId: EnvironmentId }
     <span>
       {lastCheckedRelative.suffix ? (
         <>
-          {"Checked "}
-          <span className="font-mono tabular-nums">{lastCheckedRelative.value}</span>{" "}
-          {lastCheckedRelative.suffix}
+          {uiTextNodes("Checked {0} {1}", {
+            "0": <span className="font-mono tabular-nums">{lastCheckedRelative.value}</span>,
+            "1": lastCheckedRelative.suffix,
+          })}
         </>
       ) : (
-        <>
-          {"Checked "}
-          {lastCheckedRelative.value}
-        </>
+        <>{uiTextNodes("Checked {0}", { "0": lastCheckedRelative.value })}</>
       )}
     </span>
   );
@@ -255,7 +254,7 @@ function EnvironmentUnavailablePlaceholder({
   const description = isLoading
     ? access.reason === "permissions"
       ? "Checking what this session is allowed to change."
-      : `Waiting for ${environment.label}'s configuration.`
+      : uiText("Waiting for {0}'s configuration.", { 0: environment.label })
     : connectionStatusTitle(environment.connection);
   const error = isLoading ? null : environment.connection.error;
   // Wedged devices can remain here indefinitely; a spinner would continuously repaint.
@@ -1060,9 +1059,9 @@ export function EnvironmentProviderSettings({
             <span className="inline-flex items-center gap-1.5">
               {searchableSetting("provider-health-check-interval").title}
               <PolicyTooltip>
-                {
-                  "This interval is configured here, then the shared Background activity policy decides whether provider probes may run when the timer fires. Custom intervals appear as Advanced in Maintenance settings."
-                }
+                {uiText(
+                  "This interval is configured here, then the shared Background activity policy decides whether provider probes may run when the timer fires. Custom intervals appear as Advanced in Maintenance settings.",
+                )}
               </PolicyTooltip>
             </span>
           }

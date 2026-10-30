@@ -99,7 +99,7 @@ function threadItem(id: string, title: string, contentSnippet?: string): Command
 }
 
 describe("filterCommandPaletteGroups project group", () => {
-  it("puts projects first and message-only thread matches last", () => {
+  it("puts projects before the ranked thread matches in Spotlight", () => {
     const projectItem: CommandPaletteActionItem = {
       kind: "action",
       value: "project:a",
@@ -109,6 +109,7 @@ describe("filterCommandPaletteGroups project group", () => {
       run: async () => undefined,
     };
     const groups = filterCommandPaletteGroups({
+      spotlight: true,
       activeGroups: [
         {
           value: "actions",
@@ -121,17 +122,12 @@ describe("filterCommandPaletteGroups project group", () => {
       projectSearchItems: [projectItem],
       topProjectItems: [projectItem],
       threadSearchItems: [
-        threadItem("body", "Refactor login", "please fix the auth flow"),
-        threadItem("title", "Auth bug"),
+        { ...threadItem("body", "Refactor login", "please fix the auth flow"), searchScore: 1 },
+        { ...threadItem("title", "Auth bug"), searchScore: 2 },
       ],
     });
-    expect(groups.map((group) => group.value)).toEqual([
-      "projects-top",
-      "actions",
-      "threads-search",
-      "thread-messages-search",
-    ]);
-    expect(groups[2]?.items.map((item) => item.value)).toEqual(["thread:title"]);
-    expect(groups[3]?.items.map((item) => item.value)).toEqual(["thread:body"]);
+    expect(groups.map((group) => group.value)).toEqual(["projects-top", "spotlight-results"]);
+    expect(groups[0]?.items.map((item) => item.value)).toEqual(["project:a"]);
+    expect(groups[1]?.items.map((item) => item.value)).toEqual(["thread:title", "thread:body"]);
   });
 });

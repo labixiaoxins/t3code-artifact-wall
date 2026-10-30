@@ -19,10 +19,10 @@ import * as ServerSettings from "../serverSettings.ts";
  * `queued` are left out on purpose: holding the machine awake for hours while a
  * thread waits on a person would drain the battery for no work.
  */
-export const KEEP_AWAKE_ACTIVE_RUN_STATUSES = ["preparing", "starting", "running"] as const;
+const KEEP_AWAKE_ACTIVE_RUN_STATUSES = ["preparing", "starting", "running"] as const;
 
 /** Ignore active-looking rows older than this; a crashed run must not hold the machine forever. */
-export const KEEP_AWAKE_MAX_RUN_AGE_MS = 24 * 60 * 60 * 1_000;
+const KEEP_AWAKE_MAX_RUN_AGE_MS = 24 * 60 * 60 * 1_000;
 
 const RECHECK_INTERVAL = "30 seconds";
 const RESPAWN_DELAY = "5 seconds";
@@ -100,7 +100,7 @@ export const make = Effect.gen(function* () {
     const cutoff = DateTime.makeUnsafe(DateTime.toEpochMillis(now) - KEEP_AWAKE_MAX_RUN_AGE_MS);
     const rows = yield* sql<{ readonly n: number }>`
       SELECT COUNT(*) AS n FROM orchestration_v2_projection_runs
-      WHERE status IN ('preparing', 'starting', 'running')
+      WHERE status IN ${sql.in(KEEP_AWAKE_ACTIVE_RUN_STATUSES)}
         AND completed_at IS NULL
         AND requested_at > ${DateTime.formatIso(cutoff)}
     `;

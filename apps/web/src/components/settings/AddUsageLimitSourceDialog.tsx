@@ -1,3 +1,4 @@
+import { uiTextNodes } from "~/i18n/rich";
 import { uiText } from "~/i18n";
 import { type EnvironmentId, UsageLimitSourceId } from "@t3tools/contracts";
 import { useState } from "react";
@@ -84,8 +85,10 @@ export function AddUsageLimitSourceDialog({
         <DialogHeader>
           <DialogTitle>{uiText("Add a CLIProxyAPI hub")}</DialogTitle>
           <DialogDescription>
-            {uiText("Show the quota of every account the hub pools, next to the providers on")}{" "}
-            {environmentLabel}. The key stays on that server.
+            {uiTextNodes(
+              "Show the quota of every account the hub pools, next to the providers on {0}. The key stays on that server.",
+              { "0": environmentLabel },
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogPanel>

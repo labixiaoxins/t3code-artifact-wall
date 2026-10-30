@@ -39,7 +39,10 @@ function formatByteSize(bytes: number): string {
 }
 function describeOversizedThemeFile(bytes: number): string | null {
   if (bytes <= MAX_THEME_FILE_BYTES) return null;
-  return `That file is ${formatByteSize(bytes)}. Theme files are only a few KB, so this one was not read (limit ${formatByteSize(MAX_THEME_FILE_BYTES)}).`;
+  return uiText(
+    "That file is {0}. Theme files are only a few KB, so this one was not read (limit {1}).",
+    { 0: formatByteSize(bytes), 1: formatByteSize(MAX_THEME_FILE_BYTES) },
+  );
 }
 function escapeJsonHtml(value: string): string {
   return value.replace(
@@ -242,7 +245,7 @@ function ThemeImportBody({
     for (const file of files) {
       const oversized = describeOversizedThemeFile(file.size);
       if (oversized) {
-        failures.push(`${file.name}: too large`);
+        failures.push(uiText("{0}: too large", { 0: file.name }));
         continue;
       }
       try {
@@ -341,7 +344,7 @@ function ThemeImportBody({
       if (getCustomThemes().some((existing) => existing.id === candidate.id)) continue;
       return candidate;
     }
-    throw new Error(`Too many copies of "${theme.label}".`);
+    throw new Error(uiText('Too many copies of "{0}".', { 0: theme.label }));
   };
   const resolveConflicts = (mode: "update" | "copy") => {
     if (!conflicts) return;

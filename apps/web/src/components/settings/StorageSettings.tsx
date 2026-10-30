@@ -1,3 +1,4 @@
+import { uiTextNodes } from "~/i18n/rich";
 import { uiText } from "~/i18n";
 import type {
   StorageCleanupReport,
@@ -62,7 +63,9 @@ export function WorktreesDirectoryRow() {
   return (
     <SettingsRow
       {...searchableSetting("storage-worktrees-location")}
-      description="Folder where new worktrees are created, on any drive, such as D:\worktrees or ~/worktrees. Existing worktrees stay where they are. Leave empty to use the T3 home folder."
+      description={uiText(
+        "Folder where new worktrees are created, on any drive, such as D:\\worktrees or ~/worktrees. Existing worktrees stay where they are. Leave empty to use the T3 home folder.",
+      )}
       serverScoped
       settingKeys={["worktreesDirectory"]}
       resetAction={
@@ -172,7 +175,7 @@ function lastRunSummary(
   if (!first) return "";
   if (machineCount <= 1) return first.counts;
   if (entries.length === machineCount && entries.every((entry) => entry.counts === first.counts)) {
-    return `${first.counts} on every machine`;
+    return uiText("{0} on every machine", { 0: first.counts });
   }
   return entries.map((entry) => `${entry.label}: ${entry.counts}`).join(" \u00B7 ");
 }
@@ -204,7 +207,7 @@ function CleanupResults({
                   {entry.reason}
                 </span>
                 <span className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 border-l border-border/60 pl-3">
-                  <span>{"Machine"}</span>
+                  <span>{uiText("Machine")}</span>
                   <span className="text-foreground/80">{environmentLabel}</span>
                   {entry.projectPath && (
                     <>
@@ -214,7 +217,7 @@ function CleanupResults({
                   )}
                   {entry.path && (
                     <>
-                      <span>{"Folder"}</span>
+                      <span>{uiText("Folder")}</span>
                       <code className="text-foreground/80">{entry.path}</code>
                     </>
                   )}
@@ -247,16 +250,15 @@ function CleanupResults({
       })}
       {report.omittedCount > 0 && (
         <p className="px-3 py-2.5 text-xs text-muted-foreground sm:px-4">
-          {environmentLabel}
-          {": "}
-          {report.omittedCount.toLocaleString()}
-          {" more results."}
+          {uiTextNodes("{0}: {1} more results.", {
+            "0": environmentLabel,
+            "1": report.omittedCount.toLocaleString(),
+          })}
         </p>
       )}
       {report.entries.length === 0 && report.omittedCount === 0 && (
         <p className="px-3 py-2.5 text-xs text-muted-foreground sm:px-4">
-          {environmentLabel}
-          {": Nothing needed cleanup."}
+          {uiTextNodes("{0}: Nothing needed cleanup.", { "0": environmentLabel })}
         </p>
       )}
     </>
@@ -320,10 +322,21 @@ function CleanupSection() {
       report,
       label: settingsScopeEnvironmentLabel(environment, connectedEnvironments),
       counts: report
-        ? `${report.counts.removed} removed, ${report.counts.kept} kept${report.counts.failed > 0 ? `, ${report.counts.failed} failed` : ""}`
+        ? uiText("{0} removed, {1} kept{2}", {
+            0: report.counts.removed,
+            1: report.counts.kept,
+            2: report.counts.failed > 0 ? `, ${report.counts.failed} failed` : "",
+          })
         : "",
       description: report
-        ? `Last run ${formatRelativeTimeLabel(report.finishedAt, nowMs)}. ${formatBytes(report.bytesFreed)} recovered.${report.counts.failed > 0 ? ` ${report.counts.failed} ${report.counts.failed === 1 ? "item" : "items"} couldn't be removed.` : ""}`
+        ? uiText("Last run {0}. {1} recovered.{2}", {
+            0: formatRelativeTimeLabel(report.finishedAt, nowMs),
+            1: formatBytes(report.bytesFreed),
+            2:
+              report.counts.failed > 0
+                ? ` ${report.counts.failed} ${report.counts.failed === 1 ? "item" : "items"} couldn't be removed.`
+                : "",
+          })
         : query?.failed
           ? "Could not load the last run."
           : query?.loading

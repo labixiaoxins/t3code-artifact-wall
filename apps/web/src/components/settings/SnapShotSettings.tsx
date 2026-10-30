@@ -248,7 +248,7 @@ export function SnapShotSettings() {
   const shortcutStatus = recording
     ? "Press your shortcut. Esc cancels."
     : candidateConflict
-      ? `T3 Code already uses this for "${commandLabel(candidateConflict)}".`
+      ? uiText('T3 Code already uses this for "{0}".', { 0: commandLabel(candidateConflict) })
       : shortcutCheck.status === "checking"
         ? "Checking shortcut\u2026"
         : shortcutCheck.availability
@@ -337,7 +337,7 @@ export function SnapShotSettings() {
   };
   return (
     <SettingsPageContainer>
-      <SettingsSection id="snap-shot" title="SnapShots">
+      <SettingsSection id="snap-shot" title={uiText("SnapShots")}>
         <SettingsUnavailableGroup message={unavailableMessage}>
           <SettingsRow
             {...searchableSetting("snap-shot-enabled")}

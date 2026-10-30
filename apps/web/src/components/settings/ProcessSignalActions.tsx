@@ -22,7 +22,7 @@ export function ProcessSignalActions({
               tone="muted"
               onClick={() => onSignal("SIGINT")}
             >
-              INT
+              {uiText("INT")}
             </InlineButton>
           }
         />
@@ -37,7 +37,7 @@ export function ProcessSignalActions({
               tone="destructive"
               onClick={() => onSignal("SIGKILL")}
             >
-              KILL
+              {uiText("KILL")}
             </InlineButton>
           }
         />

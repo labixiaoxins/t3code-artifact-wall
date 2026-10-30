@@ -1,4 +1,4 @@
-import { useClientSettings } from "../../hooks/useSettings";
+import { uiTextNodes } from "~/i18n/rich";
 import { uiText } from "~/i18n";
 import { Spinner } from "~/components/ui/spinner";
 import {
@@ -178,9 +178,9 @@ function ProviderAuthEmail(props: { readonly email: string | undefined }) {
   return (
     <RedactedSensitiveText
       value={email}
-      ariaLabel="Toggle account email visibility"
-      revealTooltip="Click to reveal email"
-      hideTooltip="Click to hide email"
+      ariaLabel={uiText("Toggle account email visibility")}
+      revealTooltip={uiText("Click to reveal email")}
+      hideTooltip={uiText("Click to hide email")}
       className="max-w-full truncate"
     />
   );
@@ -369,7 +369,7 @@ export function ProviderEnvironmentSection(props: {
                 className="w-full min-w-0 sm:w-44 sm:shrink-0"
                 value={variable.name}
                 onCommit={(name) => updateVariable(variable.id, { name: name.trim() })}
-                placeholder="VARIABLE_NAME"
+                placeholder={uiText("VARIABLE_NAME")}
                 spellCheck={false}
                 aria-label={uiText("Environment variable name {0}", { "0": index + 1 })}
               />
@@ -651,7 +651,6 @@ export function ProviderInstanceCard({
   const displayName =
     instance.displayName?.trim() || driverOption?.label || String(instance.driver);
   const accentColor = normalizeProviderAccentColor(instance.accentColor);
-  const redesign = useClientSettings((settings) => settings.redesignEnabled);
   const { copyToClipboard } = useCopyToClipboard<{
     providerName: string;
   }>({
@@ -841,7 +840,9 @@ export function ProviderInstanceCard({
                   size={mode === "list" ? "icon-micro" : "icon-xs"}
                   variant="ghost-muted"
                   className={mode === "list" ? "pointer-events-auto relative shrink-0" : undefined}
-                  aria-label={`${updateProgress ? "Updating" : versionAdvisory.title}, view details`}
+                  aria-label={uiText("{0}, view details", {
+                    0: updateProgress ? "Updating" : versionAdvisory.title,
+                  })}
                 >
                   {updateProgress ? (
                     <Spinner tone="muted" {...(mode === "list" ? { size: "sm" as const } : {})} />
@@ -986,7 +987,7 @@ export function ProviderInstanceCard({
                   className="pointer-events-auto line-clamp-2 [overflow-wrap:anywhere]"
                 >
                   {updateProgress ? (
-                    `Updating · ${updateProgress}`
+                    uiText("Updating · {0}", { 0: updateProgress })
                   ) : (
                     <>
                       {summary.headline}
@@ -1104,9 +1105,10 @@ export function ProviderInstanceCard({
       title={uiText("Driver")}
       description={
         <span>
-          {"This instance uses "}
-          <code className="text-foreground">{String(instance.driver)}</code>
-          {uiText(", which is not available in this build. Its configuration is preserved.")}
+          {uiTextNodes(
+            "This instance uses {0}, which is not available in this build. Its configuration is preserved.",
+            { "0": <code className="text-foreground">{String(instance.driver)}</code> },
+          )}
         </span>
       }
     />
@@ -1114,10 +1116,9 @@ export function ProviderInstanceCard({
   return (
     <>
       <SettingsSection title={displayName} icon={titleIconNode} headerAction={editorHeaderAction}>
-        <SettingsRow title="Status" status={statusContent} />
+        <SettingsRow title={uiText("Status")} status={statusContent} />
         <SettingsRow
           title={uiText("Display name")}
-          {...(redesign ? {} : { status: statusContent })}
           control={
             <div
               inert={readOnly}

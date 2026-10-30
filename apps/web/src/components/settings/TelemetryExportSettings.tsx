@@ -1,3 +1,4 @@
+import { uiTextNodes } from "~/i18n/rich";
 import { uiText } from "~/i18n";
 import { useAtomValue } from "@effect/atom-react";
 import type { OtlpEndpointCheckResult, OtlpSignal, ServerObservability } from "@t3tools/contracts";
@@ -59,9 +60,12 @@ function endpointStatus(url: string, check: EndpointCheck | undefined) {
   if (result === null) return { label: uiText("Checking…"), dot: "bg-warning" };
   switch (result._tag) {
     case "Accepted":
-      return { label: `Connected · ${Math.round(result.latencyMs)} ms`, dot: "bg-success" };
+      return {
+        label: uiText("Connected · {0} ms", { 0: Math.round(result.latencyMs) }),
+        dot: "bg-success",
+      };
     case "Rejected":
-      return { label: `Rejected · HTTP ${result.status}`, dot: "bg-destructive" };
+      return { label: uiText("Rejected · HTTP {0}", { 0: result.status }), dot: "bg-destructive" };
     case "Unreachable":
       return { label: result.timedOut ? "Timed out" : "Unreachable", dot: "bg-destructive" };
   }
@@ -186,10 +190,7 @@ function TelemetryExportForm() {
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-1.5">
                   {status && <ConnectionStatusDot dotClassName={status.dot} />}
-                  <Label htmlFor={key}>
-                    {label}
-                    {" endpoint"}
-                  </Label>
+                  <Label htmlFor={key}>{uiTextNodes("{0} endpoint", { "0": label })}</Label>
                 </div>
                 {status && <span className="text-xs text-muted-foreground">{status.label}</span>}
               </div>
@@ -230,15 +231,17 @@ function TelemetryExportForm() {
               </div>
               {(saved[key] !== (running?.[key] ?? "") || override?.variable) && (
                 <p className="break-all text-xs text-muted-foreground">
-                  {"Running: "}
-                  {running?.[key] || uiText("Disabled")}
-                  {override?.variable && (
-                    <>
-                      {" "}
-                      {"from "}
-                      <code className="font-mono">{override.variable}</code>
-                    </>
-                  )}
+                  {uiTextNodes("Running: {0}{1}", {
+                    "0": running?.[key] || uiText("Disabled"),
+                    "1": override?.variable && (
+                      <>
+                        {" "}
+                        {uiTextNodes("from {0}", {
+                          "0": <code className="font-mono">{override.variable}</code>,
+                        })}
+                      </>
+                    ),
+                  })}
                 </p>
               )}
             </div>

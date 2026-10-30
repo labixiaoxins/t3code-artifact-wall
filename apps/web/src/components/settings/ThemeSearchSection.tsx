@@ -373,7 +373,7 @@ export function ThemeSearchSection({
       {isSearching && results === null ? (
         <div className="flex min-h-20 items-center justify-center gap-2 text-muted-foreground text-sm">
           <Spinner />
-          {" Searching themes..."}
+          {uiText(" Searching themes...")}
         </div>
       ) : null}
       {results ? (

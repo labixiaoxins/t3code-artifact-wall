@@ -1,3 +1,4 @@
+import { uiTextNodes } from "~/i18n/rich";
 import { uiText } from "~/i18n";
 import { PermissionChecklist, PermissionContinueButton } from "../permissions/PermissionChecklist";
 import { usePermissionStatus } from "../permissions/usePermissionStatus";
@@ -181,14 +182,11 @@ function QuitStep({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>
-          {"Quit "}
-          {source.name}
-          {" to import"}
-        </DialogTitle>
+        <DialogTitle>{uiTextNodes("Quit {0} to import", { "0": source.name })}</DialogTitle>
         <DialogDescription>
-          {source.name}
-          {" is open, so its cookies can&rsquo;t be read yet. Quit it, then continue."}
+          {uiTextNodes("{0} is open, so its cookies can't be read yet. Quit it, then continue.", {
+            "0": source.name,
+          })}
         </DialogDescription>
       </DialogHeader>
       <DialogFooter>
@@ -254,16 +252,13 @@ function FullDiskAccessStep({
     <>
       <DialogHeader>
         <DialogTitle>
-          {"Let T3 Code read "}
-          {source.name}
-          {uiText("&rsquo;s cookies")}
+          {uiTextNodes("Let T3 Code read {0}'s cookies", { "0": source.name })}
         </DialogTitle>
         <DialogDescription>
-          {"To import cookies from "}
-          {source.name}
-          {
-            ", T3 Code needs Full Disk Access. Turn it on in System Settings, then come back to finish the import. You can revoke it again once the import is done."
-          }
+          {uiTextNodes(
+            "To import cookies from {0}, T3 Code needs Full Disk Access. Turn it on in System Settings, then come back to finish the import. You can revoke it again once the import is done.",
+            { "0": source.name },
+          )}
         </DialogDescription>
       </DialogHeader>
       <DialogPanel>
@@ -344,14 +339,11 @@ function ConfigureStep({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>
-          {"Import from "}
-          {source.name}
-        </DialogTitle>
+        <DialogTitle>{uiTextNodes("Import from {0}", { "0": source.name })}</DialogTitle>
         <DialogDescription>
-          {"Choose which cookies to import for "}
-          {destinationEnvironmentName}
-          {"."}
+          {uiTextNodes("Choose which cookies to import for {0}.", {
+            "0": destinationEnvironmentName,
+          })}
         </DialogDescription>
       </DialogHeader>
       <DialogPanel>
@@ -485,10 +477,7 @@ function CheckingStep({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>
-          {"Checking "}
-          {sourceName}
-        </DialogTitle>
+        <DialogTitle>{uiTextNodes("Checking {0}", { "0": sourceName })}</DialogTitle>
         <DialogDescription>
           {check === "fullDiskAccess"
             ? uiText("Checking Full Disk Access.")
@@ -536,7 +525,7 @@ function DoneStep({
             ? uiText("Added to {0} for {1}.{2}", {
                 "0": targetName,
                 "1": destinationEnvironmentName,
-                "2": skipped > 0 ? ` ${cookieResultCount(skipped)} skipped.` : "",
+                "2": skipped > 0 ? uiText(" {0} skipped.", { 0: cookieResultCount(skipped) }) : "",
               })
             : skipped > 0
               ? uiText("No cookies were imported for {0}.", { "0": destinationEnvironmentName })
@@ -575,10 +564,7 @@ function BlockedStep({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>
-          {"Couldn&rsquo;t import from "}
-          {source.name}
-        </DialogTitle>
+        <DialogTitle>{uiTextNodes("Couldn't import from {0}", { "0": source.name })}</DialogTitle>
         <DialogDescription>{BROWSER_IMPORT_FAILURE_COPY[reason]}</DialogDescription>
       </DialogHeader>
       <DialogFooter>

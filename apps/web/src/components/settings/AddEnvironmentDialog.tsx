@@ -173,8 +173,8 @@ export function AddEnvironmentDialog({
       type: "success",
       title: routeTarget ? uiText("Route added") : "Environment connected",
       description: routeTarget
-        ? `${routeTarget.label} can now be reached over SSH ${target.alias}.`
-        : `${target.alias} is ready over an SSH-managed tunnel.`,
+        ? uiText("{0} can now be reached over SSH {1}.", { 0: routeTarget.label, 1: target.alias })
+        : uiText("{0} is ready over an SSH-managed tunnel.", { 0: target.alias }),
     });
     setIsAddingSavedBackend(false);
   };
@@ -387,7 +387,7 @@ export function AddEnvironmentDialog({
           <Input
             value={savedBackendHost}
             onChange={(event) => handleSavedBackendHostChange(event.target.value)}
-            placeholder="backend.example.com"
+            placeholder={uiText("backend.example.com")}
             disabled={isAddingSavedBackend}
             spellCheck={false}
           />
@@ -399,7 +399,7 @@ export function AddEnvironmentDialog({
           <Input
             value={savedBackendPairingCode}
             onChange={(event) => setSavedBackendPairingCode(event.target.value)}
-            placeholder="PAIRCODE"
+            placeholder={uiText("PAIRCODE")}
             disabled={isAddingSavedBackend}
             spellCheck={false}
           />
@@ -572,7 +572,7 @@ export function AddEnvironmentDialog({
               value={savedBackendSshUsername}
               onChange={(event) => setSavedBackendSshUsername(event.target.value)}
               onKeyDown={handleSavedBackendSshFieldKeyDown}
-              placeholder="root"
+              placeholder={uiText("root")}
               disabled={isAddingSavedBackend}
               spellCheck={false}
             />
@@ -658,7 +658,7 @@ export function AddEnvironmentDialog({
               {desktopBridge
                 ? renderConnectionModeCard({
                     mode: "ssh",
-                    title: "SSH",
+                    title: uiText("SSH"),
                     description: uiText(
                       "Use local SSH config, agent, and tunnels for the backend.",
                     ),

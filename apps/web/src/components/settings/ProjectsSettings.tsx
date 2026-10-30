@@ -23,7 +23,7 @@ export function ProjectsSettings() {
               onClick={() => selectScope(selectEnvironmentAxis(value, ALL_ENVIRONMENTS_VALUE))}
             >
               <LayersIcon />
-              Show all environments
+              {uiText("Show all environments")}
             </Button>
           ) : null}
         </div>

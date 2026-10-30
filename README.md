@@ -1,4 +1,12 @@
-# Xiaoxin T3 Code · 小新社区版 C28
+# Xiaoxin T3 Code · 小新定制版 C29
+
+**最新：C29（官方基线 0.1.5）** · [下载](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c29-20261030) · [完整中文说明](docs/community/c29/RELEASE.zh.md) · [English](README.en.md)
+
+修复 C28 工程检查失败，补齐设置中文、搜索与动态提示。772 项相关测试、99 项 React Compiler 检查、36 个包类型检查通过；安装后登录、聊天、配置保留核验通过。仍以社区预发布提供，不代表整仓所有 CI 或所有设备均通过。
+
+![C29 中文设置实机截图，隔离测试数据](docs/community/c29/settings-zh.png)
+
+## 既有功能与 C28 历史说明
 
 [English](README.en.md) · [下载 C28 预发布版](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c28-20261030) · [完整更新与使用说明](docs/community/C28.md) · [上游 T3 Code](https://github.com/pingdotgg/t3code)
 

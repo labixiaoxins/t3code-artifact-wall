@@ -313,7 +313,7 @@ function AboutVersionSection() {
               <>
                 {unswitchedMachines === 1
                   ? "1 machine still runs"
-                  : `${unswitchedMachines} machines still run`}{" "}
+                  : uiText("{0} machines still run", { 0: unswitchedMachines })}{" "}
                 {channelSwitchLabel(selectedUpdateChannel === "nightly" ? "latest" : "nightly")}.{" "}
                 {/* The dialog moves what it can and says why it skips the rest. */}
                 <Button
@@ -322,7 +322,7 @@ function AboutVersionSection() {
                   disabled={updateRun !== null}
                   onClick={() => setSwitchChannel(selectedUpdateChannel)}
                 >
-                  Review
+                  {uiText("Review")}
                 </Button>
               </>
             ) : (
@@ -556,9 +556,10 @@ export function useSettingsRestore(onRestored?: () => void) {
     if (changedSettingLabels.length === 0) return;
     const api = readLocalApi();
     const confirmed = await (api ?? ensureLocalApi()).dialogs.confirm(
-      ["Restore default settings?", `This will reset: ${changedSettingLabels.join(", ")}.`].join(
-        "\n",
-      ),
+      [
+        "Restore default settings?",
+        uiText("This will reset: {0}.", { 0: changedSettingLabels.join(", ") }),
+      ].join("\n"),
       { variant: "destructive" },
     );
     if (!confirmed) return;
@@ -728,7 +729,7 @@ export function LegacyFeaturesSection() {
   const settings = useScopedSettings();
   const updateSettings = useUpdateScopedSettings();
   return (
-    <SettingsSection id="legacy-features" title="Legacy">
+    <SettingsSection id="legacy-features" title={uiText("Legacy")}>
       <SettingsRow
         {...searchableSetting("legacy-plan-mode")}
         description={uiText(
@@ -772,7 +773,7 @@ export function GeneralSettingsPanel() {
       <SettingsSection id="workbench-change-history" title={uiText("Change history")}>
         <PresetChangeHistory />
       </SettingsSection>
-      <SettingsSection id="notifications" title="Notifications">
+      <SettingsSection id="notifications" title={uiText("Notifications")}>
         <NotificationSettings />
         <SettingsRow
           {...searchableSetting("in-app-notifications")}
@@ -788,7 +789,7 @@ export function GeneralSettingsPanel() {
           }
         />
       </SettingsSection>
-      <SettingsSection id="sidebar" title="Sidebar">
+      <SettingsSection id="sidebar" title={uiText("Sidebar")}>
         <SettingsRow
           {...searchableSetting("project-grouping")}
           description={uiText("Combine matching repositories across environments.")}
@@ -872,7 +873,9 @@ export function GeneralSettingsPanel() {
         />
         <SettingsRow
           {...searchableSetting("working-shelf")}
-          description="Fold working and monitoring threads into a Working section. They return to the top of the inbox when they need you. The boring sidebar in Labs has no Working section."
+          description={uiText(
+            "Fold working and monitoring threads into a Working section. They return to the top of the inbox when they need you. The boring sidebar in Labs has no Working section.",
+          )}
           resetAction={
             settings.sidebarWorkingShelfEnabled !==
             DEFAULT_UNIFIED_SETTINGS.sidebarWorkingShelfEnabled ? (
@@ -892,7 +895,7 @@ export function GeneralSettingsPanel() {
               onCheckedChange={(checked) =>
                 updateSettings({ sidebarWorkingShelfEnabled: Boolean(checked) })
               }
-              aria-label="Working section"
+              aria-label={uiText("Working section")}
             />
           }
         />
@@ -1017,7 +1020,7 @@ export function GeneralSettingsPanel() {
           />
         ) : null}
       </SettingsSection>
-      <SettingsSection id="display" title="Display">
+      <SettingsSection id="display" title={uiText("Display")}>
         <SettingsRow
           {...searchableSetting("long-conversation-reminder")}
           description="对话较长时提示交接到新会话，由你决定何时继续。"
@@ -1113,7 +1116,7 @@ export function GeneralSettingsPanel() {
 export function ChatSettingsPanel() {
   const modifierLabel = isMacPlatform(navigator.platform) ? "\u2318" : "Ctrl";
   const sendShortcutOptions = [
-    { value: "enter", label: "Enter" },
+    { value: "enter", label: uiText("Enter") },
     {
       value: "mod-enter-multiline",
       label: uiText("{0} + Enter for multiline prompts", { "0": modifierLabel }),
@@ -1124,7 +1127,7 @@ export function ChatSettingsPanel() {
   const updateSettings = useUpdateScopedSettings();
   return (
     <SettingsPageContainer>
-      <SettingsSection id="composer" title="Composer">
+      <SettingsSection id="composer" title={uiText("Composer")}>
         <SettingsRow
           {...searchableSetting("composer-rich-text")}
           description={uiText("Show formatted Markdown as you type.")}
@@ -1135,8 +1138,7 @@ export function ChatSettingsPanel() {
                 label={uiText("rich text composer")}
                 onClick={() =>
                   updateSettings({
-                    artifactRevisionEnabled: DEFAULT_UNIFIED_SETTINGS.artifactRevisionEnabled,
-      composerRichTextEnabled: DEFAULT_UNIFIED_SETTINGS.composerRichTextEnabled,
+                    composerRichTextEnabled: DEFAULT_UNIFIED_SETTINGS.composerRichTextEnabled,
                   })
                 }
               />
@@ -1228,15 +1230,17 @@ export function ChatSettingsPanel() {
           />
         </AdvancedSettings>
       </SettingsSection>
-      <SettingsSection id="image-artifacts" title="图片产物">
+      <SettingsSection id="image-artifacts" title={uiText("Image artifacts")}>
         <SettingsRow
           {...searchableSetting("artifact-revision")}
-          description="在图片查看器中显示修改意见与返工草稿。默认关闭，不影响看图、对比或附加图片。"
+          description={uiText(
+            "Show revision comments and rework drafts in the image viewer. Off by default; viewing, comparing and attaching images remain available.",
+          )}
           resetAction={
             settings.artifactRevisionEnabled !==
             DEFAULT_UNIFIED_SETTINGS.artifactRevisionEnabled ? (
               <SettingResetButton
-                label="图片修改意见"
+                label={uiText("Image revision comments")}
                 onClick={() => updateSettings({ artifactRevisionEnabled: false })}
               />
             ) : null
@@ -1247,19 +1251,26 @@ export function ChatSettingsPanel() {
               onCheckedChange={(checked) =>
                 updateSettings({ artifactRevisionEnabled: Boolean(checked) })
               }
-              aria-label="图片修改意见"
+              aria-label={uiText("Image revision comments")}
             />
           }
         />
       </SettingsSection>
-      <SettingsSection id="follow-ups" title="Follow-ups">
+      <SettingsSection id="follow-ups" title={uiText("Follow-ups")}>
         <SettingsRow
           {...searchableSetting("follow-up-behavior")}
           description={
-            "Queue follow-ups while the agent runs or steer the current run. " +
+            uiText("Queue follow-ups while the agent runs or steer the current run.") +
+            " " +
             (settings.sendShortcut === "mod-enter-multiline"
-              ? `Press ${modifierLabel} + Enter for single-line prompts or ${modifierLabel} + Shift + Enter for multiline prompts to do the opposite for one message.`
-              : `Press ${modifierLabel}${settings.sendShortcut === "mod-enter" ? " + Shift" : ""} + Enter to do the opposite for one message.`)
+              ? uiText(
+                  "Press {0} + Enter for single-line prompts or {1} + Shift + Enter for multiline prompts to do the opposite for one message.",
+                  { 0: modifierLabel, 1: modifierLabel },
+                )
+              : uiText("Press {0}{1} + Enter to do the opposite for one message.", {
+                  0: modifierLabel,
+                  1: settings.sendShortcut === "mod-enter" ? " + Shift" : "",
+                }))
           }
           resetAction={
             settings.followUpBehavior !== DEFAULT_UNIFIED_SETTINGS.followUpBehavior ? (
@@ -1308,11 +1319,11 @@ function DiffColorsSettingsRow() {
   return (
     <SettingsRow
       {...searchableSetting("diff-color-scheme")}
-      description="Choose colors for additions and deletions, including change counts."
+      description={uiText("Choose colors for additions and deletions, including change counts.")}
       resetAction={
         settings.diffColorScheme !== DEFAULT_UNIFIED_SETTINGS.diffColorScheme ? (
           <SettingResetButton
-            label="diff colors"
+            label={uiText("diff colors")}
             onClick={() =>
               updateSettings({ diffColorScheme: DEFAULT_UNIFIED_SETTINGS.diffColorScheme })
             }
@@ -1328,7 +1339,7 @@ function DiffColorsSettingsRow() {
                 updateSettings({ diffColorScheme: value });
             }}
           >
-            <SelectTrigger size="sm" className="w-full min-w-0" aria-label="Diff colors">
+            <SelectTrigger size="sm" className="w-full min-w-0" aria-label={uiText("Diff colors")}>
               <span
                 aria-hidden="true"
                 className={
@@ -1345,8 +1356,8 @@ function DiffColorsSettingsRow() {
               </SelectValue>
             </SelectTrigger>
             <SelectPopup align="end" alignItemWithTrigger={false}>
-              <SelectItem value="red-green">{"Red & green (default)"}</SelectItem>
-              <SelectItem value="blue-orange">{"Blue & orange"}</SelectItem>
+              <SelectItem value="red-green">{uiText("Red & green (default)")}</SelectItem>
+              <SelectItem value="blue-orange">{uiText("Blue & orange")}</SelectItem>
             </SelectPopup>
           </Select>
         </div>
@@ -1359,7 +1370,7 @@ export function DiffsSettingsPanel() {
   const updateSettings = useUpdateScopedSettings();
   return (
     <SettingsPageContainer>
-      <SettingsSection id="diffs" title="Diffs">
+      <SettingsSection id="diffs" title={uiText("Diffs")}>
         <SettingsRow
           {...searchableSetting("diff-layout")}
           description={uiText(
@@ -1475,7 +1486,7 @@ export function DiffsSettingsPanel() {
         />
         <DiffColorsSettingsRow />
       </SettingsSection>
-      <SettingsSection id="pull-requests" title="Pull requests">
+      <SettingsSection id="pull-requests" title={uiText("Pull requests")}>
         <SettingsRow
           {...searchableSetting("proactive-panels")}
           description={uiText(
@@ -1523,11 +1534,13 @@ function ScopedCompactIdleThreadsRow() {
       settingKeys={["idleCompaction", "compactIdleThreads"]}
       mixed={idleCompaction.mixed}
       {...searchableSetting("compact-idle-threads")}
-      description="When to compact an idle Claude thread over 200,000 tokens: after you return, just before its prompt cache expires, or never. Each Claude provider can override this."
+      description={uiText(
+        "When to compact an idle Claude thread over 200,000 tokens: after you return, just before its prompt cache expires, or never. Each Claude provider can override this.",
+      )}
       resetAction={
         globalIdleCompaction(settings) !== globalIdleCompaction(DEFAULT_UNIFIED_SETTINGS) ? (
           <SettingResetButton
-            label="compact idle threads"
+            label={uiText("compact idle threads")}
             onClick={() =>
               updateSettings({ idleCompaction: globalIdleCompaction(DEFAULT_UNIFIED_SETTINGS) })
             }
@@ -1542,7 +1555,11 @@ function ScopedCompactIdleThreadsRow() {
             if (mode) updateSettings({ idleCompaction: mode.value });
           }}
         >
-          <SelectTrigger size="sm" className="w-full sm:w-56" aria-label="Compact idle threads">
+          <SelectTrigger
+            size="sm"
+            className="w-full sm:w-56"
+            aria-label={uiText("Compact idle threads")}
+          >
             <SelectValue>
               {(value: string | null) =>
                 value === null
@@ -1627,12 +1644,12 @@ export function ThreadsSettingsPanel() {
   const mixedTextGenerationModel = useScopedSettingsMixed(["textGenerationModelSelection"]);
   return (
     <SettingsPageContainer>
-      <SettingsSection id="new-projects" title="New projects">
+      <SettingsSection id="new-projects" title={uiText("New projects")}>
         <SettingsRow
           serverScoped
           settingKeys={["addProjectBaseDirectory"]}
           {...searchableSetting("add-project-starts-in")}
-          description='Leave empty to use "~/" when the Add Project browser opens.'
+          description={uiText('Leave empty to use "~/" when the Add Project browser opens.')}
           resetAction={
             settings.addProjectBaseDirectory !==
             DEFAULT_UNIFIED_SETTINGS.addProjectBaseDirectory ? (
@@ -1662,12 +1679,12 @@ export function ThreadsSettingsPanel() {
       <ProjectDefaultsSettings category="general" />
 
       {!isProjectScope ? (
-        <SettingsSection id="snooze" title="Snooze">
+        <SettingsSection id="snooze" title={uiText("Snooze")}>
           <SnoozePresetsRow />
         </SettingsSection>
       ) : null}
 
-      <SettingsSection id="usage-limits" title="Usage limits">
+      <SettingsSection id="usage-limits" title={uiText("Usage limits")}>
         <SettingsRow
           serverScoped
           {...searchableSetting("auto-resume-limited-threads")}
@@ -1682,14 +1699,16 @@ export function ThreadsSettingsPanel() {
               onCheckedChange={(checked) =>
                 updateSettings({ autoResumeLimitedThreads: Boolean(checked) })
               }
-              aria-label="Resume after usage limits"
+              aria-label={uiText("Resume after usage limits")}
             />
           }
         />
         <SettingsRow
           serverScoped
           {...searchableSetting("snooze-limited-threads")}
-          description="Snooze usage-limit stops until reset. Pair with resume to continue on wake."
+          description={uiText(
+            "Snooze usage-limit stops until reset. Pair with resume to continue on wake.",
+          )}
           settingKeys={["snoozeLimitedThreads"]}
           control={
             <ScopedSwitch
@@ -1698,14 +1717,14 @@ export function ThreadsSettingsPanel() {
               onCheckedChange={(checked) =>
                 updateSettings({ snoozeLimitedThreads: Boolean(checked) })
               }
-              aria-label="Snooze until limits reset"
+              aria-label={uiText("Snooze until limits reset")}
             />
           }
         />
       </SettingsSection>
 
       {hasServerTargets ? (
-        <SettingsSection id="auto-settle" title="Auto-settle">
+        <SettingsSection id="auto-settle" title={uiText("Auto-settle")}>
           <SettingsRow
             serverScoped
             settingKeys={["sidebarAutoSettleOnMerge"]}
@@ -1986,7 +2005,7 @@ export function MaintenanceSettingsPanel() {
 
   return (
     <SettingsPageContainer>
-      <SettingsSection id="updates" title="Updates">
+      <SettingsSection id="updates" title={uiText("Updates")}>
         <SettingsRow
           serverScoped
           settingKeys={["enableProviderUpdateChecks"]}
@@ -2058,7 +2077,7 @@ export function MaintenanceSettingsPanel() {
           }
         />
       </SettingsSection>
-      <SettingsSection id="background" title="Background activity">
+      <SettingsSection id="background" title={uiText("Background activity")}>
         <BackgroundActivitySettingsRow />
       </SettingsSection>
       <StorageCleanupSections />
@@ -2089,7 +2108,7 @@ export function MaintenanceSettingsPanel() {
 export function AboutSettingsPanel() {
   return (
     <SettingsPageContainer>
-      <SettingsSection id="about" title="App">
+      <SettingsSection id="about" title={uiText("App")}>
         {isElectron || HOSTED_APP_CHANNEL ? (
           <AboutVersionSection />
         ) : (
@@ -2103,7 +2122,7 @@ export function AboutSettingsPanel() {
         )}
         <MobileAppSettingsRow />
       </SettingsSection>
-      <SettingsSection id="legal" title="Legal">
+      <SettingsSection id="legal" title={uiText("Legal")}>
         <SettingsRow
           {...searchableSetting("privacy-policy")}
           description={uiText(

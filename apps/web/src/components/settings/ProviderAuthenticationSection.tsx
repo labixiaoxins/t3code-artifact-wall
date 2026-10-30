@@ -76,21 +76,21 @@ export function ProviderAuthenticationSection({
       (provider.driver === "acpRegistry" && auth?.methods?.length === 0));
   const accountDescription = active
     ? auth?.phase === "starting"
-      ? (auth.message ?? "Starting sign-in…")
+      ? (auth.message ?? uiText("Starting sign-in…"))
       : auth?.phase === "verifying"
-        ? "Checking your account…"
+        ? uiText("Checking your account…")
         : interaction?.type === "terminal"
-          ? "Complete sign-in in the terminal below."
+          ? uiText("Complete sign-in in the terminal below.")
           : interaction?.type === "credentials"
-            ? "Enter your credentials below."
-            : "Finish signing in in your browser."
+            ? uiText("Enter your credentials below.")
+            : uiText("Finish signing in in your browser.")
     : signedIn
-      ? "Signed in."
+      ? uiText("Signed in.")
       : isDiscovering
-        ? "Discovering sign-in methods…"
+        ? uiText("Discovering sign-in methods…")
         : needsExternalSetup
-          ? "No in-app sign-in advertised. Follow the provider's docs to finish setup."
-          : `Sign in on ${environmentLabel}.`;
+          ? uiText("No in-app sign-in advertised. Follow the provider's docs to finish setup.")
+          : uiText("Sign in on {environment}.", { environment: environmentLabel });
   const statusMessage = auth?.phase === "failed" ? auth.message : null;
   const disabled = readOnly || pending || query.error !== null || isDiscovering;
   const draftId = `${auth?.flowId ?? ""}:${interaction?.id ?? ""}`;

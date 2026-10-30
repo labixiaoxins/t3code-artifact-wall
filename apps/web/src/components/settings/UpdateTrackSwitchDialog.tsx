@@ -1,3 +1,4 @@
+import { uiText } from "~/i18n";
 import { useAtomValue } from "@effect/atom-react";
 import { settlePromise, squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import type { DesktopUpdateChannel } from "@t3tools/contracts";
@@ -49,15 +50,19 @@ export function UpdateTrackSwitchDialog({
     <AlertDialog open onOpenChange={(open) => !open && onClose()}>
       <AlertDialogPopup>
         <AlertDialogHeader>
-          <AlertDialogTitle>Switch to {label}</AlertDialogTitle>
+          <AlertDialogTitle>{uiText("Switch to {label}", { label })}</AlertDialogTitle>
           <AlertDialogDescription>
             {AsyncResult.isFailure(release) || AsyncResult.isSuccess(release)
-              ? `Could not find the latest ${label} release on npm. Try again later.`
-              : "Checking releases…"}
+              ? uiText("Could not find the latest {0} release on npm. Try again later.", {
+                  0: label,
+                })
+              : uiText("Checking releases…")}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogClose render={<Button variant="outline" />}>Cancel</AlertDialogClose>
+          <AlertDialogClose render={<Button variant="outline" />}>
+            {uiText("Cancel")}
+          </AlertDialogClose>
         </AlertDialogFooter>
       </AlertDialogPopup>
     </AlertDialog>
@@ -99,7 +104,11 @@ function SwitchPlan({
     setChecking(true);
     const fail = (description: string) =>
       toastManager.add(
-        stackedThreadToast({ type: "error", title: `Could not switch to ${label}`, description }),
+        stackedThreadToast({
+          type: "error",
+          title: uiText("Could not switch to {0}", { 0: label }),
+          description,
+        }),
       );
     const prepared = await prepareLocalTrackSwitch(bridge, {
       channel: release.channel,
@@ -132,7 +141,10 @@ function SwitchPlan({
                 ) {
                   reportError(
                     "Could not install update",
-                    `This app downloaded ${downloadedVersion ?? "nothing"}, not ${release.version} or newer.`,
+                    uiText("This app downloaded {0}, not {1} or newer.", {
+                      0: downloadedVersion ?? "nothing",
+                      1: release.version,
+                    }),
                   );
                   return false;
                 }
@@ -151,7 +163,7 @@ function SwitchPlan({
     <UpdateEverythingDialog
       open
       onOpenChange={(open) => !open && !checking && onClose()}
-      title={`Switch to ${label}?`}
+      title={uiText("Switch to {0}?", { 0: label })}
       version={release.version}
       providerCount={0}
       rows={everything.rows}

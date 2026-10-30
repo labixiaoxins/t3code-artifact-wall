@@ -373,10 +373,10 @@ function ProcessDiagnosticsTable({
           <thead className="sticky top-0 z-10 border-b border-border/60 bg-card text-2xs uppercase tracking-widest text-muted-foreground/70">
             <tr>
               <th className="px-4 py-2 font-semibold sm:pl-5">{uiText("Name")}</th>
-              <th className="px-3 py-2 text-right font-semibold">CPU</th>
+              <th className="px-3 py-2 text-right font-semibold">{uiText("CPU")}</th>
               <th className="px-3 py-2 text-right font-semibold">{uiText("Memory")}</th>
               <th className="px-3 py-2 font-semibold">{uiText("Command")}</th>
-              <th className="px-3 py-2 text-right font-semibold">PID</th>
+              <th className="px-3 py-2 text-right font-semibold">{uiText("PID")}</th>
               <th className="px-3 py-2 font-semibold">{uiText("Type")}</th>
               <th className="p-2 text-right font-semibold sm:pr-4">{uiText("Kill")}</th>
             </tr>
@@ -614,7 +614,7 @@ function ProcessResourceHistoryTable({
               <th className="px-3 py-2 text-right font-semibold">{uiText("Peak")}</th>
               <th className="px-3 py-2 text-right font-semibold">{uiText("Max Mem")}</th>
               <th className="px-3 py-2 font-semibold">{uiText("Command")}</th>
-              <th className="px-3 py-2 text-right font-semibold sm:pr-5">PID</th>
+              <th className="px-3 py-2 text-right font-semibold sm:pr-5">{uiText("PID")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/50">
@@ -859,7 +859,7 @@ function DiagnosticsSettingsBody() {
       let confirmed = false;
       try {
         confirmed = await ensureLocalApi().dialogs.confirm(
-          `Send SIGKILL to process ${pid}? This cannot be handled by the process.`,
+          uiText("Send SIGKILL to process {0}? This cannot be handled by the process.", { 0: pid }),
           { variant: "destructive" },
         );
       } catch (error) {
@@ -867,7 +867,8 @@ function DiagnosticsSettingsBody() {
         toastManager.add({
           type: "error",
           title: uiText("Could not confirm signal"),
-          description: error instanceof Error ? error.message : `Failed to send ${signal}.`,
+          description:
+            error instanceof Error ? error.message : uiText("Failed to send {0}.", { 0: signal }),
         });
         return;
       }
@@ -894,7 +895,8 @@ function DiagnosticsSettingsBody() {
         toastManager.add({
           type: "error",
           title: uiText("Could not send {0}", { "0": signal }),
-          description: error instanceof Error ? error.message : `Failed to send ${signal}.`,
+          description:
+            error instanceof Error ? error.message : uiText("Failed to send {0}.", { 0: signal }),
         });
       }
       return;
@@ -916,7 +918,7 @@ function DiagnosticsSettingsBody() {
       toastManager.add({
         type: "error",
         title: uiText("Could not send {0}", { "0": signal }),
-        description: message ?? `Failed to send ${signal}.`,
+        description: message ?? uiText("Failed to send {0}.", { 0: signal }),
       });
       return;
     }
@@ -967,7 +969,7 @@ function DiagnosticsSettingsBody() {
             value={processData ? formatCount(processData.processCount) : "..."}
           />
           <StatBlock
-            label="CPU"
+            label={uiText("CPU")}
             value={processData ? `${processData.totalCpuPercent.toFixed(1)}%` : "..."}
             tooltip={uiText(
               "Total CPU across live child processes of the current server process. The desktop shell and other parent processes are not included.",

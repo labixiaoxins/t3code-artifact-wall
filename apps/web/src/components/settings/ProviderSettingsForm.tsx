@@ -311,13 +311,18 @@ function ProviderSettingsSelect({
         onChange(nextProviderConfigWithFieldValue(value, field, next === fallback ? "" : next));
       }}
     >
-      <SelectTrigger id={inputId} size={size} className={className} aria-label={field.label}>
+      <SelectTrigger
+        id={inputId}
+        size={size}
+        className={className}
+        aria-label={uiText(field.label)}
+      >
         <SelectValue>{label}</SelectValue>
       </SelectTrigger>
       <SelectPopup align="start" alignItemWithTrigger={false}>
         {options.map((option) => (
           <SelectItem key={option.value} value={option.value}>
-            {option.label}
+            {uiText(option.label)}
           </SelectItem>
         ))}
       </SelectPopup>
@@ -352,9 +357,9 @@ function ProviderSettingsFieldRow({
     variant === "dialog"
       ? "text-2xs text-muted-foreground"
       : "mt-1 block text-xs text-muted-foreground";
-  const label = <span className="text-xs font-medium text-foreground">{field.label}</span>;
+  const label = <span className="text-xs font-medium text-foreground">{uiText(field.label)}</span>;
   const description = field.description ? (
-    <span className={descriptionClassName}>{field.description}</span>
+    <span className={descriptionClassName}>{uiText(field.description)}</span>
   ) : null;
   if (variant === "settings") {
     const descriptionId = field.description ? `${inputId}-description` : undefined;
@@ -367,7 +372,7 @@ function ProviderSettingsFieldRow({
           onCheckedChange={(checked) =>
             onChange(nextProviderConfigWithFieldValue(value, field, Boolean(checked)))
           }
-          aria-label={field.label}
+          aria-label={uiText(field.label)}
           aria-describedby={descriptionId}
         />
       ) : field.control === "select" ? (
@@ -408,7 +413,7 @@ function ProviderSettingsFieldRow({
               size="icon-sm"
               variant="ghost-destructive"
               onClick={() => onChange(nextProviderConfigWithFieldValue(value, field, ""))}
-              aria-label={uiText("Clear {0}", { "0": field.label })}
+              aria-label={uiText("Clear {0}", { "0": uiText(field.label) })}
             >
               <XIcon className="size-3.5" />
             </Button>
@@ -433,10 +438,16 @@ function ProviderSettingsFieldRow({
     return (
       <SettingsRow
         title={
-          field.control === "switch" ? field.label : <label htmlFor={inputId}>{field.label}</label>
+          field.control === "switch" ? (
+            uiText(field.label)
+          ) : (
+            <label htmlFor={inputId}>{uiText(field.label)}</label>
+          )
         }
         description={
-          field.description ? <span id={descriptionId}>{field.description}</span> : undefined
+          field.description ? (
+            <span id={descriptionId}>{uiText(field.description)}</span>
+          ) : undefined
         }
         control={control}
       />
@@ -455,7 +466,7 @@ function ProviderSettingsFieldRow({
             onCheckedChange={(checked) =>
               onChange(nextProviderConfigWithFieldValue(value, field, Boolean(checked)))
             }
-            aria-label={field.label}
+            aria-label={uiText(field.label)}
           />
         </div>
       </FieldFrame>

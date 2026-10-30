@@ -136,9 +136,8 @@ export function StorageManagementPanel({ environmentId }: { environmentId: Envir
       } else setError(String(squashAtomCommandFailure(result)));
     } catch (cause) {
       setError(String(cause));
-    } finally {
-      setPending(false);
     }
+    setPending(false);
   };
   const copyPath = async (path: string) => {
     try {

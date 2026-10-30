@@ -88,7 +88,7 @@ function validateInstanceId(id: string, existing: ReadonlySet<string>): string |
   if (!INSTANCE_ID_PATTERN.test(id)) {
     return "Instance ID must start with a letter and use only letters, digits, '-', or '_'.";
   }
-  if (existing.has(id)) return `An instance named '${id}' already exists.`;
+  if (existing.has(id)) return uiText("An instance named '{0}' already exists.", { 0: id });
   return null;
 }
 
@@ -432,7 +432,9 @@ export function AddProviderInstanceDialog({
           title={uiText("Add provider")}
           description={
             <>
-              {"Add an account or configure a provider on" + " "} {environmentLabel}.
+              {uiText("Add an account or configure a provider on {environment}.", {
+                environment: environmentLabel,
+              })}
             </>
           }
         >
@@ -501,11 +503,11 @@ export function AddProviderInstanceDialog({
                         value={driver}
                         disabled={isPreparingRegistryAgent}
                         onValueChange={selectDriver}
-                        aria-label="More providers"
+                        aria-label={uiText("More providers")}
                       />
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
                         <div aria-hidden className="flex-1 border-t border-border/70" />
-                    <span>{uiText("Or choose from ACP Registry")}</span>
+                        <span>{uiText("Or choose from ACP Registry")}</span>
                         <div aria-hidden className="flex-1 border-t border-border/70" />
                       </div>
                       {isAcpRegistry && isManualAcpConfiguration ? (
@@ -513,16 +515,18 @@ export function AddProviderInstanceDialog({
                           <div className="flex items-start justify-between gap-3">
                             <div>
                               <h3 className="text-sm font-medium text-foreground">
-                            {isLocalAcp ? uiText("Local ACP command") : uiText("Enter manually")}
+                                {isLocalAcp
+                                  ? uiText("Local ACP command")
+                                  : uiText("Enter manually")}
                               </h3>
                               <p className="mt-0.5 text-xs text-muted-foreground">
                                 {isLocalAcp
-                              ? uiText("Run an installed ACP executable on {0}.", {
-                                  "0": environmentLabel,
-                                })
-                              : uiText(
-                                  "Enter an official registry ID and any local executable or auth override.",
-                                )}
+                                  ? uiText("Run an installed ACP executable on {0}.", {
+                                      "0": environmentLabel,
+                                    })
+                                  : uiText(
+                                      "Enter an official registry ID and any local executable or auth override.",
+                                    )}
                               </p>
                             </div>
                             <Button
@@ -533,7 +537,7 @@ export function AddProviderInstanceDialog({
                               size="xs"
                               variant="ghost"
                             >
-                          {uiText("Search registry")}
+                              {uiText("Search registry")}
                             </Button>
                           </div>
                           <SettingsGroup variant="plain">

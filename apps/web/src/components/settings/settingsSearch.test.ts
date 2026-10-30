@@ -329,3 +329,12 @@ describe("movedSettingsPath", () => {
     expect(movedSettingsPath("/settings/appearance", "theme")).toBeNull();
   });
 });
+
+it("finds settings by Chinese labels while retaining English search", () => {
+  expect(searchSettings("推理强度").map((item) => item.id)).toContain("effort-display");
+  expect(searchSettings("Effort display").map((item) => item.id)).toContain("effort-display");
+  expect(searchSettings("图片修改意见").map((item) => item.id)).toContain("artifact-revision");
+  expect(searchSettings("Image revision comments").map((item) => item.id)).toContain(
+    "artifact-revision",
+  );
+});

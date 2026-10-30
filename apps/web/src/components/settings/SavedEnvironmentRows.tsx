@@ -90,14 +90,18 @@ function savedBackendStatus(environment: EnvironmentPresentation): {
       return { text: uiText("Connecting"), tone: "muted" };
     case "reconnecting":
       return {
-        text: connection.error ? `Reconnecting: ${connection.error}` : "Reconnecting",
+        text: connection.error
+          ? uiText("Reconnecting: {0}", { 0: connection.error })
+          : "Reconnecting",
         tone: "error",
       };
     case "unsupported":
       return { text: uiText("Client not supported"), tone: "muted" };
     case "error":
       return {
-        text: connection.error ? `Connection failed: ${connection.error}` : "Connection failed",
+        text: connection.error
+          ? uiText("Connection failed: {0}", { 0: connection.error })
+          : "Connection failed",
         tone: "error",
       };
     case "offline":
@@ -235,7 +239,10 @@ export function SavedBackendListRow({
         : "Switched off"
   }${
     versionMismatch
-      ? `\nUpdate available: ${versionMismatch.serverVersion} → ${versionMismatch.clientVersion}`
+      ? uiText("\nUpdate available: {0} → {1}", {
+          0: versionMismatch.serverVersion,
+          1: versionMismatch.clientVersion,
+        })
       : ""
   }`;
   return (
@@ -496,7 +503,9 @@ function T3ConnectTunnelUsage({ tunnelLimit }: { readonly tunnelLimit: number | 
         action={
           // At the cap the alert below carries the same action.
           usage.upgrade && openAccountPage && !showLimitAlert ? (
-            <InlineButton onClick={() => openAccountPage("t3-chat")}>Get more tunnels</InlineButton>
+            <InlineButton onClick={() => openAccountPage("t3-chat")}>
+              {uiText("Get more tunnels")}
+            </InlineButton>
           ) : null
         }
       />
@@ -554,7 +563,7 @@ function ConfiguredCloudLinkRow({ canManageRelay }: { readonly canManageRelay: b
   const signedOut = isSignedIn === false;
   const signInButton = (
     <Button size="sm" variant="outline" onClick={openAuthPrompt}>
-      {"Sign in"}
+      {uiText("Sign in")}
     </Button>
   );
   const refreshLinkState = useEffectEvent(primaryCloudLinkState.refresh);
@@ -571,7 +580,7 @@ function ConfiguredCloudLinkRow({ canManageRelay }: { readonly canManageRelay: b
       formatConnectReachable(reachability)
     ) : reachability?.status === "unreachable" ? (
       <span className="block text-destructive">
-        {[reachability.reason, reachability.hint, `Fix: ${reachability.fix}`]
+        {[reachability.reason, reachability.hint, uiText("Fix: {0}", { 0: reachability.fix })]
           .filter(Boolean)
           .join(" ")}{" "}
         <a
@@ -580,7 +589,7 @@ function ConfiguredCloudLinkRow({ canManageRelay }: { readonly canManageRelay: b
           rel="noreferrer"
           className="underline underline-offset-2"
         >
-          {"More info"}
+          {uiText("More info")}
         </a>
       </span>
     ) : null;
@@ -713,7 +722,7 @@ function ConfiguredCloudLinkRow({ canManageRelay }: { readonly canManageRelay: b
               signInButton
             ) : (
               <CloudLinkSwitch
-                ariaLabel="Publish agent activity to mobile clients"
+                ariaLabel={uiText("Publish agent activity to mobile clients")}
                 checked={publishAgentActivity}
                 disabled={switchDisabled}
                 disabledReason={disabledReason}
@@ -731,7 +740,7 @@ function ConfiguredCloudLinkRow({ canManageRelay }: { readonly canManageRelay: b
           )}
           control={
             <CloudLinkSwitch
-              ariaLabel="Hold webhook requests while this environment is offline"
+              ariaLabel={uiText("Hold webhook requests while this environment is offline")}
               checked={holdWebhooksWhileOffline}
               disabled={switchDisabled}
               disabledReason={disabledReason}
@@ -754,7 +763,7 @@ export function CloudLinkRow({
   if (!canReadRelay) {
     return (
       <SettingsRow
-        title="T3 Connect"
+        title={uiText("T3 Connect")}
         description={uiText(
           "To edit these settings, pair this connection with both View relay and Manage relay permissions.",
         )}

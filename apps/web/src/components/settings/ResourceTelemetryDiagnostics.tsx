@@ -276,7 +276,7 @@ function AggregateCard({
         </div>
       </div>
       <div className="mt-3.5 grid grid-cols-2 gap-x-4 gap-y-2.5">
-        <MetricPair label="CPU" value={`${aggregate.currentCpuPercent.toFixed(1)}%`} />
+        <MetricPair label={uiText("CPU")} value={`${aggregate.currentCpuPercent.toFixed(1)}%`} />
         <MetricPair label={uiText("Memory")} value={formatBytes(aggregate.currentRssBytes)} />
         <MetricPair label={uiText("Read")} value={formatRate(aggregate.ioReadBytesPerSecond)} />
         <MetricPair label={uiText("Write")} value={formatRate(aggregate.ioWriteBytesPerSecond)} />
@@ -593,14 +593,14 @@ function ProcessTable({
             <tr>
               <th className="px-4 py-2 font-semibold sm:pl-5">{uiText("Process")}</th>
               <th className="px-3 py-2 font-semibold">{uiText("Category")}</th>
-              <th className="px-3 py-2 text-right font-semibold">CPU</th>
+              <th className="px-3 py-2 text-right font-semibold">{uiText("CPU")}</th>
               <th className="px-3 py-2 text-right font-semibold">{uiText("CPU Time")}</th>
               <th className="px-3 py-2 text-right font-semibold">{uiText("Memory")}</th>
               <th className="px-3 py-2 text-right font-semibold">{uiText("Read/s")}</th>
               <th className="px-3 py-2 text-right font-semibold">{uiText("Write/s")}</th>
               <th className="px-3 py-2 text-right font-semibold">{uiText("Read Total")}</th>
               <th className="px-3 py-2 text-right font-semibold">{uiText("Write Total")}</th>
-              <th className="px-3 py-2 text-right font-semibold">PID</th>
+              <th className="px-3 py-2 text-right font-semibold">{uiText("PID")}</th>
               <th className="px-2 py-2 text-right font-semibold sm:pr-4">{uiText("Kill")}</th>
             </tr>
           </thead>
@@ -703,7 +703,7 @@ function HistoryProcessTable({
               <th className="px-3 py-2 text-right font-semibold">{uiText("Read")}</th>
               <th className="px-3 py-2 text-right font-semibold">{uiText("Write")}</th>
               <th className="px-3 py-2 text-right font-semibold">{uiText("Samples")}</th>
-              <th className="px-3 py-2 text-right font-semibold sm:pr-5">PID</th>
+              <th className="px-3 py-2 text-right font-semibold sm:pr-5">{uiText("PID")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/50">
@@ -879,7 +879,9 @@ function ResourceTelemetryDiagnosticsBody({
       let confirmed = false;
       try {
         confirmed = await ensureLocalApi().dialogs.confirm(
-          `Send SIGKILL to process ${process.identity.pid}? This cannot be handled by the process.`,
+          uiText("Send SIGKILL to process {0}? This cannot be handled by the process.", {
+            0: process.identity.pid,
+          }),
           { variant: "destructive" },
         );
       } catch (error) {
@@ -887,7 +889,8 @@ function ResourceTelemetryDiagnosticsBody({
         toastManager.add({
           type: "error",
           title: uiText("Could not confirm signal"),
-          description: error instanceof Error ? error.message : `Failed to send ${signal}.`,
+          description:
+            error instanceof Error ? error.message : uiText("Failed to send {0}.", { 0: signal }),
         });
         return;
       }
@@ -917,9 +920,8 @@ function ResourceTelemetryDiagnosticsBody({
         toastManager.add({
           type: "error",
           title: uiText("Could not send {0}", { "0": signal }),
-          description: Option.getOrElse(
-            result.value.message,
-            () => `Failed to send ${signal} to process ${process.identity.pid}.`,
+          description: Option.getOrElse(result.value.message, () =>
+            uiText("Failed to send {0} to process {1}.", { 0: signal, 1: process.identity.pid }),
           ),
         });
       })
@@ -927,7 +929,8 @@ function ResourceTelemetryDiagnosticsBody({
         toastManager.add({
           type: "error",
           title: uiText("Could not send {0}", { "0": signal }),
-          description: error instanceof Error ? error.message : `Failed to send ${signal}.`,
+          description:
+            error instanceof Error ? error.message : uiText("Failed to send {0}.", { 0: signal }),
         });
       })
       .finally(() => {

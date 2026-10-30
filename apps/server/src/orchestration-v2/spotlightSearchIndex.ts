@@ -1,16 +1,16 @@
 // @effect-diagnostics nodeBuiltinImport:off - synchronous indexing runs inside a dedicated worker, outside the Effect runtime.
 import { pinyin } from "pinyin-pro";
-import { DatabaseSync } from "node:sqlite";
-import { chmodSync, mkdirSync, statSync, readFileSync } from "node:fs";
-import { dirname } from "node:path";
+import * as NodeSqlite from "node:sqlite";
+import * as NodeFS from "node:fs";
+import * as NodePath from "node:path";
 
-export function normalizeSpotlight(text: string): string {
+function normalizeSpotlight(text: string): string {
   return text
     .normalize("NFKC")
     .toLowerCase()
     .replace(/[^\p{L}\p{N}]/gu, "");
 }
-export function spotlightTerms(text: string): string[] {
+function spotlightTerms(text: string): string[] {
   const terms = new Set<string>();
   for (const run of text
     .normalize("NFKC")
@@ -114,18 +114,19 @@ export interface SpotlightMatch {
 
 // This database contains only a rebuildable index. The conversation database is always read-only.
 export class SpotlightIndex {
-  private readonly source: DatabaseSync;
-  private readonly cache: DatabaseSync;
+  private readonly source: NodeSqlite.DatabaseSync;
+  private readonly cache: NodeSqlite.DatabaseSync;
   private revision = -1;
   private readonly cachePath: string;
   private readonly aliasesPath: string | undefined;
   constructor(dbPath: string, cachePath: string, aliasesPath?: string) {
     this.aliasesPath = aliasesPath;
     this.cachePath = cachePath;
-    this.source = new DatabaseSync(dbPath, { readOnly: true });
+    this.source = new NodeSqlite.DatabaseSync(dbPath, { readOnly: true });
     this.source.exec("PRAGMA busy_timeout=5000");
-    if (cachePath !== ":memory:") mkdirSync(dirname(cachePath), { recursive: true, mode: 0o700 });
-    this.cache = new DatabaseSync(cachePath);
+    if (cachePath !== ":memory:")
+      NodeFS.mkdirSync(NodePath.dirname(cachePath), { recursive: true, mode: 0o700 });
+    this.cache = new NodeSqlite.DatabaseSync(cachePath);
     this.cache
       .exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA journal_size_limit=33554432; PRAGMA max_page_count=49152;
       CREATE TABLE IF NOT EXISTS documents(rowid INTEGER PRIMARY KEY,id TEXT,threadId TEXT,role TEXT,text TEXT,terms TEXT,createdAt TEXT,updatedAt TEXT);
@@ -133,7 +134,7 @@ export class SpotlightIndex {
       CREATE TRIGGER IF NOT EXISTS docs_ai AFTER INSERT ON documents BEGIN INSERT INTO document_fts(rowid,terms) VALUES(new.rowid,new.terms); END;
       CREATE TRIGGER IF NOT EXISTS docs_ad AFTER DELETE ON documents BEGIN INSERT INTO document_fts(document_fts,rowid,terms) VALUES('delete',old.rowid,old.terms); END;
       CREATE TRIGGER IF NOT EXISTS docs_au AFTER UPDATE ON documents BEGIN INSERT INTO document_fts(document_fts,rowid,terms) VALUES('delete',old.rowid,old.terms); INSERT INTO document_fts(rowid,terms) VALUES(new.rowid,new.terms); END;`);
-    if (cachePath !== ":memory:") chmodSync(cachePath, 0o600);
+    if (cachePath !== ":memory:") NodeFS.chmodSync(cachePath, 0o600);
   }
   close() {
     this.cache.close();
@@ -192,8 +193,8 @@ export class SpotlightIndex {
     if (this.cachePath !== ":memory:") {
       const bytes = ["", "-wal", "-shm"].reduce((n, s) => {
         try {
-          chmodSync(this.cachePath + s, 0o600);
-          return n + statSync(this.cachePath + s).size;
+          NodeFS.chmodSync(this.cachePath + s, 0o600);
+          return n + NodeFS.statSync(this.cachePath + s).size;
         } catch {
           return n;
         }
@@ -205,7 +206,7 @@ export class SpotlightIndex {
     this.sync();
     if (this.aliasesPath) {
       try {
-        const aliases: unknown = JSON.parse(readFileSync(this.aliasesPath, "utf8"));
+        const aliases: unknown = JSON.parse(NodeFS.readFileSync(this.aliasesPath, "utf8"));
         if (Array.isArray(aliases)) {
           const alias = aliases
             .slice(0, 100)

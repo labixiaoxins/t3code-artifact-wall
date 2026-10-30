@@ -69,7 +69,7 @@ describe("one-click category member", () => {
       a.physicalProjectKey,
       "historical-members",
     ]);
-    expect(items[0]?.label).toBe("b — ~/Projects/b");
+    expect(items[0]?.label).toBe("b · ~/Projects/b");
     expect(items[2]).toMatchObject({
       label: "更早的历史目录（1）",
       children: [{ id: old.physicalProjectKey }],

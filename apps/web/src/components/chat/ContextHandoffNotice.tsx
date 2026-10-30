@@ -100,9 +100,8 @@ export function ContextHandoffNotice({
   const pendingNavigationShell = useThreadShell(
     pendingNavigationId === null ? null : scopeThreadRef(environmentId, pendingNavigationId),
   );
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Navigate only after the live shell arrives, since a command receipt can precede it.
   useEffect(() => {
-    // A command receipt can precede the live shell update. Navigating before
-    // the shell arrives makes ThreadRouteView treat the new thread as missing.
     if (pendingNavigationId === null || pendingNavigationShell === null) return;
     void navigate({
       to: "/$environmentId/$threadId",
@@ -222,10 +221,9 @@ export function ContextHandoffNotice({
       await action();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "交接失败，请重试");
-    } finally {
-      busyRef.current = false;
-      setBusy(false);
     }
+    busyRef.current = false;
+    setBusy(false);
   };
   const requireSuccess = (result: Awaited<ReturnType<typeof start>>) => {
     if (result._tag === "Failure") throw squashAtomCommandFailure(result);

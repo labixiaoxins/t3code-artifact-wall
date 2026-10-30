@@ -20,6 +20,7 @@ export const TurnThroughput = memo(function TurnThroughput({
   const snapshot = (() => selectTurnThroughput(projection))();
   const [now, setNow] = useState(() => Date.now());
   const ticking = snapshot?.running === true && !disconnected;
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Keep the elapsed-time clock running only while the document is visible and the turn is active.
   useEffect(() => {
     if (!ticking) return;
     let timer: ReturnType<typeof setInterval> | undefined;

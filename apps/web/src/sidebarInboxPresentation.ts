@@ -1,7 +1,7 @@
 import type { SidebarThreadSummary } from "./types";
 import { inboxReason, inboxThreadKey, type InboxThread } from "./workbenchInbox";
 
-export const INBOX_PREVIEW_LIMIT = 5;
+const INBOX_PREVIEW_LIMIT = 5;
 type PresentationThread = InboxThread &
   Pick<SidebarThreadSummary, "updatedAt" | "pendingRequestCreatedAt">;
 export function attentionReason(
@@ -56,7 +56,7 @@ export function attentionPage<T>(threads: readonly T[], expanded: boolean) {
     hidden: expanded ? 0 : Math.max(0, threads.length - INBOX_PREVIEW_LIMIT),
   };
 }
-export function urgentThread(thread: InboxThread, acknowledged: Readonly<Record<string, string>>) {
+function urgentThread(thread: InboxThread, acknowledged: Readonly<Record<string, string>>) {
   const reason = attentionReason(thread, acknowledged);
   return reason === "待授权" || reason === "待回答" || reason === "运行失败";
 }

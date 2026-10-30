@@ -7,8 +7,7 @@ type Member = Pick<
   "id" | "environmentId" | "physicalProjectKey" | "title" | "workspaceRoot" | "environmentLabel"
 >;
 type Usage = Pick<SidebarThreadSummary, "projectId" | "environmentId" | "latestUserMessageAt">;
-export const memberPreferenceKey = (categoryKey: string) =>
-  `t3code:new-thread-member:${categoryKey}`;
+const memberPreferenceKey = (categoryKey: string) => `t3code:new-thread-member:${categoryKey}`;
 export function compactWorkspacePath(path: string) {
   return path.replace(/^\/(?:Users|home)\/[^/]+(?=\/|$)/, "~");
 }
@@ -66,7 +65,7 @@ export function projectMemberMenu(
   const multipleEnvironments = new Set(members.map((member) => member.environmentId)).size > 1;
   const item = (member: Member): ContextMenuItem => ({
     id: member.physicalProjectKey,
-    label: `${member.title}${multipleEnvironments && member.environmentLabel ? ` · ${member.environmentLabel}` : ""} — ${compactWorkspacePath(member.workspaceRoot)}`,
+    label: `${member.title}${multipleEnvironments && member.environmentLabel ? ` · ${member.environmentLabel}` : ""} · ${compactWorkspacePath(member.workspaceRoot)}`,
   });
   const sorted = recentProjectMembers(members, threads);
   const current = sorted.filter((member) => !isDatedCodexWorkspace(member.workspaceRoot));

@@ -534,7 +534,10 @@ export function ConnectionsSettings({ view }: { readonly view: "environments" | 
       const revokedCount = await revokeOtherServerClientSessions();
       toastManager.add({
         type: "success",
-        title: revokedCount === 1 ? "Revoked 1 other client" : `Revoked ${revokedCount} clients`,
+        title:
+          revokedCount === 1
+            ? "Revoked 1 other client"
+            : uiText("Revoked {0} clients", { 0: revokedCount }),
         description: uiText(
           "Other paired clients will need a new pairing link before reconnecting.",
         ),
@@ -563,7 +566,7 @@ export function ConnectionsSettings({ view }: { readonly view: "environments" | 
       const message =
         error instanceof Error
           ? error.message
-          : `Failed to switch the backend ${enabled ? "on" : "off"}.`;
+          : uiText("Failed to switch the backend {0}.", { 0: enabled ? "on" : "off" });
       setSavedBackendError(message);
       toastManager.add(
         stackedThreadToast({
@@ -605,7 +608,10 @@ export function ConnectionsSettings({ view }: { readonly view: "environments" | 
       return;
     }
     const confirmed = await requestConfirmDialog(
-      `Remove ${environment.label} from this device?\nThis forgets its pairing, credentials, and cached threads here. Switch it off instead to keep it saved.`,
+      uiText(
+        "Remove {0} from this device?\nThis forgets its pairing, credentials, and cached threads here. Switch it off instead to keep it saved.",
+        { 0: environment.label },
+      ),
       { variant: "destructive" },
     );
     if (confirmed === true) await removeSavedBackend(environment);
@@ -1509,7 +1515,7 @@ export function ConnectionsSettings({ view }: { readonly view: "environments" | 
   return (
     <SettingsPageContainer>
       {desktopBridge ? (
-        <SettingsSection id="this-app" title="This app">
+        <SettingsSection id="this-app" title={uiText("This app")}>
           <LocalEnvironmentSetting />
         </SettingsSection>
       ) : null}

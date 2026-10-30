@@ -13,7 +13,7 @@ export const COLLECTION_ORDER = [
 ] as const;
 
 /** A presentation layer: physical workspaces and resume identities never move. */
-export function workspaceCollection(path: string): (typeof COLLECTION_ORDER)[number] {
+function workspaceCollection(path: string): (typeof COLLECTION_ORDER)[number] {
   const p = path.replaceAll("\\", "/").replace(/\/+$/, "");
   if (/(?:\/\.hermes(?:\/|$)|\/work\/.*(?:smoke|test)(?:\/|$)|\/automations?(?:\/|$))/i.test(p))
     return "自动化与测试";

@@ -1,3 +1,4 @@
+import { uiTextNodes } from "~/i18n/rich";
 import { uiText } from "~/i18n";
 import type { EnvironmentId, SourceControlProviderAuth } from "@t3tools/contracts";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
@@ -52,7 +53,7 @@ export function SourceControlAccountSettings({
   const { label } = definition;
   const { cliName } = credentials;
   const updateSettings = useAtomCommand(serverEnvironment.updateSettings, {
-    label: `save ${label} account settings`,
+    label: uiText("save {0} account settings", { 0: label }),
   });
   const [saving, setSaving] = useState(false);
   const [revealed, setRevealed] = useState(false);
@@ -81,9 +82,11 @@ export function SourceControlAccountSettings({
   if (groups.length === 0) {
     return (
       <p className="text-xs text-muted-foreground">
-        {uiText("Sign in with")}{" "}
-        <code className="rounded bg-muted px-1 py-px text-2xs">{credentials.loginCommand}</code>
-        {" on the server host, then rescan to choose accounts here."}
+        {uiTextNodes("Sign in with {0} on the server host, then rescan to choose accounts here.", {
+          "0": (
+            <code className="rounded bg-muted px-1 py-px text-2xs">{credentials.loginCommand}</code>
+          ),
+        })}
       </p>
     );
   }
@@ -91,17 +94,20 @@ export function SourceControlAccountSettings({
     <div className="grid gap-4">
       <div className="flex items-center justify-between gap-3">
         <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
-          {"Choose which "}
-          <code className="rounded bg-muted px-1 py-px text-2xs">{cliName}</code>
-          {" login each "}
-          {label}
-          {" host uses, or turn a host off."}
+          {uiTextNodes("Choose which {0} login each {1} host uses, or turn a host off.", {
+            "0": <code className="rounded bg-muted px-1 py-px text-2xs">{cliName}</code>,
+            "1": label,
+          })}
         </p>
         <Button
           size="icon-xs"
           variant="ghost-muted"
           onClick={() => setRevealed((current) => !current)}
-          aria-label={revealed ? `Hide ${label} accounts` : `Reveal ${label} accounts`}
+          aria-label={
+            revealed
+              ? uiText("Hide {0} accounts", { 0: label })
+              : uiText("Reveal {0} accounts", { 0: label })
+          }
           aria-pressed={revealed}
         >
           {revealed ? <EyeOffIcon /> : <EyeIcon />}
@@ -128,7 +134,7 @@ export function SourceControlAccountSettings({
               <Switch
                 checked={enabled}
                 disabled={saving}
-                aria-label={`Use ${label} on ${group.host}`}
+                aria-label={uiText("Use {0} on {1}", { 0: label, 1: group.host })}
                 onCheckedChange={(checked) => void save(group.host, { enabled: checked })}
               />
             </div>
@@ -146,24 +152,27 @@ export function SourceControlAccountSettings({
                       });
                     }}
                   >
-                    <SelectTrigger size="sm" aria-label={`${label} account for ${group.host}`}>
+                    <SelectTrigger
+                      size="sm"
+                      aria-label={uiText("{0} account for {1}", { 0: label, 1: group.host })}
+                    >
                       <SelectValue>
                         {(value: string) =>
                           value === ACTIVE_ACCOUNT ? (
                             <span className="flex min-w-0 items-center gap-1">
-                              {"Active "}
-                              {cliName}
-                              {" account"}
-                              {group.activeAccount ? (
-                                <>
-                                  {"("}
-                                  <RedactedLogin
-                                    revealed={revealed}
-                                    account={group.activeAccount}
-                                  />
-                                  {")"}
-                                </>
-                              ) : null}
+                              {uiTextNodes("Active {0} account{1}", {
+                                "0": cliName,
+                                "1": group.activeAccount ? (
+                                  <>
+                                    {"("}
+                                    <RedactedLogin
+                                      revealed={revealed}
+                                      account={group.activeAccount}
+                                    />
+                                    {")"}
+                                  </>
+                                ) : null,
+                              })}
                             </span>
                           ) : (
                             <RedactedLogin revealed={revealed} account={value} />
@@ -174,16 +183,16 @@ export function SourceControlAccountSettings({
                     <SelectPopup align="end" alignItemWithTrigger={false}>
                       <SelectItem value={ACTIVE_ACCOUNT}>
                         <span className="flex min-w-0 items-center gap-1">
-                          {"Active "}
-                          {cliName}
-                          {" account"}
-                          {group.activeAccount ? (
-                            <>
-                              {"("}
-                              <RedactedLogin revealed={revealed} account={group.activeAccount} />
-                              {")"}
-                            </>
-                          ) : null}
+                          {uiTextNodes("Active {0} account{1}", {
+                            "0": cliName,
+                            "1": group.activeAccount ? (
+                              <>
+                                {"("}
+                                <RedactedLogin revealed={revealed} account={group.activeAccount} />
+                                {")"}
+                              </>
+                            ) : null,
+                          })}
                         </span>
                       </SelectItem>
                       {group.selectable.map((account, index) => (
@@ -203,9 +212,10 @@ export function SourceControlAccountSettings({
             {stalePin ? (
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xs text-warning">
-                  {"The chosen login is no longer signed in, so the active "}
-                  {cliName}
-                  {" login is used."}
+                  {uiTextNodes(
+                    "The chosen login is no longer signed in, so the active {0} login is used.",
+                    { "0": cliName },
+                  )}
                 </p>
                 <Button
                   size="xs"
@@ -224,17 +234,19 @@ export function SourceControlAccountSettings({
               >
                 <RedactedLogin revealed={revealed} account={entry.account} />
                 <span>
-                  {"can't be used: "}
-                  {entry.error ?? `${cliName} reports this login as invalid.`}
+                  {uiTextNodes("can't be used: {0}", {
+                    "0":
+                      entry.error ?? uiText("{0} reports this login as invalid.", { 0: cliName }),
+                  })}
                 </span>
               </p>
             ))}
             {group.environmentVariable ? (
               <p className="text-xs text-warning">
-                {group.environmentVariable}
-                {
-                  " is set on the server, so it overrides the account chosen here until it is unset."
-                }
+                {uiTextNodes(
+                  "{0} is set on the server, so it overrides the account chosen here until it is unset.",
+                  { "0": group.environmentVariable },
+                )}
               </p>
             ) : null}
           </div>

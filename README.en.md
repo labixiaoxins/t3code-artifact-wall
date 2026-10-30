@@ -1,4 +1,12 @@
-# Xiaoxin T3 Code · Community Edition C28
+# Xiaoxin T3 Code · C29 Community Edition
+
+**Latest: C29 (official baseline 0.1.5)** · [Download](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c29-20261030) · [Detailed release notes](docs/community/c29/RELEASE.en.md) · [简体中文](README.md)
+
+Repairs C28 engineering check failures and completes settings localization, search and dynamic copy. 772 related tests, 99 React Compiler checks and type checks across 36 packages pass. Post-install account, chat and configuration preservation was verified. Distributed as a community prerelease, not a claim of full CI or universal device validation.
+
+![C29 English settings, isolated fixture runtime](docs/community/c29/settings-en.png)
+
+## Existing features and historical C28 notes
 
 [简体中文](README.md) · [Download C28 prerelease](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c28-20261030) · [Full release and usage guide](docs/community/C28.en.md) · [Upstream T3 Code](https://github.com/pingdotgg/t3code)
 

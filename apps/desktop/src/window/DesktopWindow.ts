@@ -183,7 +183,7 @@ export function resolveInitialMainWindowBounds(
 // A self-contained "Connecting to WSL" splash, shown immediately in wsl-only
 // mode while the WSL backend (which serves the renderer) cold-boots. Inlined as
 // a data URL so it needs no bundled asset and no backend — pure CSS, no JS.
-export function buildConnectingSplashDataUrl(
+function buildConnectingSplashDataUrl(
   shouldUseDarkColors: boolean,
   mode: "local" | "wsl" | "closing" = "wsl",
 ): string {

@@ -2,9 +2,9 @@ import { useState } from "react";
 import { uiText } from "~/i18n";
 import { Button } from "../ui/button";
 import { useWorkPresets } from "./useWorkPresets";
-import { pruneChanges, undoPresetChange, writeWorkbench, type WorkPreset } from "./workPresets";
+import { undoPresetChange, writeWorkbench, type WorkPreset } from "./workPresets";
 
-export function describePreset(preset: WorkPreset | null) {
+function describePreset(preset: WorkPreset | null) {
   return preset
     ? `${preset.name} · ${preset.selection.instanceId} · ${preset.selection.model}${preset.selection.options?.length ? ` · ${preset.selection.options.map((option) => `${option.id}=${option.value}`).join(", ")}` : ""}`
     : uiText("Absent");
@@ -13,7 +13,7 @@ export function describePreset(preset: WorkPreset | null) {
 export function PresetChangeHistory() {
   const state = useWorkPresets();
   const [error, setError] = useState(false);
-  const changes = [...pruneChanges(state, Date.now()).changes].reverse();
+  const changes = state.changes.toReversed();
   return (
     <div className="space-y-3 text-sm">
       <p className="text-muted-foreground">

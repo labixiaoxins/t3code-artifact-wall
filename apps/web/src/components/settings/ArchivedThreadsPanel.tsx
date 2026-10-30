@@ -1,3 +1,4 @@
+import { uiTextNodes } from "~/i18n/rich";
 import { useState } from "react";
 import { Input } from "../ui/input";
 import { uiText } from "~/i18n";
@@ -136,7 +137,7 @@ export function ArchivedThreadsPanel() {
     if (!api) return;
     const clicked = await api.contextMenu.show(
       [
-        { id: "unarchive", label: "Unarchive" },
+        { id: "unarchive", label: uiText("Unarchive") },
         { id: "delete", label: uiText("Delete"), destructive: true },
       ],
       position,
@@ -151,7 +152,7 @@ export function ArchivedThreadsPanel() {
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Failed to unarchive thread",
+            title: uiText("Failed to unarchive thread"),
             description: error instanceof Error ? error.message : uiText("An error occurred."),
           }),
         );
@@ -248,16 +249,16 @@ export function ArchivedThreadsPanel() {
                   <ArchiveIcon className="size-3.5 text-muted-foreground" />
                 )}
                 {isLoadingArchive
-                  ? "Loading archived threads"
+                  ? uiText("Loading archived threads")
                   : archiveError
-                    ? "Could not load archived threads"
-                    : "No archived threads"}
+                    ? uiText("Could not load archived threads")
+                    : uiText("No archived threads")}
               </span>
             }
             description={
               isLoadingArchive
-                ? "Checking connected environments."
-                : (archiveError ?? "Archived threads will appear here.")
+                ? uiText("Checking connected environments.")
+                : (archiveError ?? uiText("Archived threads will appear here."))
             }
           />
         </SettingsSection>
@@ -301,7 +302,7 @@ export function ArchivedThreadsPanel() {
                         toastManager.add(
                           stackedThreadToast({
                             type: "error",
-                            title: "Archived thread action failed",
+                            title: uiText("Archived thread action failed"),
                             description:
                               error instanceof Error ? error.message : uiText("An error occurred."),
                           }),
@@ -312,10 +313,11 @@ export function ArchivedThreadsPanel() {
                   title={thread.title}
                   description={
                     <span className={hasMultipleEnvironments ? "block truncate" : undefined}>
-                      {hasMultipleEnvironments ? `${thread.environmentLabel} · ` : null}
-                      Archived <RelativeTime timestamp={thread.archivedAt ?? thread.createdAt} />
-                      {" \u00b7 Created "}
-                      <RelativeTime timestamp={thread.createdAt} />
+                      {uiTextNodes("{0}Archived{1} · Created {2}", {
+                        "0": hasMultipleEnvironments ? `${thread.environmentLabel} · ` : null,
+                        "1": <RelativeTime timestamp={thread.archivedAt ?? thread.createdAt} />,
+                        "2": <RelativeTime timestamp={thread.createdAt} />,
+                      })}
                     </span>
                   }
                   control={
@@ -338,7 +340,7 @@ export function ArchivedThreadsPanel() {
                             toastManager.add(
                               stackedThreadToast({
                                 type: "error",
-                                title: "Failed to unarchive thread",
+                                title: uiText("Failed to unarchive thread"),
                                 description:
                                   error instanceof Error
                                     ? error.message
@@ -350,7 +352,7 @@ export function ArchivedThreadsPanel() {
                       }}
                     >
                       <ArchiveX className="size-3.5" />
-                      <span>Unarchive</span>
+                      <span>{uiText("Unarchive")}</span>
                     </Button>
                   }
                 />

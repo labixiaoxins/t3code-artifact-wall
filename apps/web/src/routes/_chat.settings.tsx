@@ -1,3 +1,4 @@
+import { uiTextNodes } from "~/i18n/rich";
 import { workspaceAreaProps } from "../lib/workspaceFocus";
 import { uiText } from "~/i18n";
 import { Outlet, createFileRoute, redirect, useLocation } from "@tanstack/react-router";
@@ -104,9 +105,7 @@ function SettingsScopeBoundary({ pathname, children }: { pathname: string; child
     return (
       <SettingsPageContainer>
         <p className="text-sm text-muted-foreground">
-          {"Reconnect "}
-          {scope.label}
-          {" to change its settings."}
+          {uiTextNodes("Reconnect {0} to change its settings.", { "0": scope.label })}
         </p>
       </SettingsPageContainer>
     );
@@ -123,7 +122,7 @@ function SettingsContentLayout() {
       : JSON.stringify(search);
   const [restoreSignal, setRestoreSignal] = useState(0);
   return (
-    <AppRouteModal label="Settings">
+    <AppRouteModal label={uiText("Settings")}>
       <div className="relative flex min-h-0 flex-1">
         <SettingsSidebarNav pathname={location.pathname} />
         <div {...contentArea} className="flex min-h-0 min-w-0 flex-1 flex-col">

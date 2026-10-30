@@ -1,3 +1,4 @@
+import { uiTextNodes } from "~/i18n/rich";
 import { uiText } from "~/i18n";
 import {
   isModifierPairShortcut,
@@ -263,8 +264,10 @@ export function CaptureShortcutConfig({
             {niri ? <p>{uiText("T3 Code also reads any files included by this file.")}</p> : null}
             {preview && preview.resolvedPath !== preview.path ? (
               <p className="break-all">
-                {uiText("Linked to") + " "}
-                {preview.resolvedPath}. The link will be kept.
+                {uiTextNodes("{0}{1}. The link will be kept.", {
+                  "0": uiText("Linked to") + " ",
+                  "1": preview.resolvedPath,
+                })}
               </p>
             ) : null}
           </div>
