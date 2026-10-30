@@ -323,12 +323,12 @@ export function ProviderModelsSection({
             </Button>
           ) : null}
           <span className="text-xs text-muted-foreground">
-            {models.length} {uiText("model")}
-            {models.length === 1 ? "" : "s"}
+            {uiText(models.length === 1 ? "{count} model" : "{count} models", {
+              count: models.length,
+            })}
             {favoriteCount > 0
-              ? uiText(" · {0} favorite{1}", {
-                  "0": favoriteCount,
-                  "1": favoriteCount === 1 ? "" : "s",
+              ? uiText(favoriteCount === 1 ? " · {count} favorite" : " · {count} favorites", {
+                  count: favoriteCount,
                 })
               : ""}
             {hiddenCount > 0 ? uiText(" · {0} hidden", { "0": hiddenCount }) : ""}

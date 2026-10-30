@@ -6,13 +6,13 @@ export function hasNonZeroStat(stat: { additions: number; deletions: number }): 
   return stat.additions > 0 || stat.deletions > 0;
 }
 
-function formatCompactDiffCount(value: number): string {
+export function formatCompactDiffCount(value: number): string {
   if (value < 1000) return String(value);
-  if (value < 1_000_000) {
+  if (value < 999_500) {
     const k = value / 1000;
     return `${k < 10 ? k.toFixed(1).replace(/\.0$/, "") : Math.round(k)}k`;
   }
-  if (value < 1_000_000_000) {
+  if (value < 999_500_000) {
     const m = value / 1_000_000;
     return `${m < 10 ? m.toFixed(1).replace(/\.0$/, "") : Math.round(m)}m`;
   }
@@ -30,7 +30,7 @@ export const DiffStatLabel = memo(function DiffStatLabel(props: {
   return (
     <span
       role="group"
-      aria-label={`${additions} additions, ${deletions} deletions`}
+      aria-label={uiText("{0} additions, {1} deletions", { 0: additions, 1: deletions })}
       className={cn(
         layout === "inline"
           ? "inline-flex items-center gap-1 tabular-nums align-middle"

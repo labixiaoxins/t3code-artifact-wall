@@ -2135,7 +2135,7 @@ export function deriveMessagesTimelineRows(input: {
   const result = attachTrailingToolGroupsToAssistant(
     attachCreatedThreadSummaries(
       hasActiveCompaction && !setupOwnsWorkingSlot
-        ? nextRows.filter((row) => row.kind !== "working")
+        ? nextRows.filter((row) => row.kind !== "working" || row.compacting === true)
         : nextRows,
       timelineEntries,
       collapsedFoldMemberIds,

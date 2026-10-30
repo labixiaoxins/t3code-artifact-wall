@@ -1564,7 +1564,7 @@ function ScopedCompactIdleThreadsRow() {
               {(value: string | null) =>
                 value === null
                   ? uiText("Mixed")
-                  : IDLE_COMPACTION_MODES.find((mode) => mode.value === value)?.label
+                  : uiText(IDLE_COMPACTION_MODES.find((mode) => mode.value === value)?.label ?? "")
               }
             </SelectValue>
           </SelectTrigger>
@@ -1577,7 +1577,7 @@ function ScopedCompactIdleThreadsRow() {
                 // A server from before modes has only the on/off switch, so it cannot store "Never".
                 disabled={mode.value === "off" && !idleCompaction.neverAvailable}
               >
-                {mode.label}
+                {uiText(mode.label)}
               </SelectItem>
             ))}
           </SelectPopup>

@@ -1,4 +1,7 @@
-# Xiaoxin T3 Code · 小新定制版 C29
+# Xiaoxin T3 Code · 小新定制版
+
+**源码同步：** 已实际合入官方 `main` 至 `97e35bcf23`（2026-10-30）。[同步说明与验证](docs/community/c30/SYNC.zh.md)。**下方桌面下载仍为已发布的 C29，源码同步不代表已安装新版本。**
+
 
 **最新：C29（官方基线 0.1.5）** · [下载](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c29-20261030) · [完整中文说明](docs/community/c29/RELEASE.zh.md) · [English](README.en.md)
 

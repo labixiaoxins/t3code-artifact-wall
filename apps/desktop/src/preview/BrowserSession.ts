@@ -255,31 +255,39 @@ export const make = Effect.gen(function* BrowserSessionMake() {
       callback(false);
       return;
     }
-    runFork(Effect.gen(function* () {
-      const activated = yield* Effect.tryPromise(() => requester.executeJavaScript(
-        'document.visibilityState === "visible" && navigator.userActivation.isActive', false,
-      )).pipe(Effect.timeout("1 second"), Effect.orElseSucceed(() => false));
-      if (activated !== true || requester.isDestroyed() || !requester.isFocused()) {
-        callback(false);
-        return;
-      }
-    promptPermission(
-      requester,
-      {
-        buttons: ["Open", "Cancel"],
-        message: `Open this ${new URL(url).protocol.slice(0, -1)} link?`,
-        detail: `A page in the browser wants to open another application:\n\n${truncateForPrompt(url)}\n\nCancel blocks this site's app links in this tab. Open a new tab to try again.`,
-      },
-      (answer) => {
-        if (answer === false) {
-          const declined = declinedExternalProtocols.get(requester) ?? new Set<string>();
-          declined.add(target);
-          declinedExternalProtocols.set(requester, declined);
+    runFork(
+      Effect.gen(function* () {
+        const activated = yield* Effect.tryPromise(() =>
+          requester.executeJavaScript(
+            'document.visibilityState === "visible" && navigator.userActivation.isActive',
+            false,
+          ),
+        ).pipe(
+          Effect.timeout("1 second"),
+          Effect.orElseSucceed(() => false),
+        );
+        if (activated !== true || requester.isDestroyed() || !requester.isFocused()) {
+          callback(false);
+          return;
         }
-        callback(answer === true);
-      },
+        promptPermission(
+          requester,
+          {
+            buttons: ["Open", "Cancel"],
+            message: `Open this ${new URL(url).protocol.slice(0, -1)} link?`,
+            detail: `A page in the browser wants to open another application:\n\n${truncateForPrompt(url)}\n\nCancel blocks this site's app links in this tab. Open a new tab to try again.`,
+          },
+          (answer) => {
+            if (answer === false) {
+              const declined = declinedExternalProtocols.get(requester) ?? new Set<string>();
+              declined.add(target);
+              declinedExternalProtocols.set(requester, declined);
+            }
+            callback(answer === true);
+          },
+        );
+      }),
     );
-    }));
   };
   const sessionsRef = yield* SynchronizedRef.make<ReadonlyMap<string, Session>>(new Map());
 
@@ -397,7 +405,7 @@ export const make = Effect.gen(function* BrowserSessionMake() {
           Effect.tryPromise({
             try: () =>
               browserSession.clearStorageData({
-                storages: ["cookies", "localstorage", "indexdb", "serviceworkers"],
+                storages: ["cookies", "localstorage", "indexdb", "serviceworkers", "cachestorage"],
               }),
             catch: (cause) =>
               new BrowserSessionStorageClearError({

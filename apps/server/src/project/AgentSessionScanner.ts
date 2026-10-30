@@ -1128,9 +1128,12 @@ export const make = Effect.gen(function* () {
       const seenHomes = new Set<string>();
       for (const { instanceId, config: instance } of instances) {
         const homeVariable = source === "claudeAgent" ? "CLAUDE_CONFIG_DIR" : "CODEX_HOME";
+        const configuredHome = instance.environment?.findLast(
+          (variable) => variable.name === homeVariable,
+        )?.value;
         const environmentHome =
-          instance.environment?.findLast((variable) => variable.name === homeVariable)?.value ??
-          hostEnvironment[homeVariable];
+          typeof configuredHome === "string" ? configuredHome : hostEnvironment[homeVariable];
+
         let homePath: string;
         if (source === "claudeAgent") {
           const config = decodeClaudeSettings(instance.config ?? {});

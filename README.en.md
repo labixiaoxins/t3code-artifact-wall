@@ -1,4 +1,7 @@
-# Xiaoxin T3 Code · C29 Community Edition
+# Xiaoxin T3 Code · Community Edition
+
+**Source synchronization:** upstream `main` is actually merged through `97e35bcf23` (2026-10-30). [Changes and validation](docs/community/c30/SYNC.en.md). **The desktop download below remains the published C29 release; source synchronization does not install a new desktop build.**
+
 
 **Latest: C29 (official baseline 0.1.5)** · [Download](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c29-20261030) · [Detailed release notes](docs/community/c29/RELEASE.en.md) · [简体中文](README.md)
 

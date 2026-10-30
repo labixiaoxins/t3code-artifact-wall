@@ -1,7 +1,11 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
+import * as HostProcess from "@t3tools/shared/HostProcess";
+import * as Cause from "effect/Cause";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
+import * as Fiber from "effect/Fiber";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
@@ -9,6 +13,8 @@ import * as Path from "effect/Path";
 import * as PlatformError from "effect/PlatformError";
 import * as Sink from "effect/Sink";
 import * as Stream from "effect/Stream";
+import * as TestClock from "effect/testing/TestClock";
+import * as ChildProcess from "effect/process/ChildProcess";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 
 import * as DesktopEnvironment from "./DesktopEnvironment.ts";
@@ -56,6 +62,7 @@ const layerHandler = (
   recorded: RecordedRegistration,
   input: {
     readonly environment?: Record<string, unknown>;
+    readonly processSpawner?: ChildProcessSpawner.ChildProcessSpawner["Service"];
     readonly updateDesktopDatabaseExitCode?: number;
     readonly updateDesktopDatabaseStalled?: boolean;
     readonly updateDesktopDatabaseStarted?: Deferred.Deferred<void>;
@@ -106,6 +113,7 @@ const layerHandler = (
         Layer.succeed(
           ChildProcessSpawner.ChildProcessSpawner,
           ChildProcessSpawner.make((command) => {
+            if (input.processSpawner) return input.processSpawner.spawn(command);
             const childProcess = command as unknown as {
               readonly command: string;
               readonly args: ReadonlyArray<string>;
@@ -358,6 +366,69 @@ describe("DesktopLinuxUrlHandler", () => {
       assert.deepEqual(writeFailed.commands, []);
     });
   });
+
+  it.effect.skipIf(HostProcess.Platform.defaultValue() !== "linux")(
+    "continues registration after a timed-out cache helper ignores SIGTERM",
+    () =>
+      Effect.gen(function* () {
+        const realSpawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+        const nodeExecutable = yield* HostProcess.ExecutablePath;
+        const recorded = emptyRecording();
+        const spawned = yield* Deferred.make<ChildProcessSpawner.ChildProcessHandle>();
+        const ready = yield* Deferred.make<void>();
+        const processSpawner = ChildProcessSpawner.make((command) =>
+          Effect.gen(function* () {
+            if (!ChildProcess.isStandardCommand(command)) {
+              return yield* Effect.die("expected a single registration command");
+            }
+            recorded.commands.push({ command: command.command, args: command.args });
+            if (command.command !== "update-desktop-database") return mockProcess(0);
+            const child = yield* realSpawner.spawn(
+              ChildProcess.make(
+                nodeExecutable,
+                [
+                  "-e",
+                  // The watchdog makes the unfixed case exit with a distinguishable code.
+                  "process.on('SIGTERM', () => setTimeout(() => process.exit(99), 5000));" +
+                    "process.stdout.write('ready\\n'); setInterval(() => {}, 2147483647);",
+                ],
+                { ...command.options, stdout: "pipe" },
+              ),
+            );
+            yield* Deferred.succeed(spawned, child);
+            yield* Stream.runHead(child.stdout);
+            yield* Deferred.succeed(ready, undefined);
+            return child;
+          }),
+        );
+        const registration = yield* runRegister(recorded, { processSpawner }).pipe(
+          Effect.forkScoped,
+        );
+        const child = yield* Deferred.await(spawned);
+        yield* Effect.addFinalizer(() =>
+          child.isRunning.pipe(
+            Effect.flatMap((running) =>
+              running ? child.kill({ killSignal: "SIGKILL" }) : Effect.void,
+            ),
+            Effect.ignore,
+          ),
+        );
+        yield* Deferred.await(ready);
+        yield* TestClock.adjust("5 seconds");
+        yield* Fiber.join(registration);
+
+        const exit = yield* Effect.exit(child.exitCode);
+        if (Exit.isFailure(exit)) {
+          assert.include(Cause.pretty(exit.cause), "SIGKILL");
+        } else {
+          assert.fail(`cache helper exited with ${exit.value} instead of being force-killed`);
+        }
+        assert.deepEqual(
+          recorded.commands.map(({ command }) => command),
+          ["update-desktop-database", "xdg-mime"],
+        );
+      }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+  );
 });
 
 interface ThemeIconRun {
@@ -467,6 +538,10 @@ const themeIconFixture = (source: Uint8Array) =>
     const root = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-theme-icons-" });
     yield* fileSystem.makeDirectory(path.join(root, "resources", "icons"), { recursive: true });
     yield* fileSystem.writeFile(path.join(root, "resources", "icons", "256x256.png"), source);
+    const caseProbe = path.join(root, "case-probe");
+    yield* fileSystem.writeFile(caseProbe, new Uint8Array([0]));
+    const caseSensitive = !(yield* fileSystem.exists(path.join(root, "CASE-PROBE")));
+    yield* fileSystem.remove(caseProbe);
     const hicolorDir = path.join(root, "icons", "hicolor");
     const appsDir = path.join(hicolorDir, "256x256", "apps");
     const cachePath = path.join(hicolorDir, "icon-theme.cache");
@@ -479,7 +554,16 @@ const themeIconFixture = (source: Uint8Array) =>
     const rewriteCache = fileSystem
       .writeFile(cachePath, new Uint8Array([1]))
       .pipe(Effect.orDie, Effect.provideService(FileSystem.FileSystem, fileSystem));
-    return { root, hicolorDir, appsDir, cachePath, pastSeconds, seedCache, rewriteCache };
+    return {
+      root,
+      hicolorDir,
+      appsDir,
+      cachePath,
+      pastSeconds,
+      seedCache,
+      rewriteCache,
+      caseSensitive,
+    };
   });
 
 const iconCacheRuns = (run: ThemeIconRun) =>
@@ -495,10 +579,13 @@ it.layer(NodeServices.layer)("DesktopLinuxUrlHandler theme icons", (it) => {
       const run: ThemeIconRun = { root: fixture.root, commands: [] };
 
       yield* registerWithRealFileSystem(run);
-      assert.deepEqual([...(yield* fileSystem.readDirectory(fixture.appsDir))].sort(), [
-        "com.t3tools.T3Code.png",
-        "com.t3tools.t3code.png",
-      ]);
+      // Case-insensitive temp volumes alias the Linux app-id spellings to one file.
+      assert.deepEqual(
+        [...(yield* fileSystem.readDirectory(fixture.appsDir))].sort(),
+        fixture.caseSensitive
+          ? ["com.t3tools.T3Code.png", "com.t3tools.t3code.png"]
+          : ["com.t3tools.t3code.png"],
+      );
       for (const name of ["com.t3tools.t3code", "com.t3tools.T3Code"]) {
         const target = path.join(fixture.appsDir, `${name}.png`);
         assert.deepEqual([...(yield* fileSystem.readFile(target))], [...icon]);
@@ -523,8 +610,9 @@ it.layer(NodeServices.layer)("DesktopLinuxUrlHandler theme icons", (it) => {
       yield* fixture.seedCache;
       const lower = path.join(fixture.appsDir, "com.t3tools.t3code.png");
       const upper = path.join(fixture.appsDir, "com.t3tools.T3Code.png");
-      yield* fileSystem.writeFile(lower, new Uint8Array([3, 2, 1]));
       yield* fileSystem.writeFile(upper, new Uint8Array([1, 2, 3]));
+      // Leave stale bytes last so aliases on case-insensitive volumes are stale too.
+      yield* fileSystem.writeFile(lower, new Uint8Array([3, 2, 1]));
       for (const target of [lower, upper]) {
         yield* fileSystem.utimes(target, fixture.pastSeconds, fixture.pastSeconds);
       }
@@ -539,7 +627,12 @@ it.layer(NodeServices.layer)("DesktopLinuxUrlHandler theme icons", (it) => {
 
       assert.deepEqual([...(yield* fileSystem.readFile(lower))], [1, 2, 3]);
       const upperInfo = yield* fileSystem.stat(upper);
-      assert.equal(Option.getOrThrow(upperInfo.mtime).getTime(), fixture.pastSeconds * 1000);
+      if (fixture.caseSensitive) {
+        assert.equal(Option.getOrThrow(upperInfo.mtime).getTime(), fixture.pastSeconds * 1000);
+      } else {
+        assert.isAbove(Option.getOrThrow(upperInfo.mtime).getTime(), fixture.pastSeconds * 1000);
+      }
+      assert.deepEqual([...(yield* fileSystem.readFile(upper))], [1, 2, 3]);
       assert.deepEqual(
         run.commands.filter(({ command }) => command === "gtk-update-icon-cache"),
         [{ command: "gtk-update-icon-cache", args: ["-f", "-t", fixture.hicolorDir] }],

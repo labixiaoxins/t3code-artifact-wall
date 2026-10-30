@@ -1,5 +1,73 @@
 // Adapted from ZhiweiXiao98/t3code b604575 (MIT). Application UI copy only.
 export const zhCN: Readonly<Record<string, string>> = {
+  " · {count} favorite": " · {count} 个收藏",
+  " · {count} favorites": " · {count} 个收藏",
+  "When you return": "返回会话时",
+  "Before the cache expires (beta)": "缓存即将过期时（测试版）",
+  "{count} more file in the full diff": "在完整差异中查看另外 {count} 个文件",
+  "Change environment settings": "更改环境设置",
+  "Manage providers": "管理模型通道",
+  "Maintain environment": "维护环境",
+  "Control previews": "控制预览",
+  "View diagnostics and usage": "查看诊断与用量",
+  "View terminals": "查看终端",
+  "Change source control": "更改源代码管理",
+  "Read files": "读取文件",
+  "Write files": "写入文件",
+  "Model mappings cannot form a cycle on {target}.": "{target}的模型映射不能构成循环。",
+  "The agent process is shared with other working threads. Stop those to free it.":
+    "该智能体进程与其他工作中的会话共用。停止这些会话后才能释放进程。",
+  "Use a 1Password reference like op://vault/item/field.":
+    "请输入 op://vault/item/field 格式的 1Password 引用。",
+  "Agent not responding to Stop": "智能体未响应停止请求",
+  Stopping: "正在停止",
+  "It may be short on memory. Force stop kills its processes.":
+    "可能是可用内存不足。强制停止会终止该智能体的进程。",
+  "Force stopping...": "正在强制停止…",
+  "Force stop": "强制停止",
+  "Could not force stop the agent": "无法强制停止智能体",
+  "Turn stopped; the agent is still shutting down": "本轮已停止，智能体仍在关闭",
+  "Turn stopped; the agent process kept running": "本轮已停止，智能体进程仍在运行",
+  "The agent process is shared with {count} working threads. Stop those to free it.":
+    "该智能体进程与{count}个工作中的会话共用。停止这些会话后才能释放进程。",
+  other: "其他",
+  "{count} more files in the full diff": "在完整差异中查看另外 {count} 个文件",
+  "Connect to this environment to view this session’s permissions.":
+    "连接此环境以查看本次会话权限。",
+  "This environment did not accept your session. Reconnect to try again.":
+    "此环境未接受当前连接。请重新连接后重试。",
+  "Could not verify your permissions. Retrying automatically.": "无法核验权限，正在自动重试。",
+  "T3 Code home": "T3 Code 首页",
+  "{label} source": "{label}来源",
+  "{label} reference": "{label}引用",
+  "Enter a valid secret reference.": "请输入有效的密钥引用。",
+  "Edit {label}": "编辑{label}",
+  "Add a 1Password provider": "添加 1Password 密钥提供方",
+  "Provider variables on {environment} can read values from it by name. Values are read with the op CLI on that server when a provider starts.":
+    "{environment}的模型通道变量可按名称从此处读取值。模型通道启动时，将通过该服务器上的 op CLI 读取。",
+  "The account shorthand, sign-in address without https://, or ID that op account list shows.":
+    "填写账号简称、去掉 https:// 的登录地址，或 op account list 显示的账号 ID。",
+  "Enter a name.": "请输入名称。",
+  "Enter the 1Password account.": "请输入 1Password 账号。",
+  "The name needs at least one letter or digit.": "名称至少需要包含一个英文字母或数字。",
+  "A secret provider with this name exists.": "已存在同名密钥提供方。",
+  "Update T3 Code on {environment} to manage its secret providers.":
+    "更新{environment}上的 T3 Code，以管理密钥提供方。",
+  "Connect an environment to manage the secret providers its provider variables read from.":
+    "连接环境后，可管理模型通道变量读取的密钥提供方。",
+  "Environment-wide setting. Select an environment to change it.":
+    "此设置对整个环境生效。请选择环境后修改。",
+  "No secret providers configured.": "尚未配置密钥提供方。",
+  "Add a 1Password account, then pick it as the source of a provider variable.":
+    "添加 1Password 账号后，可将其选为模型通道变量的来源。",
+  "Toggle account visibility": "切换账号显示状态",
+  "Unsupported provider ({kind})": "不支持的提供方（{kind}）",
+  "Provider variables that read from {label} stop resolving until a provider with the same name is added again. The secrets themselves are untouched.":
+    "移除后，从{label}读取的模型通道变量将无法解析，直到重新添加同名提供方。密钥本身不会被修改。",
+  "Remove provider": "移除提供方",
+  Secrets: "密钥",
+  "Secret providers": "密钥提供方",
+  "Add secret provider": "添加密钥提供方",
   "Keep titles to a few words. Lead with the main subject.": "标题保持简短，以主要内容开头。",
   "Show Dev or Nightly artwork in the sidebar header.": "在侧栏顶部显示开发版或每夜构建版的图案。",
   "Sign in with GitHub": "使用 GitHub 登录",
