@@ -1,5 +1,8 @@
 # C30 源码同步：官方更新与 C29 定制的实际合并
 
+> 本文保留源码同步阶段的记录。C30 桌面包随后已发布；当前发行与安装状态请看 [C30 发行说明](RELEASE.zh.md)。
+
+
 [English](SYNC.en.md) · 2026-10-30
 
 本次更新的是 GitHub 源码。当前已安装的桌面应用和公开下载仍为 [C29](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c29-20261030)，其官方基线是 0.1.5。本次源码同步没有替换已安装应用，也没有发布新的 C30 桌面安装包。

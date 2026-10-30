@@ -1,5 +1,8 @@
 # C30 source synchronization: a real upstream merge with C29 customizations
 
+> This document records the earlier source-sync phase. The C30 desktop package was released afterward; see the [C30 release notes](RELEASE.en.md) for release and installation status.
+
+
 [简体中文](SYNC.zh.md) · 2026-10-30
 
 This update synchronizes GitHub source code. The installed desktop application and public download remain [C29](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c29-20261030), based on upstream 0.1.5. This source synchronization does not replace the installed application or publish a new C30 desktop installer.

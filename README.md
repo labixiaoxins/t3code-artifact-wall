@@ -5,7 +5,7 @@
 **源码同步：** 已实际合入官方 `main` 至 `97e35bcf23`（2026-10-30）。[同步说明与验证](docs/community/c30/SYNC.zh.md)。C30 包含本次源码同步；维护者本机安装正在等待任务空闲，尚未完成安装后读回。下方 C29 内容保留作历史说明。
 
 
-**最新：C29（官方基线 0.1.5）** · [下载](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c29-20261030) · [完整中文说明](docs/community/c29/RELEASE.zh.md) · [English](README.en.md)
+**上一版：C29（官方基线 0.1.5）** · [下载](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c29-20261030) · [完整中文说明](docs/community/c29/RELEASE.zh.md) · [English](README.en.md)
 
 修复 C28 工程检查失败，补齐设置中文、搜索与动态提示。772 项相关测试、99 项 React Compiler 检查、36 个包类型检查通过；安装后登录、聊天、配置保留核验通过。仍以社区预发布提供，不代表整仓所有 CI 或所有设备均通过。
 
