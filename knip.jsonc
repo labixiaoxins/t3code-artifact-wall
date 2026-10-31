@@ -11,6 +11,7 @@
       "entry": [
         // CodeRabbit loads its configuration by filename.
         ".coderabbit.config.ts",
+        ".github/scripts/check-community-showcase.cjs",
         ".github/scripts/thread-transfer-report.cjs",
       ],
       "vite": { "entry": [".github/**/*.test.cjs"] },

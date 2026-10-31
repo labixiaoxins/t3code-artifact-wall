@@ -2,6 +2,15 @@
 
 [English](RELEASE.en.md) · 2026-10-31 · 社区正式发行 · 当前推荐 Mac 版 · arm64
 
+<!-- community-showcase -->
+
+[完整特色功能图集](https://github.com/labixiaoxins/xiaoxin-t3code#feature-showcase)
+
+![工作台功能布局示意](https://raw.githubusercontent.com/labixiaoxins/xiaoxin-t3code/main/assets/community/showcase/01-workbench-overview.png)
+
+_功能布局示意，使用合成内容；实机图和组件图的来源见完整图集。_
+<!-- /community-showcase -->
+
 这是当前维护者 Mac 实际安装的 C31 应用包的完整发布副本，保留原有 macOS 界面、额度、产物与图片反馈、中文设置和磁盘管理等定制功能。**C31 是社区构建编号；包内官方版本标记仍为 0.1.5，不是新的官方 T3 版本。** C31 继承 C30 已合入的上游更新，并加入下述修复。
 
 ## 本次变化

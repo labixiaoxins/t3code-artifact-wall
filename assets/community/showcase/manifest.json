@@ -1,0 +1,75 @@
+{
+  "repositoryUrl": "https://github.com/labixiaoxins/xiaoxin-t3code",
+  "galleryUrl": "https://github.com/labixiaoxins/xiaoxin-t3code#feature-showcase",
+  "readmes": [
+    {
+      "path": "README.md",
+      "language": "zh",
+      "installHeading": "## 下载与使用"
+    },
+    {
+      "path": "README.en.md",
+      "language": "en",
+      "installHeading": "## Download and use"
+    }
+  ],
+  "features": [
+    {
+      "id": "overview",
+      "image": "assets/community/showcase/01-workbench-overview.png",
+      "kind": "concept",
+      "source": "AI-edited public synthetic Mac workbench; fictional example task and allowance values"
+    },
+    {
+      "id": "allowances",
+      "image": "assets/community/showcase/02-allowances.png",
+      "kind": "concept",
+      "source": "Published Windows layout concept; fictional values; provider windows follow actual returned data"
+    },
+    {
+      "id": "progress",
+      "image": "assets/community/showcase/03-task-progress.png",
+      "kind": "concept",
+      "source": "Published Windows layout concept; synthetic task steps and counts"
+    },
+    {
+      "id": "artifacts",
+      "image": "assets/community/showcase/04-artifacts-feedback.png",
+      "kind": "concept",
+      "source": "Published Windows artifact/feedback concept; synthetic forest-cottage illustrations"
+    },
+    {
+      "id": "context",
+      "image": "assets/community/c28/03-context.png",
+      "kind": "component-preview",
+      "source": "Existing C27 component preview retained with C28; synthetic values and surrounding preview frame"
+    },
+    {
+      "id": "models",
+      "image": "assets/community/c28/04-model-picker.png",
+      "kind": "component-preview",
+      "source": "Existing source-component preview; example model catalog"
+    },
+    {
+      "id": "usage",
+      "image": "assets/community/c28/01-cost.png",
+      "kind": "isolated-runtime",
+      "source": "Previously published C28 package screenshot; synthetic usage, not a real bill"
+    },
+    {
+      "id": "storage",
+      "image": "assets/community/c28/02-storage.png",
+      "kind": "isolated-runtime",
+      "source": "Previously published C28 package screenshot; isolated example directories"
+    },
+    {
+      "id": "settings",
+      "images": {
+        "zh": "docs/community/c30/settings-zh.png",
+        "en": "docs/community/c30/settings-en.png"
+      },
+      "kind": "isolated-runtime",
+      "source": "Previously published C30 Chinese/English settings screenshots; fixture environment"
+    }
+  ]
+}

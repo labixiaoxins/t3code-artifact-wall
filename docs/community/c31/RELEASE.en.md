@@ -2,6 +2,15 @@
 
 [简体中文](RELEASE.zh.md) · 2026-10-31 · Community release · Recommended Mac build · arm64
 
+<!-- community-showcase -->
+
+[Full feature gallery](https://github.com/labixiaoxins/xiaoxin-t3code#feature-showcase)
+
+![Workbench feature-layout concept](https://raw.githubusercontent.com/labixiaoxins/xiaoxin-t3code/main/assets/community/showcase/01-workbench-overview.png)
+
+_Concept with fictional content. Runtime and component-preview provenance is stated in the full gallery._
+<!-- /community-showcase -->
+
 This release distributes an unchanged copy of the currently installed C31 Mac application. It retains the macOS appearance, pinned allowances, artifacts and image feedback, Chinese localization, task progress, typography and storage features. C31 is a community build number. The embedded official version remains 0.1.5; this is not a new official T3 release.
 
 Changes include recovery from a temporary pre-creation thread 404, correction of the blank-draft disconnection state, sidebar task progress and additional Chinese approval/work-state text. It inherits the upstream integration already shipped in C30.
