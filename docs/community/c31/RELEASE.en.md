@@ -1,6 +1,6 @@
 # Xiaoxin T3 Code C31 · macOS Apple Silicon
 
-[简体中文](RELEASE.zh.md) · 2026-10-31 · Community prerelease · arm64
+[简体中文](RELEASE.zh.md) · 2026-10-31 · Community release · Recommended Mac build · arm64
 
 This release distributes an unchanged copy of the currently installed C31 Mac application. It retains the macOS appearance, pinned allowances, artifacts and image feedback, Chinese localization, task progress, typography and storage features. C31 is a community build number. The embedded official version remains 0.1.5; this is not a new official T3 release.
 
@@ -14,4 +14,6 @@ Validation: all 159 regular files and 14 symbolic links, including permissions, 
 
 Source checks: 233 focused tests, 20 React Compiler checks and typechecks for 7 packages passed. Formatting still reports 2 files, lint 3 findings and knip 3 unused replay exports. The complete check is not green. Existing installed behavior was preserved rather than adding UI changes for this distribution. All providers, screen sizes and long-term idle CPU behavior are not fully verified.
 
-No maintainer accounts, chats, projects, credentials, private settings or real screenshots are included. Source branch: `community/xiaoxin-c31`. Windows releases remain separate. SHA-256, bundle verification and isolated smoke-test receipts are attached.
+No maintainer accounts, chats, projects, credentials, private settings or real screenshots are included. Default branch: `main`; C31 archival branch: `community/xiaoxin-c31`. Windows releases remain separate. SHA-256, bundle verification and isolated smoke-test receipts are attached.
+
+Release status: C31 is now the repository's recommended release and Latest download. This promotion changes release entry points and packaging notes only; application files and the verification limits above are unchanged.
