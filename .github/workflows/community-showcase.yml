@@ -50,11 +50,12 @@ jobs:
           persist-credentials: false
           sparse-checkout-cone-mode: false
           sparse-checkout: |
-            README.md
-            README.en.md
-            .github/scripts/check-community-showcase.cjs
-            assets/community/
-            docs/community/
+            /README.md
+            /README.en.md
+            /.github/scripts/check-community-showcase.cjs
+            /assets/community/
+            /docs/community/
+            !/.repos/
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
