@@ -168,6 +168,13 @@ Most code changes do not need an internal documentation change. Agents can read 
 - Keep user docs in the shipped product's voice, without implementation details or contributor tooling. Update the relevant feature section when how to use it changes. A UI tweak does not need a documentation entry, and a new control does not need its own page.
 - `docs/operations/` holds maintainer setup, release, and debugging procedures. Keep instructions for operating an installed T3 Code server in the user guides.
 
+## Xiaoxin community release presentation
+
+- Every community release and homepage rewrite must keep the overview and visible feature images in both READMEs, before installation instructions. Do not replace the gallery with a text-only list, links or collapsed panels.
+- Keep allowance, progress, artifact/feedback, context, model, usage, storage and localized-settings coverage. Refresh stale illustrations with safe replacements and preserve concept/preview/runtime provenance and platform labels.
+- Release notes must contain an inline overview and the full gallery link. Never publish private account, chat or customer data for a showcase.
+- Before pushing or publishing, run `node .github/scripts/check-community-showcase.cjs`; for release notes also supply `SHOWCASE_RELEASE_BODY`. Follow [the community showcase release procedure](docs/operations/community-release-showcase.md).
+
 ## Plans and work artifacts
 
 - Do not commit implementation plans, research notes, or agent scratch files. Keep temporary working material outside the worktree. `.plans/` is gitignored only as a safety net for legacy tooling.

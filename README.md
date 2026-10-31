@@ -1,93 +1,115 @@
 # Xiaoxin T3 Code · 小新定制版
 
-**Windows 测试版：** [下载 C31-W1](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c31-windows-test-20261031) · [界面示意与限制](docs/community/windows-c31-w1/RELEASE.zh.md)
+**当前 Windows 测试版：C31-W1。** 沿用官方简洁布局，保留额度、任务进度、产物反馈和中文工作台。Mac 正式推荐版继续由 `main` 维护。
 
-**桌面发行：C30 社区预发布已提供下载。** [下载 C30](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c30-20261030) · [完整中文说明](docs/community/c30/RELEASE.zh.md)
+[下载 Windows 测试版](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c31-windows-test-20261031) · [Windows 说明与限制](docs/community/windows-c31-w1/RELEASE.zh.md) · [Mac 正式版](https://github.com/labixiaoxins/xiaoxin-t3code/releases/latest) · [English](README.en.md)
 
-**源码同步：** 已实际合入官方 `main` 至 `97e35bcf23`（2026-10-30）。[同步说明与验证](docs/community/c30/SYNC.zh.md)。C30 包含本次源码同步；维护者本机安装正在等待任务空闲，尚未完成安装后读回。下方 C29 内容保留作历史说明。
+C31-W1 是社区测试编号，内嵌官方版本标记仍为 0.1.5。本分支维护 Windows 测试界面。
 
-**上一版：C29（官方基线 0.1.5）** · [下载](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c29-20261030) · [完整中文说明](docs/community/c29/RELEASE.zh.md) · [English](README.en.md)
+<a id="feature-showcase"></a>
 
-修复 C28 工程检查失败，补齐设置中文、搜索与动态提示。772 项相关测试、99 项 React Compiler 检查、36 个包类型检查通过；安装后登录、聊天、配置保留核验通过。仍以社区预发布提供，不代表整仓所有 CI 或所有设备均通过。
+<!-- showcase:overview -->
 
-![C29 中文设置实机截图，隔离测试数据](docs/community/c29/settings-zh.png)
+![Windows 工作台总览：额度与任务进度](assets/community/showcase/03-task-progress.png)
 
-## 既有功能与 C28 历史说明
+_功能布局示意，全部为示例内容；不作为实机验收截图。_
 
-[English](README.en.md) · [下载 C28 预发布版](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c28-20261030) · [完整更新与使用说明](docs/community/C28.md) · [上游 T3 Code](https://github.com/pingdotgg/t3code)
+## 特色功能，看图了解
 
-基于 **官方 T3 Code 0.1.5** 的社区定制版。保留 T3 自带模型订阅接入的工作方式，重点改进日常输入、长会话信息、图片成果查看和本地空间整理。`C28` 是本项目的社区构建编号，不是官方版本号。
+图片直接展示，点击可放大。总览、额度、任务和产物图为布局示意；上下文与模型菜单为组件预览；费用、磁盘与设置图为已公开的隔离环境截图。部分图来自之前版本，用于展示保留的功能，具体来源随图标注。
 
-本次是 **C25 → C28 的累计预发布更新**，包含中间版本的界面与内核升级。维护者本机已完成 C28 程序替换，运行程序、前端入口、已有消息、项目、侧栏、配置与登录关键文件的安装后核验通过；**空闲 CPU 验收仍待完成**。详细验证范围见 [C28 发布记录](docs/community/C28.md#验证范围与已知限制)。
+<!-- showcase:allowances -->
 
-## 这次更新解决什么
+### 跨模型额度常显
 
-| 日常问题                     | C28 的变化                                                              |
-| ---------------------------- | ----------------------------------------------------------------------- |
-| 输入区偏高，底栏入口太多     | 采用三行默认输入区；移除内置会审入口，按需要自行请求评审                |
-| 模型菜单底部的默认设置占空间 | 删除“新任务默认模型”设置及底部附加入口，保留模型搜索、收藏和选择        |
-| 上下文弹窗信息太长           | 默认只呈现关键用量和续聊操作，运行细节按需展开                          |
-| “费用”和“令牌”看起来一样     | 费用模式显示金额与费用占比；令牌模式显示 token 数量与占比               |
-| 磁盘页只展示占用             | 按磁盘、类别和保护状态查找项目，再预览归档、释放或恢复操作              |
-| 横图与竖图叠加时互相干扰     | 改进对比区域裁切，提供 A / B 单图查看；修改意见功能默认关闭，可按需开启 |
-| 网页预览放大再缩小后位置漂移 | 修正浮动预览窗口的锚点与尺寸恢复逻辑                                    |
+把常用模型的剩余额度放在右上角，展开查看各账号、窗口与重置时间。不同供应商的时间窗口各自保留。
 
-自定义侧栏外观继续保留，也可选择官方侧栏布局。此版没有自动开启多模型会审，不附带模型订阅、账号、私人配置或 API 密钥。
+![跨模型额度常显与展开详情](assets/community/showcase/02-allowances.png)
 
-## 费用与令牌，各自说清楚
+_Windows 布局示意、示例数值；实际窗口以供应商返回为准。_
 
-打开“用量”，切换“费用 / 令牌”。费用页的总额、提供方金额、占比和图表现在使用一致的费用口径；令牌页则使用 token 口径。修复覆盖中文和英文界面。
+<!-- showcase:progress -->
 
-![C28 费用页：金额、费用占比和 token 明细](assets/community/c28/01-cost.png)
+### 任务步骤与侧栏进度
 
-_C28 打包程序实际截图，使用隔离测试数据。金额是 API 用量估算，不是订阅账单、已扣款记录或充值余额。未定价和缺失数据不能视为零费用。_
+侧栏直接看到完成数和当前阶段，运行面板查看完整步骤，区分执行中、等待确认与已完成。
 
-## 磁盘空间，从查看到有范围的整理
+![任务步骤与侧栏进度](assets/community/showcase/03-task-progress.png)
 
-“用量 → 磁盘空间”提供磁盘筛选、按需容量测量、名称或路径搜索，以及“待整理 / 旧备份 / 受保护 / 归档与记录”分类。详情中可以检查来源、路径和可用操作，再确认具体计划。
+_Windows 布局示意；任务和进度均为示例，Mac 保留 macOS 外观。_
 
-![C28 磁盘管理：分类、测量与操作入口](assets/community/c28/02-storage.png)
+<!-- showcase:artifacts -->
 
-_C28 打包程序实际截图，目录与文件内容使用隔离测试数据。截图中的容量不是可释放空间承诺。_
+### 产物预览、图片对比与修改意见
 
-- 区分工作区总量、依赖包、构建产物、日志和保护数据；工作区包含其子目录，统计不会将重叠部分重复算成可释放容量。
-- 支持既有外盘归档、符合审查条件的释放、操作记录和恢复到新目录。只归档会保留源文件。
-- 增加超过 30 天的轮转日志清理预览：先生成并校验压缩副本、登记恢复索引，再处理已确认且未变化的文件。当前日志继续保留。
-- 选中外盘时，不显示属于 T3 数据盘的日志清理按钮，避免误解操作范围。
+集中查看产物，比较原图与修改预览。修改意见先整理为草稿，由你发送后继续处理。
 
-这是有范围的 T3 存储管理，**不是全盘清理器**。不会把所有 AI 软件文件、缓存、旧备份或日期较早的目录自动判断为垃圾。未知引用、未审查项目和有效回滚资料继续受保护。归档与清理执行器目前支持 macOS。
+![产物预览、版本对比和图片反馈草稿](assets/community/showcase/04-artifacts-feedback.png)
 
-## 长会话与模型选择更紧凑
+_Windows 功能布局示意，使用合成图片；不代表图中的返工已经实际执行。_
 
-上下文面板先显示当前状态和主要操作，模型运行、速度与上报细节在需要时展开。模型菜单不再带“新任务默认模型”底栏，常用搜索与选择保留。
+<!-- showcase:context -->
 
-![紧凑上下文组件预览](assets/community/c28/03-context.png)
+### 长会话上下文
 
-![移除默认设置底栏后的模型菜单组件预览](assets/community/c28/04-model-picker.png)
+优先显示上下文占用和续聊操作，需要时再展开运行细节。
 
-_以上两图由本版对应源码组件渲染，使用模拟数据；外围输入框是预览框架，不是完整应用截图，也不代表模型已经执行。_
+![紧凑的上下文面板与续聊操作](assets/community/c28/03-context.png)
 
-## 图片对比更适合横竖混排
+_已有源码组件预览，使用示例数据；外围输入框是预览框架。_
 
-图片修改意见入口默认关闭，需要时再开启。对比时改进两侧裁切，单独查看 A 或 B 时隐藏另一张图，避免横图从竖图背后露出大片区域。原图尺寸和文件不因查看模式而改变。
+<!-- showcase:models -->
 
-![混合比例图片的对比与单图查看](assets/community/c28/05-image-comparison.png)
+### 更紧凑的模型选择
 
-_该图为 C26 打包程序的实际混合比例测试截图，功能随本次累计更新保留；使用测试图片，非本次重新执行的真实模型返工。_
+保留模型搜索、收藏和切换，减少模型菜单底部的常驻设置。
 
-## 下载、升级与恢复
+![模型搜索、收藏与紧凑选择菜单](assets/community/c28/04-model-picker.png)
 
-从 [C28 Release](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c28-20261030) 下载 `Xiaoxin-T3-Code-C28-macOS-arm64.zip`，并核对同页 `SHA256SUMS.txt`。当前下载包面向 Apple 芯片 Mac，采用社区临时签名，未经 Apple 公证；最低系统要求以发行清单为准。
+_已有源码组件预览；可选模型以实际通道为准。_
 
-已有 T3 用户应先完成任务并正常退出，再保存同一时点的应用和完整数据备份，然后替换应用。此版沿用 T3 的应用身份与数据位置，**不要同时运行官方版与社区版**。程序回退与数据库回退是两件事，切勿用旧数据库覆盖唯一的当前资料。具体步骤见 [C28 安装与恢复说明](docs/community/C28.md#下载升级与恢复)。
+<!-- showcase:usage -->
 
-## 验证到哪一步
+### 用量、费用与令牌各自清楚
 
-- C28 的 33 项功能测试、48 项安装器测试通过；web、server、contracts 类型检查、目标 lint 和构建通过。
-- 使用隔离数据验证了费用切换、磁盘分类、分盘操作范围、日志归档清理和恢复；1280px 浅色及 390px 深色页面完成检查。
-- 本机已安装 C28，程序与数据保护核验通过，空闲 CPU 验收仍待完成。
-- 完整 `check:changed` 未通过，存在 lint、knip、预算测试和 React Compiler 检查失败，聚合类型检查另受缺少 Astro 阻断。具体结果、公开包注释标准化与未覆盖场景见 [详细发布记录](docs/community/C28.md#验证范围与已知限制)。
+按时间和模型查看用量，费用模式与令牌模式使用各自的指标和占比。
 
-不将局部测试描述为所有平台、模型提供方、远程连接和移动端均已验收，也不以示意图代替实际功能测试。上游 MIT 许可及署名保留。
+![费用、模型占比和令牌明细](assets/community/c28/01-cost.png)
 
-[C25 历史记录](docs/community/C25.md) · [C13 → C23 历史演进](docs/community/C13-TO-C23.md) · [上游说明](README.upstream.md)
+_C28 隔离环境实拍，使用合成用量；金额为 API 估算，不是订阅账单或扣款记录。_
+
+<!-- showcase:storage -->
+
+### 有范围的磁盘整理
+
+按磁盘和类别查看工作区、依赖、构建产物与日志，先检查和预览具体计划，再处理符合条件的项目。
+
+![按类别检查磁盘占用与整理计划](assets/community/c28/02-storage.png)
+
+_C28 隔离环境实拍，目录为测试数据；占用不等于可释放量。归档执行器目前支持 macOS。_
+
+<!-- showcase:settings -->
+
+### 中文设置与清晰的功能分区
+
+中文分类、搜索和动态说明覆盖日常设置，也可切换英文；外观和字体等调整继续保留。
+
+![中文设置与功能分区](docs/community/c30/settings-zh.png)
+
+_C30 已公开的隔离环境截图，作为现有中文设置的展示。_
+
+## 下载与使用
+
+- 下载 `Xiaoxin-T3-C31-W1-win-x64.zip`，解压到固定文件夹，用 `Start-Xiaoxin-T3.cmd` 启动。程序与窗口配置使用独立测试数据目录。
+- Codex CLI 至少需要 0.159.0；本机验证使用独立的官方 0.166.0，没有替换全局 CLI。其他供应商使用你自己的 CLI 与登录。
+- [Windows 下载与完整说明](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c31-windows-test-20261031) · [Mac 正式推荐版](https://github.com/labixiaoxins/xiaoxin-t3code/releases/latest)。
+
+## 验证与已知事项
+
+Windows 程序、SQLite 和服务端已在 Windows 11 x64 启动验证；通过连接 Windows 后端的浏览器界面，第一轮与同会话第二轮回复均无需刷新显示。原生 Windows 窗口观感、缩放和全部供应商仍待进一步验收。
+
+Mac 专用外盘归档/恢复 worker 与刘海工具尚未移植到 Windows。这里的磁盘、设置截图来自已公开的 Mac 隔离环境，作为对应功能的展示；具体可用范围以 Windows 发布说明为准。
+
+## 历史与来源
+
+[全部历史发行](https://github.com/labixiaoxins/xiaoxin-t3code/releases) · [Mac 主线](https://github.com/labixiaoxins/xiaoxin-t3code/tree/main) · [上游 T3 Code](https://github.com/pingdotgg/t3code)

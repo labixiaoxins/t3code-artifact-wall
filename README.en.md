@@ -1,92 +1,115 @@
 # Xiaoxin T3 Code · Community Edition
 
-**Desktop release: C30 community prerelease is available.** [Download C30](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c30-20261030) · [Detailed notes](docs/community/c30/RELEASE.en.md)
+**Current Windows test build: C31-W1.** Retains the official minimal layout with pinned allowances, task progress, artifact feedback and Chinese workbench controls. The recommended Mac release is maintained on `main`.
 
-**Source synchronization:** upstream `main` is actually merged through `97e35bcf23` (2026-10-30). [Changes and validation](docs/community/c30/SYNC.en.md). C30 includes this synchronization. The maintainer installation is waiting for idle tasks; post-install readback is pending. The C29 information below is retained as history.
+[Download Windows test build](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c31-windows-test-20261031) · [Windows notes and limitations](docs/community/windows-c31-w1/RELEASE.zh.md) · [Recommended Mac release](https://github.com/labixiaoxins/xiaoxin-t3code/releases/latest) · [简体中文](README.md)
 
+C31-W1 is a community test build number; its embedded official version remains 0.1.5. This branch maintains the Windows test interface.
 
-**Previous desktop release: C29 (official baseline 0.1.5)** · [Download](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c29-20261030) · [Detailed release notes](docs/community/c29/RELEASE.en.md) · [简体中文](README.md)
+<a id="feature-showcase"></a>
 
-Repairs C28 engineering check failures and completes settings localization, search and dynamic copy. 772 related tests, 99 React Compiler checks and type checks across 36 packages pass. Post-install account, chat and configuration preservation was verified. Distributed as a community prerelease, not a claim of full CI or universal device validation.
+<!-- showcase:overview -->
 
-![C29 English settings, isolated fixture runtime](docs/community/c29/settings-en.png)
+![Windows workbench overview: allowances and task progress](assets/community/showcase/03-task-progress.png)
 
-## Existing features and historical C28 notes
+_Feature-layout concept with fictional content; not an acceptance screenshot._
 
-[简体中文](README.md) · [Download C28 prerelease](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c28-20261030) · [Full release and usage guide](docs/community/C28.en.md) · [Upstream T3 Code](https://github.com/pingdotgg/t3code)
+## See the workbench features
 
-A community edition based on **official T3 Code 0.1.5**, retaining T3's bring-your-own-subscription workflow and improving everyday composition, long-conversation information, image review and local storage management. `C28` is this project's community build label, not an official version number.
+Images are visible directly and can be opened at full size. Overview, allowance, task and artifact images are layout concepts; context and model menus are component previews; usage, storage and settings images are previously published isolated-runtime screenshots. Earlier screenshots illustrate retained features; provenance is stated below each image.
 
-This is a **cumulative C25 → C28 prerelease**, including the intervening interface and core upgrades. C28 is installed on the maintainer's Mac, with the running application, renderer entry, existing messages, projects, sidebar state, configuration and login-key preservation checks passed. **Idle CPU acceptance remains pending.** See the [validation record](docs/community/C28.en.md#validation-and-known-limitations) for the exact scope.
+<!-- showcase:allowances -->
 
-## What changes in daily use
+### Pinned cross-provider allowances
 
-| Problem | C28 behavior |
-| --- | --- |
-| The composer is too tall and the footer too crowded | A three-line default text area; the built-in council entry is removed, so reviews can be requested when needed |
-| New-task defaults take up space in the model picker | Removes that footer and its extra entry points while retaining model search, favorites and selection |
-| The context popup contains too much detail | Shows key usage and continuation actions first, with runtime details available on demand |
-| Cost and Tokens look like the same view | Cost uses currency and cost shares; Tokens uses token counts and token shares |
-| Disk space only reports sizes | Filter by disk, category and protection state, then preview an archive, eligible release or restore plan |
-| Portrait and landscape comparisons interfere with each other | Improved clipping and A / B whole-image viewing; image revision feedback is off by default and can be enabled |
-| A floating web preview drifts after growing and shrinking | Corrected anchor and size-restoration behavior |
+Keep remaining allowances in the header and expand account, window and reset details. Each provider retains its own reporting window.
 
-Customized sidebar appearance is retained, with the upstream sidebar layout also available. This edition does not automatically enable multi-model reviews and includes no model subscription, account, private configuration or API key.
+![Pinned allowances and expanded window details](assets/community/showcase/02-allowances.png)
 
-## Cost and tokens use distinct metrics
+_Windows layout concept with fictional values; actual windows depend on provider data._
 
-Open Usage and switch between Cost and Tokens. The Cost total, provider amounts, shares and chart now consistently use currency. Tokens uses token counts instead. The fix covers both Chinese and English interfaces.
+<!-- showcase:progress -->
 
-![C28 Cost view with currency totals, cost shares and token details](assets/community/c28/01-cost.png)
+### Task steps and sidebar progress
 
-*Actual C28 packaged application capture with isolated test data. Amounts are API usage estimates, not subscription invoices, confirmed charges or prepaid balances. Unpriced or unavailable data must not be interpreted as zero cost.*
+See completion counts and the current stage in the sidebar, then open the full step list in Run. Running, waiting for confirmation and completed states remain distinct.
 
-## Disk space with scoped actions
+![Task steps and sidebar progress](assets/community/showcase/03-task-progress.png)
 
-Usage → Disk space offers disk selection, on-demand size measurement, name/path search, and categories for items to organize, older backups, protected data, and archives/history. Inspect the source, path and available actions before confirming a specific plan.
+_Windows layout concept with synthetic tasks. The Mac build retains its macOS appearance._
 
-![C28 disk management with categories, measurement and actions](assets/community/c28/02-storage.png)
+<!-- showcase:artifacts -->
 
-*Actual C28 packaged application capture; directory contents use isolated test data. Displayed sizes do not promise a reclaimable amount.*
+### Artifact previews, image comparison and feedback
 
-- Separates workspace totals, dependencies, build outputs, logs and protected data. A workspace includes its children; overlapping sizes are not counted twice as reclaimable space.
-- Retains external-drive archiving, release for reviewed eligible sources, operation history and restoration to a new directory. Archive-only keeps source files.
-- Adds a preview for rotated logs older than 30 days: create and verify a compressed copy, register its recovery index, then process only confirmed files that have not changed. Current logs remain.
-- Selecting an external disk hides the log-cleanup action belonging to the T3 data disk, keeping the operation's scope clear.
+Review outputs, compare an original with a proposed revision and compose feedback before sending it for another turn.
 
-This is scoped T3 storage management, **not a whole-disk cleaner**. It does not automatically classify every AI application's files, cache, old backup or aging directory as disposable. Unknown references, unreviewed items and valid rollback data remain protected. The archive and cleanup worker currently supports macOS.
+![Artifact preview, version comparison and feedback draft](assets/community/showcase/04-artifacts-feedback.png)
 
-## Compact context and model selection
+_Windows feature-layout concept using synthetic illustrations; it does not prove a real revision was executed._
 
-The context panel puts status and primary actions first. Runtime, speed and reporting details expand when needed. The model picker no longer includes the new-task-default footer; everyday search and selection remain.
+<!-- showcase:context -->
 
-![Compact context component preview](assets/community/c28/03-context.png)
+### Long-conversation context
 
-![Model picker component preview without the default-settings footer](assets/community/c28/04-model-picker.png)
+Keep context usage and continuation actions compact, with runtime details available when needed.
 
-*These two images render the corresponding source components with fictional data. The surrounding composer is a preview frame, not a full application capture, and does not prove that a model turn ran.*
+![Compact context panel and continuation actions](assets/community/c28/03-context.png)
 
-## Image comparison for mixed aspect ratios
+_Existing source-component preview with fixture data and a surrounding preview frame._
 
-Image revision feedback is off by default and can be enabled when needed. Comparison clipping is improved on both sides. Viewing A or B alone hides the other image, preventing a landscape image from showing around a portrait image. Viewing modes do not alter the original files or dimensions.
+<!-- showcase:models -->
 
-![Mixed-aspect image comparison and whole-image viewing](assets/community/c28/05-image-comparison.png)
+### A compact model picker
 
-*Actual C26 packaged application capture of the mixed-aspect test, retained as part of this cumulative release. It uses test images and is not evidence of a new real-model revision run.*
+Search, favorite and switch models without a permanent default-settings footer.
 
-## Download, upgrade and recovery
+![Model search, favorites and compact selection](assets/community/c28/04-model-picker.png)
 
-Download `Xiaoxin-T3-Code-C28-macOS-arm64.zip` from the [C28 release](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c28-20261030), and verify it against `SHA256SUMS.txt` on the same page. The current package targets Apple silicon Macs, is ad-hoc signed and is not Apple-notarized. See the release manifest for the minimum OS requirement.
+_Existing source-component preview; available models depend on the configured provider._
 
-Existing T3 users should finish tasks, quit normally, back up the matching application and complete data state at the same point in time, then replace the application. This edition uses T3's existing application identity and data locations. **Do not run official and community copies simultaneously.** Application rollback and database rollback are separate operations; never overwrite your only current data with an older database. See the [C28 installation and recovery guide](docs/community/C28.en.md#download-upgrade-and-recovery).
+<!-- showcase:usage -->
 
-## Validation at a glance
+### Usage, cost and tokens
 
-- All 33 C28 feature tests and 48 installer tests passed. Web, server and contracts typechecks, targeted lint and builds passed.
-- Isolated data checks covered metric switching, disk classification, volume-scoped actions, rotated-log archiving/cleanup and restoration. The UI was inspected at 1280px in light mode and 390px in dark mode.
-- C28 is installed locally and its application/data-preservation readbacks passed; idle CPU acceptance remains pending.
-- Full `check:changed` is not green: lint, knip, budget-test and React Compiler findings remain, and aggregate typechecking is blocked by missing Astro. Exact results, public-package comment normalization and uncovered scenarios are listed in the [detailed release record](docs/community/C28.en.md#validation-and-known-limitations).
+Inspect time ranges and model breakdowns with separate cost and token metrics.
 
-Focused checks do not establish acceptance for every platform, model provider, remote connection or mobile client. Illustrations do not substitute for functional tests. Upstream MIT licensing and attribution are retained.
+![Cost, model shares and token breakdown](assets/community/c28/01-cost.png)
 
-[C25 historical record](docs/community/C25.en.md) · [C13 → C23 history](docs/community/C13-TO-C23.en.md) · [Upstream README](README.upstream.md)
+_C28 isolated-runtime screenshot with synthetic usage. Costs are API estimates, not a subscription bill or payment record._
+
+<!-- showcase:storage -->
+
+### Scoped storage management
+
+Inspect workspaces, dependencies, builds and logs by volume and category. Preview a specific plan before acting on eligible items.
+
+![Storage categories, occupancy and planned actions](assets/community/c28/02-storage.png)
+
+_C28 isolated-runtime screenshot with fixture directories. Occupancy is not reclaimable space; the archive worker currently supports macOS._
+
+<!-- showcase:settings -->
+
+### Chinese and English settings
+
+Localized categories, search and dynamic guidance accompany the retained appearance and typography controls.
+
+![English settings and feature categories](docs/community/c30/settings-en.png)
+
+_Previously published C30 isolated-runtime settings screenshot._
+
+## Download and use
+
+- Extract `Xiaoxin-T3-C31-W1-win-x64.zip` into a fixed folder and start with `Start-Xiaoxin-T3.cmd`. Application and window state use an independent test directory.
+- Codex CLI requires at least 0.159.0. Validation used an isolated official 0.166.0 without replacing the global CLI. Other providers require the user's own CLI and authentication.
+- [Windows download and full notes](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c31-windows-test-20261031) · [Recommended Mac release](https://github.com/labixiaoxins/xiaoxin-t3code/releases/latest).
+
+## Verification and known issues
+
+The native Windows executable, SQLite and server started on Windows 11 x64. A browser connected to the Windows backend displayed real first- and second-turn replies without refresh. Interactive window appearance, scaling and all-provider coverage remain incomplete.
+
+The macOS archive/restore worker and notch utility have not been ported to Windows. Storage and settings screenshots show the previously published isolated Mac environment. See the Windows release notes for actual platform coverage.
+
+## History and upstream
+
+[All releases](https://github.com/labixiaoxins/xiaoxin-t3code/releases) · [Mac mainline](https://github.com/labixiaoxins/xiaoxin-t3code/tree/main) · [Upstream T3 Code](https://github.com/pingdotgg/t3code)
