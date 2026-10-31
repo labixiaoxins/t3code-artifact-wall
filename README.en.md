@@ -6,7 +6,6 @@
 
 **Source synchronization:** upstream `main` is actually merged through `97e35bcf23` (2026-10-30). [Changes and validation](docs/community/c30/SYNC.en.md). C31 inherits the C30 integration and adds thread subscription recovery, task progress and localization fixes. Its package matches the currently installed C31 application byte for byte; validation limits are documented in the C31 notes. The C29 information below is retained as history.
 
-
 **Previous desktop release: C29 (official baseline 0.1.5)** · [Download](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c29-20261030) · [Detailed release notes](docs/community/c29/RELEASE.en.md) · [简体中文](README.md)
 
 Repairs C28 engineering check failures and completes settings localization, search and dynamic copy. 772 related tests, 99 React Compiler checks and type checks across 36 packages pass. Post-install account, chat and configuration preservation was verified. Distributed as a community prerelease, not a claim of full CI or universal device validation.
@@ -23,15 +22,15 @@ This is a **cumulative C25 → C28 prerelease**, including the intervening inter
 
 ## What changes in daily use
 
-| Problem | C28 behavior |
-| --- | --- |
-| The composer is too tall and the footer too crowded | A three-line default text area; the built-in council entry is removed, so reviews can be requested when needed |
-| New-task defaults take up space in the model picker | Removes that footer and its extra entry points while retaining model search, favorites and selection |
-| The context popup contains too much detail | Shows key usage and continuation actions first, with runtime details available on demand |
-| Cost and Tokens look like the same view | Cost uses currency and cost shares; Tokens uses token counts and token shares |
-| Disk space only reports sizes | Filter by disk, category and protection state, then preview an archive, eligible release or restore plan |
-| Portrait and landscape comparisons interfere with each other | Improved clipping and A / B whole-image viewing; image revision feedback is off by default and can be enabled |
-| A floating web preview drifts after growing and shrinking | Corrected anchor and size-restoration behavior |
+| Problem                                                      | C28 behavior                                                                                                   |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| The composer is too tall and the footer too crowded          | A three-line default text area; the built-in council entry is removed, so reviews can be requested when needed |
+| New-task defaults take up space in the model picker          | Removes that footer and its extra entry points while retaining model search, favorites and selection           |
+| The context popup contains too much detail                   | Shows key usage and continuation actions first, with runtime details available on demand                       |
+| Cost and Tokens look like the same view                      | Cost uses currency and cost shares; Tokens uses token counts and token shares                                  |
+| Disk space only reports sizes                                | Filter by disk, category and protection state, then preview an archive, eligible release or restore plan       |
+| Portrait and landscape comparisons interfere with each other | Improved clipping and A / B whole-image viewing; image revision feedback is off by default and can be enabled  |
+| A floating web preview drifts after growing and shrinking    | Corrected anchor and size-restoration behavior                                                                 |
 
 Customized sidebar appearance is retained, with the upstream sidebar layout also available. This edition does not automatically enable multi-model reviews and includes no model subscription, account, private configuration or API key.
 
@@ -41,7 +40,7 @@ Open Usage and switch between Cost and Tokens. The Cost total, provider amounts,
 
 ![C28 Cost view with currency totals, cost shares and token details](assets/community/c28/01-cost.png)
 
-*Actual C28 packaged application capture with isolated test data. Amounts are API usage estimates, not subscription invoices, confirmed charges or prepaid balances. Unpriced or unavailable data must not be interpreted as zero cost.*
+_Actual C28 packaged application capture with isolated test data. Amounts are API usage estimates, not subscription invoices, confirmed charges or prepaid balances. Unpriced or unavailable data must not be interpreted as zero cost._
 
 ## Disk space with scoped actions
 
@@ -49,7 +48,7 @@ Usage → Disk space offers disk selection, on-demand size measurement, name/pat
 
 ![C28 disk management with categories, measurement and actions](assets/community/c28/02-storage.png)
 
-*Actual C28 packaged application capture; directory contents use isolated test data. Displayed sizes do not promise a reclaimable amount.*
+_Actual C28 packaged application capture; directory contents use isolated test data. Displayed sizes do not promise a reclaimable amount._
 
 - Separates workspace totals, dependencies, build outputs, logs and protected data. A workspace includes its children; overlapping sizes are not counted twice as reclaimable space.
 - Retains external-drive archiving, release for reviewed eligible sources, operation history and restoration to a new directory. Archive-only keeps source files.
@@ -66,7 +65,7 @@ The context panel puts status and primary actions first. Runtime, speed and repo
 
 ![Model picker component preview without the default-settings footer](assets/community/c28/04-model-picker.png)
 
-*These two images render the corresponding source components with fictional data. The surrounding composer is a preview frame, not a full application capture, and does not prove that a model turn ran.*
+_These two images render the corresponding source components with fictional data. The surrounding composer is a preview frame, not a full application capture, and does not prove that a model turn ran._
 
 ## Image comparison for mixed aspect ratios
 
@@ -74,7 +73,7 @@ Image revision feedback is off by default and can be enabled when needed. Compar
 
 ![Mixed-aspect image comparison and whole-image viewing](assets/community/c28/05-image-comparison.png)
 
-*Actual C26 packaged application capture of the mixed-aspect test, retained as part of this cumulative release. It uses test images and is not evidence of a new real-model revision run.*
+_Actual C26 packaged application capture of the mixed-aspect test, retained as part of this cumulative release. It uses test images and is not evidence of a new real-model revision run._
 
 ## Download, upgrade and recovery
 
