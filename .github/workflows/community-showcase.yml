@@ -1,0 +1,74 @@
+name: Community Feature Showcase
+
+on:
+  push:
+    branches: [main, "community/xiaoxin-c*", "community/windows-c*"]
+    paths:
+      - README.md
+      - README.en.md
+      - assets/community/**
+      - docs/community/**
+      - .github/scripts/check-community-showcase.cjs
+      - .github/workflows/community-showcase.yml
+  pull_request:
+    branches: [main, "community/xiaoxin-c*", "community/windows-c*"]
+    paths:
+      - README.md
+      - README.en.md
+      - assets/community/**
+      - docs/community/**
+      - .github/scripts/check-community-showcase.cjs
+      - .github/workflows/community-showcase.yml
+  release:
+    types: [published, edited]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Optional existing release tag to check as well
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: showcase-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  showcase:
+    if: github.repository == 'labixiaoxins/xiaoxin-t3code'
+    name: Visible feature images
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out feature documentation
+        uses: actions/checkout@v6
+        with:
+          # Releases may reference historical commits without the gallery guard.
+          ref: ${{ github.event_name == 'release' && github.event.repository.default_branch || github.ref }}
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            README.md
+            README.en.md
+            .github/scripts/check-community-showcase.cjs
+            assets/community/
+            docs/community/
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Verify visible bilingual feature galleries
+        run: node .github/scripts/check-community-showcase.cjs
+
+      - name: Verify an existing release on request
+        if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" --jq '.body' > "$RUNNER_TEMP/showcase-release.md"
+          SHOWCASE_RELEASE_BODY="$RUNNER_TEMP/showcase-release.md" node .github/scripts/check-community-showcase.cjs
