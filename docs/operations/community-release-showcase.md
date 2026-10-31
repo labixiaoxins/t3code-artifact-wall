@@ -21,4 +21,8 @@ Before publishing or rewriting community release notes, run the same check with 
 SHOWCASE_RELEASE_BODY=/path/to/release-body.md node .github/scripts/check-community-showcase.cjs
 ```
 
-The standalone check needs no dependency installation or model calls. It reports missing, collapsed and broken images. Run it locally before every publication. GitHub workflow automation is not enabled: the current publishing credential lacks the `workflow` scope. This limitation does not waive the local pre-publication check.
+The standalone check needs no dependency installation or model calls. It reports missing, collapsed and broken images. Run it locally before every publication.
+
+The **Community Feature Showcase** workflow runs the same check on relevant pushes and pull requests to `main` and the maintained community branches, and on published or edited releases. For release events it checks the current default-branch gallery and the event's release body, including when the release tag predates this check. It has read-only repository access, installs no project dependencies and calls no models. A failed check reports the problem; it does not delete images, undo a push or unpublish a release.
+
+To check an existing release, run the workflow manually with its optional `release_tag` input. Keep the local pre-publication check: an automated post-publication check cannot prevent an incomplete release from being published.
