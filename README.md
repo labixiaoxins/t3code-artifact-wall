@@ -1,8 +1,12 @@
 # Xiaoxin T3 Code · 小新定制版
 
-**桌面发行：C30 社区预发布已提供下载。** [下载 C30](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c30-20261030) · [完整中文说明](docs/community/c30/RELEASE.zh.md)
+**当前 Mac 发行：C31 社区预发布。** [下载 C31 · Apple Silicon](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c31-20261031) · [修复、校验与限制](docs/community/c31/RELEASE.zh.md)
 
-**源码同步：** 已实际合入官方 `main` 至 `97e35bcf23`（2026-10-30）。[同步说明与验证](docs/community/c30/SYNC.zh.md)。C30 包含本次源码同步；维护者本机安装正在等待任务空闲，尚未完成安装后读回。下方 C29 内容保留作历史说明。
+**Windows 测试版：** [下载 C31-W1](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c31-windows-test-20261031) · [Windows 源码与示意图](https://github.com/labixiaoxins/xiaoxin-t3code/tree/community/windows-c31-w1)
+
+**上一版 Mac：** [C30 下载与说明](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c30-20261030)
+
+**源码同步：** 已实际合入官方 `main` 至 `97e35bcf23`（2026-10-30）。[同步说明与验证](docs/community/c30/SYNC.zh.md)。C31 继承 C30 的源码同步，并加入新会话订阅恢复、任务进度及中文修复。本次发布包与当前在用 C31 应用逐文件相同；验证范围见 C31 说明。下方 C29 内容保留作历史说明。
 
 
 **上一版：C29（官方基线 0.1.5）** · [下载](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c29-20261030) · [完整中文说明](docs/community/c29/RELEASE.zh.md) · [English](README.en.md)

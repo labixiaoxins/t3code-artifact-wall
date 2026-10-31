@@ -1172,7 +1172,7 @@ function deriveTurnFolds(input: {
         ? `You stopped after ${duration}`
         : "You stopped this response"
       : duration
-        ? `Worked for ${duration}`
+        ? uiText("Worked for {duration}", { duration })
         : "Worked";
 
     // The top row keeps the whole turn's time, steers included. Work after a
@@ -1877,7 +1877,7 @@ export function deriveMessagesTimelineRows(input: {
             isExpandedToolGroup: false,
             displayLabel:
               toolGroupAction(singleEntry) === "edit"
-                ? summarizeToolGroup(visibleGroupedEntries).summary
+                ? summarizeToolGroup(visibleGroupedEntries, uiText).summary
                 : singleToolCallLabel(singleEntry),
           });
         } else {
@@ -1914,7 +1914,7 @@ export function deriveMessagesTimelineRows(input: {
             summary:
               singleEntry !== null && !workLogEntryIsToolLike(singleEntry)
                 ? singleEntry.label
-                : summarizeToolGroup(visibleGroupedEntries).summary,
+                : summarizeToolGroup(visibleGroupedEntries, uiText).summary,
             summaryKind,
             ...(groupToolSurface ? { toolSurface: groupToolSurface } : {}),
             ...(groupToolIcon ? { toolIcon: groupToolIcon } : {}),

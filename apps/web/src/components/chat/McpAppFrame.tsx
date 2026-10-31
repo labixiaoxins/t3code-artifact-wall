@@ -266,7 +266,7 @@ export function McpAppFrame(props: {
         if (!info.value.callable) throw new McpAppHostRefusal("This app cannot call that tool.");
         if (!info.value.readOnly) {
           const approved = await ask(
-            `Allow ${app.server} to run ${info.value.title ?? name}?\n${JSON.stringify(args, null, 2)}`,
+            `${uiText("Allow {server} to run {tool}?", { server: app.server, tool: info.value.title ?? name })}\n${JSON.stringify(args, null, 2)}`,
           );
           if (approved !== true) throw new McpAppHostRefusal("Declined by the user.");
         }

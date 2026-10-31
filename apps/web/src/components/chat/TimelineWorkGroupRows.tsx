@@ -282,16 +282,15 @@ export function WorkingTimelineRow({
   const compacting = row.compacting === true || isCompacting;
   const shimmer = isPreparingWorktree || compacting;
   const label = isPreparingWorktree ? (
-    "Setting up worktree…"
+    uiText("Setting up worktree…")
   ) : compacting ? (
     <CompactingLabel createdAt={row.createdAt} />
   ) : row.createdAt ? (
     <>
-      {"Working for "}
-      <WorkingTimer createdAt={row.createdAt} />
+      {uiText("Working for")} <WorkingTimer createdAt={row.createdAt} />
     </>
   ) : (
-    "Working..."
+    uiText("Working...")
   );
   return (
     <div className="border-b border-border/60 pb-2 pt-1">

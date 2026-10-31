@@ -1,8 +1,10 @@
 # Xiaoxin T3 Code · Community Edition
 
-**Desktop release: C30 community prerelease is available.** [Download C30](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c30-20261030) · [Detailed notes](docs/community/c30/RELEASE.en.md)
+**Mac C31 prerelease:** [Download Apple Silicon build](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c31-20261031) · [Validation and limitations](docs/community/c31/RELEASE.en.md) · [Windows C31-W1](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c31-windows-test-20261031)
 
-**Source synchronization:** upstream `main` is actually merged through `97e35bcf23` (2026-10-30). [Changes and validation](docs/community/c30/SYNC.en.md). C30 includes this synchronization. The maintainer installation is waiting for idle tasks; post-install readback is pending. The C29 information below is retained as history.
+**Previous Mac release: C30.** [Download C30](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c30-20261030) · [Detailed notes](docs/community/c30/RELEASE.en.md)
+
+**Source synchronization:** upstream `main` is actually merged through `97e35bcf23` (2026-10-30). [Changes and validation](docs/community/c30/SYNC.en.md). C31 inherits the C30 integration and adds thread subscription recovery, task progress and localization fixes. Its package matches the currently installed C31 application byte for byte; validation limits are documented in the C31 notes. The C29 information below is retained as history.
 
 
 **Previous desktop release: C29 (official baseline 0.1.5)** · [Download](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c29-20261030) · [Detailed release notes](docs/community/c29/RELEASE.en.md) · [简体中文](README.md)

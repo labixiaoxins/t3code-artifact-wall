@@ -932,6 +932,35 @@ export const makeEnvironmentThreadState = Effect.fn("EnvironmentThreadState.make
     );
   });
 
+  // A 404 can precede creation. Wait for authoritative existence instead of
+  // polling a missing id or permanently poisoning its retained subscription.
+  const awaitCreatedThread = Effect.fn("EnvironmentThreadState.awaitCreatedThread")(function* () {
+    yield* subscribeDynamic(
+      ORCHESTRATION_V2_WS_METHODS.subscribeShell,
+      () => Effect.succeed({}),
+    ).pipe(
+      Stream.filter((item) =>
+        item.kind === "thread.updated"
+          ? item.thread.id === threadId
+          : item.kind === "snapshot" &&
+            [...item.snapshot.threads, ...item.snapshot.archivedThreads].some(
+              (thread) => thread.id === threadId,
+            ),
+      ),
+      Stream.runHead,
+      Effect.flatMap(Option.match({ onNone: () => Effect.never, onSome: () => Effect.void })),
+      Effect.provideService(EnvironmentSupervisor.EnvironmentSupervisor, supervisor),
+      Effect.catchCause((cause) =>
+        setStreamError(formatThreadError(cause)).pipe(Effect.andThen(Effect.never)),
+      ),
+    );
+    yield* SubscriptionRef.set(state, {
+      ...EMPTY_ENVIRONMENT_THREAD_STATE,
+      status: "synchronizing" as const,
+    });
+    yield* remember;
+  });
+
   yield* markSynchronizing;
   yield* Effect.forkScoped(
     subscribeDynamic(
@@ -942,7 +971,8 @@ export const makeEnvironmentThreadState = Effect.fn("EnvironmentThreadState.make
         // Park the subscription attempt without opening the socket so we do not
         // retry forever against a known-missing id.
         if (current.status === "deleted") {
-          return yield* Effect.never;
+          yield* awaitCreatedThread();
+          current = yield* SubscriptionRef.get(state);
         }
 
         yield* Effect.ignore(session.initialConfig);
@@ -998,7 +1028,10 @@ export const makeEnvironmentThreadState = Effect.fn("EnvironmentThreadState.make
             }
             case "missing": {
               yield* setDeleted();
-              return yield* Effect.never;
+              yield* awaitCreatedThread();
+              current = yield* SubscriptionRef.get(state);
+              yield* Ref.set(awaitingCompletion, true);
+              break;
             }
             case "unavailable": {
               break;

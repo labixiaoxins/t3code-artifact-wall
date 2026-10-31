@@ -91,7 +91,7 @@ export function V2LifecycleRow(props: {
     return (
       <TimelineSystemDivider
         label={uiText("Run interrupted")}
-        detail={item.message}
+        detail={item.message === "Stopped by user" ? uiText("Stopped by user") : item.message}
         tone="danger"
         icon={XIcon}
       />

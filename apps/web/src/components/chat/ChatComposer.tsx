@@ -3323,8 +3323,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                     placeholder={
                       isComposerApprovalState
                         ? activePendingApproval?.supportsFeedback
-                          ? "Send feedback to decline this request"
-                          : "Send a message to decline and redirect the agent"
+                          ? uiText("Send feedback to decline this request")
+                          : uiText("Send a message to decline and redirect the agent")
                         : activePendingProgress
                           ? isChoiceOnlyPendingQuestion
                             ? uiText("Choose an option above")
@@ -3340,8 +3340,10 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                               : showProviderUnavailable
                                 ? uiText("Enable a provider in Settings to send a message")
                                 : phase === "disconnected"
-                                  ? "The connection was interrupted. You can send again when it reconnects."
-                                  : DEFAULT_COMPOSER_PLACEHOLDER
+                                  ? uiText(
+                                      "The connection was interrupted. You can send again when it reconnects.",
+                                    )
+                                  : uiText(DEFAULT_COMPOSER_PLACEHOLDER)
                     }
                     disabled={
                       projectSelectionRequired ||
