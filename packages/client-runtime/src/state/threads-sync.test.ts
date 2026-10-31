@@ -112,6 +112,7 @@ const makeHarness = Effect.fn("TestEnvironmentThreads.makeHarness")(function* (o
     readonly latestLocalTurnOrdinal?: number | null;
   };
   readonly httpSnapshot?: ThreadSnapshotLoadResult;
+  readonly shellExists?: boolean;
   /** The test sends the completion marker itself instead of the fake server sending it first. */
   readonly completionMarker?: boolean;
   readonly resumeCache?: NonNullable<Parameters<typeof makeEnvironmentThreadState>[1]>;
@@ -146,6 +147,10 @@ const makeHarness = Effect.fn("TestEnvironmentThreads.makeHarness")(function* (o
       ),
     );
   const client = {
+    [ORCHESTRATION_V2_WS_METHODS.subscribeShell]: () =>
+      options?.shellExists
+        ? Stream.make({ kind: "thread.updated", thread: { id: THREAD_ID } })
+        : Stream.never,
     [ORCHESTRATION_V2_WS_METHODS.subscribeThread]: (input: {
       readonly afterSequence?: number;
       readonly requestCompletionMarker?: true;
@@ -2205,3 +2210,15 @@ describe("EnvironmentThreads", () => {
     }),
   );
 });
+
+it.effect("recovers a pre-creation HTTP miss when the shell confirms creation", () =>
+  Effect.gen(function* () {
+    const h = yield* makeHarness({ httpSnapshot: { _tag: "missing" }, shellExists: true });
+    yield* Queue.offer(h.inputs, snapshot(BASE_PROJECTION));
+    yield* Queue.offer(h.inputs, synchronized());
+    const state = yield* awaitThreadState(h.observed, (value) => value.status === "live");
+    expect(Option.getOrThrow(state.data)).toEqual(BASE_PROJECTION);
+    expect(yield* SubscriptionRef.get(h.subscriptionCount)).toBe(1);
+    expect(yield* Ref.get(h.loaderCalls)).toBe(1);
+  }),
+);

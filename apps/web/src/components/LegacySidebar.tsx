@@ -1,4 +1,5 @@
 import { uiText } from "~/i18n";
+import { SidebarTaskProgress } from "./sidebar/SidebarTaskProgress";
 import { useStableCallback } from "../hooks/useStableCallback";
 import { pendingSidebarRouteReveal, completeSidebarRouteReveal } from "./sidebar/routeReveal";
 import { useSupportsMultiplePullRequests } from "~/hooks/useSupportsMultiplePullRequests";
@@ -502,6 +503,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
       },
       addFolders: () => {},
     }))();
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Clear the drop highlight when the browser ends a file drag outside the row.
   useEffect(() => {
     if (!isFileDragOver) return;
     const clearFileDrag = () => setIsFileDragOver(false);
@@ -1054,6 +1056,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
           </div>
         </div>
       </div>
+      {isActive ? <SidebarTaskProgress key={threadKey} threadRef={threadRef} /> : null}
     </SidebarMenuSubItem>
   );
 });
@@ -1489,6 +1492,7 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
   // dependency arrays (avoids invalidating every thread-row memo on each
   // thread-list change).
   const sidebarThreadByKeyRef = useRef(sidebarThreadByKey);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Keep registered drag callbacks reading the committed thread map without resubscribing every row.
   useInsertionEffect(() => {
     sidebarThreadByKeyRef.current = sidebarThreadByKey;
   });
@@ -3887,6 +3891,7 @@ export default function LegacySidebar(props: { routeReveal: SidebarRouteReveal }
   const isManualProjectSorting = sidebarProjectSortOrder === "manual";
   // Project rows only age out by the clock, so a slow tick is enough to move one into "more".
   const [now, setNow] = useState(() => Date.now());
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Refresh time-based project grouping with the browser clock while the sidebar is mounted.
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 10 * 60 * 1000);
     return () => window.clearInterval(timer);
@@ -4050,6 +4055,7 @@ export default function LegacySidebar(props: { routeReveal: SidebarRouteReveal }
       const ref = parseScopedThreadKey(threadKey);
       return ref ? [ref] : [];
     }))();
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Bind global thread-navigation shortcuts to the visible sidebar order.
   useEffect(() => {
     const onWindowKeyDown = (event: globalThis.KeyboardEvent) => {
       const shortcutContext = getCurrentSidebarShortcutContext();
@@ -4109,6 +4115,7 @@ export default function LegacySidebar(props: { routeReveal: SidebarRouteReveal }
     sidebarThreadByKey,
     threadJumpThreadKeys,
   ]);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Clear sidebar selection when a browser mouse event occurs outside it.
   useEffect(() => {
     window.addEventListener("mousedown", clearThreadSelectionOnOutsideMouseDown);
     return () => window.removeEventListener("mousedown", clearThreadSelectionOnOutsideMouseDown);
@@ -4252,7 +4259,7 @@ export default function LegacySidebar(props: { routeReveal: SidebarRouteReveal }
   // the "more projects" section when it sits there. The request is consumed so a repeat works too.
   const requestedScopeKey = useUiStateStore((state) => state.sidebarProjectScopeKeys[0] ?? null);
   const setSidebarProjectScopeKey = useUiStateStore((state) => state.setSidebarProjectScopeKeys);
-  // oxlint-disable-next-line t3code/react-effect-budget -- Reveal requests from search synchronize the sidebar with an external navigation store.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Reveal requests from search synchronize the sidebar with an external navigation store.
   useEffect(() => {
     if (requestedScopeKey === null) return;
     const resolvedKey = resolveSidebarProjectScopeKey({
@@ -4310,7 +4317,7 @@ export default function LegacySidebar(props: { routeReveal: SidebarRouteReveal }
     mountRevealOwed.current = false;
     activeRow.scrollIntoView({ block: "nearest" });
   });
-  // oxlint-disable-next-line t3code/react-effect-budget -- Scroll the route row only after its DOM has mounted.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Scroll the route row only after its DOM has mounted.
   useEffect(revealRouteRow, [revealRouteRow, routeThreadKey, routeRowRendered]);
   const handleLocateProject = (projectKey: string, expandAllThreads = false) => {
     {

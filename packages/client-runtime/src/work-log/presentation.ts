@@ -430,40 +430,83 @@ function toolGroupActionCount(
   return changedFiles.size + editsWithoutFileDetails;
 }
 
-function toolGroupActionLabel(action: ToolGroupAction, count: number): string {
+type WorkLogTranslate = (source: string, values?: Readonly<Record<string, unknown>>) => string;
+
+const englishWorkLog: WorkLogTranslate = (source, values) =>
+  source.replace(/\{([A-Za-z0-9_]+)\}/g, (placeholder, name: string) =>
+    values && Object.hasOwn(values, name) ? String(values[name]) : placeholder,
+  );
+
+function workLogList(items: ReadonlyArray<string>, text: WorkLogTranslate): string {
+  if (items.length < 2) return items[0] ?? "";
+  if (items.length === 2) return text("{first} and {last}", { first: items[0], last: items[1] });
+  return text("{items}, and {last}", {
+    items: items.slice(0, -1).reduce((first, next) => text("{first}, {next}", { first, next })),
+    last: items.at(-1),
+  });
+}
+
+function toolGroupActionLabel(
+  action: ToolGroupAction,
+  count: number,
+  text: WorkLogTranslate,
+): string {
   switch (action) {
     case "link-pr":
-      return `Linked ${count} ${count === 1 ? "pull request" : "pull requests"}`;
+      return text(count === 1 ? "Linked {count} pull request" : "Linked {count} pull requests", {
+        count,
+      });
     case "unlink-pr":
-      return `Unlinked ${count} ${count === 1 ? "pull request" : "pull requests"}`;
+      return text(
+        count === 1 ? "Unlinked {count} pull request" : "Unlinked {count} pull requests",
+        { count },
+      );
     case "watch-pr":
-      return `Watching ${count} ${count === 1 ? "pull request" : "pull requests"}`;
+      return text(
+        count === 1 ? "Watching {count} pull request" : "Watching {count} pull requests",
+        { count },
+      );
     case "unwatch-pr":
-      return `Stopped watching ${count} ${count === 1 ? "pull request" : "pull requests"}`;
+      return text(
+        count === 1
+          ? "Stopped watching {count} pull request"
+          : "Stopped watching {count} pull requests",
+        { count },
+      );
     case "list-prs":
       return count === 1
-        ? "Checked linked pull requests"
-        : `Checked linked pull requests ${count} times`;
+        ? text("Checked linked pull requests")
+        : text("Checked linked pull requests {count} times", { count });
     case "read":
-      return `Read ${count} ${count === 1 ? "file" : "files"}`;
+      return text(count === 1 ? "Read {count} file" : "Read {count} files", { count });
     case "edit":
-      return `Changed ${count} ${count === 1 ? "file" : "files"}`;
+      return text(count === 1 ? "Changed {count} file" : "Changed {count} files", { count });
     case "command":
-      return `Ran ${count} ${count === 1 ? "command" : "commands"}`;
+      return text(count === 1 ? "Ran {count} command" : "Ran {count} commands", { count });
     case "thread-create":
-      return `Created ${count} ${count === 1 ? "thread" : "threads"}`;
+      return text(count === 1 ? "Created {count} thread" : "Created {count} threads", { count });
     case "device":
-      return `Used device controls ${count} ${count === 1 ? "time" : "times"}`;
+      return text(
+        count === 1 ? "Used device controls {count} time" : "Used device controls {count} times",
+        { count },
+      );
     case "browser":
-      return `Used browser ${count} ${count === 1 ? "time" : "times"}`;
+      return text(count === 1 ? "Used browser {count} time" : "Used browser {count} times", {
+        count,
+      });
     case "search":
-      return `Searched the web ${count} ${count === 1 ? "time" : "times"}`;
+      return text(
+        count === 1 ? "Searched the web {count} time" : "Searched the web {count} times",
+        { count },
+      );
     case "code-search":
-      return `Searched code ${count} ${count === 1 ? "time" : "times"}`;
+      return text(count === 1 ? "Searched code {count} time" : "Searched code {count} times", {
+        count,
+      });
     case "other":
-      return `Used ${count} ${count === 1 ? "tool" : "tools"}`;
+      return text(count === 1 ? "Used {count} tool" : "Used {count} tools", { count });
     case "update":
-      return `Received ${count} ${count === 1 ? "update" : "updates"}`;
+      return text(count === 1 ? "Received {count} update" : "Received {count} updates", { count });
   }
 }
 
@@ -525,14 +568,20 @@ function summaryActionPriority(action: ToolGroupAction | T3McpToolSummaryAction)
   }
 }
 
-export function summarizeToolGroup(entries: ReadonlyArray<WorkLogPresentationEntry>): {
+export function summarizeToolGroup(
+  entries: ReadonlyArray<WorkLogPresentationEntry>,
+  text: WorkLogTranslate = englishWorkLog,
+): {
   summary: string;
   hasFailure: boolean;
 } {
   const toolEntries = entries.filter((entry) => entry.itemType !== "reasoning");
   if (entries.length > 0 && toolEntries.length === 0) {
     return {
-      summary: entries.length === 1 ? "Thought" : `Thought (×${entries.length})`,
+      summary:
+        entries.length === 1
+          ? text("Thought")
+          : text("Thought (×{count})", { count: entries.length }),
       hasFailure: false,
     };
   }
@@ -571,6 +620,7 @@ export function summarizeToolGroup(entries: ReadonlyArray<WorkLogPresentationEnt
           label: toolGroupActionLabel(
             group.action,
             toolGroupActionCount(group.action, group.entries),
+            text,
           ),
           failedCount: group.entries.filter(workEntryDisplayIndicatesToolFailure).length,
         }),
@@ -583,15 +633,17 @@ export function summarizeToolGroup(entries: ReadonlyArray<WorkLogPresentationEnt
   if (sources.size > 0) {
     const sourceValues = [...sources.values()];
     const sourceNames = [...new Set(sourceValues.map((source) => source.name))];
-    const formattedNames =
-      sourceNames.length < 2
-        ? sourceNames[0]!
-        : sourceNames.length === 2
-          ? sourceNames.join(" and ")
-          : `${sourceNames.slice(0, -1).join(", ")}, and ${sourceNames.at(-1)}`;
+    const formattedNames = workLogList(sourceNames, text);
     const allIntegrations = sourceValues.every((source) => source.kind === "integration");
     labels.unshift(
-      `Used ${formattedNames}${allIntegrations ? ` ${sourceNames.length === 1 ? "integration" : "integrations"}` : ""}`,
+      text(
+        allIntegrations
+          ? sourceNames.length === 1
+            ? "Used {names} integration"
+            : "Used {names} integrations"
+          : "Used {names}",
+        { names: formattedNames },
+      ),
     );
   }
   const sourcedCount = entries.filter(
@@ -602,15 +654,17 @@ export function summarizeToolGroup(entries: ReadonlyArray<WorkLogPresentationEnt
   const remainingCount =
     entries.length - sourcedCount - selected.reduce((count, group) => count + group.count, 0);
   if (remainingCount > 0) {
-    labels.push(`Performed ${remainingCount} other ${remainingCount === 1 ? "action" : "actions"}`);
+    labels.push(
+      text(
+        remainingCount === 1 ? "Performed {count} other action" : "Performed {count} other actions",
+        { count: remainingCount },
+      ),
+    );
   }
   const sentenceLabels = labels.map((label, index) =>
     index === 0 ? label : label.charAt(0).toLowerCase() + label.slice(1),
   );
-  const summary =
-    sentenceLabels.length < 3
-      ? sentenceLabels.join(" and ")
-      : `${sentenceLabels.slice(0, -1).join(", ")}, and ${sentenceLabels.at(-1)}`;
+  const summary = workLogList(sentenceLabels, text);
   return { summary, hasFailure: summaries.some((group) => group.failedCount > 0) };
 }
 

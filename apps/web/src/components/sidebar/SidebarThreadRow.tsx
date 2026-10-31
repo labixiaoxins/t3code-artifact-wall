@@ -1,4 +1,5 @@
 import { uiText } from "~/i18n";
+import { SidebarTaskProgress } from "./SidebarTaskProgress";
 import { ThreadHoverCard, ThreadHoverCardPopup } from "../ThreadHoverCard";
 import { ThreadTerminalStatusButton } from "../ThreadStatusIndicators";
 import { discardComposerDraft } from "../../lib/discardComposerDraft";
@@ -1335,6 +1336,9 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
           </TooltipTrigger>
           {detailsTooltip}
         </Tooltip>
+        {props.isRouteThread && !sortable?.isDragging ? (
+          <SidebarTaskProgress key={threadKey} threadRef={threadRef} />
+        ) : null}
       </li>
     );
   }
@@ -1536,6 +1540,9 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
         </TooltipTrigger>
         {detailsTooltip}
       </Tooltip>
+      {props.isRouteThread && !sortable?.isDragging ? (
+        <SidebarTaskProgress key={threadKey} threadRef={threadRef} />
+      ) : null}
     </li>
   );
 });

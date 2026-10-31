@@ -523,7 +523,7 @@ function projectedWorkEntry(row: OrchestrationV2ProjectedTurnItem): WorkLogEntry
         item.steps.find((step) => step.status === "pending");
       return {
         ...common,
-        label: `Tasks ${done}/${item.steps.length}${current ? ` · ${current.text}` : ""}`,
+        label: `${uiText("Tasks {completed}/{total}", { completed: done, total: item.steps.length })}${current ? ` · ${current.text}` : ""}`,
       };
     }
     case "approval_request":
@@ -1123,7 +1123,7 @@ export function findRevertCheckpoint(
 }
 
 export function derivePhase(runtime: ThreadStructureRuntime | null): SessionPhase {
-  if (runtime === null) return "disconnected";
+  if (runtime === null) return "ready";
   if (
     runtime.status === "preparing" ||
     runtime.status === "starting" ||

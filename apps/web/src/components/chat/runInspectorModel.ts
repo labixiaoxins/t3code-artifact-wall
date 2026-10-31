@@ -1,9 +1,7 @@
-import type {
-  OrchestrationV2ThreadProjection,
-  ServerProviderUsageLimits,
-} from "@t3tools/contracts";
+import type { ThreadStructure } from "@t3tools/client-runtime/state/shell";
+import type { ServerProviderUsageLimits } from "@t3tools/contracts";
 
-export function executionSnapshot(projection: OrchestrationV2ThreadProjection | null) {
+export function executionSnapshot(projection: ThreadStructure | null) {
   if (!projection) return null;
   // Queued selections are intent, not evidence that a provider ran them.
   const run = [...projection.runs].reverse().find((run) => run.startedAt !== null);

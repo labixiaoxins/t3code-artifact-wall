@@ -42,7 +42,7 @@ export function SecretRequestCard(props: {
         icon={<Icon className="size-3.5 text-icon-muted" aria-hidden />}
         label={
           <>
-            {item.label} · {display.label}
+            {item.label} · {uiText(display.label)}
           </>
         }
       />
@@ -88,7 +88,7 @@ function PendingSecretRequestForm(props: {
       return;
     }
     if (!isAtomCommandInterrupted(result)) {
-      pipe(squashAtomCommandFailure(result), secretRequestFailureMessage, setError);
+      pipe(squashAtomCommandFailure(result), secretRequestFailureMessage, uiText, setError);
     }
   };
 
@@ -129,7 +129,7 @@ function PendingSecretRequestForm(props: {
             data-1p-ignore
             data-lpignore="true"
             data-bwignore
-            placeholder={item.placeholder ?? SECRET_REQUEST_DEFAULT_PLACEHOLDER}
+            placeholder={item.placeholder ?? uiText(SECRET_REQUEST_DEFAULT_PLACEHOLDER)}
             value={secret}
             disabled={submitting}
             aria-invalid={error !== null || undefined}
@@ -152,7 +152,7 @@ function PendingSecretRequestForm(props: {
           className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground"
         >
           <ShieldCheckIcon className="size-3.5 shrink-0" aria-hidden />
-          {secretRequestPrivacyNote(item)}
+          {uiText(secretRequestPrivacyNote(item))}
         </p>
         <Button
           type="button"

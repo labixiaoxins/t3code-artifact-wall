@@ -1,0 +1,11 @@
+/* Windows distribution: official surfaces, independent of the macOS glass profile. */
+html:root {
+  --font-sans: "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+}
+html [class*="quota-topbar"] {
+  background: var(--background);
+  border-radius: 6px;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}

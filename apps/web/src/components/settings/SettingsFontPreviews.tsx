@@ -46,7 +46,7 @@ export function PromptFontPreview() {
         contextRecords={EMPTY_COMPOSER_CONTEXT_RECORDS}
         skills={PREVIEW_SKILLS}
         disabled={false}
-        placeholder={DEFAULT_COMPOSER_PLACEHOLDER}
+        placeholder={uiText(DEFAULT_COMPOSER_PLACEHOLDER)}
         className="max-h-42"
         onChange={onChange}
         onPaste={noop}

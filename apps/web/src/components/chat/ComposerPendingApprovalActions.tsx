@@ -1,4 +1,5 @@
 import { uiText } from "~/i18n";
+import { approvalOptionLabel } from "~/i18n/approval";
 import {
   type ProviderApprovalDecision,
   type ProviderApprovalOption,
@@ -25,10 +26,10 @@ interface ComposerPendingApprovalActionsProps {
 }
 
 const DEFAULT_APPROVAL_OPTIONS = [
-  { decision: "cancel", label: uiText("Cancel") },
-  { decision: "decline", label: uiText("Decline") },
-  { decision: "acceptForSession", label: uiText("Always allow this session") },
-  { decision: "accept", label: uiText("Approve") },
+  { decision: "cancel", label: "Cancel" },
+  { decision: "decline", label: "Decline" },
+  { decision: "acceptForSession", label: "Always allow this session" },
+  { decision: "accept", label: "Approve" },
 ] satisfies ReadonlyArray<ProviderApprovalOption>;
 
 export const ComposerPendingApprovalActions = memo(function ComposerPendingApprovalActions({
@@ -40,10 +41,15 @@ export const ComposerPendingApprovalActions = memo(function ComposerPendingAppro
   options = DEFAULT_APPROVAL_OPTIONS,
   onRespondToApproval,
 }: ComposerPendingApprovalActionsProps) {
-  const primaryOptions = options.filter(
+  const localizedOptions = options.map((option) => ({
+    ...option,
+    label: approvalOptionLabel(option.label),
+    warning: option.warning ? uiText(option.warning) : undefined,
+  }));
+  const primaryOptions = localizedOptions.filter(
     (option) => option.decision === "decline" || option.decision === "accept",
   );
-  const moreOptions = options.filter(
+  const moreOptions = localizedOptions.filter(
     (option) => option.decision !== "decline" && option.decision !== "accept",
   );
 
@@ -111,7 +117,7 @@ export const ComposerPendingApprovalActions = memo(function ComposerPendingAppro
               )
             }
           >
-            {presentation === "inline" ? "More" : <EllipsisIcon />}
+            {presentation === "inline" ? uiText("More") : <EllipsisIcon />}
           </MenuTrigger>
           <MenuPopup {...composerFloatingLayerProps} side="top" align="end" width="content">
             {moreOptions.map((option) => {
