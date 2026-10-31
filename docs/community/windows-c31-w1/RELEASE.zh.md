@@ -8,7 +8,7 @@
 
 解压到固定目录，双击 `Start-Xiaoxin-T3.cmd`。无需安装 Node。请用此脚本启动，以隔离数据并关闭自动更新。
 
-应用数据与窗口配置：`%LOCALAPPDATA%\XiaoxinT3\C31-W1`；测试端口 43731。不包含 macOS 聊天、登录、密钥或项目。各模型需要 Windows 本机具备可用 CLI 与登录，额度不可用时显示未知状态。
+应用数据与窗口配置：`%LOCALAPPDATA%\XiaoxinT3\C31-W1`；测试端口 43731。不包含 macOS 聊天、登录、密钥或项目。各模型需要 Windows 本机具备可用 CLI 与登录，额度不可用时显示未知状态。Codex CLI 至少需要 0.159.0；维护者本机使用独立的官方 0.166.0，原全局 CLI 保留。启动脚本会优先使用 `%LOCALAPPDATA%\XiaoxinT3\codex-0.166.0\package\vendor\x86_64-pc-windows-msvc\bin`（如已安装），不修改系统 PATH。
 
 ## 三张示意图
 
